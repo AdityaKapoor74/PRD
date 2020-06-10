@@ -73,6 +73,10 @@ class MAA2C:
             trajectory.append(i)
           states = next_states
       
+#       make a directory called models
+      if episode%500:
+        torch.save(self.agents.actorcritic, "./models/actorcritic_network")
+        
       self.update(trajectory,episode)
 
 #     return episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list,self.agents.total_loss_list
