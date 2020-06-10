@@ -6,6 +6,7 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c import *
+from torch.utils.tensorboard import SummaryWriter
 
 class A2CAgent:
 
@@ -34,6 +35,9 @@ class A2CAgent:
     self.entropy_list = []
     self.value_loss_list = []
     self.policy_loss_list = []
+    # self.value_grad_list = []
+    # self.policy_grad_list = []
+    self.writer = SummaryWriter('runs/simple_spread_lr_2e-4')
 
   def get_action(self,state):
     state = torch.FloatTensor(state).to(self.device)
@@ -76,23 +80,43 @@ class A2CAgent:
     
     # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
 
+    self.writer.add_scalar('Entropy loss',self.entropy_list[-1],len(self.entropy_list))
+    self.writer.add_scalar('Value Loss',self.value_loss_list[-1],len(self.value_loss_list))
+    self.writer.add_scalar('Policy Loss',self.policy_loss_list[-1],len(self.policy_loss_list))
+
     return critic_loss,policy_loss
 
 
 
 
-  def update(self,input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net):
+  def update(self,input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net,episode):
     
     #update critic (value_net)
     value_loss,policy_loss = self.compute(input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net)
+    
     
     self.value_optimizer.zero_grad()
     value_loss.backward(retain_graph=True)
     self.value_optimizer.step()
 
+    for name, param in self.value_network.named_parameters():
+        # print(name)
+        # print(param.grad.data)
+        if 'bn' not in name:
+            # print("name")
+            # print(name)
+            # print("grad")
+            # print(param.grad.data)
+            self.writer.add_scalar(name,param.grad.data.norm(2).cpu().numpy(),episode)
+
 
     self.policy_optimizer.zero_grad()
     policy_loss.backward()
     self.policy_optimizer.step()
+
+    for name,param in self.policy_network.named_parameters():
+        # print(name)
+        if 'bn' not in name:
+            self.writer.add_scalar(name,param.grad.norm(2).cpu().numpy(),episode)
 
     # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
