@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 if __name__ == '__main__':
 	env = make_env(scenario_name="simple_spread")
 	ma_controller = MAA2C(env)
-	reward_list,entropy_list,value_loss_list,policy_loss_list,total_loss_list = ma_controller.run(100,300)
+	reward_list,entropy_list,value_loss_list,policy_loss_list,total_loss_list = ma_controller.run(100000,300)
 	
 	writer = SummaryWriter('runs/simple_spread_lr_2e-4')
 
