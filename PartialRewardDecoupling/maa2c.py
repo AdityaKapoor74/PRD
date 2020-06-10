@@ -1,5 +1,5 @@
-import matplotlib
-import matplotlib.pyplot as plt
+#import matplotlib
+#import matplotlib.pyplot as plt
 import random
 
 import torch
@@ -19,6 +19,7 @@ class MAA2C:
     self.env = env
     self.num_agents = env.n
     self.agents = A2CAgent(self.env)
+    self.episode_rewards = []
 
   def get_actions(self,states):
     actions = []
@@ -37,7 +38,7 @@ class MAA2C:
     plt.ylabel('Reward')
     plt.plot(rewards)
 
-  def update(self,trajectory):
+  def update(self,trajectory,episode):
 
     states = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
     actions = torch.FloatTensor([sars[1] for sars in trajectory]).view(-1, 1).to(self.device)
@@ -47,11 +48,11 @@ class MAA2C:
     inputs_to_value_net = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
     next_inputs_to_value_net = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
 
-    self.agents.update(states,next_states,actions,rewards,inputs_to_value_net,next_inputs_to_value_net)
+    self.agents.update(states,next_states,actions,rewards,inputs_to_value_net,next_inputs_to_value_net,episode)
 
 
   def run(self,max_episode,max_steps):
-    episode_rewards = []
+    
     for episode in range(max_episode):
       states = self.env.reset()
 
@@ -85,10 +86,11 @@ class MAA2C:
         next_input_to_value_net = np.asarray(next_input_to_value_net)
 
         episode_reward += np.mean(rewards)
+        self.episode_rewards.append(episode_reward)
+        self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
 
         if all(dones) or step == max_steps-1:
           dones = [1 for _ in range(self.num_agents)]
-          episode_rewards.append(episode_reward)
           sarsd = [[states[i],float(actions[i]),rewards[i],next_states[i],dones[i],input_to_value_net[i],next_input_to_value_net[i]] for i in range(len(states))]
           for i in sarsd:
             trajectory.append(i)
@@ -101,7 +103,7 @@ class MAA2C:
             trajectory.append(i)
           states = next_states
       
-      self.update(trajectory)
+      self.update(trajectory,episode)
 
-    return episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list,self.agents.total_loss_list
+    # return self.episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list
 
