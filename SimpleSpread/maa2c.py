@@ -56,11 +56,11 @@ class MAA2C:
         # print(actions)
         next_states,rewards,dones,_ = self.env.step(actions)
         episode_reward += np.mean(rewards)
+        self.episode_rewards.append(episode_reward)
         self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
 
         if all(dones) or step == max_steps-1:
           dones = [1 for _ in range(self.num_agents)]
-          episode_rewards.append(episode_reward)
           sarsd = [[states[i],actions[i].argmax(),rewards[i],next_states[i],dones[i]] for i in range(len(states))]
           for i in sarsd:
             trajectory.append(i)
