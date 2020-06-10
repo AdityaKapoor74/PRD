@@ -6,6 +6,7 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c import *
+from torch.utils.tensorboard import SummaryWriter
 
 class A2CAgent:
 
@@ -29,6 +30,7 @@ class A2CAgent:
     self.value_loss_list = []
     self.policy_loss_list = []
     self.total_loss_list = []
+    self.writer = SummaryWriter('runs/simple_spread_lr_2e-4')
 
   def get_action(self,state):
     state = torch.FloatTensor(state).to(self.device)
@@ -48,7 +50,7 @@ class A2CAgent:
     return one_hot
 
 
-  def update(self,global_state_batch,global_next_state_batch,global_actions_batch,rewards):
+  def update(self,global_state_batch,global_next_state_batch,global_actions_batch,rewards,episode):
     
     #update actorcritic
     curr_logits,curr_Q = self.actorcritic.forward(global_state_batch)
@@ -79,3 +81,12 @@ class A2CAgent:
     total_loss.backward()
     # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
     self.actorcritic_optimizer.step()
+    
+    for name,param in self.actorcritic.named_parameters():
+        if 'bn' not in name:
+            self.writer.add_scalar(name,param.grad.norm(2).cpu().numpy(),episode)
+    
+    self.writer.add_scalar('Entropy loss',self.entropy_list[-1],len(self.entropy_list))
+    self.writer.add_scalar('Value Loss',self.value_loss_list[-1],len(self.value_loss_list))
+    self.writer.add_scalar('Policy Loss',self.policy_loss_list[-1],len(self.policy_loss_list))
+    self.writer.add_scalar('Total Loss',self.total_loss_list[-1],len(self.total_loss_list))
