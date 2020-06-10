@@ -18,6 +18,7 @@ class MAA2C:
     self.env = env
     self.num_agents = env.n
     self.agents = A2CAgent(self.env)
+    self.episode_rewards = []
 
   def get_actions(self,states):
     actions = []
@@ -34,7 +35,7 @@ class MAA2C:
     plt.ylabel('Reward')
     plt.plot(rewards)
 
-  def update(self,trajectory):
+  def update(self,trajectory,episode):
 
     states = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
     actions = torch.LongTensor([sars[1] for sars in trajectory]).view(-1, 1).to(self.device)
@@ -42,11 +43,10 @@ class MAA2C:
     next_states = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
     dones = torch.FloatTensor([sars[4] for sars in trajectory]).view(-1, 1).to(self.device)
 
-    self.agents.update(states,next_states,actions,rewards)
+    self.agents.update(states,next_states,actions,rewards,episode)
 
 
   def run(self,max_episode,max_steps):
-    episode_rewards = []
     for episode in range(max_episode):
       states = self.env.reset()
       trajectory = []
@@ -56,6 +56,7 @@ class MAA2C:
         # print(actions)
         next_states,rewards,dones,_ = self.env.step(actions)
         episode_reward += np.mean(rewards)
+        self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
 
         if all(dones) or step == max_steps-1:
           dones = [1 for _ in range(self.num_agents)]
@@ -72,7 +73,7 @@ class MAA2C:
             trajectory.append(i)
           states = next_states
       
-      self.update(trajectory)
+      self.update(trajectory,episode)
 
-    return episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list,self.agents.total_loss_list
+#     return episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list,self.agents.total_loss_list
 
