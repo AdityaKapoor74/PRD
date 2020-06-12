@@ -56,8 +56,7 @@ class MAA2C:
         # print(actions)
         next_states,rewards,dones,_ = self.env.step(actions)
         episode_reward += np.mean(rewards)
-        self.episode_rewards.append(episode_reward)
-        self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
+        
 
         if all(dones) or step == max_steps-1:
           dones = [1 for _ in range(self.num_agents)]
@@ -76,6 +75,9 @@ class MAA2C:
 #       make a directory called models
       if episode%500:
         torch.save(self.agents.actorcritic, "./models/actorcritic_network")
+      
+      self.episode_rewards.append(episode_reward)
+      self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
         
       self.update(trajectory,episode)
 
