@@ -86,8 +86,6 @@ class MAA2C:
         next_input_to_value_net = np.asarray(next_input_to_value_net)
 
         episode_reward += np.mean(rewards)
-        self.episode_rewards.append(episode_reward)
-        self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
 
         if all(dones) or step == max_steps-1:
           dones = [1 for _ in range(self.num_agents)]
@@ -107,6 +105,9 @@ class MAA2C:
       if episode%500:
         torch.save(self.agents.value_network, "./models/value_network")
         torch.save(self.agents.policy_network,"./models/policy_network")
+        
+      self.episode_rewards.append(episode_reward)
+      self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
         
       self.update(trajectory,episode)
 
