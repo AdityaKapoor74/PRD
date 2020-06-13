@@ -64,7 +64,7 @@ class A2CAgent:
     estimated_Q = rewards + self.gamma*next_Q
     
 
-    critic_loss = self.MSELoss(curr_Q,estimated_Q.detach())
+    critic_loss = self.MSELoss(curr_Q,estimated_Q.detach()).mean()
     dists = F.softmax(curr_logits,dim=1)
     probs = Categorical(dists)
 
