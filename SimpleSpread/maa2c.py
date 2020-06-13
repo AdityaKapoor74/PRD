@@ -64,6 +64,9 @@ class MAA2C:
           for i in sarsd:
             trajectory.append(i)
           print("episode: {} | reward: {} \n".format(episode,np.round(episode_reward,decimals=4)))
+          self.agents.writer.add_scalar('Lenght of the episode',step,episode)
+          self.episode_rewards.append(episode_reward)
+          self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],episode)
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
@@ -76,8 +79,6 @@ class MAA2C:
       if episode%500:
         torch.save(self.agents.actorcritic, "./models/actorcritic_network")
       
-      self.episode_rewards.append(episode_reward)
-      self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
         
       self.update(trajectory,episode)
 
