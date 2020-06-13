@@ -47,6 +47,10 @@ class A2CAgent:
     probs = Categorical(dist)
 
     index = probs.sample().cpu().detach().item()
+    
+    print("*"*100)
+    print("Action number:",index)
+    print("*"*100)
 
     return index
 
@@ -77,6 +81,16 @@ class A2CAgent:
 
     self.policy_loss_list.append(policy_loss)
     self.value_loss_list.append(critic_loss)
+    
+    print("*"*100)
+    print("Current Q:",curr_Q)
+    print("Next Q:",next_Q)
+    print("Estimated Q:",estimated_Q)
+    print("Value Loss:",critic_loss)
+    print("Entropy:",entropy)
+    print("Advantage",advantage)
+    print("Policy Loss:",policy_loss)
+    print("*"*100)
     
     # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
 
