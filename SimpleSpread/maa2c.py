@@ -63,7 +63,9 @@ class MAA2C:
           sarsd = [[states[i],actions[i].argmax(),rewards[i],next_states[i],dones[i]] for i in range(len(states))]
           for i in sarsd:
             trajectory.append(i)
-          print("episode: {} | reward: {} \n".format(episode,np.round(episode_reward,decimals=4)))
+          print("*"*200)
+          print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
+          print("*"*200)
           self.agents.writer.add_scalar('Lenght of the episode',step,episode)
           self.episode_rewards.append(episode_reward)
           self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],episode)
