@@ -60,6 +60,7 @@ class A2CAgent:
     
     #update actorcritic
     curr_logits,curr_Q = self.actorcritic.forward(global_state_batch)
+    rewards = rewards.reshape(-1,1)
     _,next_Q = self.actorcritic.forward(global_next_state_batch)
     estimated_Q = rewards + self.gamma*next_Q
     
