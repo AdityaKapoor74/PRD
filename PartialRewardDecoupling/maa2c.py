@@ -92,7 +92,12 @@ class MAA2C:
           sarsd = [[states[i],float(actions[i]),rewards[i],next_states[i],dones[i],input_to_value_net[i],next_input_to_value_net[i]] for i in range(len(states))]
           for i in sarsd:
             trajectory.append(i)
-          print("episode: {} | reward: {} \n".format(episode,np.round(episode_reward,decimals=4)))
+          print("*"*100)
+          print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
+          print("*"*100)
+          self.agents.writer.add_scalar("Length of the episode",step,episode)
+          self.episode_rewards.append(episode_reward)
+          self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],episode)
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
@@ -106,8 +111,6 @@ class MAA2C:
         torch.save(self.agents.value_network, "./models/value_network")
         torch.save(self.agents.policy_network,"./models/policy_network")
         
-      self.episode_rewards.append(episode_reward)
-      self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],len(self.episode_rewards))
         
       self.update(trajectory,episode)
 
