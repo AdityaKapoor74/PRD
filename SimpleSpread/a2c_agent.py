@@ -40,12 +40,18 @@ class A2CAgent:
     probs = Categorical(dist)
 
     index = probs.sample().cpu().detach().item()
+    
 
     # return index
 
     one_hot = torch.zeros(self.action_dim)
 
     one_hot[int(index)] = 1
+    
+    print("*"*100)
+    print("Action number:",index)
+    print("One hot vec:",one_hot)
+    print("*"*100)
 
     return one_hot
 
@@ -56,6 +62,7 @@ class A2CAgent:
     curr_logits,curr_Q = self.actorcritic.forward(global_state_batch)
     _,next_Q = self.actorcritic.forward(global_next_state_batch)
     estimated_Q = rewards + self.gamma*next_Q
+    
 
     critic_loss = self.MSELoss(curr_Q,estimated_Q.detach())
     dists = F.softmax(curr_logits,dim=1)
@@ -81,6 +88,17 @@ class A2CAgent:
     total_loss.backward()
     # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
     self.actorcritic_optimizer.step()
+    
+    print("*"*100)
+    print("Current Q:",curr_Q)
+    print("Next Q:",next_Q)
+    print("Estimated Q:",estimated_Q)
+    print("Value Loss:",critic_loss)
+    print("Entropy:",entropy)
+    print("Advantage",advantage)
+    print("Policy Loss:",policy_loss)
+    print("Total Loss:",total_loss)
+    print("*"*100)
     
     for name,param in self.actorcritic.named_parameters():
         if 'bn' not in name:
