@@ -48,10 +48,10 @@ class A2CAgent:
 
     one_hot[int(index)] = 1
     
-    print("*"*100)
-    print("Action number:",index)
-    print("One hot vec:",one_hot)
-    print("*"*100)
+#     print("*"*100)
+#     print("Action number:",index)
+#     print("One hot vec:",one_hot)
+#     print("*"*100)
 
     return one_hot
 
