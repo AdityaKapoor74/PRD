@@ -89,16 +89,16 @@ class A2CAgent:
     # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
     self.actorcritic_optimizer.step()
     
-    print("*"*100)
-    print("Current Q:",curr_Q)
-    print("Next Q:",next_Q)
-    print("Estimated Q:",estimated_Q)
-    print("Value Loss:",critic_loss)
-    print("Entropy:",entropy)
-    print("Advantage",advantage)
-    print("Policy Loss:",policy_loss)
-    print("Total Loss:",total_loss)
-    print("*"*100)
+#     print("*"*100)
+#     print("Current Q:",curr_Q)
+#     print("Next Q:",next_Q)
+#     print("Estimated Q:",estimated_Q)
+#     print("Value Loss:",critic_loss)
+#     print("Entropy:",entropy)
+#     print("Advantage",advantage)
+#     print("Policy Loss:",policy_loss)
+#     print("Total Loss:",total_loss)
+#     print("*"*100)
     
     for name,param in self.actorcritic.named_parameters():
         if 'bn' not in name:
