@@ -108,8 +108,8 @@ class MAA2C:
       
 #       make a directory by the name of models
       if episode%500:
-        torch.save(self.agents.value_network, "./models/value_network")
-        torch.save(self.agents.policy_network,"./models/policy_network")
+        torch.save(self.agents.value_network.state_dic(), "./models/value_network")
+        torch.save(self.agents.policy_network.state_dic(),"./models/policy_network")
         
         
       self.update(trajectory,episode)
