@@ -83,7 +83,7 @@ class A2CAgent:
     self.policy_loss_list.append(policy_loss)
     self.value_loss_list.append(critic_loss)
 
-    total_loss = policy_loss + critic_loss - 0.01*entropy
+    total_loss = policy_loss + critic_loss - 0.1*entropy
     self.total_loss_list.append(total_loss)
     self.actorcritic_optimizer.zero_grad()
     total_loss.backward()
