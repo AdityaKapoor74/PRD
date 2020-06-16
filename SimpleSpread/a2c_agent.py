@@ -10,7 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 class A2CAgent:
 
-  def __init__(self,env,lr=2e-4,gamma=0.99):
+  def __init__(self,env,lr=4e-4,gamma=0.99):
     self.env = env
     self.lr = lr
     self.gamma = gamma
@@ -30,7 +30,7 @@ class A2CAgent:
     self.value_loss_list = []
     self.policy_loss_list = []
     self.total_loss_list = []
-    self.writer = SummaryWriter('runs/simple_spread_lr_2e-4')
+    self.writer = SummaryWriter('runs/simple_spread_lr_4e-4')
 
   def get_action(self,state):
     state = torch.FloatTensor(state).to(self.device)
@@ -83,7 +83,7 @@ class A2CAgent:
     self.policy_loss_list.append(policy_loss)
     self.value_loss_list.append(critic_loss)
 
-    total_loss = policy_loss + critic_loss - 0.1*entropy
+    total_loss = policy_loss + critic_loss - 0.001*entropy
     self.total_loss_list.append(total_loss)
     self.actorcritic_optimizer.zero_grad()
     total_loss.backward()
