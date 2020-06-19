@@ -22,6 +22,7 @@ class A2CAgent:
     self.input_dim = env.observation_space[0].shape[0]
     self.action_dim = self.env.action_space[0].n
     self.actorcritic = CentralizedActorCritic(self.input_dim,self.action_dim).to(self.device)
+#     self.actorcritic.load_state_dict(torch.load(model_path,map_location=torch.device('cpu')))
 
     self.MSELoss = nn.MSELoss()
     self.actorcritic_optimizer = optim.Adam(self.actorcritic.parameters(),lr=lr)
