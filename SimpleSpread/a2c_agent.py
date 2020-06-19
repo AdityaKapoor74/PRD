@@ -87,7 +87,7 @@ class A2CAgent:
     self.total_loss_list.append(total_loss)
     self.actorcritic_optimizer.zero_grad()
     total_loss.backward()
-    # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
+    grad_norm = torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),50)
     self.actorcritic_optimizer.step()
     
 #     print("*"*100)
@@ -103,9 +103,10 @@ class A2CAgent:
     
     for name,param in self.actorcritic.named_parameters():
         if 'bn' not in name:
-            self.writer.add_scalar(name,param.grad.norm(2).cpu().numpy(),episode)
+            self.writer.add_scalar(Gradients/name,param.grad.norm(2).cpu().numpy(),episode)
     
-    self.writer.add_scalar('Entropy loss',self.entropy_list[-1],len(self.entropy_list))
-    self.writer.add_scalar('Value Loss',self.value_loss_list[-1],len(self.value_loss_list))
-    self.writer.add_scalar('Policy Loss',self.policy_loss_list[-1],len(self.policy_loss_list))
-    self.writer.add_scalar('Total Loss',self.total_loss_list[-1],len(self.total_loss_list))
+    self.writer.add_scalar('Loss/Entropy loss',self.entropy_list[-1],len(self.entropy_list))
+    self.writer.add_scalar('Loss/Value Loss',self.value_loss_list[-1],len(self.value_loss_list))
+    self.writer.add_scalar('Loss/Policy Loss',self.policy_loss_list[-1],len(self.policy_loss_list))
+    self.writer.add_scalar('Loss/Total Loss',self.total_loss_list[-1],len(self.total_loss_list))
+    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm,epsiode)
