@@ -79,7 +79,7 @@ class MAA2C:
       
 #       make a directory called models
       if episode%500:
-        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4.pt")
+        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm.pt")
       
         
       self.update(trajectory,episode)
