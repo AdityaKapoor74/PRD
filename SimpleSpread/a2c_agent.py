@@ -30,7 +30,7 @@ class A2CAgent:
     self.value_loss_list = []
     self.policy_loss_list = []
     self.total_loss_list = []
-    self.writer = SummaryWriter('runs/simple_spread_lr_4e-4')
+    self.writer = SummaryWriter('runs/simple_spread_lr_4e-4_with_grad_norm')
 
   def get_action(self,state):
     state = torch.FloatTensor(state).to(self.device)
@@ -103,10 +103,10 @@ class A2CAgent:
     
     for name,param in self.actorcritic.named_parameters():
         if 'bn' not in name:
-            self.writer.add_scalar(Gradients/name,param.grad.norm(2).cpu().numpy(),episode)
+            self.writer.add_scalar('Gradients/'+str(name),param.grad.norm(2).cpu().numpy(),episode)
     
     self.writer.add_scalar('Loss/Entropy loss',self.entropy_list[-1],len(self.entropy_list))
     self.writer.add_scalar('Loss/Value Loss',self.value_loss_list[-1],len(self.value_loss_list))
     self.writer.add_scalar('Loss/Policy Loss',self.policy_loss_list[-1],len(self.policy_loss_list))
     self.writer.add_scalar('Loss/Total Loss',self.total_loss_list[-1],len(self.total_loss_list))
-    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm,epsiode)
+    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm,episode)
