@@ -66,9 +66,9 @@ class MAA2C:
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
           print("*"*100)
-          self.agents.writer.add_scalar('Lenght of the episode',step,episode)
+          self.agents.writer.add_scalar('Reward Incurred/Lenght of the episode',step,episode)
           self.episode_rewards.append(episode_reward)
-          self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],episode)
+          self.agents.writer.add_scalar('Reward Incurred/Reward',self.episode_rewards[-1],episode)
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
