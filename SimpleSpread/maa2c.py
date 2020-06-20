@@ -27,14 +27,6 @@ class MAA2C:
       actions.append(action)
     return actions
 
-  def plot(self,rewards):
-    plt.figure(2)
-    plt.clf()
-    plt.title('Training..')
-    plt.xlabel('Episode')
-    plt.ylabel('Reward')
-    plt.plot(rewards)
-
   def update(self,trajectory,episode):
 
     states = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
@@ -79,7 +71,7 @@ class MAA2C:
       
 #       make a directory called models
       if episode%500:
-        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm.pt")
+        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_100.pt")
       
         
       self.update(trajectory,episode)
