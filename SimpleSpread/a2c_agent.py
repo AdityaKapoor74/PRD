@@ -88,7 +88,7 @@ class A2CAgent:
     self.total_loss_list.append(total_loss)
     self.actorcritic_optimizer.zero_grad()
     total_loss.backward()
-    grad_norm = torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),1000)
+    grad_norm = torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),100)
     self.actorcritic_optimizer.step()
     
 #     print("*"*100)
