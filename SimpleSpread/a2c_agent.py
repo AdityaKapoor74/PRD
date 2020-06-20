@@ -31,7 +31,7 @@ class A2CAgent:
     self.value_loss_list = []
     self.policy_loss_list = []
     self.total_loss_list = []
-    self.writer = SummaryWriter('runs/simple_spread_lr_4e-4_with_grad_norm')
+    self.writer = SummaryWriter('runs/simple_spread_lr_4e-4_with_grad_norm_100')
 
   def get_action(self,state):
     state = torch.FloatTensor(state).to(self.device)
