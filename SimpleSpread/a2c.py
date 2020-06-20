@@ -18,7 +18,7 @@ class CentralizedActorCritic(nn.Module):
     def forward(self, x):
         x_s = F.relu(self.shared_layer(x))
         qval = self.value(x_s)
-        policy = self.policy2(x_s)
+        policy = self.policy(x_s)
 
         return policy,qval
 
