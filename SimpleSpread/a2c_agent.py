@@ -1,90 +1,128 @@
-#import matplotlib
-#import matplotlib.pyplot as plt
-
-import torch
-import torch.nn.functional as F 
-import torch.optim as optim
-from torch.distributions import Categorical
-import torch.autograd as autograd
 import numpy as np
-
-from a2c_agent import A2CAgent
+import torch 
+import torch.nn as nn
+import torch.optim as optim
+import torch.autograd as autograd
+from torch.autograd import Variable
+from torch.distributions import Categorical
+from a2c import *
+from torch.utils.tensorboard import SummaryWriter
+import torch.nn.functional as F
 import gc
 
+class A2CAgent:
 
-class MAA2C:
-
-  def __init__(self,env):
-    self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  def __init__(self,env,lr=4e-4,gamma=0.99):
     self.env = env
-    self.num_agents = env.n
-    self.agents = A2CAgent(self.env)
-    self.episode_rewards = []
+    self.lr = lr
+    self.gamma = gamma
 
-  def get_actions(self,states):
-    actions = []
-    for i in range(self.num_agents):
-      action = self.agents.get_action(states[i])
-      actions.append(action)
-    return actions
+    self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    self.num_agents = self.env.n
 
-  def update(self,trajectory,episode):
+    self.input_dim = env.observation_space[0].shape[0]
+    self.action_dim = self.env.action_space[0].n
+    self.actorcritic = CentralizedActorCritic(self.input_dim,self.action_dim).to(self.device)
+#     self.actorcritic.load_state_dict(torch.load(model_path,map_location=torch.device('cpu')))
 
-    states = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-    actions = torch.LongTensor([sars[1] for sars in trajectory]).view(-1, 1).to(self.device)
-    rewards = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-    next_states = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-    dones = torch.FloatTensor([sars[4] for sars in trajectory]).view(-1, 1).to(self.device)
+    self.MSELoss = nn.MSELoss()
+    self.actorcritic_optimizer = optim.Adam(self.actorcritic.parameters(),lr=lr)
 
-    self.agents.update(states,next_states,actions,rewards,episode)
-    # del states,actions,rewards,next_states,dones
+    self.entropy_list = []
+    self.value_loss_list = []
+    self.policy_loss_list = []
+    self.total_loss_list = []
+    self.writer = SummaryWriter('runs/simple_spread_lr_4e-4_with_grad_norm_100')
+
+  def get_action(self,state):
+    state = torch.FloatTensor(state).to(self.device)
+    logits,_ = self.actorcritic.forward(state)
+    del state
+    dist = F.softmax(logits,dim=0)
+    # print('dist: ', dist)
+    probs = Categorical(dist)
+
+    index = probs.sample().cpu().detach().item()
+    
+
+    # return index
+
+    one_hot = torch.zeros(self.action_dim)
+
+    one_hot[int(index)] = 1
+    
+#     print("*"*100)
+#     print("Action number:",index)
+#     print("One hot vec:",one_hot)
+#     print("*"*100)
+
+    return one_hot
 
 
-  def run(self,max_episode,max_steps):
-    for episode in range(max_episode):
-      states = self.env.reset()
-      trajectory = []
-      episode_reward = 0
-      for step in range(max_steps):
-        actions = self.get_actions(states)
-        # print(actions)
-        next_states,rewards,dones,_ = self.env.step(actions)
-        episode_reward += np.mean(rewards)
-        
+  def update(self,global_state_batch,global_next_state_batch,global_actions_batch,rewards,episode):
+    
+    #update actorcritic
+    # print("STATE BATCH:")
+    # print(global_state_batch.shape)
+    curr_logits,curr_Q = self.actorcritic.forward(global_state_batch)
+    # print("CURRENT LOGITS:")
+    # print(curr_logits.shape)
+    rewards = rewards.reshape(-1,1)
+    _,next_Q = self.actorcritic.forward(global_next_state_batch)
+    estimated_Q = rewards + self.gamma*next_Q
+    
 
-        if all(dones) or step == max_steps-1:
-          dones = [1 for _ in range(self.num_agents)]
-          sarsd = [[states[i],actions[i].argmax(),rewards[i],next_states[i],dones[i]] for i in range(len(states))]
-          for i in sarsd:
-            trajectory.append(i)
-          print("*"*100)
-          print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
-          print("*"*100)
-          self.agents.writer.add_scalar('Reward Incurred/Lenght of the episode',step,episode)
-          self.episode_rewards.append(episode_reward)
-          self.agents.writer.add_scalar('Reward Incurred/Reward',self.episode_rewards[-1],episode)
-          break
-        else:
-          dones = [0 for _ in range(self.num_agents)]
-          sarsd = [[states[i],actions[i].argmax(),rewards[i],next_states[i],dones[i]] for i in range(len(states))]
-          for i in sarsd:
-            trajectory.append(i)
-          states = next_states
-      
-#       make a directory called models
-      if episode%500:
-        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_100.pt")
-      
-        
-      self.update(trajectory,episode) 
+    # critic_loss = self.MSELoss(curr_Q,estimated_Q.detach())
+    critic_loss = F.smooth_l1_loss(curr_Q,estimated_Q.detach())
+    dists = F.softmax(curr_logits,dim=1)
+    probs = Categorical(dists)
 
-      # torch.cuda.empty_cache()
+    entropy = []
+    for dist in dists:
+      entropy.append(-torch.sum(dist*torch.log(dist)))
+    entropy = torch.stack(entropy).mean()
+    self.entropy_list.append(entropy.item())
 
-      # for obj in gc.get_objects():
-      #   try:
-      #       if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-      #           print(type(obj), obj.size())
-      #   except: pass
+    # print('self.entropy_list: ', self.entropy_list)
 
-#     return episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list,self.agents.total_loss_list
+    advantage = estimated_Q - curr_Q
+    policy_loss = -probs.log_prob(global_actions_batch.view(global_actions_batch.size(0))).view(-1, 1) * advantage.detach()
+    policy_loss = policy_loss.mean()
+    self.policy_loss_list.append(policy_loss.item())
+    self.value_loss_list.append(critic_loss.item())
+    total_loss = policy_loss + critic_loss - 0.001*entropy
+    self.total_loss_list.append(total_loss.item())
+    self.actorcritic_optimizer.zero_grad()
+    total_loss.backward(retain_graph=False)
+    grad_norm = torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),100)
+    self.actorcritic_optimizer.step()
+    # total_loss.detach()
+    
+#     print("*"*100)
+#     print("Current Q:",curr_Q)
+#     print("Next Q:",next_Q)
+#     print("Estimated Q:",estimated_Q)
+#     print("Value Loss:",critic_loss)
+#     print("Entropy:",entropy)
+#     print("Advantage",advantage)
+#     print("Policy Loss:",policy_loss)
+#     print("Total Loss:",total_loss)
+#     print("*"*100)
+    
+    for name,param in self.actorcritic.named_parameters():
+        if 'bn' not in name:
+            self.writer.add_scalar('Gradients/'+str(name),param.grad.norm(2).cpu().numpy(),episode)
+    
+    self.writer.add_scalar('Loss/Entropy loss',self.entropy_list[-1],len(self.entropy_list))
+    self.writer.add_scalar('Loss/Value Loss',self.value_loss_list[-1],len(self.value_loss_list))
+    self.writer.add_scalar('Loss/Policy Loss',self.policy_loss_list[-1],len(self.policy_loss_list))
+    self.writer.add_scalar('Loss/Total Loss',self.total_loss_list[-1],len(self.total_loss_list))
+    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm,episode)
 
+
+    # for obj in gc.get_objects():
+    #     try:
+    #         if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+    #             print(type(obj), obj.size())
+    #     except: pass
