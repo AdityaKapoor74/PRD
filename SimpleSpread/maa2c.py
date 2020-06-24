@@ -9,6 +9,7 @@ import torch.autograd as autograd
 import numpy as np
 
 from a2c_agent import A2CAgent
+import gc
 
 
 class MAA2C:
@@ -36,6 +37,7 @@ class MAA2C:
     dones = torch.FloatTensor([sars[4] for sars in trajectory]).view(-1, 1).to(self.device)
 
     self.agents.update(states,next_states,actions,rewards,episode)
+    # del states,actions,rewards,next_states,dones
 
 
   def run(self,max_episode,max_steps):
@@ -74,7 +76,15 @@ class MAA2C:
         torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_100.pt")
       
         
-      self.update(trajectory,episode)
+      self.update(trajectory,episode) 
+
+      # torch.cuda.empty_cache()
+
+      # for obj in gc.get_objects():
+      #   try:
+      #       if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+      #           print(type(obj), obj.size())
+      #   except: pass
 
 #     return episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list,self.agents.total_loss_list
 
