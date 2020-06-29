@@ -60,7 +60,7 @@ class MAA2C:
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
           print("*"*100)
-          self.agents.writer.add_scalar('Reward Incurred/Lenght of the episode',step,episode)
+          self.agents.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
           self.episode_rewards.append(episode_reward)
           self.agents.writer.add_scalar('Reward Incurred/Reward',self.episode_rewards[-1],episode)
           break
@@ -73,7 +73,7 @@ class MAA2C:
       
 #       make a directory called models
       if episode%500:
-        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_100.pt")
+        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs.pt")
       
         
       self.update(trajectory,episode) 
