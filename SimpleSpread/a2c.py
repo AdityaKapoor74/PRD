@@ -12,8 +12,11 @@ class CentralizedActorCritic(nn.Module):
         self.action_dim = action_dim
 
         self.shared_layer = nn.Linear(self.obs_dim, 256)
+        torch.nn.init.xavier_uniform_(self.shared_layer.weight)
         self.value = nn.Linear(256, 1)
+        torch.nn.init.xavier_uniform_(self.value.weight)
         self.policy = nn.Linear(256, self.action_dim)
+        torch.nn.init.xavier_uniform_(self.policy.weight)
 
     def forward(self, x):
         x_s = F.relu(self.shared_layer(x))
