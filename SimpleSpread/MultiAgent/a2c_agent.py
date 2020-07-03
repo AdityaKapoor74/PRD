@@ -11,7 +11,7 @@ import gc
 
 class A2CAgent:
 
-  def __init__(self,env,lr=1e-5,gamma=0.99):
+  def __init__(self,env,lr=2e-4,gamma=0.99):
     self.env = env
     self.lr = lr
     self.gamma = gamma
