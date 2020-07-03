@@ -51,14 +51,14 @@ class MAA2C:
         next_states,rewards,dones,info = self.env.step(actions)
         
         # checking for completion
-        reached = []
-        for i in range(len(info['n'])):
-          reached.append(info['n'][i][3])
+#         reached = []
+#         for i in range(len(info['n'])):
+#           reached.append(info['n'][i][3])
           
         episode_reward += np.mean(rewards)
         
 
-        if all(reached) or step == max_steps-1:
+        if all(dones) or step == max_steps-1:
           dones = [1 for _ in range(self.num_agents)]
           sarsd = [[states[i],actions[i].argmax(),rewards[i],next_states[i],dones[i]] for i in range(len(states))]
           for i in sarsd:
