@@ -21,7 +21,7 @@ class MAA2C:
     self.agents = A2CAgent(self.env)
 
 
-    self.writer = SummaryWriter('runs/simple_spread_lr_2e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_multiagent')
+    self.writer = SummaryWriter('runs/simple_spread_lr_2e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_two_agent')
 
   def get_actions(self,states):
     actions = []
@@ -56,15 +56,12 @@ class MAA2C:
       for step in range(max_steps):
         actions = self.get_actions(states)
         next_states,rewards,dones,info = self.env.step(actions)
-        
-        reached = []
-        for i in range(len(info['n'])):
-          reached.append(info['n'][i][3])
+
 
         episode_reward += np.sum(rewards)
-        
 
-        if all(reached) or step == max_steps-1:
+        if all(dones) or step == max_steps-1:
+          print("STEP",step)
           dones = [1 for _ in range(self.num_agents)]
           trajectory.append([states,next_states,actions,rewards])
           print("*"*100)
@@ -80,7 +77,7 @@ class MAA2C:
       
 #       make a directory called models
       if episode%500:
-        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_multiagent.pt")
+        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_two_agent.pt")
       
         
       self.update(trajectory,episode) 
