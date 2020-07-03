@@ -21,7 +21,7 @@ class MAA2C:
     self.agents = A2CAgent(self.env)
 
 
-    self.writer = SummaryWriter('runs/simple_spread_lr_2e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_two_agent')
+    self.writer = SummaryWriter('runs/simple_spread_lr_4e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_two_agent')
 
   def get_actions(self,states):
     actions = []
@@ -77,7 +77,7 @@ class MAA2C:
       
 #       make a directory called models
       if episode%500:
-        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_2e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_two_agent.pt")
+        torch.save(self.agents.actorcritic.state_dict(), "./models/actorcritic_network_lr_4e-4_with_grad_norm_1_entropy_pen_0.008_xavier_init_clamp_logs_two_agent.pt")
       
         
       self.update(trajectory,episode) 
