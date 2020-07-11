@@ -21,7 +21,7 @@ class MAA2C:
     self.agents = A2CAgent(self.env)
 
 
-    # self.writer = SummaryWriter('longer_runs/two_agents/simple_spread_2_shared_layers_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_continued')
+    self.writer = SummaryWriter('longer_runs/three_agents/simple_spread_2_shared_layers_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_continued')
 
   def get_actions(self,states):
     actions = []
@@ -39,11 +39,11 @@ class MAA2C:
 
     critic_loss,policy_loss,entropy,total_loss,grad_norm = self.agents.update(states,next_states,actions,rewards)
 
-    # self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
-    # self.writer.add_scalar('Loss/Value Loss',critic_loss,episode)
-    # self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
-    # self.writer.add_scalar('Loss/Total Loss',total_loss,episode)
-    # self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm,episode)
+    self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
+    self.writer.add_scalar('Loss/Value Loss',critic_loss,episode)
+    self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
+    self.writer.add_scalar('Loss/Total Loss',total_loss,episode)
+    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm,episode)
 
 
 
@@ -74,8 +74,8 @@ class MAA2C:
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
           print("*"*100)
-          # self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
-          # self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+          self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
+          self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
@@ -83,8 +83,8 @@ class MAA2C:
           states = next_states
       
 #       make a directory called models
-      # if episode%500:
-      #   torch.save(self.agents.actorcritic.state_dict(), "./models/two_agents/actorcritic_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
+      if episode%500:
+        torch.save(self.agents.actorcritic.state_dict(), "./models/three_agents/actorcritic_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
       
         
       self.update(trajectory,episode) 
