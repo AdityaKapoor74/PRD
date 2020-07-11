@@ -52,6 +52,7 @@ class A2CAgent:
     # _,next_Q = self.actorcritic.forward(global_next_state_batch)
     # estimated_Q = rewards.unsqueeze(dim=2) + self.gamma*next_Q
     # print("REWARDS",rewards.shape)
+    rewards = rewards.to(self.device)
     discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
     discounted_rewards = np.transpose(discounted_rewards)
     # print("DISCOUNTED REWARDS",discounted_rewards.shape)
