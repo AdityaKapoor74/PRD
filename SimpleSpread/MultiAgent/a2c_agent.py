@@ -57,7 +57,7 @@ class A2CAgent:
     # print("DISCOUNTED REWARDS",discounted_rewards.shape)
     value_targets = rewards + torch.FloatTensor(discounted_rewards).to(self.device)
     # print("VALUE TARGETS:",value_targets.shape)
-    value_targets = value_targets.unsqueeze(dim=-1)
+    value_targets = value_targets.unsqueeze(dim=-1).to(self.device)
     # print("VALUE TARGETS:",value_targets.shape)
 
 
