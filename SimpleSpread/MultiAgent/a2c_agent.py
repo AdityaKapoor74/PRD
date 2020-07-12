@@ -23,8 +23,9 @@ class A2CAgent:
     self.input_dim = env.observation_space[0].shape[0]
     self.action_dim = self.env.action_space[0].n
     self.actorcritic = CentralizedActorCritic(self.input_dim,self.action_dim).to(self.device)
-    # model_path = "/home/aditya/Desktop/Partial_Reward_Decoupling/PRD/SimpleSpread/models/two_agents/actorcritic_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-    # self.actorcritic.load_state_dict(torch.load(model_path,map_location=torch.device('cpu')))
+    model_path = "./models/three_agents/actorcritic_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+#     self.actorcritic.load_state_dict(torch.load(model_path,map_location=torch.device('cpu')))
+    self.actorcritic.load_state_dict(torch.load(model_path))
 
     self.MSELoss = nn.MSELoss()
     self.actorcritic_optimizer = optim.Adam(self.actorcritic.parameters(),lr=lr)
