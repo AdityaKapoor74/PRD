@@ -102,7 +102,7 @@ class A2CAgent:
     policy_loss = -probs.log_prob(global_actions_batch).unsqueeze(dim=-1) * advantage.detach()
     policy_loss = policy_loss.mean()
 
-    total_loss = policy_loss + critic_loss - 0.008*entropy
+    total_loss = policy_loss + critic_loss - 0.01*entropy
 
     self.actorcritic_optimizer.zero_grad()
     total_loss.backward(retain_graph=False)
