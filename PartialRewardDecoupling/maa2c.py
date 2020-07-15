@@ -1,6 +1,5 @@
 #import matplotlib
 #import matplotlib.pyplot as plt
-import random
 
 import torch
 import torch.nn.functional as F 
@@ -8,8 +7,9 @@ import torch.optim as optim
 from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
-
+from torch.utils.tensorboard import SummaryWriter
 from a2c_agent import A2CAgent
+import gc
 
 
 class MAA2C:
@@ -19,100 +19,67 @@ class MAA2C:
     self.env = env
     self.num_agents = env.n
     self.agents = A2CAgent(self.env)
-    self.episode_rewards = []
+
+
+    self.writer = SummaryWriter('longer_runs/four_agents/simple_spread_2_shared_layers_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_continued')
 
   def get_actions(self,states):
     actions = []
     for i in range(self.num_agents):
-      # print("MAA2C get_action")
-      # print(len(states[i]))
       action = self.agents.get_action(states[i])
       actions.append(action)
     return actions
 
-  def plot(self,rewards):
-    plt.figure(2)
-    plt.clf()
-    plt.title('Training..')
-    plt.xlabel('Episode')
-    plt.ylabel('Reward')
-    plt.plot(rewards)
-
   def update(self,trajectory,episode):
 
     states = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-    actions = torch.FloatTensor([sars[1] for sars in trajectory]).view(-1, 1).to(self.device)
-    rewards = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-    next_states = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-    dones = torch.FloatTensor([sars[4] for sars in trajectory]).view(-1, 1).to(self.device)
-    inputs_to_value_net = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
-    next_inputs_to_value_net = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
+    next_states = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+    actions = torch.LongTensor([sars[2] for sars in trajectory]).to(self.device)
+    rewards = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
 
-    self.agents.update(states,next_states,actions,rewards,inputs_to_value_net,next_inputs_to_value_net,episode)
+    value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states,next_states,actions,rewards)
+
+    self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
+    self.writer.add_scalar('Loss/Value Loss',value_loss,episode)
+    self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
+    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm_value,episode)
+    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm_policy,episode)
+
+
 
 
   def run(self,max_episode,max_steps):
-    
     for episode in range(max_episode):
       states = self.env.reset()
-
-      input_to_value_net = []
-      next_input_to_value_net = []
-      for i in range(self.num_agents):
-        input_to_value_net.append([])
-        next_input_to_value_net.append([])
-
       trajectory = []
       episode_reward = 0
       for step in range(max_steps):
-
         actions = self.get_actions(states)
-
-        for i in range(len(states)):
-          action_ = np.delete(actions,i)
-          input_to_value_net[i] = np.append(states[i],action_.astype(float))
-
-        input_to_value_net = np.asarray(input_to_value_net)
-
-        next_states,rewards,dones,_ = self.env.step(actions)
-
-        next_actions = self.get_actions(next_states)
+        next_states,rewards,dones,info = self.env.step(actions)
 
 
-        for i in range(len(next_states)):
-          action_ = np.delete(actions,i)
-          next_input_to_value_net[i] = np.append(next_states[i],action_.astype(float))
+        episode_reward += np.sum(rewards)
 
-        next_input_to_value_net = np.asarray(next_input_to_value_net)
-
-        episode_reward += np.mean(rewards)
 
         if all(dones) or step == max_steps-1:
+
           dones = [1 for _ in range(self.num_agents)]
-          sarsd = [[states[i],float(actions[i]),rewards[i],next_states[i],dones[i],input_to_value_net[i],next_input_to_value_net[i]] for i in range(len(states))]
-          for i in sarsd:
-            trajectory.append(i)
+          trajectory.append([states,next_states,actions,rewards])
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
           print("*"*100)
-          self.agents.writer.add_scalar("Length of the episode",step,episode)
-          self.episode_rewards.append(episode_reward)
-          self.agents.writer.add_scalar('Reward',self.episode_rewards[-1],episode)
+          self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
+          self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
-          sarsd = [[states[i],float(actions[i]),rewards[i],next_states[i],dones[i],input_to_value_net[i],next_input_to_value_net[i]] for i in range(len(states))]
-          for i in sarsd:
-            trajectory.append(i)
+          trajectory.append([states,next_states,actions,rewards])
           states = next_states
       
-#       make a directory by the name of models
-      if episode%500:
-        torch.save(self.agents.value_network.state_dic(), "./models/value_network")
-        torch.save(self.agents.policy_network.state_dic(),"./models/policy_network")
+#       make a directory called models
+      # if episode%500:
+      #   torch.save(self.agents.value_network.state_dict(), "./models/four_agents/value_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
+#         torch.save(self.agents.policy_network.state_dict(), "./models/four_agents/policy_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
         
-        
-      self.update(trajectory,episode)
-
-    # return self.episode_rewards,self.agents.entropy_list,self.agents.value_loss_list,self.agents.policy_loss_list
+      self.update(trajectory,episode) 
 
