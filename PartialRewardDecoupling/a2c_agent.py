@@ -6,7 +6,8 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c import *
-from torch.utils.tensorboard import SummaryWriter
+import torch.nn.functional as F
+import gc
 
 class A2CAgent:
 
@@ -24,113 +25,60 @@ class A2CAgent:
     self.value_output_dim = 1
     self.policy_input_dim = self.env.observation_space[0].shape[0]
     self.policy_output_dim = self.env.action_space[0].n
+    
+#     model_path_value = "/home/aditya/Desktop/Partial_Reward_Decoupling/PRD/PartialRewardDecoupling/models/three_agents/value_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+#     model_path_policy = "/home/aditya/Desktop/Partial_Reward_Decoupling/PRD/PartialRewardDecoupling/models/three_agents/policy_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
 
     self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
     self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
+    
+#     self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+#     self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 
-    self.MSELoss = nn.MSELoss()
     self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
     self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
-
-    self.entropy_list = []
-    self.value_loss_list = []
-    self.policy_loss_list = []
-    # self.value_grad_list = []
-    # self.policy_grad_list = []
-    self.writer = SummaryWriter('runs/simple_spread_lr_2e-4')
+    
 
   def get_action(self,state):
     state = torch.FloatTensor(state).to(self.device)
     logits = self.policy_network.forward(state)
     dist = F.softmax(logits,dim=0)
-    # print('dist: ', dist)
     probs = Categorical(dist)
 
     index = probs.sample().cpu().detach().item()
-    
-    print("*"*100)
-    print("Action number:",index)
-    print("*"*100)
 
     return index
 
-  def compute(self,input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net):
+  def update(self,input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net):
     
     #update critic (value_net)
     curr_Q = self.value_network.forward(input_to_value_net)
-    next_Q = self.value_network.forward(next_input_to_value_net)
-    estimated_Q = rewards+self.gamma*next_Q
-    critic_loss = self.MSELoss(curr_Q,estimated_Q.detach())
+    discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
+    discounted_rewards = np.transpose(discounted_rewards)
+    value_targets = rewards + torch.FloatTensor(discounted_rewards).to(self.device)
+    value_targets = value_targets.unsqueeze(dim=-1)
+    value_loss = F.smooth_l1_loss(curr_Q,value_targets)
 
 
     curr_logits = self.policy_network.forward(input_to_policy_net)
     dists = F.softmax(curr_logits,dim=1)
     probs = Categorical(dists)
 
-    entropy = []
-    for dist in dists:
-      entropy.append(-torch.sum(dist*torch.log(dist)))
-    entropy = torch.stack(entropy).mean()
-    self.entropy_list.append(entropy)
+    entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
 
-    # print('self.entropy_list: ', self.entropy_list)
+    advantage = value_targets - curr_Q
+    policy_loss = -probs.log_prob(global_actions_batch).unsqueeze(dim=-1) * advantage.detach()
+    policy_loss = policy_loss.mean() - 0.008*entropy
 
-    advantage = estimated_Q - curr_Q
-    policy_loss = -probs.log_prob(global_actions_batch.view(global_actions_batch.size(0))).view(-1, 1) * advantage.detach()
-    policy_loss = policy_loss.mean() - 0.001*entropy
-
-    self.policy_loss_list.append(policy_loss)
-    self.value_loss_list.append(critic_loss)
-    
-#     print("*"*100)
-#     print("Current Q:",curr_Q)
-#     print("Next Q:",next_Q)
-#     print("Estimated Q:",estimated_Q)
-#     print("Value Loss:",critic_loss)
-#     print("Entropy:",entropy)
-#     print("Advantage",advantage)
-#     print("Policy Loss:",policy_loss)
-#     print("*"*100)
-    
-    # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
-
-    self.writer.add_scalar('Entropy loss',self.entropy_list[-1],len(self.entropy_list))
-    self.writer.add_scalar('Value Loss',self.value_loss_list[-1],len(self.value_loss_list))
-    self.writer.add_scalar('Policy Loss',self.policy_loss_list[-1],len(self.policy_loss_list))
-
-    return critic_loss,policy_loss
-
-
-
-
-  def update(self,input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net,episode):
-    
-    #update critic (value_net)
-    value_loss,policy_loss = self.compute(input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net)
-    
     
     self.value_optimizer.zero_grad()
-    value_loss.backward(retain_graph=True)
+    value_loss.backward(retain_graph=False)
+    grad_norm_value = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(),0.5)
     self.value_optimizer.step()
-
-    for name, param in self.value_network.named_parameters():
-        # print(name)
-        # print(param.grad.data)
-        if 'bn' not in name:
-            # print("name")
-            # print(name)
-            # print("grad")
-            # print(param.grad.data)
-            self.writer.add_scalar(name,param.grad.data.norm(2).cpu().numpy(),episode)
-
-
+    
     self.policy_optimizer.zero_grad()
-    policy_loss.backward()
+    policy_loss.backward(retain_graph=False)
+    grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
     self.policy_optimizer.step()
 
-    for name,param in self.policy_network.named_parameters():
-        # print(name)
-        if 'bn' not in name:
-            self.writer.add_scalar(name,param.grad.norm(2).cpu().numpy(),episode)
-
-    # torch.nn.utils.clip_grad_norm_(self.actorcritic.parameters(),500)
+    return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
