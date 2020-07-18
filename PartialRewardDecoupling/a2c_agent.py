@@ -8,10 +8,11 @@ from torch.distributions import Categorical
 from a2c import *
 import torch.nn.functional as F
 import gc
+import os
 
 class A2CAgent:
 
-  def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, gamma=0.99):
+  def __init__(self,env,value_lr=1e-5, policy_lr=1e-5, gamma=0.99):
     self.env = env
     self.value_lr = value_lr
     self.policy_lr = policy_lr
@@ -25,15 +26,16 @@ class A2CAgent:
     self.value_output_dim = 1
     self.policy_input_dim = self.env.observation_space[0].shape[0]
     self.policy_output_dim = self.env.action_space[0].n
+
     
-#     model_path_value = "/home/aditya/Desktop/Partial_Reward_Decoupling/PRD/PartialRewardDecoupling/models/three_agents/value_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-#     model_path_policy = "/home/aditya/Desktop/Partial_Reward_Decoupling/PRD/PartialRewardDecoupling/models/three_agents/policy_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+    # model_path_value = "/home/aditya/Desktop/Partial_Reward_Decoupling/git/PRD/PartialRewardDecoupling/models/one_agent/value_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt"
+    # model_path_policy = "/home/aditya/Desktop/Partial_Reward_Decoupling/git/PRD/PartialRewardDecoupling/models/one_agent/policy_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt"
 
     self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
     self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
     
-#     self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
-#     self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+    # self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+    # self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 
     self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
     self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
@@ -49,7 +51,7 @@ class A2CAgent:
 
     return index
 
-  def update(self,input_to_policy_net,next_input_to_policy_net,global_actions_batch,rewards,input_to_value_net,next_input_to_value_net):
+  def update(self,input_to_policy_net,global_actions_batch,rewards,input_to_value_net):
     
     #update critic (value_net)
     curr_Q = self.value_network.forward(input_to_value_net)
@@ -59,16 +61,17 @@ class A2CAgent:
     value_targets = value_targets.unsqueeze(dim=-1)
     value_loss = F.smooth_l1_loss(curr_Q,value_targets)
 
-
+    #update actor (policy net)
     curr_logits = self.policy_network.forward(input_to_policy_net)
-    dists = F.softmax(curr_logits,dim=1)
+    dists = F.softmax(curr_logits,dim=-1)
     probs = Categorical(dists)
 
     entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
+    # print("ENTROPY:",entropy)
 
     advantage = value_targets - curr_Q
     policy_loss = -probs.log_prob(global_actions_batch).unsqueeze(dim=-1) * advantage.detach()
-    policy_loss = policy_loss.mean() - 0.008*entropy
+    policy_loss = policy_loss.mean() - 0.001*entropy
 
     
     self.value_optimizer.zero_grad()
@@ -80,5 +83,13 @@ class A2CAgent:
     policy_loss.backward(retain_graph=False)
     grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
     self.policy_optimizer.step()
+
+    # print("SHAPES")
+    # print("VALUE:",curr_Q.shape)
+    # print("DISCOUNTED REWARDS:",discounted_rewards.shape)
+    # print("VALUE TARGET:",value_targets.shape)
+    # print("CURRENT LOGITS:",curr_logits.shape)
+    # print("ACTIONS:",global_actions_batch.shape)
+
 
     return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
