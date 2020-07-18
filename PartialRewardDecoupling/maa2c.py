@@ -21,7 +21,7 @@ class MAA2C:
     self.agents = A2CAgent(self.env)
 
 
-    self.writer = SummaryWriter('longer_runs/four_agents/simple_spread_2_shared_layers_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_continued')
+    self.writer = SummaryWriter('longer_runs/one_agent/simple_spread_1_hidden_layer_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_value_lr_2e-4_policy_lr_2e-4_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs')
 
   def get_actions(self,states):
     actions = []
@@ -32,31 +32,47 @@ class MAA2C:
 
   def update(self,trajectory,episode):
 
-    states = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-    next_states = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-    actions = torch.LongTensor([sars[2] for sars in trajectory]).to(self.device)
-    rewards = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+    states_policy = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
+    actions = torch.LongTensor([sars[1] for sars in trajectory]).to(self.device)
+    rewards = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+    states_value = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
 
-    value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states,next_states,actions,rewards)
+
+    value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states_policy,actions,rewards,states_value)
 
     self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
     self.writer.add_scalar('Loss/Value Loss',value_loss,episode)
     self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
-    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm_value,episode)
-    self.writer.add_scalar('Gradient Normalization/Grad Norm',grad_norm_policy,episode)
+    self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+    self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
 
 
 
-  def run(self,max_episode,max_steps):
+  def run(self,max_episode,max_steps):  
     for episode in range(max_episode):
-      states = self.env.reset()
+      states_policy = self.env.reset()
       trajectory = []
       episode_reward = 0
       for step in range(max_steps):
-        actions = self.get_actions(states)
+        actions = self.get_actions(states_policy)
         next_states,rewards,dones,info = self.env.step(actions)
 
+        states_value = []
+
+        for i in range(self.num_agents):
+          actions_copy = np.copy(actions)
+          actions_copy = np.delete(actions_copy,[i])
+          tmp = np.copy(states_policy[i])
+          for j in range(self.num_agents-1):
+            if j==self.num_agents-2:
+              tmp = np.append(tmp,actions_copy[j])
+            else:
+              tmp = np.insert(tmp,-(self.num_agents-2-j),actions_copy[j])
+          # states_value.append(np.append(states_policy[i],actions_copy))
+          states_value.append(tmp)
+
+        states_value = np.asarray(states_value)
 
         episode_reward += np.sum(rewards)
 
@@ -64,7 +80,7 @@ class MAA2C:
         if all(dones) or step == max_steps-1:
 
           dones = [1 for _ in range(self.num_agents)]
-          trajectory.append([states,next_states,actions,rewards])
+          trajectory.append([states_policy,actions,rewards,states_value])
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
           print("*"*100)
@@ -73,13 +89,13 @@ class MAA2C:
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
-          trajectory.append([states,next_states,actions,rewards])
+          trajectory.append([states_policy,actions,rewards,states_value])
           states = next_states
       
 #       make a directory called models
-      # if episode%500:
-      #   torch.save(self.agents.value_network.state_dict(), "./models/four_agents/value_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
-#         torch.save(self.agents.policy_network.state_dict(), "./models/four_agents/policy_network_no_comms_discounted_rewards_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
+      if episode%500:
+        torch.save(self.agents.value_network.state_dict(), "./models/one_agent/1_hidden_layer_value_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt")
+        torch.save(self.agents.policy_network.state_dict(), "./models/one_agent/1_hidden_layer_policy_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt")      
         
       self.update(trajectory,episode) 
 
