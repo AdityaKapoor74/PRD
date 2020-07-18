@@ -22,20 +22,53 @@ class ValueNetwork(nn.Module):
         return value
 
 
+# class PolicyNetwork(nn.Module):
+
+#     def __init__(self,input_dim,output_dim):
+#         super(PolicyNetwork,self).__init__()
+#         self.fc1 = nn.Linear(input_dim,512)
+#         torch.nn.init.xavier_uniform_(self.fc1.weight)
+#         self.fc2 = nn.Linear(512,256)
+#         torch.nn.init.xavier_uniform_(self.fc2.weight)
+#         self.policy = nn.Linear(256,output_dim)
+#         torch.nn.init.xavier_uniform_(self.policy.weight)
+
+#     def forward(self,state):
+#         logits = F.relu(self.fc1(state))
+#         logits = F.relu(self.fc2(logits))
+#         logits = self.policy(logits)
+
+#         return logits
+
+
+
+class ValueNetwork(nn.Module):
+
+    def __init__(self,input_dim,output_dim):
+        super(ValueNetwork,self).__init__()
+        self.fc1 = nn.Linear(input_dim,256)
+        torch.nn.init.xavier_uniform_(self.fc1.weight)
+        self.value = nn.Linear(256,output_dim)
+        torch.nn.init.xavier_uniform_(self.value.weight)
+
+    def forward(self,state):
+        value = F.relu(self.fc1(state))
+        value = self.value(value)
+
+        return value
+
+
 class PolicyNetwork(nn.Module):
 
     def __init__(self,input_dim,output_dim):
         super(PolicyNetwork,self).__init__()
-        self.fc1 = nn.Linear(input_dim,512)
+        self.fc1 = nn.Linear(input_dim,256)
         torch.nn.init.xavier_uniform_(self.fc1.weight)
-        self.fc2 = nn.Linear(512,256)
-        torch.nn.init.xavier_uniform_(self.fc2.weight)
         self.policy = nn.Linear(256,output_dim)
         torch.nn.init.xavier_uniform_(self.policy.weight)
 
     def forward(self,state):
         logits = F.relu(self.fc1(state))
-        logits = F.relu(self.fc2(logits))
         logits = self.policy(logits)
 
         return logits
