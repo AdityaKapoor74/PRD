@@ -21,7 +21,7 @@ class MAA2C:
     self.agents = A2CAgent(self.env)
 
 
-    self.writer = SummaryWriter('longer_runs/four_agents/simple_spread_2_shared_layers_no_comms_discounted_rewards_smaller_agents_wo_termination_0.05_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs')
+    self.writer = SummaryWriter('longer_runs/four_agents/simple_spread_2_shared_layers_no_comms_discounted_rewards_smaller_agents_wo_termination_0.05_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_continued')
 
   def get_actions(self,states):
     actions = []
