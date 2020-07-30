@@ -22,7 +22,8 @@ class A2CAgent:
     
     self.num_agents = self.env.n
 
-    self.value_input_dim = self.env.observation_space[0].shape[0]+(self.num_agents-1)
+#     self.value_input_dim = self.env.observation_space[0].shape[0]+(self.num_agents-1)
+    self.value_input_dim = self.env.observation_space[0].shape[0]
     self.value_output_dim = 1
     self.policy_input_dim = self.env.observation_space[0].shape[0]
     self.policy_output_dim = self.env.action_space[0].n
