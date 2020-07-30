@@ -71,7 +71,7 @@ class A2CAgent:
 
     advantage = value_targets - curr_Q
     policy_loss = -probs.log_prob(global_actions_batch).unsqueeze(dim=-1) * advantage.detach()
-    policy_loss = policy_loss.mean() - 0.001*entropy
+    policy_loss = policy_loss.mean() - 0.008*entropy
 
     
     self.value_optimizer.zero_grad()
@@ -83,13 +83,6 @@ class A2CAgent:
     policy_loss.backward(retain_graph=False)
     grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
     self.policy_optimizer.step()
-
-    # print("SHAPES")
-    # print("VALUE:",curr_Q.shape)
-    # print("DISCOUNTED REWARDS:",discounted_rewards.shape)
-    # print("VALUE TARGET:",value_targets.shape)
-    # print("CURRENT LOGITS:",curr_logits.shape)
-    # print("ACTIONS:",global_actions_batch.shape)
 
 
     return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
