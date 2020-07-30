@@ -34,7 +34,7 @@ class MAA2C:
 
     states_policy = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
     actions = torch.LongTensor([sars[1] for sars in trajectory]).to(self.device)
-    rewards = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+    rewards = torch.FloatTensor([sars[2] for sars in trajectory])
     states_value = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
 
 
