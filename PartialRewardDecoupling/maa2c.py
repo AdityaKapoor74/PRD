@@ -21,7 +21,7 @@ class MAA2C:
     self.agents = A2CAgent(self.env)
 
 
-    self.writer = SummaryWriter('longer_runs/one_agent/simple_spread_1_hidden_layer_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_value_lr_2e-4_policy_lr_2e-4_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs')
+    self.writer = SummaryWriter('four_agents/separate_layer_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008')
 
   def get_actions(self,states):
     actions = []
@@ -58,21 +58,21 @@ class MAA2C:
         actions = self.get_actions(states_policy)
         next_states,rewards,dones,info = self.env.step(actions)
 
-        states_value = []
+#         states_value = []
 
-        for i in range(self.num_agents):
-          actions_copy = np.copy(actions)
-          actions_copy = np.delete(actions_copy,[i])
-          tmp = np.copy(states_policy[i])
-          for j in range(self.num_agents-1):
-            if j==self.num_agents-2:
-              tmp = np.append(tmp,actions_copy[j])
-            else:
-              tmp = np.insert(tmp,-(self.num_agents-2-j),actions_copy[j])
-          # states_value.append(np.append(states_policy[i],actions_copy))
-          states_value.append(tmp)
+#         for i in range(self.num_agents):
+#           actions_copy = np.copy(actions)
+#           actions_copy = np.delete(actions_copy,[i])
+#           tmp = np.copy(states_policy[i])
+#           for j in range(self.num_agents-1):
+#             if j==self.num_agents-2:
+#               tmp = np.append(tmp,actions_copy[j])
+#             else:
+#               tmp = np.insert(tmp,-(self.num_agents-2-j),actions_copy[j])
+#           # states_value.append(np.append(states_policy[i],actions_copy))
+#           states_value.append(tmp)
 
-        states_value = np.asarray(states_value)
+#         states_value = np.asarray(states_value)
 
         episode_reward += np.sum(rewards)
 
@@ -80,7 +80,8 @@ class MAA2C:
         if all(dones) or step == max_steps-1:
 
           dones = [1 for _ in range(self.num_agents)]
-          trajectory.append([states_policy,actions,rewards,states_value])
+#           trajectory.append([states_policy,actions,rewards,states_value])
+          trajectory.append([states_policy,actions,rewards,states_policy])
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
           print("*"*100)
@@ -89,13 +90,14 @@ class MAA2C:
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
-          trajectory.append([states_policy,actions,rewards,states_value])
+#           trajectory.append([states_policy,actions,rewards,states_value])
+          trajectory.append([states_policy,actions,rewards,states_policy])
           states = next_states
       
 #       make a directory called models
       if episode%500:
-        torch.save(self.agents.value_network.state_dict(), "./models/one_agent/1_hidden_layer_value_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt")
-        torch.save(self.agents.policy_network.state_dict(), "./models/one_agent/1_hidden_layer_policy_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt")      
+        torch.save(self.agents.value_network.state_dict(), "./models/four_agent/value_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt")
+        torch.save(self.agents.policy_network.state_dict(), "./models/four_agent/policy_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt")      
         
       self.update(trajectory,episode) 
 
