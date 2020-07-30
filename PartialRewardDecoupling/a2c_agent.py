@@ -58,7 +58,7 @@ class A2CAgent:
     curr_Q = self.value_network.forward(input_to_value_net)
     discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
     discounted_rewards = np.transpose(discounted_rewards)
-    value_targets = rewards + torch.FloatTensor(discounted_rewards).to(self.device)
+    value_targets = rewards.to(self.device) + torch.FloatTensor(discounted_rewards).to(self.device)
     value_targets = value_targets.unsqueeze(dim=-1)
     value_loss = F.smooth_l1_loss(curr_Q,value_targets)
 
