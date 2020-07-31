@@ -12,7 +12,7 @@ import os
 
 class A2CAgent:
 
-  def __init__(self,env,value_lr=1e-5, policy_lr=1e-5, gamma=0.99):
+  def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, gamma=0.99):
     self.env = env
     self.value_lr = value_lr
     self.policy_lr = policy_lr
@@ -29,14 +29,17 @@ class A2CAgent:
     self.policy_output_dim = self.env.action_space[0].n
 
     
-    # model_path_value = "/home/aditya/Desktop/Partial_Reward_Decoupling/git/PRD/PartialRewardDecoupling/models/one_agent/value_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt"
-    # model_path_policy = "/home/aditya/Desktop/Partial_Reward_Decoupling/git/PRD/PartialRewardDecoupling/models/one_agent/policy_network_no_comms_discounted_rewards_smaller_agents_0.15_wo_termination_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.001_xavier_uniform_init_clamp_logs.pt"
-
+#     model_path_value = "./models/four_agent/value_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt"
+#     model_path_policy = "./models/four_agent/policy_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt"
+    
     self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
     self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
-    
+#     FOR CPU
     # self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
     # self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+#     FOR GPU
+#     self.value_network.load_state_dict(torch.load(model_path_value))
+#     self.policy_network.load_state_dict(torch.load(model_path_policy))
 
     self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
     self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
