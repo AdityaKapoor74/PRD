@@ -92,7 +92,7 @@ class MAA2C:
           dones = [0 for _ in range(self.num_agents)]
 #           trajectory.append([states_policy,actions,rewards,states_value])
           trajectory.append([states_policy,actions,rewards,states_policy])
-          states = next_states
+          states_policy = next_states
       
 #       make a directory called models
       if episode%500:
