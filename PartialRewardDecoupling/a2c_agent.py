@@ -29,8 +29,8 @@ class A2CAgent:
     self.policy_output_dim = self.env.action_space[0].n
 
     
-#     model_path_value = "./models/four_agent/value_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt"
-#     model_path_policy = "./models/four_agent/policy_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt"
+    model_path_value = "./models/four_agent/value_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt"
+    model_path_policy = "./models/four_agent/policy_net_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008.pt"
     
     self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
     self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
@@ -38,8 +38,8 @@ class A2CAgent:
     # self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
     # self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 #     FOR GPU
-#     self.value_network.load_state_dict(torch.load(model_path_value))
-#     self.policy_network.load_state_dict(torch.load(model_path_policy))
+    self.value_network.load_state_dict(torch.load(model_path_value))
+    self.policy_network.load_state_dict(torch.load(model_path_policy))
 
     self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
     self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
