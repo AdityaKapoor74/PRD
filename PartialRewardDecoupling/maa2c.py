@@ -1,6 +1,3 @@
-#import matplotlib
-#import matplotlib.pyplot as plt
-
 import torch
 import torch.nn.functional as F 
 import torch.optim as optim
@@ -21,7 +18,7 @@ class MAA2C:
     self.agents = A2CAgent(self.env)
 
 
-    self.writer = SummaryWriter('four_agents/separate_layer_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008_cont(1)')
+    self.writer = SummaryWriter('four_agents/separate_layer_xavier_init_value_lr_2e-4_policy_lr_2e-4_entropy_pen_0.008_cont(2)')
 
   def get_actions(self,states):
     actions = []
