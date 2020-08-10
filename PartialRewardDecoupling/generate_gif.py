@@ -4,12 +4,12 @@ import imageio
 import numpy as np
 import os
 import torch
-os.chdir("/home/aditya/Desktop/Partial_Reward_Decoupling/PRD/SimpleSpread/models_gif")
+# os.chdir("/home/aditya/Desktop/Partial_Reward_Decoupling/PRD/SimpleSpread/models_gif")
 
 
 if __name__ == '__main__':
 	env = make_env(scenario_name="simple_spread")
-	ma_controller = MAA2C(env)
+	ma_controller = MAA2C(env,True)
 
 
 
@@ -37,11 +37,11 @@ if __name__ == '__main__':
 
 	# print(images)
 
-	imageio.mimwrite('./simple_spread.gif',
-	                [np.array(img) for i, img in enumerate(images) if i%2 == 0],
-	                fps=50)
+	# imageio.mimwrite('./simple_spread.gif',
+	#                 [np.array(img) for i, img in enumerate(images) if i%2 == 0],
+	#                 fps=50)
 
-	print("DONE!")
+	# print("DONE!")
 
 # import pyglet
 # window = pyglet.window.Window()
