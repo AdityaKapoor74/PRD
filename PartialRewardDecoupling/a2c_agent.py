@@ -90,8 +90,8 @@ class A2CAgent:
 			weight_prob = torch.cat([weight_prob,weights[i][0]])
 			weight_action = torch.cat([weight_action,weights[i][1]])
 
-		weight_prob = weight_prob.reshape(-1,3)
-		weight_action = weight_action.reshape(-1,3)
+		weight_prob = weight_prob.reshape(-1,self.num_agents)
+		weight_action = weight_action.reshape(-1,self.num_agents)
 
 		probs = self.policy_network.forward(states)
 
