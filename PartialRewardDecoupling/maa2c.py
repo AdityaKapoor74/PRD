@@ -76,7 +76,7 @@ class MAA2C:
 
 
   def run(self,max_episode,max_steps):  
-    for episode in range(1,max_episode):
+    for episode in range(33011,max_episode):
       states = np.asarray(self.env.reset())
 
       trajectory = []
