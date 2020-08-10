@@ -132,7 +132,7 @@ class A2CAgent:
 	# ***********************************************************************************
 
 	# ***********************************************************************************
-		value_targets = rewards + torch.FloatTensor(discounted_rewards).to(self.device)
+		value_targets = rewards.to(self.device) + torch.FloatTensor(discounted_rewards).to(self.device)
 		value_targets = value_targets.unsqueeze(dim=-1)
 		value_loss = F.smooth_l1_loss(curr_Q,value_targets)
 	# ***********************************************************************************
