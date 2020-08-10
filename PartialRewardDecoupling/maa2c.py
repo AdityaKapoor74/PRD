@@ -17,8 +17,17 @@ class MAA2C:
     self.num_agents = env.n
     self.agents = A2CAgent(self.env)
 
-#     self.writer = SummaryWriter('/home/aditya/Desktop/Partial_Reward_Decoupling/git/PRD/PartialRewardDecoupling_new/runs/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
-    self.writer = SummaryWriter('./runs/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008') # For high bay
+    # # Separate network with action conditioning
+    # self.writer = SummaryWriter('./runs/separate_net_with_action_conditioning/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+    # # Separate network
+    # self.writer = SummaryWriter('./runs/separate_net/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+    # # Shared network
+    # self.writer = SummaryWriter('./runs/shared_network/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+    # # Two headed network
+    # self.writer = SummaryWriter('./runs/two_headed_network/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+
+    # # For comparison
+    # self.writer = SummaryWriter('./runs/compare/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
 
   def get_actions(self,states):
     actions = []
@@ -35,21 +44,31 @@ class MAA2C:
     rewards = torch.FloatTensor([sars[3] for sars in trajectory])
 
 # ***********************************************************************************
+    # Separate networks
     value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states,next_states,actions,rewards)
-    # self.agents.update(states_policy,states_weight,actions,rewards)
 
 
-    self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
-    self.writer.add_scalar('Loss/Value Loss',value_loss,episode)
-    self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
-    self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-    self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+    # self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
+    # self.writer.add_scalar('Loss/Value Loss',value_loss,episode)
+    # self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
+    # self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+    # self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+
+
+    # # Shared networks
+    # value_loss,policy_loss,entropy,grad_norm = self.agents.update(states,next_states,actions,rewards)
+
+
+    # self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
+    # self.writer.add_scalar('Loss/Value Loss',value_loss,episode)
+    # self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
+    # self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm,episode)
 # ***********************************************************************************
 
 
 
   def run(self,max_episode,max_steps):  
-    for episode in range(1,max_episode):
+    for episode in range(168248,max_episode):
       states = np.asarray(self.env.reset())
 
       trajectory = []
@@ -69,8 +88,8 @@ class MAA2C:
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
           print("*"*100)
-          self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
-          self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+          # self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
+          # self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
@@ -78,9 +97,19 @@ class MAA2C:
           states = next_states
       
 #       make a directory called models
-      if episode%100 and episode!=0:
-        torch.save(self.agents.value_network.state_dict(), "./models/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
-        torch.save(self.agents.policy_network.state_dict(), "./models/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
+      # if episode%100 and episode!=0:
+        # Separate network with action conditioning
+        # torch.save(self.agents.value_network.state_dict(), "./models/separate_net_with_action_conditioning/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
+        # torch.save(self.agents.policy_network.state_dict(), "./models/separate_net_with_action_conditioning/3_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
+        # # Separate networks
+        # torch.save(self.agents.value_network.state_dict(), "./models/separate_net/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
+        # torch.save(self.agents.policy_network.state_dict(), "./models/separate_net/3_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")  
+        # # Shared network
+        # torch.save(self.agents.actorcritic.state_dict(), "./models/shared_network/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
+        # # Two headed network
+        # torch.save(self.agents.actorcritic.state_dict(), "./models/two_headed_network/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
+    
+
 
       self.update(trajectory,episode) 
 
