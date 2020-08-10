@@ -17,7 +17,8 @@ class MAA2C:
     self.num_agents = env.n
     self.agents = A2CAgent(self.env)
 
-    self.writer = SummaryWriter('/home/aditya/Desktop/Partial_Reward_Decoupling/git/PRD/PartialRewardDecoupling_new/runs/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+#     self.writer = SummaryWriter('/home/aditya/Desktop/Partial_Reward_Decoupling/git/PRD/PartialRewardDecoupling_new/runs/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+    self.writer = SummaryWriter('./runs/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008') # For high bay
 
   def get_actions(self,states):
     actions = []
@@ -78,8 +79,8 @@ class MAA2C:
       
 #       make a directory called models
       if episode%100:
-        torch.save(self.agents.value_network.state_dict(), "./models/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
-        torch.save(self.agents.policy_network.state_dict(), "./models/3_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
+        torch.save(self.agents.value_network.state_dict(), "./models/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
+        torch.save(self.agents.policy_network.state_dict(), "./models/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
 
       self.update(trajectory,episode) 
 
