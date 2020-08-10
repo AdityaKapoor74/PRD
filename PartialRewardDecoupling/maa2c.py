@@ -78,7 +78,7 @@ class MAA2C:
           states = next_states
       
 #       make a directory called models
-      if episode%100:
+      if episode%100 and episode!=0:
         torch.save(self.agents.value_network.state_dict(), "./models/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
         torch.save(self.agents.policy_network.state_dict(), "./models/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
 
