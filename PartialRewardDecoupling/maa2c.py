@@ -108,7 +108,7 @@ class MAA2C:
           states = next_states
       
 #       make a directory called models
-      if episode%100 and episode!=0 and not(self.gif):
+      if not(episode%100) and episode!=0 and not(self.gif):
         # Separate network with action conditioning
         # torch.save(self.agents.value_network.state_dict(), "./models/separate_net_with_action_conditioning/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
         # torch.save(self.agents.policy_network.state_dict(), "./models/separate_net_with_action_conditioning/3_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
