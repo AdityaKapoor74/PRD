@@ -22,7 +22,7 @@ Output: Probability over all actions
 class ValueNetwork_(nn.Module):
 
 	def __init__(self,input_states,num_agents,num_actions,output_dim_weights,output_dim_value):
-		super(ValueNetwork,self).__init__()
+		super(ValueNetwork_,self).__init__()
 
 		self.softmax = nn.Softmax(dim=-1)
 
@@ -62,7 +62,7 @@ class ValueNetwork_(nn.Module):
 class PolicyNetwork_(nn.Module):
 
 	def __init__(self,input_dim,output_dim):
-		super(PolicyNetwork,self).__init__()
+		super(PolicyNetwork_,self).__init__()
 		self.fc1 = nn.Linear(input_dim,512)
 		torch.nn.init.xavier_uniform_(self.fc1.weight)
 		self.fc2 = nn.Linear(512,256)
