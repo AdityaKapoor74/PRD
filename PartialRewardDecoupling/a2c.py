@@ -19,7 +19,7 @@ Policy Network
 Input: Observations
 Output: Probability over all actions
 '''
-class ValueNetwork(nn.Module):
+class ValueNetwork_(nn.Module):
 
 	def __init__(self,input_states,num_agents,num_actions,output_dim_weights,output_dim_value):
 		super(ValueNetwork,self).__init__()
@@ -59,7 +59,7 @@ class ValueNetwork(nn.Module):
 			return value
 
 
-class PolicyNetwork(nn.Module):
+class PolicyNetwork_(nn.Module):
 
 	def __init__(self,input_dim,output_dim):
 		super(PolicyNetwork,self).__init__()
