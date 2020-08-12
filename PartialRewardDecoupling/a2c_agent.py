@@ -141,7 +141,7 @@ class A2CAgent:
 		weight_prob = weight_prob.expand(weight_prob.shape[0],weight_prob.shape[1],self.num_actions)
 		weight_action = weight_action.unsqueeze(-1)
 		weight_action = weight_action.expand(weight_action.shape[0],weight_action.shape[1],self.num_actions)
-		z = probs*weight_prob+one_hot_actions*weight_action
+		z = probs.cpu()*weight_prob.cpu()+one_hot_actions*weight_action.cpu()
 		z = z.detach().numpy()
 
 
