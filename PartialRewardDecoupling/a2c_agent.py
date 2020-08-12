@@ -151,7 +151,7 @@ class A2CAgent:
 			for j in range(states.shape[1]): # states.shape[1]==self.num_agents
 				z_copy = z[k].copy()
 				z_copy = np.delete(z_copy,(j), axis=0)
-				tmp = np.copy(states.cpu().nump()[k][j])
+				tmp = np.copy(states.cpu().numpy()[k][j])
 				for i in range(self.num_agents-1):
 					if i == self.num_agents-2:
 						tmp = np.append(tmp,z_copy[i])
