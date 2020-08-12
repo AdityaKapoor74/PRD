@@ -77,8 +77,8 @@ class A2CAgent:
 		self.num_actions = self.env.action_space[0].n
 		self.policy_input_dim = self.env.observation_space[0].shape[0]
 		self.policy_output_dim = self.env.action_space[0].n
-		self.value_network = ValueNetwork(self.value_input_dim,self.num_agents,self.num_actions,self.weight_output_dim,self.value_output_dim).to(self.device)
-		self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
+		self.value_network = ValueNetwork_(self.value_input_dim,self.num_agents,self.num_actions,self.weight_output_dim,self.value_output_dim).to(self.device)
+		self.policy_network = PolicyNetwork_(self.policy_input_dim,self.policy_output_dim).to(self.device)
 		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		# Loading models
