@@ -21,9 +21,9 @@ class MAA2C:
     if not(self.gif):
       # Separate network with action conditioning
 #       self.writer = SummaryWriter('./runs/separate_net_with_action_conditioning/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
-#       self.writer = SummaryWriter('./runs/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+      self.writer = SummaryWriter('./runs/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
       # Separate network
-      self.writer = SummaryWriter('./runs/separate_net/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+#       self.writer = SummaryWriter('./runs/separate_net/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
       # # Shared network
       # self.writer = SummaryWriter('./runs/shared_network/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
       # # Two headed network
