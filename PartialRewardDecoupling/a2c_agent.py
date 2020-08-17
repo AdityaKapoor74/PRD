@@ -84,14 +84,14 @@ class A2CAgent:
 # 		# Loading models
 # # 		model_path_value = "./models/separate_net_with_action_conditioning/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
 # # 		model_path_policy = "./models/separate_net_with_action_conditioning/3_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-		model_path_value = "./models/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-		model_path_policy = "./models/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+		# model_path_value = "./models/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+		# model_path_policy = "./models/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
 # 		# # For CPU
 # 		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 # 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 # 		# # For GPU
-		self.value_network.load_state_dict(torch.load(model_path_value))
-		self.policy_network.load_state_dict(torch.load(model_path_policy))
+		# self.value_network.load_state_dict(torch.load(model_path_value))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 
 		
@@ -113,6 +113,35 @@ class A2CAgent:
 				one_hot[i][j][int(actions[i][j].item())] = 1
 
 		return one_hot
+
+
+	def calculate_advantages(returns, values, normalize = True):
+    
+	    advantages = returns - values
+	    
+	    if normalize:
+	        
+	        advantages = (advantages - advantages.mean()) / advantages.std()
+	        
+	    return advantages
+
+
+	def calculate_returns(rewards, discount_factor, normalize = True):
+    
+	    returns = []
+	    R = 0
+	    
+	    for r in reversed(rewards):
+	        R = r + R * discount_factor
+	        returns.insert(0, R)
+	        
+	    returns = torch.tensor(returns)
+	    
+	    if normalize:
+	        
+	        returns = (returns - returns.mean()) / returns.std()
+	        
+	    return returns
 
 
 	def update(self,states,next_states,actions,rewards):
