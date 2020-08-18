@@ -115,7 +115,7 @@ class A2CAgent:
 		return one_hot
 
 
-	def calculate_advantages(returns, values, normalize = True):
+	def calculate_advantages(self,returns, values, normalize = False):
     
 	    advantages = returns - values
 	    
@@ -126,7 +126,7 @@ class A2CAgent:
 	    return advantages
 
 
-	def calculate_returns(rewards, discount_factor, normalize = True):
+	def calculate_returns(self,rewards, discount_factor, normalize = False):
     
 	    returns = []
 	    R = 0
@@ -134,14 +134,14 @@ class A2CAgent:
 	    for r in reversed(rewards):
 	        R = r + R * discount_factor
 	        returns.insert(0, R)
-	        
-	    returns = torch.tensor(returns)
+	    
+	    returns_tensor = torch.stack(returns)
 	    
 	    if normalize:
 	        
-	        returns = (returns - returns.mean()) / returns.std()
+	        returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
 	        
-	    return returns
+	    return returns_tensor
 
 
 	def update(self,states,next_states,actions,rewards):
@@ -194,8 +194,10 @@ class A2CAgent:
 		#update critic (value_net)
 		curr_Q = self.value_network.forward(None,states_value)
 
-		discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
-		discounted_rewards = np.transpose(discounted_rewards)
+		# discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
+		# discounted_rewards = np.transpose(discounted_rewards)
+		discounted_rewards = self.calculate_returns(rewards,self.gamma)
+
 	# ***********************************************************************************
 
 	# ***********************************************************************************
@@ -240,8 +242,9 @@ class A2CAgent:
 # 		#update critic (value_net)
 # 		curr_Q = self.value_network.forward(states)
 
-# 		discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
-# 		discounted_rewards = np.transpose(discounted_rewards)
+		# # discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
+		# # discounted_rewards = np.transpose(discounted_rewards)
+		# discounted_rewards = self.calculate_returns(rewards,self.gamma)
 # 	# ***********************************************************************************
 
 # 	# ***********************************************************************************
@@ -287,8 +290,9 @@ class A2CAgent:
 	# 	#update critic (value_net)
 	# 	curr_Q,probs = self.value_network.forward(states)
 
-	# 	discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
-	# 	discounted_rewards = np.transpose(discounted_rewards)
+	# # discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
+	# # discounted_rewards = np.transpose(discounted_rewards)
+		# discounted_rewards = self.calculate_returns(rewards,self.gamma)
 	# # ***********************************************************************************
 
 	# # ***********************************************************************************
