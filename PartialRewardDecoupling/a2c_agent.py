@@ -11,16 +11,18 @@ import gc
 
 class A2CAgent:
 
-	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99):
+	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=1):
 		self.env = env
 		self.value_lr = value_lr
 		self.policy_lr = policy_lr
 		self.gamma = gamma
 		self.entropy_pen = entropy_pen
+		self.lambda_ = lambda_
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		
 		self.num_agents = self.env.n
+		self.dict = {}
 
 		# # Shared Network
 		# self.lr = actorcritic_lr
@@ -81,14 +83,12 @@ class A2CAgent:
 		self.policy_network = PolicyNetwork_(self.policy_input_dim,self.policy_output_dim).to(self.device)
 		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
-# 		# Loading models
-# # 		model_path_value = "./models/separate_net_with_action_conditioning/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-# # 		model_path_policy = "./models/separate_net_with_action_conditioning/3_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-		# model_path_value = "./models/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-		# model_path_policy = "./models/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-# 		# # For CPU
-# 		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
-# 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+		# Loading models
+		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+		# For CPU
+		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 # 		# # For GPU
 		# self.value_network.load_state_dict(torch.load(model_path_value))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy))
@@ -144,6 +144,16 @@ class A2CAgent:
 	    return returns_tensor
 
 
+	def calculate_frequency(self,value,tensor_list):
+
+	 	if value not in self.dict:
+	 		self.dict[value] = 0
+	 	else:
+	 		for num in tensor_list:
+	 			if num<=value:
+	 				self.dict[value]+=1
+
+
 	def update(self,states,next_states,actions,rewards):
 
 		'''
@@ -159,8 +169,19 @@ class A2CAgent:
 			weight_prob = torch.cat([weight_prob,weights[i][0]])
 			weight_action = torch.cat([weight_action,weights[i][1]])
 
+		
+
+		for value in [1e-5,1e-4,1e-3,1e-2,1e-1,1]:
+			self.calculate_frequency(value,weight_action)
+
+		print("Frequencies of weight values")
+		print(self.dict)
+
+
 		weight_prob = weight_prob.reshape(-1,self.num_agents)
 		weight_action = weight_action.reshape(-1,self.num_agents)
+
+		weight_action_clone = weight_action.clone().unsqueeze(-1)
 
 		probs = self.policy_network.forward(states)
 
@@ -173,7 +194,8 @@ class A2CAgent:
 		z = probs.cpu()*weight_prob.cpu()+one_hot_actions*weight_action.cpu()
 		z = z.detach().numpy()
 
-
+		# print(weight_action)
+		# print(weight_action.squeeze(-1))
 
 		states_value = []
 		for k in range(states.shape[0]):
@@ -203,7 +225,26 @@ class A2CAgent:
 	# ***********************************************************************************
 		value_targets = rewards.to(self.device) + torch.FloatTensor(discounted_rewards).to(self.device)
 		value_targets = value_targets.unsqueeze(dim=-1)
-		value_loss = F.smooth_l1_loss(curr_Q,value_targets)
+		value_loss = F.smooth_l1_loss(curr_Q,value_targets,reduction='none')
+
+		critic_loss = torch.Tensor([[0] for i in range(self.num_agents)])
+		weight_values = torch.Tensor([[0] for i in range(self.num_agents)])
+
+
+
+		for values,weight_value in zip(value_loss,weight_action_clone):
+			critic_loss+=values
+			weight_values+=weight_value
+
+		sum_weight_values = torch.sum(weight_values)
+
+		for i in range(self.num_agents):
+			critic_loss[i]+=self.lambda_*(sum_weight_values-weight_values[i])
+
+		
+
+		value_loss = torch.mean(critic_loss) / value_loss.shape[0]
+
 	# ***********************************************************************************
 
 		#update actor (policy net)
