@@ -20,8 +20,7 @@ class MAA2C:
 
     if not(self.gif):
       # Separate network with action conditioning
-#       self.writer = SummaryWriter('./runs/separate_net_with_action_conditioning/3_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
-      self.writer = SummaryWriter('./runs/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
+      self.writer = SummaryWriter('./runs/separate_net_with_action_conditioning/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008_lambda_1')
       # Separate network
 #       self.writer = SummaryWriter('./runs/separate_net/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
       # # Shared network
@@ -77,7 +76,7 @@ class MAA2C:
 
 
   def run(self,max_episode,max_steps):  
-    for episode in range(363221,max_episode):
+    for episode in range(1,max_episode):
       states = np.asarray(self.env.reset())
 
       trajectory = []
@@ -86,6 +85,7 @@ class MAA2C:
 
         actions = self.get_actions(states)
         next_states,rewards,dones,info = self.env.step(actions)
+        rewards = [np.sum(rewards)] * self.num_agents
 
         episode_reward += np.sum(rewards)
 
@@ -111,10 +111,8 @@ class MAA2C:
 #       make a directory called models
       if not(episode%100) and episode!=0 and not(self.gif):
 #         Separate network with action conditioning
-#         torch.save(self.agents.value_network.state_dict(), "./models/separate_net_with_action_conditioning/3_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
-#         torch.save(self.agents.policy_network.state_dict(), "./models/separate_net_with_action_conditioning/3_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
-        torch.save(self.agents.value_network.state_dict(), "./models/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
-        torch.save(self.agents.policy_network.state_dict(), "./models/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")      
+        torch.save(self.agents.value_network.state_dict(), "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt")
+        torch.save(self.agents.policy_network.state_dict(), "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt")  
 #         # Separate networks
 #         torch.save(self.agents.value_network.state_dict(), "./models/separate_net/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
 #         torch.save(self.agents.policy_network.state_dict(), "./models/separate_net/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")  
