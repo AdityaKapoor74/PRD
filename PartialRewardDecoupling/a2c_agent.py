@@ -22,8 +22,11 @@ class A2CAgent:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		
 		self.num_agents = self.env.n
+
+		# Agent 1 is paired with Agent 4 and Agent 2 is paired with Agent 3
 		self.dict = {}
 		self.dict_fraction = {}
+		self.accuracy = {'1':{},'2':{},'3':{},'4':{}}
 
 		# # Shared Network
 		# self.lr = actorcritic_lr
@@ -117,44 +120,89 @@ class A2CAgent:
 
 
 	def calculate_advantages(self,returns, values, normalize = False):
-    
-	    advantages = returns - values
-	    
-	    if normalize:
-	        
-	        advantages = (advantages - advantages.mean()) / advantages.std()
-	        
-	    return advantages
+	
+		advantages = returns - values
+		
+		if normalize:
+			
+			advantages = (advantages - advantages.mean()) / advantages.std()
+			
+		return advantages
 
 
 	def calculate_returns(self,rewards, discount_factor, normalize = False):
-    
-	    returns = []
-	    R = 0
-	    
-	    for r in reversed(rewards):
-	        R = r + R * discount_factor
-	        returns.insert(0, R)
-	    
-	    returns_tensor = torch.stack(returns)
-	    
-	    if normalize:
-	        
-	        returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
-	        
-	    return returns_tensor
+	
+		returns = []
+		R = 0
+		
+		for r in reversed(rewards):
+			R = r + R * discount_factor
+			returns.insert(0, R)
+		
+		returns_tensor = torch.stack(returns)
+		
+		if normalize:
+			
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			
+		return returns_tensor
 
 
-	def calculate_frequency(self,value,tensor_list):
+	# def calculate_frequency(self,value,tensor_list):
 
-	 	if value not in self.dict:
-	 		self.dict[value] = 0
-	 		self.dict_fraction[value] = str(0)
+	#  	if value not in self.dict:
+	#  		self.dict[value] = 0
+	#  		self.dict_fraction[value] = str(0)
 
- 		for num in tensor_list:
- 			if num<=value:
- 				self.dict[value]+=1
- 		self.dict_fraction[value] = str(Fraction(self.dict[value],self.dict[1]))
+ # 		for num in tensor_list:
+ # 			if num<=value:
+ # 				self.dict[value]+=1
+ # 		self.dict_fraction[value] = str(Fraction(self.dict[value],self.dict[1]))
+
+	def calculate_frequency_accuracy(self,threshold,tensor_list):
+		
+		right = [0]*self.num_agents
+		wrong = [0]*self.num_agents
+
+		if threshold not in self.dict:
+			self.dict[threshold] = 0
+			self.dict_fraction[threshold] = str(0)
+
+		for i in range(tensor_list.shape[0]):
+			for j in range(tensor_list.shape[1]):
+				for k in range(tensor_list.shape[2]):
+
+					if tensor_list[i][j][k]<=threshold:
+						self.dict[threshold]+=1
+
+					if j+1==1:
+						if (k == 2 and tensor_list[i][j][k]>=threshold) or (k != 2 and tensor_list[i][j][k]<threshold):
+							right[j]+=1
+						else:
+							wrong[j]+=1
+
+					elif j+1==2:
+						if (k == 1 and tensor_list[i][j][k]>=threshold) or (k != 1 and tensor_list[i][j][k]<threshold):
+							right[j]+=1
+						else:
+							wrong[j]+=1
+
+					elif j+1==3:
+						if (k == 1 and tensor_list[i][j][k]>=threshold) or (k != 1 and tensor_list[i][j][k]<threshold):
+							right[j]+=1
+						else:
+							wrong[j]+=1
+
+					elif j+1==4:
+						if (k == self.num_agents-3 and tensor_list[i][j][k]>=threshold) or (k != self.num_agents-3 and tensor_list[i][j][k]<threshold):
+							right[j]+=1
+						else:
+							wrong[j]+=1
+
+		for i in range(4):
+			self.accuracy[str(i+1)][threshold] = round(right[i]/(right[i]+wrong[i]),2)
+
+		self.dict_fraction[threshold] = str(Fraction(self.dict[threshold],self.dict[1]))
 
 
 	def update(self,states,next_states,actions,rewards):
@@ -178,11 +226,17 @@ class A2CAgent:
 		
 
 		for value in [1,1e-5,1e-4,1e-3,1e-2,1e-1]:
-			self.calculate_frequency(value,weight_action.flatten())
+			# self.calculate_frequency(value,weight_action.flatten())
+			self.calculate_frequency_accuracy(value,weight_action)
+
+
 
 		print("Frequencies of weight values")
 		print(self.dict_fraction)
 		print(self.dict)
+
+		print("Accuray")
+		print(self.accuracy)
 
 
 		probs = self.policy_network.forward(states)
