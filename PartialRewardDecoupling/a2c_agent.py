@@ -77,19 +77,19 @@ class A2CAgent:
 
 
 		# Separate Network with action conditioning
-		self.value_input_dim = self.env.observation_space[0].shape[0]
+		self.value_input_dim = 2*3*self.num_agents # for pose,vel and landmark for every agent
 		self.value_output_dim = 1
 		self.weight_output_dim = 2*(self.num_agents-1)
 		self.num_actions = self.env.action_space[0].n
-		self.policy_input_dim = self.env.observation_space[0].shape[0]
+		self.policy_input_dim = 2*(3+self.num_agents-1) #2 for pose, 2 for vel and 2 for goal of current agent and rest for relative position of other agents 2 each
 		self.policy_output_dim = self.env.action_space[0].n
 		self.value_network = ValueNetwork_(self.value_input_dim,self.num_agents,self.num_actions,self.weight_output_dim,self.value_output_dim).to(self.device)
 		self.policy_network = PolicyNetwork_(self.policy_input_dim,self.policy_output_dim).to(self.device)
 		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		# Loading models
-		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
-		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
+		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt"
+		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt"
 		# For CPU
 		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -205,12 +205,12 @@ class A2CAgent:
 		self.dict_fraction[threshold] = str(Fraction(self.dict[threshold],self.dict[1]))
 
 
-	def update(self,states,next_states,actions,rewards):
+	def update(self,states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards):
 
 		'''
 		Separate network with action conditioning
 		'''
-		weights = self.value_network.forward(states,None)
+		weights = self.value_network.forward(states_critic,None)
 
 		
 		weight_prob = torch.Tensor().to(self.device)
@@ -235,17 +235,17 @@ class A2CAgent:
 		print(self.dict_fraction)
 		print(self.dict)
 
-		print("Accuray")
+		print("Accuracy")
 		print(self.accuracy)
 
 
-		probs = self.policy_network.forward(states)
+		probs = self.policy_network.forward(states_actor)
 
 		one_hot_actions = self.get_one_hot_encoding(actions)
 
 		states_value = []
-		for k in range(states.shape[0]):
-			for j in range(states.shape[1]): # states.shape[1]==self.num_agents
+		for k in range(states_critic.shape[0]):
+			for j in range(states_critic.shape[1]): # states.shape[1]==self.num_agents
 
 				actions_ = one_hot_actions[k].detach().clone()
 				actions_ = torch.cat([actions_[:j],actions_[j+1:]])
@@ -259,15 +259,15 @@ class A2CAgent:
 					z = torch.cat([z,z_partial])
 
 				z = z.reshape(self.num_agents-1,-1)
-				tmp = states[k][j].clone()
+				tmp = states_critic[k][j].clone()
 				for i in range(self.num_agents-1):
 					if i == self.num_agents-2:
 						tmp = torch.cat([tmp,z[i]])
 					else: 
-						tmp = torch.cat([tmp[:-(self.num_agents-2-i)],z[i],tmp[-(self.num_agents-2-i):]])
+						tmp = torch.cat([tmp[:-6*(self.num_agents-2-i)],z[i],tmp[-6*(self.num_agents-2-i):]])
 				states_value.append(tmp)
 
-		states_value = torch.stack(states_value).reshape(states.shape[0],states.shape[1],-1).to(self.device)
+		states_value = torch.stack(states_value).reshape(states_critic.shape[0],states_critic.shape[1],-1).to(self.device)
 
 	# ***********************************************************************************
 		#update critic (value_net)
