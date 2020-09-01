@@ -125,7 +125,7 @@ class MAA2C:
         else:
           dones = [0 for _ in range(self.num_agents)]
           trajectory.append([states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards])
-          states = next_states
+          states_critic,states_actor = next_states_critic,next_states_actor
       
 #       make a directory called models
       if not(episode%100) and episode!=0 and not(self.gif):
