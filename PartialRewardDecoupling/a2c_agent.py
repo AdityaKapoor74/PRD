@@ -147,18 +147,6 @@ class A2CAgent:
 			
 		return returns_tensor
 
-
-	# def calculate_frequency(self,value,tensor_list):
-
-	#  	if value not in self.dict:
-	#  		self.dict[value] = 0
-	#  		self.dict_fraction[value] = str(0)
-
- # 		for num in tensor_list:
- # 			if num<=value:
- # 				self.dict[value]+=1
- # 		self.dict_fraction[value] = str(Fraction(self.dict[value],self.dict[1]))
-
 	def calculate_frequency_accuracy(self,threshold,tensor_list):
 		
 		right = [0]*self.num_agents
