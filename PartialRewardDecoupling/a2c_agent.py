@@ -11,7 +11,7 @@ from fraction import Fraction
 
 class A2CAgent:
 
-	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=1):
+	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.001):
 		self.env = env
 		self.value_lr = value_lr
 		self.policy_lr = policy_lr
@@ -57,14 +57,14 @@ class A2CAgent:
 
 
 # 		# Separate Networks
-		self.value_input_dim = self.env.observation_space[0].shape[0]
-		self.value_output_dim = 1
-		self.policy_input_dim = self.env.observation_space[0].shape[0]
-		self.policy_output_dim = self.env.action_space[0].n
-		self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
-		self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
-		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		# self.value_input_dim = self.env.observation_space[0].shape[0]
+		# self.value_output_dim = 1
+		# self.policy_input_dim = self.env.observation_space[0].shape[0]
+		# self.policy_output_dim = self.env.action_space[0].n
+		# self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
+		# self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
+		# self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
+		# self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 # 		# Loading models
 # 		model_path_value = "./models/separate_net/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
 # 		model_path_policy = "./models/separate_net/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
@@ -77,16 +77,16 @@ class A2CAgent:
 
 
 		# Separate Network with action conditioning
-		# self.value_input_dim = 2*3*self.num_agents # for pose,vel and landmark for every agent
-		# self.value_output_dim = 1
-		# self.weight_output_dim = 2*(self.num_agents-1)
-		# self.num_actions = self.env.action_space[0].n
-		# self.policy_input_dim = 2*(3+self.num_agents-1) #2 for pose, 2 for vel and 2 for goal of current agent and rest for relative position of other agents 2 each
-		# self.policy_output_dim = self.env.action_space[0].n
-		# self.value_network = ValueNetwork_(self.value_input_dim,self.num_agents,self.num_actions,self.weight_output_dim,self.value_output_dim).to(self.device)
-		# self.policy_network = PolicyNetwork_(self.policy_input_dim,self.policy_output_dim).to(self.device)
-		# self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
-		# self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		self.value_input_dim = 2*3*self.num_agents # for pose,vel and landmark for every agent
+		self.value_output_dim = 1
+		self.weight_output_dim = 2*(self.num_agents-1)
+		self.num_actions = self.env.action_space[0].n
+		self.policy_input_dim = 2*(3+self.num_agents-1) #2 for pose, 2 for vel and 2 for goal of current agent and rest for relative position of other agents 2 each
+		self.policy_output_dim = self.env.action_space[0].n
+		self.value_network = ValueNetwork_(self.value_input_dim,self.num_agents,self.num_actions,self.weight_output_dim,self.value_output_dim).to(self.device)
+		self.policy_network = PolicyNetwork_(self.policy_input_dim,self.policy_output_dim).to(self.device)
+		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		# Loading models
 		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt"
 		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt"
