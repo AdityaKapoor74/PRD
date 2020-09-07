@@ -47,12 +47,18 @@ class MAA2C:
     actions = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
     rewards = torch.FloatTensor([sars[5] for sars in trajectory])
 
+    # states = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
+    # next_states = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+    # actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+    # rewards = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+
+
 # ***********************************************************************************
     # Separate networks
-    value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards)
+    # value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards)
 
-    # # Shared networks
-    # value_loss,policy_loss,entropy,grad_norm = self.agents.update(states,next_states,actions,rewards)
+    # # Shared networks and Separate networks
+    value_loss,policy_loss,entropy,grad_norm = self.agents.update(states,next_states,actions,rewards)
 
     if not(self.gif):
       # Separate networks
@@ -94,7 +100,7 @@ class MAA2C:
   def run(self,max_episode,max_steps):  
     for episode in range(1,max_episode):
       states = self.env.reset()
-      # # better way
+      # better way
       states_critic,states_actor = self.split_states(states)
 
       trajectory = []
@@ -102,6 +108,7 @@ class MAA2C:
       for step in range(max_steps):
 
         actions = self.get_actions(states_actor)
+        # actions = self.get_actions(states)
         next_states,rewards,dones,info = self.env.step(actions)
         next_states_critic,next_states_actor = self.split_states(next_states)
         rewards = [np.sum(rewards)] * self.num_agents
@@ -112,6 +119,7 @@ class MAA2C:
         if all(dones) or step == max_steps-1:
 
           dones = [1 for _ in range(self.num_agents)]
+          # trajectory.append([states,next_states,actions,rewards])
           trajectory.append([states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards])
           print("*"*100)
           print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
@@ -124,8 +132,10 @@ class MAA2C:
           break
         else:
           dones = [0 for _ in range(self.num_agents)]
+          # trajectory.append([states,next_states,actions,rewards])
           trajectory.append([states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards])
           states_critic,states_actor = next_states_critic,next_states_actor
+          states = next_states
       
 #       make a directory called models
       if not(episode%100) and episode!=0 and not(self.gif):
