@@ -11,7 +11,7 @@ from fraction import Fraction
 
 class A2CAgent:
 
-	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.001):
+	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.1):
 		self.env = env
 		self.value_lr = value_lr
 		self.policy_lr = policy_lr
@@ -88,8 +88,8 @@ class A2CAgent:
 		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		# Loading models
-		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt"
-		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.pt"
+		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.1.pt"
+		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.1.pt"
 		# For CPU
 		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -182,7 +182,7 @@ class A2CAgent:
 							wrong[j]+=1
 
 					elif j+1==4:
-						if (k == self.num_agents-3 and tensor_list[i][j][k]>=threshold) or (k != self.num_agents-3 and tensor_list[i][j][k]<threshold):
+						if (k == 0 and tensor_list[i][j][k]>=threshold) or (k != 0 and tensor_list[i][j][k]<threshold):
 							right[j]+=1
 						else:
 							wrong[j]+=1
@@ -214,7 +214,6 @@ class A2CAgent:
 		
 
 		for value in [1,1e-5,1e-4,1e-3,1e-2,1e-1]:
-			# self.calculate_frequency(value,weight_action.flatten())
 			self.calculate_frequency_accuracy(value,weight_action)
 
 
