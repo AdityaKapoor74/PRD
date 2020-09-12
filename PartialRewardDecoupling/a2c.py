@@ -97,50 +97,6 @@ class ValueNetwork_(nn.Module):
 		return weight_action,weight_prob,value
 
 
-# class ValueNetwork_(nn.Module):
-
-# 	def __init__(self,input_states,num_agents,num_actions,output_dim_weights,output_dim_value):
-# 		super(ValueNetwork_,self).__init__()
-
-# 		self.num_agents = num_agents
-
-# 		self.softmax = nn.Softmax(dim=-1)
-
-# 		self.weights_fc1 = nn.Linear(input_states,512)
-# 		torch.nn.init.xavier_uniform_(self.weights_fc1.weight)
-# 		self.weights_fc2 = nn.Linear(512,256)
-# 		torch.nn.init.xavier_uniform_(self.weights_fc2.weight)
-# 		self.final_weights = nn.Linear(256,output_dim_weights)
-# 		torch.nn.init.xavier_uniform_(self.final_weights.weight)
-
-
-
-
-# 		self.value_fc1 = nn.Linear(input_states+(num_agents-1)*num_actions,512)
-# 		torch.nn.init.xavier_uniform_(self.value_fc1.weight)
-# 		self.value_fc2 = nn.Linear(512,256)
-# 		torch.nn.init.xavier_uniform_(self.value_fc2.weight)
-# 		self.value = nn.Linear(256,output_dim_value)
-# 		torch.nn.init.xavier_uniform_(self.value.weight)
-
-
-# 	def forward(self,state_weight,state_value):
-
-# 		if state_weight is not None:
-# 			weights = F.relu(self.weights_fc1(state_weight))
-# 			weights = F.relu(self.weights_fc2(weights))
-# 			weights = self.final_weights(weights)
-# 			weights = weights.reshape(weights.shape[0],weights.shape[1],self.num_agents-1,2)
-# 			weights = self.softmax(weights)
-# 			return weights.permute(0,1,3,2)
-
-# 		if state_value is not None:
-# 			value = F.relu(self.value_fc1(state_value))
-# 			value = F.relu(self.value_fc2(value))
-# 			value = self.value(value)
-# 			return value
-
-
 class PolicyNetwork_(nn.Module):
 
 	def __init__(self,input_dim,output_dim):

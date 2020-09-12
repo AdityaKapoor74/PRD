@@ -243,11 +243,11 @@ class A2CAgent:
 		value_loss = loss / (value_loss.shape[0]*value_loss.shape[1])
 
 	# # ***********************************************************************************
-
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
 
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+
 
 		advantage = value_targets - curr_Q
 		probs = Categorical(probs)
