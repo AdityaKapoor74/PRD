@@ -19,12 +19,14 @@ Policy Network
 Input: Observations
 Output: Probability over all actions
 '''
+
 class ValueNetwork_(nn.Module):
 
 	def __init__(self,input_states,num_agents,num_actions,output_dim_weights,output_dim_value):
 		super(ValueNetwork_,self).__init__()
 
 		self.num_agents = num_agents
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 		self.softmax = nn.Softmax(dim=-1)
 
@@ -46,21 +48,97 @@ class ValueNetwork_(nn.Module):
 		torch.nn.init.xavier_uniform_(self.value.weight)
 
 
-	def forward(self,state_weight,state_value):
+	def forward(self,states,one_hot_actions,probs):
 
-		if state_weight is not None:
-			weights = F.relu(self.weights_fc1(state_weight))
-			weights = F.relu(self.weights_fc2(weights))
-			weights = self.final_weights(weights)
-			weights = weights.reshape(weights.shape[0],weights.shape[1],self.num_agents-1,2)
-			weights = self.softmax(weights)
-			return weights.permute(0,1,3,2)
+		weights = F.relu(self.weights_fc1(states))
+		weights = F.relu(self.weights_fc2(weights))
+		weights = self.final_weights(weights)
+		weights = weights.reshape(weights.shape[0],weights.shape[1],self.num_agents-1,2)
+		weights = self.softmax(weights)
+		weights = weights.reshape(-1,2)
 
-		if state_value is not None:
-			value = F.relu(self.value_fc1(state_value))
-			value = F.relu(self.value_fc2(value))
-			value = self.value(value)
-			return value
+		weight_prob = weights[:,0]
+		weight_action = weights[:,1]
+
+		weight_prob = weight_prob.reshape(-1,self.num_agents,self.num_agents-1)
+		weight_action = weight_action.reshape(-1,self.num_agents,self.num_agents-1)
+
+
+		states_value = []
+		for k in range(states.shape[0]):
+			for j in range(states.shape[1]): # states.shape[1]==self.num_agents
+
+				actions_ = one_hot_actions[k].detach().clone()
+				actions_ = torch.cat([actions_[:j],actions_[j+1:]])
+				probs_ = probs[k].detach().clone()
+				probs_ = torch.cat([probs_[:j],probs_[j+1:]])
+
+
+				z = torch.Tensor().to(self.device)
+				for i in range(self.num_agents-1):
+					z_partial = weight_action[k][j][i].item()*actions_[i].to(self.device)+weight_prob[k][j][i].item()*probs_[i]
+					z = torch.cat([z,z_partial])
+
+				z = z.reshape(self.num_agents-1,-1)
+				tmp = states[k][j].clone()
+				for i in range(self.num_agents-1):
+					if i == self.num_agents-2:
+						tmp = torch.cat([tmp,z[i]])
+					else: 
+						tmp = torch.cat([tmp[:-6*(self.num_agents-2-i)],z[i],tmp[-6*(self.num_agents-2-i):]])
+				states_value.append(tmp)
+
+		states_value = torch.stack(states_value).reshape(states.shape[0],states.shape[1],-1).to(self.device)
+
+		value = F.relu(self.value_fc1(states_value))
+		value = F.relu(self.value_fc2(value))
+		value = self.value(value)
+
+		return weight_action,weight_prob,value
+
+
+# class ValueNetwork_(nn.Module):
+
+# 	def __init__(self,input_states,num_agents,num_actions,output_dim_weights,output_dim_value):
+# 		super(ValueNetwork_,self).__init__()
+
+# 		self.num_agents = num_agents
+
+# 		self.softmax = nn.Softmax(dim=-1)
+
+# 		self.weights_fc1 = nn.Linear(input_states,512)
+# 		torch.nn.init.xavier_uniform_(self.weights_fc1.weight)
+# 		self.weights_fc2 = nn.Linear(512,256)
+# 		torch.nn.init.xavier_uniform_(self.weights_fc2.weight)
+# 		self.final_weights = nn.Linear(256,output_dim_weights)
+# 		torch.nn.init.xavier_uniform_(self.final_weights.weight)
+
+
+
+
+# 		self.value_fc1 = nn.Linear(input_states+(num_agents-1)*num_actions,512)
+# 		torch.nn.init.xavier_uniform_(self.value_fc1.weight)
+# 		self.value_fc2 = nn.Linear(512,256)
+# 		torch.nn.init.xavier_uniform_(self.value_fc2.weight)
+# 		self.value = nn.Linear(256,output_dim_value)
+# 		torch.nn.init.xavier_uniform_(self.value.weight)
+
+
+# 	def forward(self,state_weight,state_value):
+
+# 		if state_weight is not None:
+# 			weights = F.relu(self.weights_fc1(state_weight))
+# 			weights = F.relu(self.weights_fc2(weights))
+# 			weights = self.final_weights(weights)
+# 			weights = weights.reshape(weights.shape[0],weights.shape[1],self.num_agents-1,2)
+# 			weights = self.softmax(weights)
+# 			return weights.permute(0,1,3,2)
+
+# 		if state_value is not None:
+# 			value = F.relu(self.value_fc1(state_value))
+# 			value = F.relu(self.value_fc2(value))
+# 			value = self.value(value)
+# 			return value
 
 
 class PolicyNetwork_(nn.Module):

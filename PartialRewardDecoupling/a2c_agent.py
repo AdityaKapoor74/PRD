@@ -110,6 +110,8 @@ class A2CAgent:
 
 		return index
 
+
+
 	def get_one_hot_encoding(self,actions):
 		one_hot = torch.zeros([actions.shape[0], self.num_agents, self.env.action_space[0].n], dtype=torch.int32)
 		for i in range(one_hot.shape[0]):
@@ -117,6 +119,7 @@ class A2CAgent:
 				one_hot[i][j][int(actions[i][j].item())] = 1
 
 		return one_hot
+
 
 
 	def calculate_advantages(self,returns, values, normalize = False):
@@ -198,20 +201,11 @@ class A2CAgent:
 		'''
 		Separate network with action conditioning
 		'''
-		weights = self.value_network.forward(states_critic,None)
+		probs = self.policy_network.forward(states_actor)
+		one_hot_actions = self.get_one_hot_encoding(actions)
 
-		
-		weight_prob = torch.Tensor().to(self.device)
-		weight_action = torch.Tensor().to(self.device)
 
-		for i in range(weights.shape[0]):
-			for j in range(weights.shape[1]):
-				weight_prob = torch.cat([weight_prob,weights[i][j][0]])
-				weight_action = torch.cat([weight_action,weights[i][j][1]])
-
-		weight_prob = weight_prob.reshape(weights.shape[0],weights.shape[1],weights.shape[3])
-		weight_action = weight_action.reshape(weights.shape[0],weights.shape[1],weights.shape[3])
-		
+		weight_action,weight_prob,curr_Q = self.value_network.forward(states_critic,one_hot_actions,probs)
 
 		for value in [1,1e-5,1e-4,1e-3,1e-2,1e-1]:
 			self.calculate_frequency_accuracy(value,weight_action)
@@ -226,70 +220,32 @@ class A2CAgent:
 		print(self.accuracy)
 
 
-		probs = self.policy_network.forward(states_actor)
-
-		one_hot_actions = self.get_one_hot_encoding(actions)
-
-		states_value = []
-		for k in range(states_critic.shape[0]):
-			for j in range(states_critic.shape[1]): # states.shape[1]==self.num_agents
-
-				actions_ = one_hot_actions[k].detach().clone()
-				actions_ = torch.cat([actions_[:j],actions_[j+1:]])
-				probs_ = probs[k].detach().clone()
-				probs_ = torch.cat([probs_[:j],probs_[j+1:]])
-
-
-				z = torch.Tensor().to(self.device)
-				for i in range(self.num_agents-1):
-					z_partial = weight_action[k][j][i].item()*actions_[i].to(self.device)+weight_prob[k][j][i].item()*probs_[i]
-					z = torch.cat([z,z_partial])
-
-				z = z.reshape(self.num_agents-1,-1)
-				tmp = states_critic[k][j].clone()
-				for i in range(self.num_agents-1):
-					if i == self.num_agents-2:
-						tmp = torch.cat([tmp,z[i]])
-					else: 
-						tmp = torch.cat([tmp[:-6*(self.num_agents-2-i)],z[i],tmp[-6*(self.num_agents-2-i):]])
-				states_value.append(tmp)
-
-		states_value = torch.stack(states_value).reshape(states_critic.shape[0],states_critic.shape[1],-1).to(self.device)
-
-	# ***********************************************************************************
-		#update critic (value_net)
-		curr_Q = self.value_network.forward(None,states_value)
+	# # ***********************************************************************************
+	# 	#update critic (value_net)
 		discounted_rewards = self.calculate_returns(rewards,self.gamma)
 
-	# ***********************************************************************************
+	# # ***********************************************************************************
 
-	# ***********************************************************************************
+	# # ***********************************************************************************
 		value_targets = rewards.to(self.device) + torch.FloatTensor(discounted_rewards).to(self.device)
 		value_targets = value_targets.unsqueeze(dim=-1)
 		value_loss = F.smooth_l1_loss(curr_Q,value_targets,reduction='none')
 
-		critic_loss = torch.Tensor([[0] for i in range(self.num_agents)]).to(self.device)
-		weight_values = torch.Tensor([[0] for i in range(self.num_agents)]).to(self.device)
+		sum_weight_values = torch.sum(weight_action).to(self.device)
 
-
-
-		for values,weight_value in zip(value_loss,weight_action):
-			critic_loss+=values
-			weight_values+=torch.sum(weight_value,dim=1).reshape(values.shape[0],-1)
-
-		sum_weight_values = torch.sum(weight_values).to(self.device)
+		loss = torch.FloatTensor([0]).to(self.device)
 
 		for i in range(self.num_agents):
-			critic_loss[i]+=self.lambda_*(sum_weight_values-weight_values[i])
+			loss += torch.sum(value_loss[:,i]) + self.lambda_*(sum_weight_values - torch.sum(weight_action[:,i]))
 
 		
 
-		value_loss = torch.mean(critic_loss) / value_loss.shape[0]
+		value_loss = loss / (value_loss.shape[0]*value_loss.shape[1])
 
-	# ***********************************************************************************
+	# # ***********************************************************************************
 
-		#update actor (policy net)
-	# ***********************************************************************************
+	# 	#update actor (policy net)
+	# # ***********************************************************************************
 
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
@@ -297,9 +253,9 @@ class A2CAgent:
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions).unsqueeze(dim=-1) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
-	# ***********************************************************************************
+	# # ***********************************************************************************
 		
-	# ***********************************************************************************
+	# # ***********************************************************************************
 		self.value_optimizer.zero_grad()
 		value_loss.backward(retain_graph=False)
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(),0.5)
@@ -310,7 +266,7 @@ class A2CAgent:
 		policy_loss.backward(retain_graph=False)
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		self.policy_optimizer.step()
-	# ***********************************************************************************
+	# # ***********************************************************************************
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
 
 

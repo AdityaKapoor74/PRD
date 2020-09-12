@@ -96,6 +96,7 @@ class MAA2C:
 
 
 
+
   def run(self,max_episode,max_steps):  
     for episode in range(1,max_episode):
       states = self.env.reset()
@@ -110,7 +111,7 @@ class MAA2C:
         # actions = self.get_actions(states)
         next_states,rewards,dones,info = self.env.step(actions)
         next_states_critic,next_states_actor = self.split_states(next_states)
-        rewards = [np.sum(rewards)] * self.num_agents
+        # rewards = [np.sum(rewards)] * self.num_agents
 
         episode_reward += np.sum(rewards)
 
