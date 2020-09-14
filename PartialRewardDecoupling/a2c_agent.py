@@ -249,12 +249,13 @@ class A2CAgent:
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
 		# summing across each agent 
-		value_targets = torch.sum(value_targets,dim=0) 
-		curr_Q = torch.sum(curr_Q,dim=0)
+		value_targets = torch.sum(value_targets,dim=1) 
+		curr_Q = torch.sum(curr_Q,dim=1)
 
-		advantage = torch.sum(value_targets - curr_Q)
+
+		advantage = value_targets - curr_Q
 		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions).unsqueeze(dim=-1) * advantage.detach()
+		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
 	# # ***********************************************************************************
 		
