@@ -11,7 +11,7 @@ from fraction import Fraction
 
 class A2CAgent:
 
-	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.1):
+	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=1.0):
 		self.env = env
 		self.value_lr = value_lr
 		self.policy_lr = policy_lr
@@ -88,8 +88,8 @@ class A2CAgent:
 		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		# Loading models
-		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.1.pt"
-		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.1.pt"
+		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.0.pt"
+		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.0.pt"
 		# For CPU
 		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -248,8 +248,11 @@ class A2CAgent:
 
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
+		# summing across each agent 
+		value_targets = torch.sum(value_targets,dim=0) 
+		curr_Q = torch.sum(curr_Q,dim=0)
 
-		advantage = value_targets - curr_Q
+		advantage = torch.sum(value_targets - curr_Q)
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions).unsqueeze(dim=-1) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
