@@ -213,11 +213,11 @@ class A2CAgent:
 
 		with open('../../freq_accuracy_of_weight_actions.txt', 'w') as f:
 			print("Fractions",file=f)
-    		print(self.dict_fraction, file=f)
-    		print("Frequencies", file=f)
-    		print(self.dict, file=f)
-    		print("Accuracy",file=f)
-    		print(self.accuracy, file=f)
+			print(self.dict_fraction, file=f)
+			print("Frequencies", file=f)
+			print(self.dict, file=f)
+			print("Accuracy",file=f)
+			print(self.accuracy, file=f)
 
 		print("Frequencies of weight values")
 		print(self.dict_fraction)
