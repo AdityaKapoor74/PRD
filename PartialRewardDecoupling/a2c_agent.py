@@ -57,14 +57,14 @@ class A2CAgent:
 
 
 # 		# Separate Networks
-		# self.value_input_dim = self.env.observation_space[0].shape[0]
-		# self.value_output_dim = 1
-		# self.policy_input_dim = self.env.observation_space[0].shape[0]
-		# self.policy_output_dim = self.env.action_space[0].n
-		# self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
-		# self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
-		# self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
-		# self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		self.value_input_dim = 2*3*self.num_agents
+		self.value_output_dim = 1
+		self.policy_input_dim = 2*(3+self.num_agents-1)
+		self.policy_output_dim = self.env.action_space[0].n
+		self.value_network = ValueNetwork(self.value_input_dim,self.value_output_dim).to(self.device)
+		self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
+		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 # 		# Loading models
 # 		model_path_value = "./models/separate_net/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
 # 		model_path_policy = "./models/separate_net/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt"
@@ -77,16 +77,16 @@ class A2CAgent:
 
 
 		# Separate Network with action conditioning
-		self.value_input_dim = 2*3*self.num_agents # for pose,vel and landmark for every agent
-		self.value_output_dim = 1
-		self.weight_output_dim = 2*(self.num_agents-1)
-		self.num_actions = self.env.action_space[0].n
-		self.policy_input_dim = 2*(3+self.num_agents-1) #2 for pose, 2 for vel and 2 for goal of current agent and rest for relative position of other agents 2 each
-		self.policy_output_dim = self.env.action_space[0].n
-		self.value_network = ValueNetwork_(self.value_input_dim,self.num_agents,self.num_actions,self.weight_output_dim,self.value_output_dim).to(self.device)
-		self.policy_network = PolicyNetwork_(self.policy_input_dim,self.policy_output_dim).to(self.device)
-		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		# self.value_input_dim = 2*3*self.num_agents # for pose,vel and landmark for every agent
+		# self.value_output_dim = 1
+		# self.weight_output_dim = 2*(self.num_agents-1)
+		# self.num_actions = self.env.action_space[0].n
+		# self.policy_input_dim = 2*(3+self.num_agents-1) #2 for pose, 2 for vel and 2 for goal of current agent and rest for relative position of other agents 2 each
+		# self.policy_output_dim = self.env.action_space[0].n
+		# self.value_network = ValueNetwork_(self.value_input_dim,self.num_agents,self.num_actions,self.weight_output_dim,self.value_output_dim).to(self.device)
+		# self.policy_network = PolicyNetwork_(self.policy_input_dim,self.policy_output_dim).to(self.device)
+		# self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
+		# self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		# Loading models
 		# model_path_value = "./models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.0.pt"
 		# model_path_policy = "./models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_1.0.pt"
@@ -201,120 +201,72 @@ class A2CAgent:
 		'''
 		Separate network with action conditioning
 		'''
-		probs = self.policy_network.forward(states_actor)
-		one_hot_actions = self.get_one_hot_encoding(actions)
+	# 	probs = self.policy_network.forward(states_actor)
+	# 	one_hot_actions = self.get_one_hot_encoding(actions)
 
 
-		weight_action,weight_prob,curr_Q = self.value_network.forward(states_critic,one_hot_actions,probs)
+	# 	weight_action,weight_prob,curr_Q = self.value_network.forward(states_critic,one_hot_actions,probs)
 
-		for value in [1,1e-5,1e-4,1e-3,1e-2,1e-1]:
-			self.calculate_frequency_accuracy(value,weight_action)
-
-
-		with open('../../freq_accuracy_of_weight_actions.txt', 'w') as f:
-			print("Fractions",file=f)
-			print(self.dict_fraction, file=f)
-			print("Frequencies", file=f)
-			print(self.dict, file=f)
-			print("Accuracy",file=f)
-			print(self.accuracy, file=f)
-
-		print("Frequencies of weight values")
-		print(self.dict_fraction)
-		print(self.dict)
-
-		print("Accuracy")
-		print(self.accuracy)
+	# 	for value in [1,1e-5,1e-4,1e-3,1e-2,1e-1]:
+	# 		self.calculate_frequency_accuracy(value,weight_action)
 
 
-	# # ***********************************************************************************
-	# 	#update critic (value_net)
-		discounted_rewards = self.calculate_returns(rewards,self.gamma)
+	# 	with open('../../freq_accuracy_of_weight_actions.txt', 'w') as f:
+	# 		print("Fractions",file=f)
+	# 		print(self.dict_fraction, file=f)
+	# 		print("Frequencies", file=f)
+	# 		print(self.dict, file=f)
+	# 		print("Accuracy",file=f)
+	# 		print(self.accuracy, file=f)
 
-	# # ***********************************************************************************
+	# 	print("Frequencies of weight values")
+	# 	print(self.dict_fraction)
+	# 	print(self.dict)
 
-	# # ***********************************************************************************
-		value_targets = rewards.to(self.device) + torch.FloatTensor(discounted_rewards).to(self.device)
-		value_targets = value_targets.unsqueeze(dim=-1)
-		value_loss = F.smooth_l1_loss(curr_Q,value_targets,reduction='none')
-
-		sum_weight_values = torch.sum(weight_action).to(self.device)
-
-		loss = torch.FloatTensor([0]).to(self.device)
-
-		for i in range(self.num_agents):
-			loss += torch.sum(value_loss[:,i]) + self.lambda_*(sum_weight_values - torch.sum(weight_action[:,i]))
-
-		
-
-		value_loss = loss / (value_loss.shape[0]*value_loss.shape[1])
-
-	# # ***********************************************************************************
-	# 	#update actor (policy net)
-	# # ***********************************************************************************
-
-		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
-
-		# summing across each agent 
-		value_targets = torch.sum(value_targets,dim=1) 
-		curr_Q = torch.sum(curr_Q,dim=1)
+	# 	print("Accuracy")
+	# 	print(self.accuracy)
 
 
-		advantage = value_targets - curr_Q
-		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions) * advantage.detach()
-		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
-	# # ***********************************************************************************
-		
-	# # ***********************************************************************************
-		self.value_optimizer.zero_grad()
-		value_loss.backward(retain_graph=False)
-		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(),0.5)
-		self.value_optimizer.step()
-		
-
-		self.policy_optimizer.zero_grad()
-		policy_loss.backward(retain_graph=False)
-		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-		self.policy_optimizer.step()
-	# # ***********************************************************************************
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
-
-
-
-	# def update(self,states,next_states,actions,rewards):
-	# 	'''
-	# 	Separate networks
-	# 	'''
-		
-	# # ***********************************************************************************
-	# 	#update critic (value_net)
-	# 	curr_Q = self.value_network.forward(states)
-
-	# 	# discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
-	# 	# discounted_rewards = np.transpose(discounted_rewards)
+	# # # ***********************************************************************************
+	# # 	#update critic (value_net)
 	# 	discounted_rewards = self.calculate_returns(rewards,self.gamma)
-	# # ***********************************************************************************
 
-	# # ***********************************************************************************
+	# # # ***********************************************************************************
+
+	# # # ***********************************************************************************
 	# 	value_targets = rewards.to(self.device) + torch.FloatTensor(discounted_rewards).to(self.device)
 	# 	value_targets = value_targets.unsqueeze(dim=-1)
-	# 	value_loss = F.smooth_l1_loss(curr_Q,value_targets)
-	# # ***********************************************************************************
+	# 	value_loss = F.smooth_l1_loss(curr_Q,value_targets,reduction='none')
 
-	# 	#update actor (policy net)
-	# # ***********************************************************************************
-	# 	probs = self.policy_network.forward(states)
+	# 	sum_weight_values = torch.sum(weight_action).to(self.device)
+
+	# 	loss = torch.FloatTensor([0]).to(self.device)
+
+	# 	for i in range(self.num_agents):
+	# 		loss += torch.sum(value_loss[:,i]) + self.lambda_*(sum_weight_values - torch.sum(weight_action[:,i]))
+
+		
+
+	# 	value_loss = loss / (value_loss.shape[0]*value_loss.shape[1])
+
+	# # # ***********************************************************************************
+	# # 	#update actor (policy net)
+	# # # ***********************************************************************************
 
 	# 	entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
+	# 	# summing across each agent 
+	# 	value_targets = torch.sum(value_targets,dim=1) 
+	# 	curr_Q = torch.sum(curr_Q,dim=1)
+
+
 	# 	advantage = value_targets - curr_Q
 	# 	probs = Categorical(probs)
-	# 	policy_loss = -probs.log_prob(actions).unsqueeze(dim=-1) * advantage.detach()
+	# 	policy_loss = -probs.log_prob(actions) * advantage.detach()
 	# 	policy_loss = policy_loss.mean() - self.entropy_pen*entropy
-	# # ***********************************************************************************
+	# # # ***********************************************************************************
 		
-	# # ***********************************************************************************
+	# # # ***********************************************************************************
 	# 	self.value_optimizer.zero_grad()
 	# 	value_loss.backward(retain_graph=False)
 	# 	grad_norm_value = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(),0.5)
@@ -325,9 +277,59 @@ class A2CAgent:
 	# 	policy_loss.backward(retain_graph=False)
 	# 	grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 	# 	self.policy_optimizer.step()
-	# # ***********************************************************************************
-
+	# # # ***********************************************************************************
 	# 	return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
+
+
+
+		'''
+		Separate networks
+		'''
+		
+	# ***********************************************************************************
+		#update critic (value_net)
+		curr_Q = self.value_network.forward(states_critic)
+
+		# discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
+		# discounted_rewards = np.transpose(discounted_rewards)
+		discounted_rewards = self.calculate_returns(rewards,self.gamma)
+	# ***********************************************************************************
+
+	# ***********************************************************************************
+		value_targets = rewards.to(self.device) + torch.FloatTensor(discounted_rewards).to(self.device)
+		value_targets = value_targets.unsqueeze(dim=-1)
+		value_loss = F.smooth_l1_loss(curr_Q,value_targets)
+	# ***********************************************************************************
+
+		#update actor (policy net)
+	# ***********************************************************************************
+		probs = self.policy_network.forward(states_actor)
+
+		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+
+		value_targets = torch.sum(value_targets,dim=1) 
+		curr_Q = torch.sum(curr_Q,dim=1)
+		
+		advantage = value_targets - curr_Q
+		probs = Categorical(probs)
+		policy_loss = -probs.log_prob(actions).unsqueeze(dim=-1) * advantage.detach()
+		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+	# ***********************************************************************************
+		
+	# ***********************************************************************************
+		self.value_optimizer.zero_grad()
+		value_loss.backward(retain_graph=False)
+		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(),0.5)
+		self.value_optimizer.step()
+		
+
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward(retain_graph=False)
+		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		self.policy_optimizer.step()
+	# ***********************************************************************************
+
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
 
 
 
