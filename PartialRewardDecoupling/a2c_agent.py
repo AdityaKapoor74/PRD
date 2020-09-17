@@ -309,10 +309,10 @@ class A2CAgent:
 
 		value_targets = torch.sum(value_targets,dim=1) 
 		curr_Q = torch.sum(curr_Q,dim=1)
-		
+
 		advantage = value_targets - curr_Q
 		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions).unsqueeze(dim=-1) * advantage.detach()
+		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
 	# ***********************************************************************************
 		
