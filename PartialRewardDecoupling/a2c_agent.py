@@ -11,7 +11,7 @@ from fraction import Fraction
 
 class A2CAgent:
 
-	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.01):
+	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.001):
 		self.env = env
 		self.value_lr = value_lr
 		self.policy_lr = policy_lr
@@ -159,9 +159,8 @@ class A2CAgent:
 		TN = [0]*self.num_agents
 		FN = [0]*self.num_agents
 
-		if threshold not in self.dict:
-			self.dict[threshold] = 0
-			self.dict_fraction[threshold] = str(0)
+		self.dict[threshold] = 0
+		self.dict_fraction[threshold] = str(0)
 
 		for i in range(tensor_list.shape[0]):
 			for j in range(tensor_list.shape[1]):
