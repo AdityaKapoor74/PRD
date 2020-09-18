@@ -226,11 +226,11 @@ class A2CAgent:
 			if (TP[i]+FP[i]) == 0:
 				self.precision[str(i+1)][threshold] = 0
 			else:
-				self.precision[str(i+1)][threshold] = round(TP[i]/(TP[i]+FP[i]),4)
+				self.precision[str(i+1)][threshold] = round((TP[i]/(TP[i]+FP[i])),4)
 			if (TP[i]+FN[i]) == 0:
 				self.recall[str(i+1)][threshold] = 0
 			else:
-				self.recall[str(i+1)][threshold] = round(TP[i]/(TP[i]+FN[i]),4)
+				self.recall[str(i+1)][threshold] = round((TP[i]/(TP[i]+FN[i])),4)
 
 		self.dict_fraction[threshold] = str(Fraction(self.dict[threshold],self.dict[1]))
 
