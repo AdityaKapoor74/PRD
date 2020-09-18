@@ -250,7 +250,7 @@ class A2CAgent:
 			self.calculate_frequency_accuracy_precision_recall(value,weight_action)
 
 
-		with open('../../freq_accuracy_precision_recall_of_weight_actions.txt', 'w+') as f:
+		with open('../../freq_accuracy_precision_recall_of_weight_actions'+str(self.lambda_)+'.txt', 'w+') as f:
 			print("Fractions",file=f)
 			print(self.dict_fraction, file=f)
 			print("Frequencies", file=f)
