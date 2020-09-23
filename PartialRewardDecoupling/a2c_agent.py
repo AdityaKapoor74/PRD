@@ -11,7 +11,7 @@ from fraction import Fraction
 
 class A2CAgent:
 
-	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.000001):
+	def __init__(self,env,value_lr=2e-4, policy_lr=2e-4, actorcritic_lr=2e-4, entropy_pen=0.008, gamma=0.99, lambda_=0.0):
 		self.env = env
 		self.value_lr = value_lr
 		self.policy_lr = policy_lr
@@ -260,6 +260,8 @@ class A2CAgent:
 			print(self.recall, file=f)
 			print("Accuracy",file=f)
 			print(self.accuracy, file=f)
+			print("ACTION WEIGHTS", file=f)
+			print(weight_action, file=f)
 
 		print("Frequencies of weight values")
 		print(self.dict_fraction)

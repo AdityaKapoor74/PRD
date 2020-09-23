@@ -20,7 +20,7 @@ class MAA2C:
 
     if not(self.gif):
       # Separate network with action conditioning
-      self.writer = SummaryWriter('../../runs/separate_net_with_action_conditioning/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008_lambda_0.000001')
+      self.writer = SummaryWriter('../../runs/separate_net_with_action_conditioning/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008_lambda_0.0')
       # Separate network
       # self.writer = SummaryWriter('../../runs/separate_net/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008')
       # # Shared network
@@ -136,8 +136,8 @@ class MAA2C:
 #       make a directory called models
       if not(episode%100) and episode!=0 and not(self.gif):
 #         Separate network with action conditioning
-        torch.save(self.agents.value_network.state_dict(), "../../models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.000001.pt")
-        torch.save(self.agents.policy_network.state_dict(), "../../models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.000001.pt")  
+        torch.save(self.agents.value_network.state_dict(), "../../models/separate_net_with_action_conditioning/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.0.pt")
+        torch.save(self.agents.policy_network.state_dict(), "../../models/separate_net_with_action_conditioning/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs_lambda_0.0.pt")  
 #         # Separate networks
         # torch.save(self.agents.value_network.state_dict(), "../../models/separate_net/4_agents/value_net_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")
         # torch.save(self.agents.policy_network.state_dict(), "../../models/separate_net/4_agents/policy_net_lr_2e-4_value_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_clamp_logs.pt")  
