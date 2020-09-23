@@ -261,7 +261,8 @@ class A2CAgent:
 			print("Accuracy",file=f)
 			print(self.accuracy, file=f)
 			print("ACTION WEIGHTS", file=f)
-			print(weight_action, file=f)
+			torch.set_printoptions(profile="full")
+			print(weight_action[:], file=f)
 
 		print("Frequencies of weight values")
 		print(self.dict_fraction)
