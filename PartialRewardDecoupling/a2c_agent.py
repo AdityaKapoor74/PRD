@@ -347,7 +347,7 @@ class A2CAgent:
 		for k in range(states_critic.shape[0]):
 			for j in range(states_critic.shape[1]): # states_critic.shape[1]==self.num_agents
 
-				actions_ = one_hot_actions[k].detach().clone().to(self.device)
+				actions_ = one_hot_actions[k].detach().clone().to(self.device, dtype= torch.float)
 				actions_ = torch.cat([actions_[:j],actions_[j+1:]])
 				# probs_ = probs[k].detach().clone()
 				# probs_ = torch.cat([probs_[:j],probs_[j+1:]])
