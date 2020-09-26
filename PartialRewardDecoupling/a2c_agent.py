@@ -60,7 +60,7 @@ class A2CAgent:
 
 # 		# Separate Networks
 		# self.value_input_dim = 2*3*self.num_agents+(self.num_agents-1)*self.env.action_space[0].n
-		self.value_input_dim = 2*3*self.num_agents
+		self.value_input_dim = 2*3*self.num_agents+self.num_agents-1
 		self.value_output_dim = 1
 		self.policy_input_dim = 2*(3+self.num_agents-1)
 		self.policy_output_dim = self.env.action_space[0].n
@@ -250,7 +250,7 @@ class A2CAgent:
 	# 		self.calculate_frequency_accuracy_precision_recall(value,weight_action)
 
 
-	# 	with open('../../data/freq_accuracy_precision_recall_of_weight_actions'+str(self.lambda_)+'.txt', 'w+') as f:
+	# 	with open('../../data/4_agents/freq_accuracy_precision_recall_of_weight_actions'+str(self.lambda_)+'.txt', 'w+') as f:
 	# 		print("Fractions",file=f)
 	# 		print(self.dict_fraction, file=f)
 	# 		print("Frequencies", file=f)
@@ -342,8 +342,12 @@ class A2CAgent:
 	# ***********************************************************************************
 		#update critic (value_net)
 		probs = self.policy_network.forward(states_actor)
-		one_hot_actions = self.get_one_hot_encoding(actions)
+		
 
+		'''
+		for one hot actions and policy
+		'''
+		# one_hot_actions = self.get_one_hot_encoding(actions)
 		# states_value = []
 		# for k in range(states_critic.shape[0]):
 		# 	for j in range(states_critic.shape[1]): # states_critic.shape[1]==self.num_agents
@@ -364,9 +368,28 @@ class A2CAgent:
 
 		# states_value = torch.stack(states_value).reshape(states_critic.shape[0],states_critic.shape[1],-1).to(self.device)
 
-		# print(states_value[0])
+		'''
+		for passing action number
+		'''
+		states_value = []
+		for k in range(states_critic.shape[0]):
+			for j in range(states_critic.shape[1]): # states_critic.shape[1]==self.num_agents
 
-		curr_Q = self.value_network.forward(states_critic)
+				actions_ = actions[k].detach().clone().to(self.device, dtype= torch.float)
+				actions_ = torch.cat([actions_[:j],actions_[j+1:]])
+
+				tmp = states_critic[k][j].clone().to(self.device)
+				for i in range(self.num_agents-1):
+					if i == self.num_agents-2:
+						tmp = torch.cat([tmp,torch.Tensor([actions_[i]]).to(self.device)])
+					else: 
+						tmp = torch.cat([tmp[:-6*(self.num_agents-2-i)],torch.Tensor([actions_[i]]).to(self.device),tmp[-6*(self.num_agents-2-i):]])
+
+				states_value.append(tmp)
+
+		states_value = torch.stack(states_value).reshape(states_critic.shape[0],states_critic.shape[1],-1).to(self.device)
+
+		curr_Q = self.value_network.forward(states_value)
 
 		# discounted_rewards = np.asarray([[torch.sum(torch.FloatTensor([self.gamma**i for i in range(rewards[k][j:].size(0))])* rewards[k][j:]) for j in range(rewards.size(0))] for k in range(self.num_agents)])
 		# discounted_rewards = np.transpose(discounted_rewards)
