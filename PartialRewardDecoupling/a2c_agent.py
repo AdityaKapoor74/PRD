@@ -247,10 +247,10 @@ class A2CAgent:
 		weight_action,weight_prob,curr_Q = self.value_network.forward(states_critic,one_hot_actions,probs)
 
 		for value in [1,1e-5,1e-4,1e-3,1e-2,1e-1]:
-			self.calculate_frequency_accuracy_precision_recall(value,weight_action)
+			self.calculate_frequency_accuracy_precision_recall(value,weight_prob)
 
 
-		with open('../../data/4_agents/freq_accuracy_precision_recall_of_weight_actions'+str(self.lambda_)+'.txt', 'w+') as f:
+		with open('../../data/4_agents/freq_accuracy_precision_recall_of_weight_policy'+str(self.lambda_)+'.txt', 'w+') as f:
 			print("Fractions",file=f)
 			print(self.dict_fraction, file=f)
 			print("Frequencies", file=f)
@@ -261,9 +261,9 @@ class A2CAgent:
 			print(self.recall, file=f)
 			print("Accuracy",file=f)
 			print(self.accuracy, file=f)
-			print("ACTION WEIGHTS", file=f)
+			print("PROB WEIGHTS", file=f)
 			torch.set_printoptions(profile="full")
-			print(weight_action[:], file=f)
+			print(weight_prob[:], file=f)
 
 		print("Frequencies of weight values")
 		print(self.dict_fraction)
