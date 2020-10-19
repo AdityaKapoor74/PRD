@@ -1,3 +1,4 @@
+from typing import Any, List, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,7 +12,7 @@ class GenericNetwork(nn.Module):
 	weight_init: str = "xavier_uniform",
 	activation_func: str = "relu"
 	):
-		super(F,self).__init__()
+		super(GenericNetwork,self).__init__()
 
 		layers = []
 		limit = len(layer_sizes)

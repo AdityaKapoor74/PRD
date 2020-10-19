@@ -5,7 +5,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-# from a2c_agent import A2CAgent
+from a2c_agent import A2CAgent
 
 
 class MAA2C:
@@ -19,7 +19,7 @@ class MAA2C:
 		for i in range(self.env.action_space[0].n):
 			self.one_hot_actions[i][i] = 1
 
-		# self.agents = A2CAgent(self.env)
+		self.agents = A2CAgent(self.env)
 
 		if not(self.gif):
 			self.writer = SummaryWriter('../../runs/separate_net_with_action_conditioning/4_agents/value_lr_2e-4_policy_lr_2e-4_entropy_0.008_lambda_1e-6')
