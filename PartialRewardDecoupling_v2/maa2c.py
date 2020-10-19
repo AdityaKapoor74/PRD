@@ -93,14 +93,14 @@ class MAA2C:
 				other agents with respect to every agent in question
 				Number of Agents x Number of Agents - 1 x Observation Space
 				'''
-				other = np.array(states_actor)
+				other = np.array(states_critic)
 				other_actions = np.zeros((self.num_agents,self.num_actions))
-				other_ = np.zeros((self.num_agents,states_actor.shape[1]+self.num_actions))
+				other_ = np.zeros((self.num_agents,states_critic.shape[1]+self.num_actions))
 				for i,act in enumerate(actions):
 					other_actions[i][act] = 1
 					other_[i] = np.concatenate([other[i],other_actions[i]])
 
-				other_agent = np.zeros((self.num_agents,self.num_agents-1,states_actor.shape[1]+self.num_actions))
+				other_agent = np.zeros((self.num_agents,self.num_agents-1,states_critic.shape[1]+self.num_actions))
 				for i in range(self.num_agents):
 					other_agent[i] = np.concatenate([other_[:i],other_[i+1:]])
 

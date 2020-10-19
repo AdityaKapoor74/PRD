@@ -61,16 +61,6 @@ class A2CAgent:
 
 
 
-	def get_one_hot_encoding(self,actions):
-		one_hot = torch.zeros([actions.shape[0], self.num_agents, self.env.action_space[0].n], dtype=torch.int32)
-		for i in range(one_hot.shape[0]):
-			for j in range(self.num_agents):
-				one_hot[i][j][int(actions[i][j].item())] = 1
-
-		return one_hot
-
-
-
 	def calculate_advantages(self,returns, values, normalize = False):
 	
 		advantages = returns - values
@@ -91,7 +81,7 @@ class A2CAgent:
 			R = r + R * discount_factor
 			returns.insert(0, R)
 		
-		returns_tensor = torch.stack(returns)
+		returns_tensor = torch.stack(returns).to(self.device)
 		
 		if normalize:
 			
@@ -102,7 +92,7 @@ class A2CAgent:
 
 
 	def update(self,current_agent_critic,other_agent_critic,states_actor,actions,rewards,dones):
-		
+
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
@@ -112,24 +102,19 @@ class A2CAgent:
 		Getting Q values for every agent 
 		'''
 		Q_values = self.value_network.forward(current_agent_critic,other_agent_critic)
+		Q_values = Q_values.reshape(Q_values.shape[0],Q_values.shape[1],Q_values.shape[2])
 
 		'''
 		Calculate V values
 		'''
-		V_values = probs*Q_values
-
+		V_values = torch.sum(probs.detach()*Q_values,dim=-1)
 
 
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
 		discounted_rewards = self.calculate_returns(rewards,self.gamma)
 
-	# # ***********************************************************************************
-
-	# # ***********************************************************************************
-		value_targets = torch.FloatTensor(discounted_rewards).to(self.device)
-		value_targets = value_targets.unsqueeze(dim=-1)
-		value_loss = F.smooth_l1_loss(curr_Q,value_targets)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -138,17 +123,18 @@ class A2CAgent:
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
 		# summing across each agent 
-		value_targets = torch.sum(value_targets,dim=1) 
-		curr_Q = torch.sum(curr_Q,dim=1)
+		value_targets = torch.sum(discounted_rewards,dim=1) 
+		value_estimates = torch.sum(V_values,dim=1)
 
 
-		advantage = value_targets - curr_Q
+		advantage = self.calculate_advantages(value_targets, value_estimates)
 		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions) * advantage.detach()
+		policy_loss = -probs.log_prob(actions) * advantage.unsqueeze(-1).detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
 	# # ***********************************************************************************
 		
-	# # ***********************************************************************************
+	# # *************************************************
+	# **********************************
 		self.value_optimizer.zero_grad()
 		value_loss.backward(retain_graph=False)
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(),0.5)

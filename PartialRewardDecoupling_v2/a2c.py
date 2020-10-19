@@ -53,11 +53,12 @@ class QValueNetwork(nn.Module):
 
 
 	def forward(self,current_agent_states, other_agent_states):
-
 		curr_agent_outputs = self.current_agent(current_agent_states)
-		other_agents_states_actions = self.other_agent(other_agent_states)
-		print(curr_agent_outputs)
-		# other_agent_outputs 
+		other_agent_outputs = self.other_agent(other_agent_states)
+		merge_agent_inputs = torch.sum(other_agent_outputs,dim=2).unsqueeze(2) + curr_agent_outputs
+		merge_agent_outputs = self.common(merge_agent_inputs)
+		return merge_agent_outputs
+
 
 
 
