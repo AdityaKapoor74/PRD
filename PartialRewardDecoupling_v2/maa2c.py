@@ -15,6 +15,7 @@ class MAA2C:
 		self.env = env
 		self.gif = gif
 		self.num_agents = env.n
+		self.num_actions = self.env.action_space[0].n
 		self.one_hot_actions = torch.zeros(self.env.action_space[0].n,self.env.action_space[0].n)
 		for i in range(self.env.action_space[0].n):
 			self.one_hot_actions[i][i] = 1
@@ -29,18 +30,19 @@ class MAA2C:
 		for i in range(self.num_agents):
 			action = self.agents.get_action(states[i])
 			actions.append(action)
-			return actions
+		return actions
 
 	def update(self,trajectory,episode):
 
-		states_critic = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		states_actor = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-		next_states_critic = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		next_states_actor = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
-		rewards = torch.FloatTensor([sars[5] for sars in trajectory])
 
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards)
+		current_agent = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
+		other_agent = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+		states_actor = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+		actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+		rewards = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
+		dones = torch.FloatTensor([sars[5] for sars in trajectory])
+
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(current_agent,other_agent,states_actor,actions,rewards,dones)
 
 
 		if not(self.gif):
@@ -74,15 +76,34 @@ class MAA2C:
 
 			states_critic,states_actor = self.split_states(states)
 
-			states_critic = torch.FloatTensor(states_critic)
-			print(states_critic)
-			current_agent = [[torch.cat([states_critic[i],self.one_hot_actions[j]]) for j in range(len(self.one_hot_actions))] for i in range(self.num_agents)]
-			print(current_agent)
+
 			trajectory = []
 			episode_reward = 0
 			for step in range(max_steps):
 
+				'''
+				agents observation with actions concatenated
+				Number of Agents x Action Dim x Observation Space
+				'''
+				current_agent = np.array([[np.concatenate([states_critic[i],self.one_hot_actions[j]]) for j in range(len(self.one_hot_actions))] for i in range(self.num_agents)])
+
 				actions = self.get_actions(states_actor)
+
+				'''
+				other agents with respect to every agent in question
+				Number of Agents x Number of Agents - 1 x Observation Space
+				'''
+				other = np.array(states_actor)
+				other_actions = np.zeros((self.num_agents,self.num_actions))
+				other_ = np.zeros((self.num_agents,states_actor.shape[1]+self.num_actions))
+				for i,act in enumerate(actions):
+					other_actions[i][act] = 1
+					other_[i] = np.concatenate([other[i],other_actions[i]])
+
+				other_agent = np.zeros((self.num_agents,self.num_agents-1,states_actor.shape[1]+self.num_actions))
+				for i in range(self.num_agents):
+					other_agent[i] = np.concatenate([other_[:i],other_[i+1:]])
+
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
 
@@ -92,7 +113,7 @@ class MAA2C:
 				if all(dones) or step == max_steps-1:
 
 					dones = [1 for _ in range(self.num_agents)]
-					trajectory.append([states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards])
+					trajectory.append([current_agent,other_agent,states_actor,actions,rewards,dones])
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 					print("*"*100)
@@ -104,7 +125,7 @@ class MAA2C:
 					break
 				else:
 					dones = [0 for _ in range(self.num_agents)]
-					trajectory.append([states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards])
+					trajectory.append([current_agent,other_agent,states_actor,actions,rewards,dones])
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 

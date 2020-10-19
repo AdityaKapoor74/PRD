@@ -101,16 +101,22 @@ class A2CAgent:
 
 
 
-	def update(self,states_critic,states_actor,next_states_critic,next_states_actor,actions,rewards):
-
+	def update(self,current_agent_critic,other_agent_critic,states_actor,actions,rewards,dones):
+		
 		'''
-		Separate network with action conditioning
+		Getting the probability mass function over the action space for each agent
 		'''
 		probs = self.policy_network.forward(states_actor)
-		one_hot_actions = self.get_one_hot_encoding(actions)
 
+		'''
+		Getting Q values for every agent 
+		'''
+		Q_values = self.value_network.forward(current_agent_critic,other_agent_critic)
 
-		weight_action,weight_prob,curr_Q = self.value_network.forward(states_critic,one_hot_actions,probs)
+		'''
+		Calculate V values
+		'''
+		V_values = probs*Q_values
 
 
 
@@ -123,18 +129,7 @@ class A2CAgent:
 	# # ***********************************************************************************
 		value_targets = torch.FloatTensor(discounted_rewards).to(self.device)
 		value_targets = value_targets.unsqueeze(dim=-1)
-		value_loss = F.smooth_l1_loss(curr_Q,value_targets,reduction='none')
-
-		sum_weight_values = torch.sum(weight_action).to(self.device)
-
-		loss = torch.FloatTensor([0]).to(self.device)
-
-		for i in range(self.num_agents):
-			loss += torch.sum(value_loss[:,i]) + self.lambda_*(sum_weight_values - torch.sum(weight_action[:,i]))
-
-		
-
-		value_loss = loss / (value_loss.shape[0]*value_loss.shape[1])
+		value_loss = F.smooth_l1_loss(curr_Q,value_targets)
 
 	# # ***********************************************************************************
 	# 	#update actor (policy net)

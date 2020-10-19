@@ -54,8 +54,9 @@ class QValueNetwork(nn.Module):
 
 	def forward(self,current_agent_states, other_agent_states):
 
-		curr_agent_outputs = torch.FloatTensor([[self.current_agent(torch.cat([current_agent[j],self.one_hots[i]])) for i in range(self.action_dim)] for j in range(self.num_agents)])
-		other_agents_states_actions = torch.zeros(self.num_agents,self.num_agents-1,self.action_dim)
+		curr_agent_outputs = self.current_agent(current_agent_states)
+		other_agents_states_actions = self.other_agent(other_agent_states)
+		print(curr_agent_outputs)
 		# other_agent_outputs 
 
 
