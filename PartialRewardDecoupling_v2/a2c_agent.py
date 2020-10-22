@@ -90,6 +90,15 @@ class A2CAgent:
 		return returns_tensor
 
 
+	def get_one_hot_encoding(self,actions):
+		one_hot = torch.zeros([actions.shape[0], self.num_agents, self.env.action_space[0].n], dtype=torch.int32)
+		for i in range(one_hot.shape[0]):
+			for j in range(self.num_agents):
+				one_hot[i][j][int(actions[i][j].item())] = 1
+
+		return one_hot
+
+
 
 	def update(self,current_agent_critic,other_agent_critic,states_actor,actions,rewards,dones):
 
@@ -104,6 +113,9 @@ class A2CAgent:
 		Q_values = self.value_network.forward(current_agent_critic,other_agent_critic)
 		Q_values = Q_values.reshape(Q_values.shape[0],Q_values.shape[1],Q_values.shape[2])
 
+		one_hot_actions = self.get_one_hot_encoding(actions).to(self.device)
+		Q_estimates = torch.sum(Q_values*one_hot_actions,dim=-1)
+
 		'''
 		Calculate V values
 		'''
@@ -114,7 +126,9 @@ class A2CAgent:
 	# 	#update critic (value_net)
 		discounted_rewards = self.calculate_returns(rewards,self.gamma)
 
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+		# to be changed
+
+		value_loss = F.smooth_l1_loss(Q_estimates,discounted_rewards)
 
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
