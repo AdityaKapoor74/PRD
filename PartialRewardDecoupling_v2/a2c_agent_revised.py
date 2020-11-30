@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c import PolicyNetwork, ValueNetwork
+from a2c_revised import PolicyNetwork, ValueNetwork
 import torch.nn.functional as F
 from fraction import Fraction
 
@@ -33,8 +33,8 @@ class A2CAgent:
 		self.gif = gif
 
 
-		self.value_input_dim_curr_agent = 2*3 # for pose,vel and landmark
-		self.value_input_dim_other_agent = 2*3 + self.env.action_space[0].n # for pose,vel and landmark along with one hot actions for one agent
+		self.value_input_dim_curr_agent = 2*3 + self.env.action_space[0].n # for pose,vel and landmark along with one hot actions/ policy 
+		self.value_input_dim_other_agent = 2*3 + self.env.action_space[0].n # for pose,vel and landmark along with one hot actions/ policy
 		self.value_output_dim = 1 # State-Value
 		current_agent_size = (self.value_input_dim_curr_agent,128)
 		other_agent_size = (self.value_input_dim_other_agent,128)
@@ -114,15 +114,15 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values = self.value_network.forward(current_agent_critic.unsqueeze(-2),other_agent_critic).reshape(-1,self.num_agents)
-
-
+		# V[t,j,i] = Value of agent i without conditioning on agent j's actions --> This is the transpose of what we wanted for easier calculation
+		V_values = self.value_network.forward(current_agent_critic.unsqueeze(-2),other_agent_critic).squeeze(-1).squeeze(-1)
 
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
-		discounted_rewards = self.calculate_returns(rewards,self.gamma)
-
+		# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
+		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+
 
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -130,14 +130,12 @@ class A2CAgent:
 
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
-		# summing across each agent 
-		value_targets = torch.sum(discounted_rewards,dim=1) 
-		value_estimates = torch.sum(V_values,dim=1)
+		# summing across each agent j to get the advantage
+		# so we sum across the last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values),dim=-1)
 
-
-		advantage = self.calculate_advantages(value_targets, value_estimates)
 		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions) * advantage.unsqueeze(-1).detach()
+		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
 	# # ***********************************************************************************
 		

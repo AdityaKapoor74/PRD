@@ -23,7 +23,7 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif):
-			self.writer = SummaryWriter('../../runs/V_values/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_just_policies')
+			self.writer = SummaryWriter('../../runs/baselines/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_policy')
 
 	def get_actions(self,states):
 		actions = []
@@ -35,14 +35,13 @@ class MAA2C:
 	def update(self,trajectory,episode):
 
 
-		current_agent = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		other_agent = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-		states_actor = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		rewards = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[5] for sars in trajectory])
+		states_critic = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
+		states_actor = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+		actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+		rewards = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+		dones = torch.FloatTensor([sars[4] for sars in trajectory])
 
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(current_agent,other_agent,states_actor,actions,rewards,dones)
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(states_critic,states_actor,actions,rewards,dones)
 
 
 		if not(self.gif):
@@ -79,41 +78,37 @@ class MAA2C:
 
 			trajectory = []
 			episode_reward = 0
+			
 			for step in range(max_steps):
 
 				'''
 				agents observation with actions concatenated
-				Number of Agents x 1 x Observation Space
+				Number of Agents  x Observation Space (includes actions for agents other than the agent in question)
 				'''
-				current_agent = np.array(states_critic)
 
 				actions = self.get_actions(states_actor)
-
-				'''
-				other agents with respect to every agent in question
-				Number of Agents x Number of Agents - 1 x Observation Space concatenated with Actions taken
-				'''
-				# other = np.array(states_critic)
+				policies = self.agents.policy_network.forward(torch.FloatTensor(states_actor).to(self.device)).detach().cpu().numpy()
+				
 				# other_actions = np.zeros((self.num_agents,self.num_actions))
-				# other_ = np.zeros((self.num_agents,states_critic.shape[1]+self.num_actions))
 				# for i,act in enumerate(actions):
 				# 	other_actions[i][act] = 1
-				# 	other_[i] = np.concatenate([other[i],other_actions[i]])
+				# other_actions = other_actions+policies
 
-				# other_agent = np.zeros((self.num_agents,self.num_agents-1,states_critic.shape[1]+self.num_actions))
-				# for i in range(self.num_agents):
-				# 	other_agent[i] = np.concatenate([other_[:i],other_[i+1:]])
-
-				other = np.array(states_critic)
-				policies = self.agents.policy_network(torch.FloatTensor(states_actor).to(self.device)).detach().cpu().numpy()
-				other_policies = np.zeros((self.num_agents,states_critic.shape[1]+self.num_actions))
-
-				for i,act in enumerate(actions):
-					other_policies[i] = np.concatenate([other[i],policies[i]])
-
-				other_agent = np.zeros((self.num_agents,self.num_agents-1,states_critic.shape[1]+self.num_actions))
+				states_action_critic = np.zeros((self.num_agents,self.agents.value_input_dim))
 				for i in range(self.num_agents):
-					other_agent[i] = np.concatenate([other_policies[:i],other_policies[i+1:]])
+					# other_actions_temp = np.delete(other_actions,i,axis=0)
+					policies_temp = np.delete(policies,i,axis=0)
+					tmp = np.copy(states_critic[i])
+					for j in range(self.num_agents-1):
+						if j == self.num_agents-2:
+							# tmp = np.concatenate([tmp,other_actions_temp[j]])
+							tmp = np.concatenate([tmp,policies_temp[j]])
+
+							continue
+						# tmp = np.concatenate([tmp[:-6*(self.num_agents-j-2)],other_actions_temp[j],tmp[-6*(self.num_agents-j-2):]])
+						tmp = np.concatenate([tmp[:-6*(self.num_agents-j-2)],policies_temp[j],tmp[-6*(self.num_agents-j-2):]])
+					states_action_critic[i] = tmp
+
 
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
@@ -124,7 +119,7 @@ class MAA2C:
 				if all(dones) or step == max_steps-1:
 
 					dones = [1 for _ in range(self.num_agents)]
-					trajectory.append([current_agent,other_agent,states_actor,actions,rewards,dones])
+					trajectory.append([states_action_critic,states_actor,actions,rewards,dones])
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 					print("*"*100)
@@ -136,14 +131,14 @@ class MAA2C:
 					break
 				else:
 					dones = [0 for _ in range(self.num_agents)]
-					trajectory.append([current_agent,other_agent,states_actor,actions,rewards,dones])
+					trajectory.append([states_action_critic,states_actor,actions,rewards,dones])
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
 			#       make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
-				torch.save(self.agents.value_network.state_dict(), "../../models/V_values/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_just_policies.pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/V_values/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_just_policies.pt")  
+				torch.save(self.agents.value_network.state_dict(), "../../models/baselines/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policy.pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/baselines/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policy.pt")  
 
 
 			self.update(trajectory,episode) 

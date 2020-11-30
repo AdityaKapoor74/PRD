@@ -1,8 +1,6 @@
-# from maa2c import MAA2C
-from maa2c_revised import MAA2C
+from maa2c import MAA2C
 
 from multiagent.environment import MultiAgentEnv
-# from multiagent.scenarios.simple_spread import Scenario
 import multiagent.scenarios as scenarios
 import torch 
 import numpy as np

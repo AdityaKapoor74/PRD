@@ -18,7 +18,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		gif = False
+		gif=False
 		):
 
 		self.env = env
@@ -30,26 +30,33 @@ class A2CAgent:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		
 		self.num_agents = self.env.n
+
 		self.gif = gif
 
 
-		self.value_input_dim_curr_agent = 2*3 # for pose,vel and landmark
-		self.value_input_dim_other_agent = 2*3 + self.env.action_space[0].n # for pose,vel and landmark along with one hot actions for one agent
+		self.value_input_dim = 2*3 + (2*3+self.env.action_space[0].n)*(self.num_agents-1) # for pose,vel and landmark of current agent followed by pose, vel, landmark and one-hot actions
 		self.value_output_dim = 1 # State-Value
-		current_agent_size = (self.value_input_dim_curr_agent,128)
-		other_agent_size = (self.value_input_dim_other_agent,128)
-		common_size = (128,1)
-		self.value_network = ValueNetwork(current_agent_size,other_agent_size,common_size,self.num_agents).to(self.device)
+		self.value_network = ValueNetwork(self.value_input_dim, self.value_output_dim).to(self.device)
 		
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
-		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
-		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
+		self.policy_network = PolicyNetwork(self.policy_input_dim, self.policy_output_dim).to(self.device)
 
 
 		self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
+		if self.gif:
+			# Loading models
+
+			model_path_value = "../../models/baselines/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policy.pt"
+			model_path_policy = "../../models/baselines/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policy.pt"
+			# For CPU
+			# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+			# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+			# For GPU
+			self.value_network.load_state_dict(torch.load(model_path_value))
+			self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 
 		
@@ -94,17 +101,8 @@ class A2CAgent:
 		return returns_tensor
 
 
-	def get_one_hot_encoding(self,actions):
-		one_hot = torch.zeros([actions.shape[0], self.num_agents, self.env.action_space[0].n], dtype=torch.int32)
-		for i in range(one_hot.shape[0]):
-			for j in range(self.num_agents):
-				one_hot[i][j][int(actions[i][j].item())] = 1
 
-		return one_hot
-
-
-
-	def update(self,current_agent_critic,other_agent_critic,states_actor,actions,rewards,dones):
+	def update(self,states_critic,states_actor,actions,rewards,dones):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -114,7 +112,7 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values = self.value_network.forward(current_agent_critic.unsqueeze(-2),other_agent_critic).reshape(-1,self.num_agents)
+		V_values = self.value_network.forward(states_critic).reshape(-1,self.num_agents)
 
 
 
@@ -133,6 +131,8 @@ class A2CAgent:
 		# summing across each agent 
 		value_targets = torch.sum(discounted_rewards,dim=1) 
 		value_estimates = torch.sum(V_values,dim=1)
+
+		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 
 		advantage = self.calculate_advantages(value_targets, value_estimates)

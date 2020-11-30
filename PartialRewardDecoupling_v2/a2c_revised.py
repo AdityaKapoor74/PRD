@@ -3,10 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# *******************************************
-# Q(s,a) 
-# *******************************************
-
 def create_model(
 	layer_sizes: Tuple,
 	weight_init: str = "xavier_uniform",
@@ -56,7 +52,7 @@ class ValueNetwork(nn.Module):
 	def forward(self,current_agent_states, other_agent_states):
 		curr_agent_outputs = self.current_agent(current_agent_states)
 		other_agent_outputs = self.other_agent(other_agent_states)
-		merge_agent_inputs = F.relu((torch.sum(other_agent_outputs,dim=2).unsqueeze(2) + curr_agent_outputs)/self.num_agents)
+		merge_agent_inputs = F.relu((torch.sum(other_agent_outputs,dim=-2).unsqueeze(-2) + curr_agent_outputs)/self.num_agents)
 		merge_agent_outputs = self.common(merge_agent_inputs)
 		return merge_agent_outputs
 
