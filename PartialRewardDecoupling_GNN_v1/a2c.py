@@ -44,6 +44,8 @@ class GNNLayer(nn.Module):
 	def __init__(self, in_feats, out_feats):
 		super(GNNLayer, self).__init__()
 		self.linear = nn.Linear(in_feats, out_feats)
+		self.gcn_msg = fn.copy_src(src='h', out='m')
+		self.gcn_reduce = fn.mean(msg='m', out='h')	
 
 	def forward(self, g, feature):
 		# Creating a local scope so that all the stored ndata and edata
@@ -51,7 +53,7 @@ class GNNLayer(nn.Module):
 		# when the scope exits.
 		with g.local_scope():
 			g.ndata['h'] = feature
-			g.update_all(gcn_msg, gcn_reduce)
+			g.update_all(self.gcn_msg, self.gcn_reduce)
 			h = g.ndata['h']
 			return self.linear(h)
 

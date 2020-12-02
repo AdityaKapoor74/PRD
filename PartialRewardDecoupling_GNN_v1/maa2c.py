@@ -5,7 +5,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent import A2CAgent
+from a2c_agent_revised import A2CAgent
 
 
 class MAA2C:
@@ -23,7 +23,7 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif):
-			self.writer = SummaryWriter('../../runs/V_values/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_just_policies')
+			self.writer = SummaryWriter('../../runs/V_values_i_j/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_policies_and_actions')
 
 	def get_actions(self,states):
 		actions = []
@@ -83,37 +83,50 @@ class MAA2C:
 
 				'''
 				agents observation with actions concatenated
-				Number of Agents x 1 x Observation Space
+				Number of Agents x Number of Agents x Observation Space concatenated with Actions taken or Policy adopted
 				'''
-				current_agent = np.array(states_critic)
-
-				actions = self.get_actions(states_actor)
-
 				'''
 				other agents with respect to every agent in question
-				Number of Agents x Number of Agents - 1 x Observation Space concatenated with Actions taken
+				Number of Agents x Number of Agents x Number of Agents-1 x Observation Space concatenated with Actions taken or Policy adopted
 				'''
-				# other = np.array(states_critic)
-				# other_actions = np.zeros((self.num_agents,self.num_actions))
-				# other_ = np.zeros((self.num_agents,states_critic.shape[1]+self.num_actions))
-				# for i,act in enumerate(actions):
-				# 	other_actions[i][act] = 1
-				# 	other_[i] = np.concatenate([other[i],other_actions[i]])
 
-				# other_agent = np.zeros((self.num_agents,self.num_agents-1,states_critic.shape[1]+self.num_actions))
-				# for i in range(self.num_agents):
-				# 	other_agent[i] = np.concatenate([other_[:i],other_[i+1:]])
-
-				other = np.array(states_critic)
 				policies = self.agents.policy_network(torch.FloatTensor(states_actor).to(self.device)).detach().cpu().numpy()
-				other_policies = np.zeros((self.num_agents,states_critic.shape[1]+self.num_actions))
 
+
+				actions = self.get_actions(states_actor)
+				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
-					other_policies[i] = np.concatenate([other[i],policies[i]])
+					one_hot_actions[i][act] = 1
 
-				other_agent = np.zeros((self.num_agents,self.num_agents-1,states_critic.shape[1]+self.num_actions))
+				current_agent = np.array([states_actor[i][:6] for i in range(self.num_agents)]) # 6 is the first observation size for 1 agent. This ensures that we retrieve just the observatio of current agent (agent in question)
+				current_agent_states = np.zeros((self.num_agents,self.num_agents,int(states_critic.shape[1]/self.num_agents)+self.num_actions))
+
 				for i in range(self.num_agents):
-					other_agent[i] = np.concatenate([other_policies[:i],other_policies[i+1:]])
+					for j in range(self.num_agents):
+						if i == j:
+							current_agent_states[i][j] = np.concatenate([current_agent[i],policies[i]])
+						else:
+							current_agent_states[i][j] = np.concatenate([current_agent[i],one_hot_actions[i]])
+
+
+				
+				other_agents = np.array([[states_critic[j][6*i:6*(i+1)] for i in range(1,self.num_agents)] for j in range(self.num_agents)])
+				other_agents_states = np.zeros((self.num_agents,self.num_agents,self.num_agents-1,int(states_critic.shape[1]/self.num_agents)+self.num_actions))
+				counter = 0
+
+				for i in range(self.num_agents):
+					for j in range(self.num_agents):
+						counter = 0
+						for k in range(self.num_agents):
+							if k==i:
+								continue
+							if k==j:
+								other_agents_states[i][j][counter] = np.concatenate([other_agents[i][counter],policies[k]])
+							else:
+								other_agents_states[i][j][counter] = np.concatenate([other_agents[i][counter],one_hot_actions[k]])
+							counter+=1
+
+
 
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
@@ -124,7 +137,7 @@ class MAA2C:
 				if all(dones) or step == max_steps-1:
 
 					dones = [1 for _ in range(self.num_agents)]
-					trajectory.append([current_agent,other_agent,states_actor,actions,rewards,dones])
+					trajectory.append([current_agent_states,other_agents_states,states_actor,actions,rewards,dones])
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 					print("*"*100)
@@ -136,14 +149,14 @@ class MAA2C:
 					break
 				else:
 					dones = [0 for _ in range(self.num_agents)]
-					trajectory.append([current_agent,other_agent,states_actor,actions,rewards,dones])
+					trajectory.append([current_agent_states,other_agents_states,states_actor,actions,rewards,dones])
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
-			#       make a directory called models
+			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
-				torch.save(self.agents.value_network.state_dict(), "../../models/V_values/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_just_policies.pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/V_values/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_just_policies.pt")  
+				torch.save(self.agents.value_network.state_dict(), "../../models/V_values_i_j/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policies_and_actions.pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/V_values_i_j/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policies_and_actions.pt")  
 
 
 			self.update(trajectory,episode) 
