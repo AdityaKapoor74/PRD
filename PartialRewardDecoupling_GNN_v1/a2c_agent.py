@@ -110,6 +110,7 @@ class A2CAgent:
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 
+
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 	# # ***********************************************************************************
