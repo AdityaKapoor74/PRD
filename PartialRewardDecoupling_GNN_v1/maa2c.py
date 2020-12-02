@@ -43,6 +43,7 @@ class MAA2C:
 		# critic_graphs = torch.Tensor([sars[0] for sars in trajectory]).to(self.device)
 		# critic_graphs = [sars[0] for sars in trajectory]
 		critic_graphs = [sars[0] for sars in trajectory]
+		states_actor = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
 		actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
 		rewards = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[4] for sars in trajectory])
