@@ -41,14 +41,16 @@ class MAA2C:
 
 		# critic_graphs = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
 		# critic_graphs = torch.Tensor([sars[0] for sars in trajectory]).to(self.device)
-		# critic_graphs = [sars[0] for sars in trajectory]
 		critic_graphs = [sars[0] for sars in trajectory]
-		states_actor = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		rewards = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[4] for sars in trajectory])
+		critic_graphs = [item for sublist in critic_graphs for item in sublist]
+		critic_graphs = dgl.batch(critic_graphs).to(self.device)
+		features = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+		states_actor = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+		actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+		rewards = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
+		dones = torch.FloatTensor([sars[5] for sars in trajectory])
 
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,states_actor,actions,rewards,dones)
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,features,states_actor,actions,rewards,dones)
 
 
 		if not(self.gif):
@@ -137,8 +139,10 @@ class MAA2C:
 
 				# generate graphs for each agent pair
 				store_graphs = []
+				store_features = []
 				for i in range(self.num_agents):
 					store_graphs.append(self.construct_agent_graph(states_action_policy_critic[i]))
+					store_features.append(states_action_policy_critic[i])
 
 
 
@@ -152,7 +156,7 @@ class MAA2C:
 				if all(dones) or step == max_steps-1:
 
 					dones = [1 for _ in range(self.num_agents)]
-					trajectory.append([store_graphs,states_actor,actions,rewards,dones])
+					trajectory.append([store_graphs,store_features,states_actor,actions,rewards,dones])
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 					print("*"*100)
@@ -164,7 +168,7 @@ class MAA2C:
 					break
 				else:
 					dones = [0 for _ in range(self.num_agents)]
-					trajectory.append([store_graphs,states_actor,actions,rewards,dones])
+					trajectory.append([store_graphs,store_features,states_actor,actions,rewards,dones])
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
