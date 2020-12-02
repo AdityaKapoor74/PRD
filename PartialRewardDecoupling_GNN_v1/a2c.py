@@ -2,6 +2,11 @@ from typing import Any, List, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import dgl 
+import numpy as np
+import dgl
+import dgl.function as fn
+from dgl import DGLGraph
 
 # *******************************************
 # Q(s,a) 
@@ -35,32 +40,34 @@ def create_model(
 
 
 
+class GNNLayer(nn.Module):
+	def __init__(self, in_feats, out_feats):
+		super(GNNLayer, self).__init__()
+		self.linear = nn.Linear(in_feats, out_feats)
 
-class ValueNetwork(nn.Module):
-
-	def __init__(self,
-		curr_agent_sizes, 
-		other_agent_sizes, 
-		common_sizes,
-		num_agents
-		):
-		super(ValueNetwork,self).__init__()
-
-		self.current_agent = create_model(curr_agent_sizes)
-		self.other_agent = create_model(other_agent_sizes)
-		self.common = create_model(common_sizes)
-		self.num_agents = num_agents
-
+	def forward(self, g, feature):
+		# Creating a local scope so that all the stored ndata and edata
+		# (such as the `'h'` ndata below) are automatically popped out
+		# when the scope exits.
+		with g.local_scope():
+			g.ndata['h'] = feature
+			g.update_all(gcn_msg, gcn_reduce)
+			h = g.ndata['h']
+			return self.linear(h)
 
 
-	def forward(self,current_agent_states, other_agent_states):
-		curr_agent_outputs = self.current_agent(current_agent_states)
-		other_agent_outputs = self.other_agent(other_agent_states)
-		merge_agent_inputs = F.relu((torch.sum(other_agent_outputs,dim=2).unsqueeze(2) + curr_agent_outputs)/self.num_agents)
-		merge_agent_outputs = self.common(merge_agent_inputs)
-		return merge_agent_outputs
+class CriticNetwork(nn.Module):
+	def __init__(self, input_dim, hidden_dim, output_dim):
+		super(CriticNetwork, self).__init__()
+		self.layer1 = GNNLayer(input_dim, hidden_dim)
+		torch.nn.init.xavier_uniform_(self.layer1.weight)
+		self.layer2 = GNNLayer(hidden_dim, output_dim)
+		torch.nn.init.xavier_uniform_(self.layer2.weight)
 
-
+	def forward(self, g, features):
+		x = F.relu(self.layer1(g, features))
+		x = self.layer2(g, x)
+		return x
 
 
 class PolicyNetwork(nn.Module):
