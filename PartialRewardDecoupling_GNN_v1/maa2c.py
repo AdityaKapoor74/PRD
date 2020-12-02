@@ -5,7 +5,11 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent_revised import A2CAgent
+from a2c_agent import A2CAgent
+
+
+import dgl
+import networkx as nx
 
 
 class MAA2C:
@@ -69,6 +73,19 @@ class MAA2C:
 
 
 
+	def construct_agent_graph(self,states_critic):
+
+		graph = nx.complete_graph(self.num_agents)
+		graph = dgl.DGLGraph(graph)
+
+
+		graph.ndata['obs'] = torch.FloatTensor(states_critic)
+		       
+		return graph
+
+
+
+
 
 	def run(self,max_episode,max_steps):  
 		for episode in range(1,max_episode):
@@ -80,7 +97,8 @@ class MAA2C:
 			trajectory = []
 			episode_reward = 0
 			for step in range(max_steps):
-
+				# print("STATES CRITIC")
+				# print(states_critic)
 				'''
 				agents observation with actions concatenated
 				Number of Agents x Number of Agents x Observation Space concatenated with Actions taken or Policy adopted
@@ -91,41 +109,37 @@ class MAA2C:
 				'''
 
 				policies = self.agents.policy_network(torch.FloatTensor(states_actor).to(self.device)).detach().cpu().numpy()
-
+				# print("POLICIES")
+				# print(policies)
 
 				actions = self.get_actions(states_actor)
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				current_agent = np.array([states_actor[i][:6] for i in range(self.num_agents)]) # 6 is the first observation size for 1 agent. This ensures that we retrieve just the observatio of current agent (agent in question)
-				current_agent_states = np.zeros((self.num_agents,self.num_agents,int(states_critic.shape[1]/self.num_agents)+self.num_actions))
+				# print("ACTIONS")
+				# print(one_hot_actions)
+
+				states_action_policy_critic = np.zeros((self.num_agents,self.num_agents,states_critic.shape[1]+self.num_actions))
 
 				for i in range(self.num_agents):
 					for j in range(self.num_agents):
-						if i == j:
-							current_agent_states[i][j] = np.concatenate([current_agent[i],policies[i]])
+						if i==j:
+							states_action_policy_critic[i][j] = np.concatenate([states_critic[j],one_hot_actions[j]])
 						else:
-							current_agent_states[i][j] = np.concatenate([current_agent[i],one_hot_actions[i]])
+							states_action_policy_critic[i][j] = np.concatenate([states_critic[j],policies[j]])
 
+				# print("MIX")
+				# print(states_action_policy_critic.shape)
+				# print(states_action_policy_critic)
 
-				
-				other_agents = np.array([[states_critic[j][6*i:6*(i+1)] for i in range(1,self.num_agents)] for j in range(self.num_agents)])
-				other_agents_states = np.zeros((self.num_agents,self.num_agents,self.num_agents-1,int(states_critic.shape[1]/self.num_agents)+self.num_actions))
-				counter = 0
-
+				# generate graphs for each agent pair
+				store_graphs = []
 				for i in range(self.num_agents):
-					for j in range(self.num_agents):
-						counter = 0
-						for k in range(self.num_agents):
-							if k==i:
-								continue
-							if k==j:
-								other_agents_states[i][j][counter] = np.concatenate([other_agents[i][counter],policies[k]])
-							else:
-								other_agents_states[i][j][counter] = np.concatenate([other_agents[i][counter],one_hot_actions[k]])
-							counter+=1
+					store_graphs.append(self.construct_agent_graph(states_action_policy_critic[i]))
 
+				print(store_graphs)
+				break
 
 
 				next_states,rewards,dones,info = self.env.step(actions)
@@ -137,7 +151,7 @@ class MAA2C:
 				if all(dones) or step == max_steps-1:
 
 					dones = [1 for _ in range(self.num_agents)]
-					trajectory.append([current_agent_states,other_agents_states,states_actor,actions,rewards,dones])
+					trajectory.append([store_graphs,states_actor,actions,rewards,dones])
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 					print("*"*100)
@@ -149,7 +163,7 @@ class MAA2C:
 					break
 				else:
 					dones = [0 for _ in range(self.num_agents)]
-					trajectory.append([current_agent_states,other_agents_states,states_actor,actions,rewards,dones])
+					trajectory.append([store_graphs,states_actor,actions,rewards,dones])
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
