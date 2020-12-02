@@ -27,7 +27,7 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif):
-			self.writer = SummaryWriter('../../runs/V_values_i_j/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_policies_and_actions')
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_baseline/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_policies_and_actions')
 
 	def get_actions(self,states):
 		actions = []
@@ -174,8 +174,8 @@ class MAA2C:
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
-				torch.save(self.agents.value_network.state_dict(), "../../models/V_values_i_j/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policies_and_actions.pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/V_values_i_j/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policies_and_actions.pt")  
+				torch.save(self.agents.value_network.state_dict(), "../../models/GNN_V_values_i_j_baseline/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policies_and_actions.pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_baseline/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policies_and_actions.pt")  
 
 
 			self.update(trajectory,episode) 
