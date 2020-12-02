@@ -39,14 +39,15 @@ class MAA2C:
 	def update(self,trajectory,episode):
 
 
-		current_agent = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		other_agent = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-		states_actor = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		rewards = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[5] for sars in trajectory])
+		# critic_graphs = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
+		# critic_graphs = torch.Tensor([sars[0] for sars in trajectory]).to(self.device)
+		# critic_graphs = [sars[0] for sars in trajectory]
+		critic_graphs = [sars[0] for sars in trajectory]
+		actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+		rewards = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+		dones = torch.FloatTensor([sars[4] for sars in trajectory])
 
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(current_agent,other_agent,states_actor,actions,rewards,dones)
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,states_actor,actions,rewards,dones)
 
 
 		if not(self.gif):
@@ -76,10 +77,10 @@ class MAA2C:
 	def construct_agent_graph(self,states_critic):
 
 		graph = nx.complete_graph(self.num_agents)
-		graph = dgl.DGLGraph(graph)
+		graph = dgl.from_networkx(graph).to(self.device)
 
 
-		graph.ndata['obs'] = torch.FloatTensor(states_critic)
+		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
 		       
 		return graph
 
@@ -138,8 +139,7 @@ class MAA2C:
 				for i in range(self.num_agents):
 					store_graphs.append(self.construct_agent_graph(states_action_policy_critic[i]))
 
-				print(store_graphs)
-				break
+
 
 
 				next_states,rewards,dones,info = self.env.step(actions)
