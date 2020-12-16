@@ -35,9 +35,9 @@ class A2CAgent:
 		self.gif = gif
 
 
-		self.critic_input_dim = 2*3 + self.env.action_space[0].n
+		self.critic_preprocess_input_dim = 2*3
 		self.critic_output_dim = 1
-		self.critic_network = CriticNetwork(self.critic_input_dim,self.critic_output_dim).to(self.device)
+		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 32, 32, 16, 32+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 		
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
@@ -91,7 +91,7 @@ class A2CAgent:
 
 
 
-	def update(self,critic_graphs,features,states_actor,actions,rewards,dones):
+	def update(self,critic_graphs,policies,one_hot_actions,actions,states_actor,rewards,dones):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -101,15 +101,13 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values = self.critic_network.forward(critic_graphs).to(self.device).reshape(-1,self.num_agents,self.num_agents)
-
-
+		V_values = self.critic_network.forward(critic_graphs, policies, one_hot_actions).to(self.device).reshape(-1,self.num_agents,self.num_agents)
 
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
-
+		
 
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
