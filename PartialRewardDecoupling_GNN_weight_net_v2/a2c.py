@@ -12,31 +12,31 @@ from dgl import DGLGraph
 # Q(s,a) 
 # *******************************************
 
-def create_model(
-	layer_sizes: Tuple,
-	weight_init: str = "xavier_uniform",
-	activation_func: str = "relu"
-	):
+# def create_model(
+# 	layer_sizes: Tuple,
+# 	weight_init: str = "xavier_uniform",
+# 	activation_func: str = "relu"
+# 	):
 
-	layers = []
-	limit = len(layer_sizes)
+# 	layers = []
+# 	limit = len(layer_sizes)
 
-	# add more activations
-	activation = nn.Tanh() if activation_func == "tanh" else nn.ReLU()
+# 	# add more activations
+# 	activation = nn.Tanh() if activation_func == "tanh" else nn.ReLU()
 
-	# add more weight init
-	if weight_init == "xavier_uniform":
-		weight_init = torch.nn.init.xavier_uniform_
-	elif weight_init == "xavier_normal":
-		weight_init = torch.nn.init.xavier_normal_
+# 	# add more weight init
+# 	if weight_init == "xavier_uniform":
+# 		weight_init = torch.nn.init.xavier_uniform_
+# 	elif weight_init == "xavier_normal":
+# 		weight_init = torch.nn.init.xavier_normal_
 
-	for layer in range(limit - 1):
-		act = activation if layer < limit - 2 else nn.Identity()
-		layers += [nn.Linear(layer_sizes[layer], layer_sizes[layer + 1])]
-		weight_init(layers[-1].weight)
-		layers += [act]
+# 	for layer in range(limit - 1):
+# 		act = activation if layer < limit - 2 else nn.Identity()
+# 		layers += [nn.Linear(layer_sizes[layer], layer_sizes[layer + 1])]
+# 		weight_init(layers[-1].weight)
+# 		layers += [act]
 
-	return nn.Sequential(*layers)
+# 	return nn.Sequential(*layers)
 
 
 
@@ -180,26 +180,26 @@ class CriticNetwork(nn.Module):
 		x = self.value_layer(obs_final)
 		return x
 
-# class PolicyNetwork(nn.Module):
-# 	def __init__(self, input_dim, output_dim):
-# 		super(PolicyNetwork,self).__init__()
-# 		self.policy_layer1 = GNNLayer(input_dim, 64)
-# 		self.policy_layer2 = GNNLayer(64, output_dim)
-
-# 	def forward(self, g):
-# 		features = g.ndata['obs']
-# 		x = F.relu(self.policy_layer1(g, features))
-# 		x = F.softmax(self.policy_layer2(g, x),-1)
-# 		return x
-
 class PolicyNetwork(nn.Module):
-	def __init__(
-		self,
-		policy_sizes
-		):
+	def __init__(self, input_dim, output_dim):
 		super(PolicyNetwork,self).__init__()
+		self.policy_layer1 = GNNLayer(input_dim, 64)
+		self.policy_layer2 = GNNLayer(64, output_dim)
 
-		self.policy = create_model(policy_sizes)
+	def forward(self, g):
+		features = g.ndata['obs']
+		x = F.relu(self.policy_layer1(g, features))
+		x = F.softmax(self.policy_layer2(g, x),-1)
+		return x
 
-	def forward(self,states):
-		return F.softmax(self.policy(states),-1)
+# class PolicyNetwork(nn.Module):
+# 	def __init__(
+# 		self,
+# 		policy_sizes
+# 		):
+# 		super(PolicyNetwork,self).__init__()
+
+# 		self.policy = create_model(policy_sizes)
+
+# 	def forward(self,states):
+# 		return F.softmax(self.policy(states),-1)

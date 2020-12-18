@@ -40,37 +40,37 @@ class A2CAgent:
 		self.critic_output_dim = 1
 		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 32, 32, 16, 32+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 		
-		# self.policy_input_dim = 2*3
-		# self.policy_output_dim = self.env.action_space[0].n
-		# self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
-
-		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
+		self.policy_input_dim = 2*3
 		self.policy_output_dim = self.env.action_space[0].n
-		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
-		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
+		self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
+
+		# self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
+		# self.policy_output_dim = self.env.action_space[0].n
+		# policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
+		# self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
 
 
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
-	def get_action(self,state):
+	def get_action(self,actor_graph):
 		
-		# dists = self.policy_network.forward(actor_graph)
-		# actions = []
-		# for i in range(self.num_agents):
-		# 	probs = Categorical(dists[i])
-		# 	index = probs.sample().cpu().detach().item()
-		# 	actions.append(index)
+		dists = self.policy_network.forward(actor_graph)
+		actions = []
+		for i in range(self.num_agents):
+			probs = Categorical(dists[i])
+			index = probs.sample().cpu().detach().item()
+			actions.append(index)
 
-		# return actions
+		return actions
 
-		state = torch.FloatTensor(state).to(self.device)
-		dists = self.policy_network.forward(state)
-		probs = Categorical(dists)
-		index = probs.sample().cpu().detach().item()
+		# state = torch.FloatTensor(state).to(self.device)
+		# dists = self.policy_network.forward(state)
+		# probs = Categorical(dists)
+		# index = probs.sample().cpu().detach().item()
 
-		return index
+		# return index
 
 
 
@@ -106,13 +106,13 @@ class A2CAgent:
 
 
 
-	def update(self,critic_graphs,policies,one_hot_actions,actions,states_actor,rewards,dones):
+	def update(self,critic_graphs,policies,one_hot_actions,actions,actor_graphs,rewards,dones):
 
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		# probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
-		probs = self.policy_network.forward(states_actor)
+		probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
+		# probs = self.policy_network.forward(states_actor)
 
 		'''
 		Calculate V values
