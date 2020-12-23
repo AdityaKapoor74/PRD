@@ -27,16 +27,40 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif):
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_policy_gnn')
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_lambda_0.1_policy_fc_with_weight_metric')
 
-	def get_actions(self,actor_graph):
-		actions = self.agents.get_action(actor_graph)
-		return actions
-		# actions = []
-		# for i in range(self.num_agents):
-		# 	action = self.agents.get_action(states[i])
-		# 	actions.append(action)
+	def get_actions(self,states):
+		# actions = self.agents.get_action(actor_graph)
 		# return actions
+		actions = []
+		for i in range(self.num_agents):
+			action = self.agents.get_action(states[i])
+			actions.append(action)
+		return actions
+
+
+	def calculate_metrics(self,weights,threshold):
+		TP = [0]*self.num_agents
+		FP = [0]*self.num_agents
+		TN = [0]*self.num_agents
+		FN = [0]*self.num_agents
+
+		for k in range(weights.shape[0]):
+			for i in range(self.num_agents):
+				for j in range(self.num_agents):
+					if self.num_agents-1-i == j:
+						if weights[k][i][j] >= threshold:
+							TP[i] += 1
+						else:
+							FN[i] += 1
+					else:
+						if weights[k][i][j] >= threshold:
+							FP[i] += 1
+						else:
+							TN[i] += 1
+
+		return TP, FP, TN, FN
+
 
 	def update(self,trajectory,episode):
 
@@ -46,17 +70,46 @@ class MAA2C:
 		critic_graphs = [sars[0] for sars in trajectory]
 		# critic_graphs = [item for sublist in critic_graphs for item in sublist]
 		critic_graphs = dgl.batch(critic_graphs).to(self.device)
-		policies = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-		one_hot_actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		# states_actor = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
-		actor_graphs = [sars[4] for sars in trajectory]
-		actor_graphs = dgl.batch(actor_graphs).to(self.device)
-		rewards = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[6] for sars in trajectory])
+		one_hot_actions = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+		actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+		states_actor = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+		# actor_graphs = [sars[3] for sars in trajectory]
+		# actor_graphs = dgl.batch(actor_graphs).to(self.device)
+		rewards = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
+		dones = torch.FloatTensor([sars[5] for sars in trajectory])
 
 		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,policies.reshape(-1,self.num_actions),actions.reshape(-1,self.num_actions),states_actor,rewards,dones)
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,policies,one_hot_actions,actions,actor_graphs,rewards,dones)
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
+
+		for theta in [1e-5,1e-4,1e-3,1e-2,1e-1,1]:
+			TP, FP, TN, FN = self.calculate_metrics(weights,theta)
+
+			if not(self.gif):
+				for i in range(self.num_agents):
+					accuracy = 0
+					precision = 0
+					recall = 0
+					if (TP[i]+TN[i]+FP[i]+FN[i]) == 0:
+						accuracy = 0
+					else:
+						accuracy = round((TP[i]+TN[i])/(TP[i]+TN[i]+FP[i]+FN[i]),4)
+					if (TP[i]+FP[i]) == 0:
+						precision = 0
+					else:
+						precision = round((TP[i]/(TP[i]+FP[i])),4)
+					if (TP[i]+FN[i]) == 0:
+						recall = 0
+					else:
+						recall = round((TP[i]/(TP[i]+FN[i])),4)
+					self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
+					self.writer.add_scalar('Weight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
+					self.writer.add_scalar('Weight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
+					self.writer.add_scalar('Weight Metric/FN (agent'+str(i)+') threshold:'+str(theta),FN[i],episode)
+					self.writer.add_scalar('Weight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy,episode)
+					self.writer.add_scalar('Weight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision,episode)
+					self.writer.add_scalar('Weight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall,episode)
+
+
 
 
 		if not(self.gif):
@@ -117,13 +170,12 @@ class MAA2C:
 			episode_reward = 0
 			for step in range(max_steps):
 
-				states_actor_graph = self.construct_agent_graph_actor(states_actor)
-				policies = self.agents.policy_network(states_actor_graph).detach().cpu().numpy()
+				# states_actor_graph = self.construct_agent_graph_actor(states_actor)
 
 				# policies = self.agents.policy_network(torch.FloatTensor(states_actor).to(self.device)).detach().cpu().numpy()
 
-				actions = self.get_actions(states_actor_graph)
-				# actions = self.get_actions(states_actor)
+				# actions = self.get_actions(states_actor_graph)
+				actions = self.get_actions(states_actor)
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
@@ -142,7 +194,7 @@ class MAA2C:
 				if all(dones) or step == max_steps-1:
 
 					dones = [1 for _ in range(self.num_agents)]
-					trajectory.append([states_critic_graph,policies,one_hot_actions,actions,states_actor_graph,rewards,dones])
+					trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 					print("*"*100)
@@ -154,14 +206,14 @@ class MAA2C:
 					break
 				else:
 					dones = [0 for _ in range(self.num_agents)]
-					trajectory.append([states_critic_graph,policies,one_hot_actions,actions,states_actor_graph,rewards,dones])
+					trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
-				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policy_gnn.pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_xavier_uniform_init_policy_gnn.pt")  
+				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.1_xavier_uniform_init_policy_fc_with_weight_metric.pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.1_xavier_uniform_init_policy_fc_with_weight_metric.pt")  
 
 
 			self.update(trajectory,episode) 

@@ -18,8 +18,9 @@ class A2CAgent:
 		env, 
 		value_lr=2e-4, 
 		policy_lr=2e-4, 
-		entropy_pen=0.008, 
+		entropy_pen=0.0008, 
 		gamma=0.99,
+		lambda_ = 0.1,
 		gif = False
 		):
 
@@ -28,6 +29,7 @@ class A2CAgent:
 		self.policy_lr = policy_lr
 		self.gamma = gamma
 		self.entropy_pen = entropy_pen
+		self.lambda_ = lambda_
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		
@@ -40,37 +42,49 @@ class A2CAgent:
 		self.critic_output_dim = 1
 		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 32, 32, 16, 32+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 		
-		self.policy_input_dim = 2*3
-		self.policy_output_dim = self.env.action_space[0].n
-		self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
-
-		# self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
+		# self.policy_input_dim = 2*3
 		# self.policy_output_dim = self.env.action_space[0].n
-		# policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
-		# self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
+		# self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
+
+		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
+		self.policy_output_dim = self.env.action_space[0].n
+		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
+		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
+
+
+
+		# Loading models
+		# model_path_value = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.1_xavier_uniform_init_policy_fc.pt"
+		# model_path_policy = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.1_xavier_uniform_init_policy_fc.pt"
+		# For CPU
+		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+		# # For GPU
+		# self.critic_network.load_state_dict(torch.load(model_path_value))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
-	def get_action(self,actor_graph):
+	def get_action(self,state):
 		
-		dists = self.policy_network.forward(actor_graph)
-		actions = []
-		for i in range(self.num_agents):
-			probs = Categorical(dists[i])
-			index = probs.sample().cpu().detach().item()
-			actions.append(index)
+		# dists = self.policy_network.forward(actor_graph)
+		# actions = []
+		# for i in range(self.num_agents):
+		# 	probs = Categorical(dists[i])
+		# 	index = probs.sample().cpu().detach().item()
+		# 	actions.append(index)
 
-		return actions
+		# return actions
 
-		# state = torch.FloatTensor(state).to(self.device)
-		# dists = self.policy_network.forward(state)
-		# probs = Categorical(dists)
-		# index = probs.sample().cpu().detach().item()
+		state = torch.FloatTensor(state).to(self.device)
+		dists = self.policy_network.forward(state)
+		probs = Categorical(dists)
+		index = probs.sample().cpu().detach().item()
 
-		# return index
+		return index
 
 
 
@@ -106,18 +120,20 @@ class A2CAgent:
 
 
 
-	def update(self,critic_graphs,policies,one_hot_actions,actions,actor_graphs,rewards,dones):
+	def update(self,critic_graphs,one_hot_actions,actions,states_actor,rewards,dones):
 
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
-		# probs = self.policy_network.forward(states_actor)
+		# probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
+		probs = self.policy_network.forward(states_actor)
 
 		'''
 		Calculate V values
 		'''
-		V_values = self.critic_network.forward(critic_graphs, policies, one_hot_actions).to(self.device).reshape(-1,self.num_agents,self.num_agents)
+		V_values, weights = self.critic_network.forward(critic_graphs, probs.clone(), one_hot_actions)
+		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+		weights = weights.reshape(-1,self.num_agents,self.num_agents)
 
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
@@ -125,12 +141,11 @@ class A2CAgent:
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		
 
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights)
 
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
-
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
 		# summing across each agent j to get the advantage
@@ -145,7 +160,7 @@ class A2CAgent:
 	# # *************************************************
 	# **********************************
 		self.critic_optimizer.zero_grad()
-		value_loss.backward(retain_graph=False)
+		value_loss.backward(retain_graph=True)
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 		self.critic_optimizer.step()
 		
@@ -155,4 +170,4 @@ class A2CAgent:
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		self.policy_optimizer.step()
 	# # ***********************************************************************************
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights
