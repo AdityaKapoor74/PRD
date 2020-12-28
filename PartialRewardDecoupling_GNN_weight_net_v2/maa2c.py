@@ -28,7 +28,7 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif):
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-5_remote_mamba')
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_remote_mamba')
 
 	def get_actions(self,states):
 		# actions = self.agents.get_action(actor_graph)
@@ -221,8 +221,8 @@ class MAA2C:
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
-				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-5_remote_mamba"+str(episode)+".pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/28_12_2020PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-5_remote_mamba"+str(episode)+".pt")  
+				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_remote_mamba"+str(episode)+".pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/28_12_2020PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_remote_mamba"+str(episode)+".pt")  
 
 
 			self.update(trajectory,episode,end_step) 
