@@ -24,6 +24,6 @@ def make_env(scenario_name, benchmark=False):
 
 if __name__ == '__main__':
 	env = make_env(scenario_name="custom_env",benchmark=False)
-	ma_controller = MAA2C(env,True)
+	ma_controller = MAA2C(env,False)
 
 	ma_controller.run(10000000,300)
