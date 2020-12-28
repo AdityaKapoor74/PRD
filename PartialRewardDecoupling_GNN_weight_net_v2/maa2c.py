@@ -27,7 +27,7 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif):
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/value_2_layers_lr_2e-4_policy_lr_2e-4_entropy_0.008_lambda_0.01_policy_fc_with_weight_metric')
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-5_remote_mamba')
 
 	def get_actions(self,states):
 		# actions = self.agents.get_action(actor_graph)
@@ -39,7 +39,8 @@ class MAA2C:
 		return actions
 
 
-	def calculate_metrics(self,weights,threshold):
+	def calculate_metrics(self,weights,threshold,num_steps):
+
 		TP = [0]*self.num_agents
 		FP = [0]*self.num_agents
 		TN = [0]*self.num_agents
@@ -58,11 +59,15 @@ class MAA2C:
 							FP[i] += 1
 						else:
 							TN[i] += 1
-
+		for i in range(self.num_agents):
+			TP[i] = TP[i]/num_steps
+			FP[i] = FP[i]/num_steps
+			TN[i] = TN[i]/num_steps
+			FN[i] = FN[i]/num_steps
 		return TP, FP, TN, FN
 
 
-	def update(self,trajectory,episode):
+	def update(self,trajectory,episode,num_steps):
 
 
 		# critic_graphs = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
@@ -82,7 +87,7 @@ class MAA2C:
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
 
 		for theta in [1e-5,1e-4,1e-3,1e-2,1e-1,1]:
-			TP, FP, TN, FN = self.calculate_metrics(weights,theta)
+			TP, FP, TN, FN = self.calculate_metrics(weights,theta,num_steps)
 
 			if not(self.gif):
 				for i in range(self.num_agents):
@@ -96,11 +101,11 @@ class MAA2C:
 					if (TP[i]+FP[i]) == 0:
 						precision = 0
 					else:
-						precision = round((TP[i]/(TP[i]+FP[i])),4)
+						precision = round((TP[i]/(TP[i]+FN[i])),4)
 					if (TP[i]+FN[i]) == 0:
 						recall = 0
 					else:
-						recall = round((TP[i]/(TP[i]+FN[i])),4)
+						recall = round((TP[i]/(TP[i]+FP[i])),4)
 					self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
 					self.writer.add_scalar('Weight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
 					self.writer.add_scalar('Weight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
@@ -168,6 +173,7 @@ class MAA2C:
 
 			trajectory = []
 			episode_reward = 0
+			end_step = 0
 			for step in range(max_steps):
 
 				# states_actor_graph = self.construct_agent_graph_actor(states_actor)
@@ -193,6 +199,8 @@ class MAA2C:
 
 				if all(dones) or step == max_steps-1:
 
+					end_step = step
+
 					dones = [1 for _ in range(self.num_agents)]
 					trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
 					print("*"*100)
@@ -212,9 +220,9 @@ class MAA2C:
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
-				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.01_xavier_uniform_init_policy_fc_with_weight_metric.pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.01_xavier_uniform_init_policy_fc_with_weight_metric.pt")  
+				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-5_remote_mamba"+str(episode)+".pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/28_12_2020PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-5_remote_mamba"+str(episode)+".pt")  
 
 
-			self.update(trajectory,episode) 
+			self.update(trajectory,episode,end_step) 
 

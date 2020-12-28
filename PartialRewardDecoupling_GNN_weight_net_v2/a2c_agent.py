@@ -18,9 +18,9 @@ class A2CAgent:
 		env, 
 		value_lr=2e-4, 
 		policy_lr=2e-4, 
-		entropy_pen=0.0008, 
+		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 0.01,
+		lambda_ = 1e-5,
 		gif = False
 		):
 
