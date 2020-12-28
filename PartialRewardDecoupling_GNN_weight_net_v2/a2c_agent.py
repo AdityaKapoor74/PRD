@@ -19,7 +19,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-5,
+		lambda_ = 1e-4,
 		gif = False
 		):
 
@@ -30,8 +30,8 @@ class A2CAgent:
 		self.entropy_pen = entropy_pen
 		self.lambda_ = lambda_
 
-		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n

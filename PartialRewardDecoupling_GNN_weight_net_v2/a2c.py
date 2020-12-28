@@ -43,8 +43,8 @@ def create_model(
 class GNNLayer(nn.Module):
 	def __init__(self, in_feats, out_feats):
 		super(GNNLayer, self).__init__()
-		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
 		self.linear = nn.Linear(in_feats, out_feats)
 		torch.nn.init.xavier_uniform_(self.linear.weight)
 		self.gcn_msg = fn.copy_src(src='obs', out='m')
@@ -79,8 +79,8 @@ class GATLayer(nn.Module):
 		super(GATLayer, self).__init__()
 		self.num_agents = num_agents
 		self.num_actions = num_actions
-		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
 		# equation (1)
 		# z(l)i=W(l)h(l)i,(1)
 		self.fc = nn.Linear(in_dim, out_dim, bias=False)
