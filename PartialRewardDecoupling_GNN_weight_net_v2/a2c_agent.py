@@ -54,11 +54,11 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/value_net_2_layered_lr_2e-4_policy_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.1_xavier_uniform_init_policy_fc.pt"
-		# model_path_policy = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/policy_net_lr_2e-4_value_2_layered_lr_2e-4_with_grad_norm_0.5_entropy_pen_0.008_lambda_0.1_xavier_uniform_init_policy_fc.pt"
+		model_path_value = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_remote_mamba55400.pt"
+		model_path_policy = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/28_12_2020PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_remote_mamba55400.pt"
 		# For CPU
-		# self.value_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
-		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+		self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+		self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 		# # For GPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy))

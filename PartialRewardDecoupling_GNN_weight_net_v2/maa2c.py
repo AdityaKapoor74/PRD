@@ -11,6 +11,7 @@ from a2c_agent import A2CAgent
 import dgl
 import networkx as nx
 
+TIME_PER_STEP = 0.1
 
 class MAA2C:
 
@@ -150,7 +151,7 @@ class MAA2C:
 
 
 		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
-		       
+			   
 		return graph
 
 
@@ -160,8 +161,72 @@ class MAA2C:
 		graph = dgl.from_networkx(graph).to(self.device)
 
 		graph.ndata['obs'] = torch.FloatTensor(states_actor).to(self.device)
-		       
+			   
 		return graph
+
+
+	# def make_gif(self, images, fname, duration=2, true_image=False,salience=False,salIMGS=None):
+	# 	import moviepy.editor as mpy
+
+	# 	def make_frame(t):
+	# 		try:
+	# 			x = images[int(len(images)/duration*t)]
+	# 		except:
+	# 			x = images[-1]
+
+	# 		if true_image:
+	# 			return x.astype(np.uint8)
+	# 		else:
+	# 			return ((x+1)/2*255).astype(np.uint8)
+
+	# 	def make_mask(t):
+	# 		try:
+	# 			x = salIMGS[int(len(salIMGS)/duration*t)]
+	# 		except:
+	# 			x = salIMGS[-1]
+	# 		return x
+
+	# 	clip = mpy.VideoClip(make_frame, duration=duration)
+	# 	if salience == True:
+	# 		mask = mpy.VideoClip(make_mask, ismask=True,duration= duration)
+	# 		clipB = clip.set_mask(mask)
+	# 		clipB = clip.set_opacity(0)
+	# 		mask = mask.set_opacity(0.1)
+	# 		mask.write_gif(fname, fps = len(images) / duration,verbose=False)
+	# 	else:
+	# 		clip.write_gif(fname, fps = len(images) / duration,verbose=False)
+
+	def make_gif(self,images,fname,fps=10, scale=1.0):
+		from moviepy.editor import ImageSequenceClip
+		"""Creates a gif given a stack of images using moviepy
+		Notes
+		-----
+		works with current Github version of moviepy (not the pip version)
+		https://github.com/Zulko/moviepy/commit/d4c9c37bc88261d8ed8b5d9b7c317d13b2cdf62e
+		Usage
+		-----
+		>>> X = randn(100, 64, 64)
+		>>> gif('test.gif', X)
+		Parameters
+		----------
+		filename : string
+			The filename of the gif to write to
+		array : array_like
+			A numpy array that contains a sequence of images
+		fps : int
+			frames per second (default: 10)
+		scale : float
+			how much to rescale each image by (default: 1.0)
+		"""
+
+		# copy into the color dimension if the images are black and white
+		if images.ndim == 3:
+			images = images[..., np.newaxis] * np.ones(3)
+
+		# make the moviepy clip
+		clip = ImageSequenceClip(list(images), fps=fps).resize(scale)
+		clip.write_gif(fname, fps=fps)
+
 
 
 
@@ -169,8 +234,13 @@ class MAA2C:
 		for episode in range(1,max_episode):
 			states = self.env.reset()
 
+			images = []
+
 			states_critic,states_actor = self.split_states(states)
 
+			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba.gif'
+
+			gif_checkpoint = 1
 
 			trajectory = []
 			episode_reward = 0
@@ -182,7 +252,17 @@ class MAA2C:
 				# policies = self.agents.policy_network(torch.FloatTensor(states_actor).to(self.device)).detach().cpu().numpy()
 
 				# actions = self.get_actions(states_actor_graph)
-				actions = self.get_actions(states_actor)
+
+				if self.gif:
+					# At each step, append an image to list
+					images.append(np.squeeze(self.env.render(mode='rgb_array')))
+					# Advance a step and render a new image
+					with torch.no_grad():
+						actions = self.get_actions(states_actor)
+				else:
+					actions = self.get_actions(states_actor)
+
+
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
@@ -197,33 +277,43 @@ class MAA2C:
 
 				episode_reward += np.sum(rewards)
 
+				if not(self.gif):
+					if all(dones) or step == max_steps-1:
 
-				if all(dones) or step == max_steps-1:
+						end_step = step
 
-					end_step = step
+						dones = [1 for _ in range(self.num_agents)]
+						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
+						print("*"*100)
+						print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
+						print("*"*100)
 
-					dones = [1 for _ in range(self.num_agents)]
-					trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
-					print("*"*100)
-					print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
-					print("*"*100)
+						if not(self.gif):
+							self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
+							self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
 
-					if not(self.gif):
-						self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
-						self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+						break
+					else:
+						dones = [0 for _ in range(self.num_agents)]
+						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
+						states_critic,states_actor = next_states_critic,next_states_actor
+						states = next_states
 
-					break
 				else:
-					dones = [0 for _ in range(self.num_agents)]
-					trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
+
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
 				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")
 				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/28_12_2020PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")  
 
+			if not(self.gif):
+				self.update(trajectory,episode,end_step) 
+			elif self.gif and not(episode%gif_checkpoint):
+				print("GENERATING GIF")
+				# self.make_gif(np.array(images),gif_file_name+str(episode),duration=len(images)*3*TIME_PER_STEP,true_image=True,salience=False)
+				self.make_gif(np.array(images),gif_file_name)
 
-			self.update(trajectory,episode,end_step) 
 
