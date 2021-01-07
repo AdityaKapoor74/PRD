@@ -6,7 +6,7 @@ import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from a2c_agent import A2CAgent
-
+import datetime
 
 import dgl
 import networkx as nx
@@ -23,13 +23,14 @@ class MAA2C:
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
 		self.one_hot_actions = torch.zeros(self.env.action_space[0].n,self.env.action_space[0].n)
+		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		for i in range(self.env.action_space[0].n):
 			self.one_hot_actions[i][i] = 1
 
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif):
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba')
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba')
 
 	def get_actions(self,states):
 		# actions = self.agents.get_action(actor_graph)
@@ -238,7 +239,7 @@ class MAA2C:
 
 			states_critic,states_actor = self.split_states(states)
 
-			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba.gif'
+			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba.gif'
 
 			gif_checkpoint = 1
 
@@ -306,8 +307,8 @@ class MAA2C:
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif):
-				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/28_12_2020PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")  
+				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/"+str(self.date_time)+"_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/"+str(self.date_time)+"_PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")  
 
 			if not(self.gif):
 				self.update(trajectory,episode,end_step) 
