@@ -89,7 +89,7 @@ class MAA2C:
 		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,policies.reshape(-1,self.num_actions),actions.reshape(-1,self.num_actions),states_actor,rewards,dones)
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
 
-		for theta in [1e-5,1e-4,1e-3,1e-2,1e-1,1]:
+		for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
 			TP, FP, TN, FN = self.calculate_metrics(weights,theta,num_steps)
 
 			if not(self.gif):
@@ -104,11 +104,11 @@ class MAA2C:
 					if (TP[i]+FN[i]) == 0:
 						precision = 0
 					else:
-						precision = round((TP[i]/(TP[i]+FN[i])),4)
+						precision = round((TP[i]/(TP[i]+FP[i])),4)
 					if (TP[i]+FP[i]) == 0:
 						recall = 0
 					else:
-						recall = round((TP[i]/(TP[i]+FP[i])),4)
+						recall = round((TP[i]/(TP[i]+FN[i])),4)
 					self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
 					self.writer.add_scalar('Weight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
 					self.writer.add_scalar('Weight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
