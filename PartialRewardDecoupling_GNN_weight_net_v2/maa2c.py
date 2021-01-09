@@ -49,6 +49,11 @@ class MAA2C:
 		TN = [0]*self.num_agents
 		FN = [0]*self.num_agents
 
+		TP_rate = [0]*self.num_agents
+		FP_rate = [0]*self.num_agents
+		TN_rate = [0]*self.num_agents
+		FN_rate = [0]*self.num_agents
+
 		for k in range(weights.shape[0]):
 			for i in range(self.num_agents):
 				for j in range(self.num_agents):
@@ -63,11 +68,11 @@ class MAA2C:
 						else:
 							TN[i] += 1
 		for i in range(self.num_agents):
-			TP[i] = TP[i]/num_steps
-			FP[i] = FP[i]/num_steps
-			TN[i] = TN[i]/num_steps
-			FN[i] = FN[i]/num_steps
-		return TP, FP, TN, FN
+			TP_rate[i] = TP[i]/(TP[i]+FN[i])
+			FP_rate[i] = FP[i]/(FP[i]+TN[i])
+			TN_rate[i] = TN[i]/(TN[i]+FP[i])
+			FN_rate[i] = FN[i]/(FN[i]+TP[i])
+		return TP_rate, FP_rate, TN_rate, FN_rate
 
 
 	def update(self,trajectory,episode,num_steps):
