@@ -86,7 +86,8 @@ class GATLayer(nn.Module):
 		self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
 		# e(l)ij=LeakyReLU(a⃗ (l)T(z(l)i|z(l)j)),(2)
-		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+		# we add a binary input while calculating z values to indicate if the agent is paired or not (2 * out_dim+1)
+		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -101,6 +102,16 @@ class GATLayer(nn.Module):
 		self.place_policies = self.place_policies.reshape(self.num_agents,-1,num_actions)
 		self.place_zs = self.place_zs.reshape(self.num_agents,-1,num_actions)
 
+		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
+
+		for i in range(self.num_agents):
+			for j in range(self.num_agents):
+				if self.num_agents-1-i == j:
+					self.agent_pairing[i][j] = 1
+				else:
+					self.agent_pairing[i][j] = -1
+		self.agent_pairing = self.agent_pairing.reshape(-1,1)
+
 		self.reset_parameters()
 
 	def reset_parameters(self):
@@ -112,7 +123,9 @@ class GATLayer(nn.Module):
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
 		obs_src_dest = torch.cat([edges.src['z_'], edges.dst['z_']], dim=1)
-		a = self.attn_fc(obs_src_dest)
+		num_repeats = int(obs_src_dest.shape[0]/(self.num_agents*self.num_agents))
+		obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
+		a = self.attn_fc(obs_src_dest_binary)
 		return {'e': F.leaky_relu(a)}
 
 	def message_func(self, edges):

@@ -15,11 +15,12 @@ TIME_PER_STEP = 0.1
 
 class MAA2C:
 
-	def __init__(self,env,gif=True):
+	def __init__(self,env, gif=True, save=True):
 		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.device = "cpu"
 		self.env = env
 		self.gif = gif
+		self.save = save
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
 		self.one_hot_actions = torch.zeros(self.env.action_space[0].n,self.env.action_space[0].n)
@@ -29,7 +30,7 @@ class MAA2C:
 
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
-		if not(self.gif):
+		if not(self.gif) and self.save:
 			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba')
 
 	def get_actions(self,states):
@@ -97,7 +98,7 @@ class MAA2C:
 		for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
 			TP, FP, TN, FN = self.calculate_metrics(weights,theta,num_steps)
 
-			if not(self.gif):
+			if not(self.gif) and self.save:
 				for i in range(self.num_agents):
 					accuracy = 0
 					precision = 0
@@ -125,7 +126,7 @@ class MAA2C:
 
 
 
-		if not(self.gif):
+		if not(self.gif) and self.save:
 			self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
 			self.writer.add_scalar('Loss/Value Loss',value_loss,episode)
 			self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
@@ -294,7 +295,7 @@ class MAA2C:
 						print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 						print("*"*100)
 
-						if not(self.gif):
+						if not(self.gif) and self.save:
 							self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
 							self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
 
@@ -311,7 +312,7 @@ class MAA2C:
 
 
 			#make a directory called models
-			if not(episode%100) and episode!=0 and not(self.gif):
+			if not(episode%100) and episode!=0 and not(self.gif) and self.save:
 				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/"+str(self.date_time)+"_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")
 				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/"+str(self.date_time)+"_PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2_remote_mamba"+str(episode)+".pt")  
 
