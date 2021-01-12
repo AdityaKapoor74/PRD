@@ -31,7 +31,7 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif) and self.save:
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2')
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4')
 
 	def get_actions(self,states):
 		# actions = self.agents.get_action(actor_graph)
@@ -245,7 +245,7 @@ class MAA2C:
 
 			states_critic,states_actor = self.split_states(states)
 
-			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2.gif'
+			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4.gif'
 
 			gif_checkpoint = 1
 
@@ -313,8 +313,8 @@ class MAA2C:
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif) and self.save:
-				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/"+str(self.date_time)+"_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2"+str(episode)+".pt")
-				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/"+str(self.date_time)+"_PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-2"+str(episode)+".pt")  
+				torch.save(self.agents.critic_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/"+str(self.date_time)+"_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_epsiode"+str(episode)+".pt")
+				torch.save(self.agents.policy_network.state_dict(), "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/"+str(self.date_time)+"_PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_episode"+str(episode)+".pt")  
 
 			if not(self.gif):
 				self.update(trajectory,episode,end_step) 
