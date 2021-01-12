@@ -107,11 +107,11 @@ class MAA2C:
 						accuracy = 0
 					else:
 						accuracy = round((TP[i]+TN[i])/(TP[i]+TN[i]+FP[i]+FN[i]),4)
-					if (TP[i]+FN[i]) == 0:
+					if (TP[i]+FP[i]) == 0:
 						precision = 0
 					else:
 						precision = round((TP[i]/(TP[i]+FP[i])),4)
-					if (TP[i]+FP[i]) == 0:
+					if (TP[i]+FN[i]) == 0:
 						recall = 0
 					else:
 						recall = round((TP[i]/(TP[i]+FN[i])),4)
