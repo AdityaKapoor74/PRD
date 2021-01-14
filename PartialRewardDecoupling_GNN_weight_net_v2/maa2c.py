@@ -43,17 +43,40 @@ class MAA2C:
 		return actions
 
 
+	def calculate_weights(self,weights):
+		paired_agents_weight = 0
+		paired_agents_weight_count = 0
+		unpaired_agents_weight = 0
+		unpaired_agents_weight_count = 0
+
+		for k in range(weights.shape[0]):
+			for i in range(self.num_agents):
+				for j in range(self.num_agents):
+					if self.num_agents-1-i == j:
+						paired_agents_weight += weights[k][i][j]
+						paired_agents_weight_count += 1
+					else:
+						unpaired_agents_weight += weights[k][i][j]
+						unpaired_agents_weight_count += 1
+
+		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
+
 	def calculate_metrics(self,weights,threshold,num_steps):
 
 		TP = [0]*self.num_agents
 		FP = [0]*self.num_agents
 		TN = [0]*self.num_agents
 		FN = [0]*self.num_agents
+		accuracy = [0]*self.num_agents
+		precision = [0]*self.num_agents
+		recall = [0]*self.num_agents
 
 		TP_rate = [0]*self.num_agents
 		FP_rate = [0]*self.num_agents
 		TN_rate = [0]*self.num_agents
 		FN_rate = [0]*self.num_agents
+
+		
 
 		for k in range(weights.shape[0]):
 			for i in range(self.num_agents):
@@ -68,12 +91,27 @@ class MAA2C:
 							FP[i] += 1
 						else:
 							TN[i] += 1
+		# calculate accuracy/precision/recall before calculating rates
 		for i in range(self.num_agents):
 			TP_rate[i] = TP[i]/(TP[i]+FN[i])
 			FP_rate[i] = FP[i]/(FP[i]+TN[i])
 			TN_rate[i] = TN[i]/(TN[i]+FP[i])
 			FN_rate[i] = FN[i]/(FN[i]+TP[i])
-		return TP_rate, FP_rate, TN_rate, FN_rate
+
+			if (TP[i]+TN[i]+FP[i]+FN[i]) == 0:
+				accuracy[i] = 0
+			else:
+				accuracy[i] = round((TP[i]+TN[i])/(TP[i]+TN[i]+FP[i]+FN[i]),4)
+			if (TP[i]+FP[i]) == 0:
+				precision[i] = 0
+			else:
+				precision[i] = round((TP[i]/(TP[i]+FP[i])),4)
+			if (TP[i]+FN[i]) == 0:
+				recall[i] = 0
+			else:
+				recall[i] = round((TP[i]/(TP[i]+FN[i])),4)
+
+		return TP_rate, FP_rate, TN_rate, FN_rate, accuracy, precision, recall
 
 
 	def update(self,trajectory,episode,num_steps):
@@ -95,43 +133,40 @@ class MAA2C:
 		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,policies.reshape(-1,self.num_actions),actions.reshape(-1,self.num_actions),states_actor,rewards,dones)
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
 
-		for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
-			TP, FP, TN, FN = self.calculate_metrics(weights,theta,num_steps)
+		if not(self.gif) and self.save:
+			for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
+				TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta,num_steps)
 
-			if not(self.gif) and self.save:
 				for i in range(self.num_agents):
-					accuracy = 0
-					precision = 0
-					recall = 0
-					if (TP[i]+TN[i]+FP[i]+FN[i]) == 0:
-						accuracy = 0
-					else:
-						accuracy = round((TP[i]+TN[i])/(TP[i]+TN[i]+FP[i]+FN[i]),4)
-					if (TP[i]+FP[i]) == 0:
-						precision = 0
-					else:
-						precision = round((TP[i]/(TP[i]+FP[i])),4)
-					if (TP[i]+FN[i]) == 0:
-						recall = 0
-					else:
-						recall = round((TP[i]/(TP[i]+FN[i])),4)
 					self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
 					self.writer.add_scalar('Weight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
 					self.writer.add_scalar('Weight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
 					self.writer.add_scalar('Weight Metric/FN (agent'+str(i)+') threshold:'+str(theta),FN[i],episode)
-					self.writer.add_scalar('Weight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy,episode)
-					self.writer.add_scalar('Weight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision,episode)
-					self.writer.add_scalar('Weight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall,episode)
+					self.writer.add_scalar('Weight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy[i],episode)
+					self.writer.add_scalar('Weight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision[i],episode)
+					self.writer.add_scalar('Weight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall[i],episode)
+
+				self.writer.add_scalar('Weight Metric/TP threshold:'+str(theta),sum(TP),episode)
+				self.writer.add_scalar('Weight Metric/FP threshold:'+str(theta),sum(FP),episode)
+				self.writer.add_scalar('Weight Metric/TN threshold:'+str(theta),sum(TN),episode)
+				self.writer.add_scalar('Weight Metric/FN threshold:'+str(theta),sum(FN),episode)
+				self.writer.add_scalar('Weight Metric/Accuracy threshold:'+str(theta),sum(accuracy),episode)
+				self.writer.add_scalar('Weight Metric/Precision threshold:'+str(theta),sum(precision),episode)
+				self.writer.add_scalar('Weight Metric/Recall threshold:'+str(theta),sum(recall),episode)
 
 
 
 
 		if not(self.gif) and self.save:
-			self.writer.add_scalar('Loss/Entropy loss',entropy,episode)
-			self.writer.add_scalar('Loss/Value Loss',value_loss,episode)
-			self.writer.add_scalar('Loss/Policy Loss',policy_loss,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value.item(),episode)
+			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy.item(),episode)
+			self.writer.add_scalar('Weights/Average Weights',torch.mean(weights).item(),episode)
+			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
+			self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
+			self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
 
 
 
