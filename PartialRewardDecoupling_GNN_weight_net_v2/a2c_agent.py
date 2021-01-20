@@ -19,7 +19,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-4,
+		lambda_ = 1e-3,
 		gif = False
 		):
 
@@ -141,7 +141,6 @@ class A2CAgent:
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights)
 
 	# # ***********************************************************************************
@@ -150,7 +149,7 @@ class A2CAgent:
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
 		# summing across each agent j to get the advantage
-		# so we sum across the last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values),dim=-2)
 
 		probs = Categorical(probs)
@@ -158,7 +157,6 @@ class A2CAgent:
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
 	# # ***********************************************************************************
 		
-	# # *************************************************
 	# **********************************
 		self.critic_optimizer.zero_grad()
 		value_loss.backward(retain_graph=True)
