@@ -19,7 +19,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-2,
+		lambda_ = 1e-4,
 		gif = False
 		):
 
@@ -134,6 +134,7 @@ class A2CAgent:
 		V_values, weights = self.critic_network.forward(critic_graphs, probs.clone(), one_hot_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		weights = weights.reshape(-1,self.num_agents,self.num_agents)
+		
 
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
