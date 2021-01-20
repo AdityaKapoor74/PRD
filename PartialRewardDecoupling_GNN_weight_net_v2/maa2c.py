@@ -195,12 +195,12 @@ class MAA2C:
 
 
 			with open(self.filename,'a+') as f:
-			torch.set_printoptions(profile="full")
-			print("*"*50)
-			print("EPISODE:",episode,file=f)
-			print("*"*50)
-			print(weights, file=f)
-			torch.set_printoptions(profile="default")
+				torch.set_printoptions(profile="full")
+				print("*"*50)
+				print("EPISODE:",episode,file=f)
+				print("*"*50)
+				print(weights, file=f)
+				torch.set_printoptions(profile="default")
 
 
 
