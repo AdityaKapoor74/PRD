@@ -139,7 +139,7 @@ class A2CAgent:
 	# 	#update critic (value_net)
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
-		
+		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights)
 
@@ -150,6 +150,7 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		# print(self.calculate_advantages(discounted_rewards, V_values))
 		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values),dim=-1)
 
 		probs = Categorical(probs)

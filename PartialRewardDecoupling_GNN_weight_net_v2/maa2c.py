@@ -31,7 +31,29 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif) and self.save:
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.lambda_))
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_))
+
+
+		self.src_edges_critic = []
+		self.dest_edges_critic = []
+		self.src_edges_actor = []
+		self.dest_edges_actor = []
+
+		for i in range(self.num_agents):
+			for j in range(self.num_agents):
+				self.src_edges_critic.append(i)
+				self.dest_edges_critic.append(j)
+				if i==j:
+					continue
+				self.src_edges_actor.append(i)
+				self.dest_edges_actor.append(j)
+
+		self.src_edges_critic = torch.tensor(self.src_edges_critic)
+		self.dest_edges_critic = torch.tensor(self.dest_edges_critic)
+		self.src_edges_actor = torch.tensor(self.src_edges_actor)
+		self.dest_edges_actor = torch.tensor(self.dest_edges_actor)
+
+
 
 	def get_actions(self,states):
 		# actions = self.agents.get_action(actor_graph)
@@ -187,20 +209,22 @@ class MAA2C:
 
 	def construct_agent_graph_critic(self,states_critic):
 
-		graph = nx.complete_graph(self.num_agents)
-		graph = dgl.from_networkx(graph).to(self.device)
-		graph = dgl.transform.add_self_loop(graph)
-
+		# graph = nx.complete_graph(self.num_agents)
+		# graph = dgl.from_networkx(graph).to(self.device)
+		# graph = dgl.transform.add_self_loop(graph)
+		graph = dgl.graph((self.src_edges_critic,self.dest_edges_critic),idtype=torch.int32, device=self.device)
 
 		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
+
 			   
 		return graph
 
 
 	def construct_agent_graph_actor(self,states_actor):
 
-		graph = nx.complete_graph(self.num_agents)
-		graph = dgl.from_networkx(graph).to(self.device)
+		# graph = nx.complete_graph(self.num_agents)
+		# graph = dgl.from_networkx(graph).to(self.device)
+		graph = dgl.graph((self.src_edges_actor,self.dest_edges_actor),idtype=torch.int32, device=self.device)
 
 		graph.ndata['obs'] = torch.FloatTensor(states_actor).to(self.device)
 			   
@@ -280,7 +304,7 @@ class MAA2C:
 
 			states_critic,states_actor = self.split_states(states)
 
-			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.lambda_)+'.gif'
+			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
 
 			gif_checkpoint = 1
 
@@ -288,12 +312,6 @@ class MAA2C:
 			episode_reward = 0
 			end_step = 0
 			for step in range(max_steps):
-
-				# states_actor_graph = self.construct_agent_graph_actor(states_actor)
-
-				# policies = self.agents.policy_network(torch.FloatTensor(states_actor).to(self.device)).detach().cpu().numpy()
-
-				# actions = self.get_actions(states_actor_graph)
 
 				if self.gif:
 					# At each step, append an image to list
@@ -348,8 +366,8 @@ class MAA2C:
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif) and self.save:
-				torch.save(self.agents.critic_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.lambda_)+'_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/'+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.lambda_)+'_epsiode'+str(episode)+'.pt')  
+				torch.save(self.agents.critic_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/'+str(self.date_time)+'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.policy_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/'+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GNN2_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'.pt')  
 
 			if not(self.gif):
 				self.update(trajectory,episode,end_step) 
