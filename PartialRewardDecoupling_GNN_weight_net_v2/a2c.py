@@ -60,6 +60,7 @@ class GNNLayer(nn.Module):
 			h = g.ndata['obs'].to(self.device)
 			return self.linear(h)
 
+
 class CriticInputPreprocess(nn.Module):
 	def __init__(self, input_dim, output_dim):
 		super(CriticInputPreprocess, self).__init__()
@@ -72,6 +73,52 @@ class CriticInputPreprocess(nn.Module):
 		x = self.value_layer2(g, x)
 		g.ndata['obs_proc'] = x
 		return g
+
+
+class GATLayerInput(nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super(GATLayerInput, self).__init__()
+        # equation (1)
+        self.fc = nn.Linear(in_dim, out_dim, bias=False)
+        # equation (2)
+        self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        """Reinitialize learnable parameters."""
+        gain = nn.init.calculate_gain('relu')
+        nn.init.xavier_normal_(self.fc.weight, gain=gain)
+        nn.init.xavier_normal_(self.attn_fc.weight, gain=gain)
+
+    def edge_attention(self, edges):
+        # edge UDF for equation (2)
+        features_2 = torch.cat([edges.src['features'], edges.dst['features']], dim=1)
+        a = self.attn_fc(features_2)
+        return {'e': F.leaky_relu(a)}
+
+    def message_func(self, edges):
+        # message UDF for equation (3) & (4)
+        return {'features': edges.src['features'], 'e': edges.data['e']}
+
+    def reduce_func(self, nodes):
+        # reduce UDF for equation (3) & (4)
+        # equation (3)
+        alpha = F.softmax(nodes.mailbox['e'], dim=1)
+        # equation (4)
+        obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
+        return {'obs_proc': obs_proc}
+
+    def forward(self, g, observations):
+    	self.g = g
+        # equation (1)
+        features = self.fc(observations)
+        self.g.ndata['features'] = features
+        # equation (2)
+        self.g.apply_edges(self.edge_attention)
+        # equation (3) & (4)
+        self..update_all(self.message_func, self.reduce_func)
+        return self.g.ndata.pop('obs_proc')
+
 
 
 class GATLayer(nn.Module):
@@ -184,13 +231,13 @@ class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
 		# self.input_processor = CriticInputPreprocess(preprocess_input_dim, preprocess_output_dim)
+		self.input_processor = GATLayerInput(preprocess_input_dim,preprocess_output_dim)
 		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
-		# g = self.input_processor(g)
-		# features = g.ndata['obs_proc']
-		features = g.ndata['obs']
+		g = self.input_processor(g, g.ndata['obs'])
+		features = g.ndata['obs_proc']
 		obs_final, weights = self.weight_layer(g,features,policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
