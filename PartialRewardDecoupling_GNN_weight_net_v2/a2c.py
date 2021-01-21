@@ -183,13 +183,14 @@ class ValueNetwork(nn.Module):
 class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
-		self.input_processor = CriticInputPreprocess(preprocess_input_dim, preprocess_output_dim)
+		# self.input_processor = CriticInputPreprocess(preprocess_input_dim, preprocess_output_dim)
 		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
-		g = self.input_processor(g)
-		features = g.ndata['obs_proc']
+		# g = self.input_processor(g)
+		# features = g.ndata['obs_proc']
+		features = g.ndata['obs']
 		obs_final, weights = self.weight_layer(g,features,policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
