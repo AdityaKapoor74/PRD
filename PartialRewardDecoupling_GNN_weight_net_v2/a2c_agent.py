@@ -40,9 +40,7 @@ class A2CAgent:
 
 		self.critic_preprocess_input_dim = 2*3
 		self.critic_output_dim = 1
-		# self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 32, 32, 16, self.critic_preprocess_input_dim+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		self.critic_network = CriticNetwork(None, None, self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		
+		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 32, 32, 16, self.critic_preprocess_input_dim+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 		# self.policy_input_dim = 2*3
 		# self.policy_output_dim = self.env.action_space[0].n
 		# self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
