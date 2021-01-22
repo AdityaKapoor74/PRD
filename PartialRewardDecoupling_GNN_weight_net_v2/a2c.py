@@ -240,7 +240,7 @@ class CriticNetwork(nn.Module):
 		# features = g.ndata['obs_proc']
 		features = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
-		obs_final, weights = self.weight_layer(g,features,policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
 
