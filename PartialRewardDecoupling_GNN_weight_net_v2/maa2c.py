@@ -31,8 +31,8 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 		if not(self.gif) and self.save:
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_without_critic_preprocess')
-			self.filename = '../../weights/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_without_critic_preprocess_weights.txt'
+			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'')
+			self.filename = '../../weights/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.txt'
 
 		self.src_edges_critic = []
 		self.dest_edges_critic = []
@@ -344,8 +344,8 @@ class MAA2C:
 
 			#make a directory called models
 			if not(episode%100) and episode!=0 and not(self.gif) and self.save:
-				torch.save(self.agents.critic_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'_without_critic_preprocess.pt')
-				torch.save(self.agents.policy_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/'+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'_without_critic_preprocess.pt')  
+				torch.save(self.agents.critic_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.policy_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/'+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'.pt')  
 
 			if not(self.gif):
 				self.update(trajectory,episode) 
