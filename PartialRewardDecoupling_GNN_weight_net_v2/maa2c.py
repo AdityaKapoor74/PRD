@@ -30,10 +30,18 @@ class MAA2C:
 
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
-		if not(self.gif) and self.save:
-			self.writer = SummaryWriter('../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers')
-			self.filename = '../../weights/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers.txt'
 
+		# paths for models, tensorboard and gifs
+		self.critic_model_path = '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
+		self.actor_model_path = '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/'+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
+		self.tensorboard_path = '../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
+		self.gif_path = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
+
+		self.filename = '../../weights/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers.txt'
+
+		if not(self.gif) and self.save:
+			self.writer = SummaryWriter(self.tensorboard_path)
+			
 		self.src_edges_critic = []
 		self.dest_edges_critic = []
 		self.src_edges_actor = []
@@ -285,8 +293,6 @@ class MAA2C:
 
 			states_critic,states_actor = self.split_states(states)
 
-			gif_file_name = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
-
 			gif_checkpoint = 1
 
 			trajectory = []
@@ -343,15 +349,15 @@ class MAA2C:
 
 
 			#make a directory called models
-			if not(episode%100) and episode!=0 and not(self.gif) and self.save:
-				torch.save(self.agents.critic_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'_dropping_some_layers.pt')
-				torch.save(self.agents.policy_network.state_dict(), '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/'+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_epsiode'+str(episode)+'_dropping_some_layers.pt')  
+			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:
+				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if not(self.gif):
 				self.update(trajectory,episode) 
 			elif self.gif and not(episode%gif_checkpoint):
 				print("GENERATING GIF")
 				# self.make_gif(np.array(images),gif_file_name+str(episode),duration=len(images)*3*TIME_PER_STEP,true_image=True,salience=False)
-				self.make_gif(np.array(images),gif_file_name)
+				self.make_gif(np.array(images),self.gif_path)
 
 
