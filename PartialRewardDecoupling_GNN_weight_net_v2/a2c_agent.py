@@ -40,7 +40,8 @@ class A2CAgent:
 
 		self.critic_preprocess_input_dim = 2*3
 		self.critic_output_dim = 1
-		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		# self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		self.critic_network = CriticNetwork(None, self.critic_preprocess_input_dim, None, self.critic_preprocess_input_dim, self.critic_preprocess_input_dim+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 		# self.policy_input_dim = 2*3
 		# self.policy_output_dim = self.env.action_space[0].n
 		# self.policy_network = PolicyNetwork(self.policy_input_dim,self.policy_output_dim).to(self.device)
@@ -53,8 +54,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/28_12_2020_VN_GNN2_GAT1_FC1_lr2e-4_PN_FC2_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_remote_mamba55400.pt"
-		# model_path_policy = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/28_12_2020PN_FC2_lr2e-4_VN_GNN2_GAT1_FC1_lr2e-4_GradNorm0.5_Entropy0.008_lambda1e-4_remote_mamba55400.pt"
+		# model_path_value = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/23-01-2021_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_PN_FC2_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode60300.pt"
+		# model_path_policy = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/23-01-2021_PN_FC2_lr0.0002_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode60300.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))

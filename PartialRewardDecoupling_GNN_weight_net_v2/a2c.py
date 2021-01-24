@@ -79,16 +79,16 @@ class GATLayerInput(nn.Module):
 	def __init__(self, in_dim, out_dim):
 		super(GATLayerInput, self).__init__()
 		# equation (1)
-		self.fc = nn.Linear(in_dim, out_dim, bias=False)
+		# self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
 		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
 		self.reset_parameters()
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain = nn.init.calculate_gain('relu')
-		nn.init.xavier_normal_(self.fc.weight, gain=gain)
-		nn.init.xavier_normal_(self.attn_fc.weight, gain=gain)
+		gain = nn.init.calculate_gain('leaky_relu')
+		# nn.init.xavier_uniform_(self.fc.weight, gain=gain)
+		nn.init.xavier_uniform_(self.attn_fc.weight, gain=gain)
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
@@ -111,8 +111,11 @@ class GATLayerInput(nn.Module):
 	def forward(self, g, observations):
 		self.g = g
 		# equation (1)
-		features = self.fc(observations)
-		self.g.ndata['features'] = features
+
+		# features = self.fc(observations)
+		# self.g.ndata['features'] = features
+		
+		self.g.ndata['features'] = observations
 		# equation (2)
 		self.g.apply_edges(self.edge_attention)
 		# equation (3) & (4)
@@ -130,7 +133,7 @@ class GATLayer(nn.Module):
 		self.device = "cpu"
 		# equation (1)
 		# z(l)i=W(l)h(l)i,(1)
-		self.fc = nn.Linear(in_dim, out_dim, bias=False)
+		# self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
 		# e(l)ij=LeakyReLU(a⃗ (l)T(z(l)i|z(l)j)),(2)
 		# we add a binary input while calculating z values to indicate if the agent is paired or not (2 * out_dim+1)
@@ -163,9 +166,9 @@ class GATLayer(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain = nn.init.calculate_gain('relu')
-		nn.init.xavier_normal_(self.fc.weight, gain=gain)
-		nn.init.xavier_normal_(self.attn_fc.weight, gain=gain)
+		gain = nn.init.calculate_gain('leaky_relu')
+		# nn.init.xavier_uniform_(self.fc.weight, gain=gain)
+		nn.init.xavier_uniform_(self.attn_fc.weight, gain=gain)
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
@@ -203,8 +206,10 @@ class GATLayer(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		z_ = self.fc(h)
-		self.g.ndata['z_'] = z_
+		# z_ = self.fc(h)
+		# self.g.ndata['z_'] = z_
+
+		self.g.ndata['z_'] = h
 		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
 		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)
 		# equation (2)
