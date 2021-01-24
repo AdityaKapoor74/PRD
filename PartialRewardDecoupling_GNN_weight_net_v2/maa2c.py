@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn.functional as F 
 import torch.optim as optim
@@ -30,14 +31,43 @@ class MAA2C:
 
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
+		if not(self.gif) and self.save:
+			critic_dir = '../../models/Experiment1/critic_networks/'
+			try: 
+				os.makedirs(critic_dir, exist_ok = True) 
+				print("Critic Directory created successfully") 
+			except OSError as error: 
+				print("Critic Directory can not be created") 
+			actor_dir = '../../models/Experiment1/actor_networks/'
+			try: 
+				os.makedirs(actor_dir, exist_ok = True) 
+				print("Actor Directory created successfully") 
+			except OSError as error: 
+				print("Actor Directory can not be created")  
+			weight_dir = '../../weights/Experiment1/'
+			try: 
+				os.makedirs(weight_dir, exist_ok = True) 
+				print("Weights Directory created successfully") 
+			except OSError as error: 
+				print("Weights Directory can not be created") 
 
-		# paths for models, tensorboard and gifs
-		self.critic_model_path = '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
-		self.actor_model_path = '../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/'+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
-		self.tensorboard_path = '../../runs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
-		self.gif_path = '../../gifs/GNN_V_values_i_j_weight_net_v2/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
+			tensorboard_dir = '../../runs/Experiment1/'
 
-		self.filename = '../../weights/4_agents/'+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers.txt'
+
+			# paths for models, tensorboard and gifs
+			self.critic_model_path = critic_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
+			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
+			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)
+			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers.txt'
+
+		elif self.gif:
+			gif_dir = '../../gifs/Experiment1/'
+			try: 
+				os.makedirs(gif_dir, exist_ok = True) 
+				print("Gif Directory created successfully") 
+			except OSError as error: 
+				print("Gif Directory can not be created")
+			self.gif_path = gif_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
 
 		if not(self.gif) and self.save:
 			self.writer = SummaryWriter(self.tensorboard_path)
