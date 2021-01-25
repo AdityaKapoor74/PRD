@@ -104,9 +104,11 @@ class GATLayerInput(nn.Module):
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
+		torch.set_printoptions(profile="full")
 		features_ = torch.cat([edges.src['features'], edges.dst['features']], dim=1)
 		num_repeats = int(features_.shape[0]/(self.num_agents*self.num_agents))
 		features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
+		# torch.set_printoptions(profile="default")
 		a = self.attn_fc(features_binary)
 		return {'e': F.leaky_relu(a)}
 
@@ -119,13 +121,24 @@ class GATLayerInput(nn.Module):
 		# equation (3)
 		alpha = F.softmax(nodes.mailbox['e'], dim=1)
 		# equation (4)
-		obs_proc = torch.mean(alpha * nodes.mailbox['features'], dim=1)
+		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
+		
+		with open('../../weights/Experiment2/preprocessed_obs.txt','a+') as f:
+				torch.set_printoptions(profile="full")
+				print("*"*100,file=f)
+				print("PROCESSED OBSERVATIONS",file=f)
+				print(obs_proc,file=f)	
+				print("*"*100,file=f)
+				print("WEIGHTS",file=f)
+				print(alpha,file=f)
+				print("*"*100,file=f)
+				torch.set_printoptions(profile="default")
+		
 		return {'obs_proc': obs_proc}
 
 	def forward(self, g, observations):
 		self.g = g
 		# equation (1)
-
 		features = self.fc(observations)
 		self.g.ndata['features'] = features
 		# equation (2)
