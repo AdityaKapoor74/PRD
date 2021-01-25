@@ -53,8 +53,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/critic_networks/23-01-2021_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_PN_FC2_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode60300.pt"
-		# model_path_policy = "../../models/GNN_V_values_i_j_weight_net_v2/4_agents/actor_networks/23-01-2021_PN_FC2_lr0.0002_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode60300.pt"
+		# model_path_value = "../../models/Experiment1/critic_networks/24-01-2021_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_PN_FC2_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode30000.pt"
+		# model_path_policy = "../../models/Experiment1/actor_networks/24-01-2021_PN_FC2_lr0.0002_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode30000.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))

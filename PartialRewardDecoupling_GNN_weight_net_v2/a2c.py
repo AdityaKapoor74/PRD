@@ -76,12 +76,24 @@ class CriticInputPreprocess(nn.Module):
 
 
 class GATLayerInput(nn.Module):
-	def __init__(self, in_dim, out_dim):
+	def __init__(self, in_dim, out_dim,num_agents):
 		super(GATLayerInput, self).__init__()
 		# equation (1)
 		self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
-		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
+
+		self.num_agents = num_agents
+		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
+
+		for i in range(self.num_agents):
+			for j in range(self.num_agents):
+				if self.num_agents-1-i == j:
+					self.agent_pairing[i][j] = 1
+				else:
+					self.agent_pairing[i][j] = 0
+		self.agent_pairing = self.agent_pairing.reshape(-1,1)
+
 		self.reset_parameters()
 
 	def reset_parameters(self):
@@ -92,8 +104,10 @@ class GATLayerInput(nn.Module):
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
-		features_2 = torch.cat([edges.src['features'], edges.dst['features']], dim=1)
-		a = self.attn_fc(features_2)
+		features_ = torch.cat([edges.src['features'], edges.dst['features']], dim=1)
+		num_repeats = int(features_.shape[0]/(self.num_agents*self.num_agents))
+		features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
+		a = self.attn_fc(features_binary)
 		return {'e': F.leaky_relu(a)}
 
 	def message_func(self, edges):
@@ -105,7 +119,7 @@ class GATLayerInput(nn.Module):
 		# equation (3)
 		alpha = F.softmax(nodes.mailbox['e'], dim=1)
 		# equation (4)
-		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
+		obs_proc = torch.mean(alpha * nodes.mailbox['features'], dim=1)
 		return {'obs_proc': obs_proc}
 
 	def forward(self, g, observations):
@@ -232,7 +246,7 @@ class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
 		# self.input_processor = CriticInputPreprocess(preprocess_input_dim, preprocess_output_dim)
-		self.input_processor = GATLayerInput(preprocess_input_dim,preprocess_output_dim)
+		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
 		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
