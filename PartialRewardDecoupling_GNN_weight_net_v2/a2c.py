@@ -159,11 +159,14 @@ class GATLayer(nn.Module):
 		self.device = "cpu"
 		# equation (1)
 		# z(l)i=W(l)h(l)i,(1)
-		self.fc = nn.Linear(in_dim, out_dim, bias=False)
+		# self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
 		# e(l)ij=LeakyReLU(a⃗ (l)T(z(l)i|z(l)j)),(2)
 		# we add a binary input while calculating z values to indicate if the agent is paired or not (2 * out_dim+1)
-		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
+		# self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
+
+		# passing in just binaries
+		self.attn_fc = nn.Linear(2, 1, bias=False)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -193,15 +196,17 @@ class GATLayer(nn.Module):
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
 		gain = nn.init.calculate_gain('leaky_relu')
-		nn.init.xavier_uniform_(self.fc.weight, gain=gain)
+		# nn.init.xavier_uniform_(self.fc.weight, gain=gain)
 		nn.init.xavier_uniform_(self.attn_fc.weight, gain=gain)
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
-		obs_src_dest = torch.cat([edges.src['z_'], edges.dst['z_']], dim=1)
+		# obs_src_dest = torch.cat([edges.src['z_'], edges.dst['z_']], dim=1)
+		# passing in just binaries
+		obs_src_dest = torch.cat([edges.src['pairing_id'], edges.dst['pairing_id']], dim=1)
 		num_repeats = int(obs_src_dest.shape[0]/(self.num_agents*self.num_agents))
-		obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
-		a = self.attn_fc(obs_src_dest_binary)
+		# obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
+		a = self.attn_fc(obs_src_dest)
 		return {'e': F.leaky_relu(a)}
 
 	def message_func(self, edges):
@@ -220,20 +225,23 @@ class GATLayer(nn.Module):
 		z = (pi+zs)
 		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.num_actions)
 		z = torch.mean(z,dim=-2)
+
 		# processed observations
-		obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
-		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
-		# unprocessed observations
-		# obs_proc = self.g.ndata['obs'].reshape(-1,self.num_agents,self.g.ndata['obs'].shape[1]).repeat(1,self.num_agents,1)
+		# obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
 		# obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
+
+		# unprocessed observations
+		obs_proc = self.g.ndata['obs'].reshape(-1,self.num_agents,self.g.ndata['obs'].shape[1]).repeat(1,self.num_agents,1)
+		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
 		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.num_actions)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
+		
 		return {'obs_final':obs_final, 'w': w}
 
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		z_ = self.fc(h)
-		self.g.ndata['z_'] = z_
+		# z_ = self.fc(h)
+		# self.g.ndata['z_'] = z_
 		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
 		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)
 		# equation (2)
@@ -260,16 +268,17 @@ class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
 		# self.input_processor = CriticInputPreprocess(preprocess_input_dim, preprocess_output_dim)
-		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		# self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
 		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
 		# g = self.input_processor(g)
 		# features = g.ndata['obs_proc']
-		features = self.input_processor(g, g.ndata['obs'])
-		g.ndata['obs_proc'] = features
-		obs_final, weights = self.weight_layer(g,features,policies,actions)
+		# features = self.input_processor(g, g.ndata['obs'])
+		# g.ndata['obs_proc'] = features
+		# obs_final, weights = self.weight_layer(g,features,policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
 
