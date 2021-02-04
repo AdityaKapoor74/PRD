@@ -207,7 +207,6 @@ class GATLayer(nn.Module):
 		# obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
 		# a = self.attn_fc(obs_src_dest)
 		num_repeats = int(self.g.ndata['obs'].shape[0]/(self.num_agents))
-		print(self.agent_pairing.repeat(num_repeats,1))
 		a = self.attn_fc(self.agent_pairing.repeat(num_repeats,1))
 		return {'e': F.leaky_relu(a)}
 
