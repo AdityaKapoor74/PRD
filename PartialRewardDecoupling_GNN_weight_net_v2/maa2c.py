@@ -32,8 +32,6 @@ class MAA2C:
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 
-		self.pairing = [[1],[-1],[-1],[1]]
-
 		if not(self.gif) and self.save:
 			critic_dir = '../../models/Experiment3/critic_networks/'
 			try: 
@@ -268,7 +266,6 @@ class MAA2C:
 		graph = dgl.graph((self.src_edges_critic,self.dest_edges_critic),idtype=torch.int32, device=self.device)
 
 		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
-		graph.ndata['pairing_id'] = torch.Tensor(self.pairing)
 
 			   
 		return graph

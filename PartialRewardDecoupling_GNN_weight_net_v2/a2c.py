@@ -92,7 +92,7 @@ class GATLayerInput(nn.Module):
 				if self.num_agents-1-i == j:
 					self.agent_pairing[i][j] = 1
 				else:
-					self.agent_pairing[i][j] = 0
+					self.agent_pairing[i][j] = -1
 		self.agent_pairing = self.agent_pairing.reshape(-1,1)
 
 		self.reset_parameters()
@@ -166,7 +166,7 @@ class GATLayer(nn.Module):
 		# self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
 
 		# passing in just binaries
-		self.attn_fc = nn.Linear(2, 1, bias=False)
+		self.attn_fc = nn.Linear(1, 1, bias=False)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -188,7 +188,7 @@ class GATLayer(nn.Module):
 				if self.num_agents-1-i == j:
 					self.agent_pairing[i][j] = 1
 				else:
-					self.agent_pairing[i][j] = 0
+					self.agent_pairing[i][j] = -1
 		self.agent_pairing = self.agent_pairing.reshape(-1,1)
 
 		self.reset_parameters()
@@ -203,10 +203,12 @@ class GATLayer(nn.Module):
 		# edge UDF for equation (2)
 		# obs_src_dest = torch.cat([edges.src['z_'], edges.dst['z_']], dim=1)
 		# passing in just binaries
-		obs_src_dest = torch.cat([edges.src['pairing_id'], edges.dst['pairing_id']], dim=1)
-		num_repeats = int(obs_src_dest.shape[0]/(self.num_agents*self.num_agents))
+		# num_repeats = int(obs_src_dest.shape[0]/(self.num_agents*self.num_agents))
 		# obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
-		a = self.attn_fc(obs_src_dest)
+		# a = self.attn_fc(obs_src_dest)
+		num_repeats = int(self.g.ndata['obs'].shape[0]/(self.num_agents))
+		print(self.agent_pairing.repeat(num_repeats,1))
+		a = self.attn_fc(self.agent_pairing.repeat(num_repeats,1))
 		return {'e': F.leaky_relu(a)}
 
 	def message_func(self, edges):
