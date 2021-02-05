@@ -82,7 +82,8 @@ class GATLayerInput(nn.Module):
 		# equation (1)
 		self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
-		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+		# self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
 
 		self.num_agents = num_agents
 		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
@@ -108,9 +109,10 @@ class GATLayerInput(nn.Module):
 		torch.set_printoptions(profile="full")
 		features_ = torch.cat([edges.src['features'], edges.dst['features']], dim=1)
 		num_repeats = int(features_.shape[0]/(self.num_agents*self.num_agents))
-		features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
+		a = self.attn_fc(features_)
+		# features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
 		# torch.set_printoptions(profile="default")
-		a = self.attn_fc(features_binary)
+		# a = self.attn_fc(features_binary)
 		return {'e': F.leaky_relu(a)}
 
 	def message_func(self, edges):
@@ -228,12 +230,13 @@ class GATLayer(nn.Module):
 		z = torch.mean(z,dim=-2)
 
 		# processed observations
-		# obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
-		# obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
+		obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
+		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
 
 		# unprocessed observations
-		obs_proc = self.g.ndata['obs'].reshape(-1,self.num_agents,self.g.ndata['obs'].shape[1]).repeat(1,self.num_agents,1)
-		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
+		# obs_proc = self.g.ndata['obs'].reshape(-1,self.num_agents,self.g.ndata['obs'].shape[1]).repeat(1,self.num_agents,1)
+		# obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
+		
 		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.num_actions)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
 		
 		return {'obs_final':obs_final, 'w': w}
@@ -269,15 +272,15 @@ class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
 		# self.input_processor = CriticInputPreprocess(preprocess_input_dim, preprocess_output_dim)
-		# self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
 		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
 		# g = self.input_processor(g)
 		# features = g.ndata['obs_proc']
-		# features = self.input_processor(g, g.ndata['obs'])
-		# g.ndata['obs_proc'] = features
+		features = self.input_processor(g, g.ndata['obs'])
+		g.ndata['obs_proc'] = features
 		# obs_final, weights = self.weight_layer(g,features,policies,actions)
 		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
 		x = self.value_layer(obs_final)
