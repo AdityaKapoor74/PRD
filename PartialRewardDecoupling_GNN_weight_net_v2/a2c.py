@@ -82,8 +82,8 @@ class GATLayerInput(nn.Module):
 		# equation (1)
 		self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
-		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
-		# self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
+		# self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
 
 		self.num_agents = num_agents
 		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
@@ -109,10 +109,10 @@ class GATLayerInput(nn.Module):
 		torch.set_printoptions(profile="full")
 		features_ = torch.cat([edges.src['features'], edges.dst['features']], dim=1)
 		num_repeats = int(features_.shape[0]/(self.num_agents*self.num_agents))
-		a = self.attn_fc(features_)
-		# features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
+		# a = self.attn_fc(features_)
+		features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
 		# torch.set_printoptions(profile="default")
-		# a = self.attn_fc(features_binary)
+		a = self.attn_fc(features_binary)
 		return {'e': F.leaky_relu(a)}
 
 	def message_func(self, edges):
