@@ -113,7 +113,8 @@ class GATLayerInput(nn.Module):
 		features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
 		# torch.set_printoptions(profile="default")
 		a = self.attn_fc(features_binary)
-		return {'e': F.leaky_relu(a)}
+		# return {'e': F.leaky_relu(a)}
+		return {'e': a}
 
 	def message_func(self, edges):
 		# message UDF for equation (3) & (4)
@@ -210,7 +211,8 @@ class GATLayer(nn.Module):
 		# a = self.attn_fc(obs_src_dest)
 		num_repeats = int(self.g.ndata['obs'].shape[0]/(self.num_agents))
 		a = self.attn_fc(self.agent_pairing.repeat(num_repeats,1))
-		return {'e': F.leaky_relu(a)}
+		# return {'e': F.leaky_relu(a)}
+		return {'e': a}
 
 	def message_func(self, edges):
 		# message UDF for equation (3)
