@@ -162,14 +162,14 @@ class GATLayer(nn.Module):
 		self.device = "cpu"
 		# equation (1)
 		# z(l)i=W(l)h(l)i,(1)
-		# self.fc = nn.Linear(in_dim, out_dim, bias=False)
+		self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
 		# e(l)ij=LeakyReLU(a⃗ (l)T(z(l)i|z(l)j)),(2)
 		# we add a binary input while calculating z values to indicate if the agent is paired or not (2 * out_dim+1)
-		# self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
 
 		# passing in just binaries
-		self.attn_fc = nn.Linear(1, 1, bias=False)
+		# self.attn_fc = nn.Linear(1, 1, bias=False)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -204,13 +204,13 @@ class GATLayer(nn.Module):
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
-		# obs_src_dest = torch.cat([edges.src['z_'], edges.dst['z_']], dim=1)
+		obs_src_dest = torch.cat([edges.src['z_'], edges.dst['z_']], dim=1)
 		# passing in just binaries
-		# num_repeats = int(obs_src_dest.shape[0]/(self.num_agents*self.num_agents))
-		# obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
-		# a = self.attn_fc(obs_src_dest)
-		num_repeats = int(self.g.ndata['obs'].shape[0]/(self.num_agents))
-		a = self.attn_fc(self.agent_pairing.repeat(num_repeats,1))
+		num_repeats = int(obs_src_dest.shape[0]/(self.num_agents*self.num_agents))
+		obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
+		a = self.attn_fc(obs_src_dest_binary)
+		# num_repeats = int(self.g.ndata['obs'].shape[0]/(self.num_agents))
+		# a = self.attn_fc(self.agent_pairing.repeat(num_repeats,1))
 		# return {'e': F.leaky_relu(a)}
 		return {'e': a}
 
@@ -246,8 +246,8 @@ class GATLayer(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		# z_ = self.fc(h)
-		# self.g.ndata['z_'] = z_
+		z_ = self.fc(h)
+		self.g.ndata['z_'] = z_
 		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
 		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)
 		# equation (2)
@@ -284,7 +284,7 @@ class CriticNetwork(nn.Module):
 		features = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
 		# obs_final, weights = self.weight_layer(g,features,policies,actions)
-		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['obs_proc'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
 
