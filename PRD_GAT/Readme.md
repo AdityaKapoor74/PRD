@@ -31,3 +31,14 @@ To go over the pipeline:
 * GAT NETWORK 1 (Preprocess): We preprocess the observations using a GAT
 * GAT NETWORK 2 (Calculate weights used for z calculations): We use either the preprocessed observations to calculate the weight values which are further used to calculate z values (z = weight x actions + weight x policies)
 * FCN (Calculate V matrix): We finally concatenate the processed observations with the z values to calculate the Value Matrix for every agent for every timestep
+
+Note: In both the GATs we use a binary variable (1/-1) while calculating the attention (for GAT 1) and weight (for GAT 2) to specify the kind of relationship between agents (paired/unpaired)
+
+
+## Performance measures
+* When we use the processed observations to calculate weight values, the contrast between paired and unpaired agent is not of significance. However when in the first GAT we replace the softmax with a sigmoid, the contrast seems a little apparent (Softmax gives a relative weight measure and it can so happen that the weight values are very low so the information transfer is less. On the other hand, if one uses sigmoid, the weight values are independent of other agent's features so the information transfer is much better. In short, the method of weightage assignment makes things better for sigmoid over softmax)
+* The best performance is achieved when we use the raw observation data to calculate the weight values. The weights assigned to paired agents move to 1 and the unpaired agents move to 0. This is what we had hypothesized.
+* The baseline was to use just a binary value that indicates if the agents are paired or unpaired to calculate the weight values for z calculations that gives a similar performance to the experiment when raw observations were used for such calculations.
+
+## Future Work
+We need to come up with an environmental setup such that we do not make the pairings as obvious (by using a binary indicator) and test our hypothesis.
