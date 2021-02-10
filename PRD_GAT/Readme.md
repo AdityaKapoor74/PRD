@@ -3,6 +3,9 @@
 * [Architecture](#architecture)
 * [Technologies](#technologies)
 * [Environment](#environment)
+* [Methodology](#methodology)
+* [Performance Measures](#peroformance)
+* [Future Work](#futurework)
 
 
 ## Partial Reward Decoupling
@@ -35,7 +38,7 @@ To go over the pipeline:
 Note: In both the GATs we use a binary variable (1/-1) while calculating the attention (for GAT 1) and weight (for GAT 2) to specify the kind of relationship between agents (paired/unpaired)
 
 
-## Performance measures
+## Performance Measures
 * When we use the processed observations to calculate weight values, the contrast between paired and unpaired agent is not of significance. However when in the first GAT we replace the softmax with a sigmoid, the contrast seems a little apparent (Softmax gives a relative weight measure and it can so happen that the weight values are very low so the information transfer is less. On the other hand, if one uses sigmoid, the weight values are independent of other agent's features so the information transfer is much better. In short, the method of weightage assignment makes things better for sigmoid over softmax)
 * The best performance is achieved when we use the raw observation data to calculate the weight values. The weights assigned to paired agents move to 1 and the unpaired agents move to 0. This is what we had hypothesized.
 * The baseline was to use just a binary value that indicates if the agents are paired or unpaired to calculate the weight values for z calculations that gives a similar performance to the experiment when raw observations were used for such calculations.
