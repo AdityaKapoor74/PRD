@@ -1,3 +1,6 @@
 [submodule "PartialRewardDecoupling_GNN_weight_net_v2/multiagent-particle-envs"]
 	path = PartialRewardDecoupling_GNN_weight_net_v2/multiagent-particle-envs
 	url = https://github.com/AdityaKapoor74/multiagent-particle-envs.git
+[submodule "PRD_GAT_1/multiagent-particle-envs"]
+	path = PRD_GAT_1/multiagent-particle-envs
+	url = https://github.com/AdityaKapoor74/multiagent-particle-envs.git
