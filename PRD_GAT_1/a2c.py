@@ -41,39 +41,6 @@ def create_model(
 
 
 
-class GNNLayer(nn.Module):
-	def __init__(self, in_feats, out_feats):
-		super(GNNLayer, self).__init__()
-		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
-		self.linear = nn.Linear(in_feats, out_feats)
-		torch.nn.init.xavier_uniform_(self.linear.weight)
-		self.gcn_msg = fn.copy_src(src='obs', out='m')
-		self.gcn_reduce = fn.mean(msg='m', out='obs')	
-
-	def forward(self, g, feature):
-		# Creating a local scope so that all the stored ndata and edata
-		# (such as the `'h'` ndata below) are automatically popped out
-		# when the scope exits.
-		with g.local_scope():
-			g.ndata['obs'] = feature
-			g.update_all(self.gcn_msg, self.gcn_reduce)
-			h = g.ndata['obs'].to(self.device)
-			return self.linear(h)
-
-
-class CriticInputPreprocess(nn.Module):
-	def __init__(self, input_dim, output_dim):
-		super(CriticInputPreprocess, self).__init__()
-		self.value_layer1 = GNNLayer(input_dim, 64)
-		self.value_layer2 = GNNLayer(64, output_dim)
-
-	def forward(self, g):
-		features = g.ndata['obs']
-		x = F.relu(self.value_layer1(g, features))
-		x = self.value_layer2(g, x)
-		g.ndata['obs_proc'] = x
-		return g
 
 
 class GATLayerInput(nn.Module):
@@ -82,19 +49,10 @@ class GATLayerInput(nn.Module):
 		# equation (1)
 		self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
-		# self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
-		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
 
 		self.num_agents = num_agents
 		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
-
-		for i in range(self.num_agents):
-			for j in range(self.num_agents):
-				if self.num_agents-1-i == j:
-					self.agent_pairing[i][j] = 1
-				else:
-					self.agent_pairing[i][j] = -1
-		self.agent_pairing = self.agent_pairing.reshape(-1,1)
 
 		self.reset_parameters()
 
@@ -108,12 +66,7 @@ class GATLayerInput(nn.Module):
 		# edge UDF for equation (2)
 		torch.set_printoptions(profile="full")
 		features_ = torch.cat([edges.src['features'], edges.dst['features']], dim=1)
-		num_repeats = int(features_.shape[0]/(self.num_agents*self.num_agents))
-		# a = self.attn_fc(features_)
-		features_binary = torch.cat([features_,self.agent_pairing.repeat(num_repeats,1)],dim=1)
-		# torch.set_printoptions(profile="default")
-		a = self.attn_fc(features_binary)
-		# return {'e': F.leaky_relu(a)}
+		a = self.attn_fc(features_)
 		return {'e': a}
 
 	def message_func(self, edges):
@@ -123,21 +76,20 @@ class GATLayerInput(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3) & (4)
 		# equation (3)
-		# alpha = F.softmax(nodes.mailbox['e'], dim=1)
 		alpha = torch.sigmoid(nodes.mailbox['e'])
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
 		
-		with open('../../weights/Experiment6_2/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
-			torch.set_printoptions(profile="full")
-			print("*"*100,file=f)
-			print("PROCESSED OBSERVATIONS",file=f)
-			print(obs_proc,file=f)	
-			print("*"*100,file=f)
-			print("WEIGHTS",file=f)
-			print(alpha,file=f)
-			print("*"*100,file=f)
-			torch.set_printoptions(profile="default")
+		# with open('../../weights/Experiment7_1/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+		# 	torch.set_printoptions(profile="full")
+		# 	print("*"*100,file=f)
+		# 	print("PROCESSED OBSERVATIONS",file=f)
+		# 	print(obs_proc,file=f)	
+		# 	print("*"*100,file=f)
+		# 	print("WEIGHTS",file=f)
+		# 	print(alpha,file=f)
+		# 	print("*"*100,file=f)
+		# 	torch.set_printoptions(profile="default")
 		
 		return {'obs_proc': obs_proc}
 
@@ -166,11 +118,7 @@ class GATLayer(nn.Module):
 		self.fc = nn.Linear(in_dim, out_dim, bias=False)
 		# equation (2)
 		# e(l)ij=LeakyReLU(a⃗ (l)T(z(l)i|z(l)j)),(2)
-		# we add a binary input while calculating z values to indicate if the agent is paired or not (2 * out_dim+1)
-		self.attn_fc = nn.Linear(2 * out_dim + 1, 1, bias=False)
-
-		# passing in just binaries
-		# self.attn_fc = nn.Linear(1, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -185,15 +133,6 @@ class GATLayer(nn.Module):
 		self.place_policies = self.place_policies.reshape(self.num_agents,-1,num_actions)
 		self.place_zs = self.place_zs.reshape(self.num_agents,-1,num_actions)
 
-		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
-
-		for i in range(self.num_agents):
-			for j in range(self.num_agents):
-				if self.num_agents-1-i == j:
-					self.agent_pairing[i][j] = 1
-				else:
-					self.agent_pairing[i][j] = -1
-		self.agent_pairing = self.agent_pairing.reshape(-1,1)
 
 		self.reset_parameters()
 
@@ -206,12 +145,7 @@ class GATLayer(nn.Module):
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
 		obs_src_dest = torch.cat([edges.src['z_'], edges.dst['z_']], dim=1)
-		# passing in just binaries
-		num_repeats = int(obs_src_dest.shape[0]/(self.num_agents*self.num_agents))
-		obs_src_dest_binary = torch.cat([obs_src_dest,self.agent_pairing.repeat(num_repeats,1)],dim=1)
-		a = self.attn_fc(obs_src_dest_binary)
-		# num_repeats = int(self.g.ndata['obs'].shape[0]/(self.num_agents))
-		# a = self.attn_fc(self.agent_pairing.repeat(num_repeats,1))
+		a = self.attn_fc(obs_src_dest)
 		# return {'e': F.leaky_relu(a)}
 		return {'e': a}
 
@@ -232,16 +166,11 @@ class GATLayer(nn.Module):
 		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.num_actions)
 		z = torch.mean(z,dim=-2)
 
-		# processed observations
 		obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
 		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
-
-		# unprocessed observations
-		# obs_proc = self.g.ndata['obs'].reshape(-1,self.num_agents,self.g.ndata['obs'].shape[1]).repeat(1,self.num_agents,1)
-		# obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
 		
 		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.num_actions)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
-		
+
 		return {'obs_final':obs_final, 'w': w}
 
 	def forward(self, g, h, policies, actions):
@@ -274,7 +203,6 @@ class ValueNetwork(nn.Module):
 class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
-		# self.input_processor = CriticInputPreprocess(preprocess_input_dim, preprocess_output_dim)
 		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
 		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
@@ -284,22 +212,10 @@ class CriticNetwork(nn.Module):
 		# features = g.ndata['obs_proc']
 		features = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
-		# obs_final, weights = self.weight_layer(g,features,policies,actions)
-		obs_final, weights = self.weight_layer(g,g.ndata['obs_proc'],policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
 
-# class PolicyNetwork(nn.Module):
-# 	def __init__(self, input_dim, output_dim):
-# 		super(PolicyNetwork,self).__init__()
-# 		self.policy_layer1 = GNNLayer(input_dim, 64)
-# 		self.policy_layer2 = GNNLayer(64, output_dim)
-
-# 	def forward(self, g):
-# 		features = g.ndata['obs']
-# 		x = F.relu(self.policy_layer1(g, features))
-# 		x = F.softmax(self.policy_layer2(g, x),-1)
-# 		return x
 
 class PolicyNetwork(nn.Module):
 	def __init__(
