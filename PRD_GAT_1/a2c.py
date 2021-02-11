@@ -80,16 +80,16 @@ class GATLayerInput(nn.Module):
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
 		
-		# with open('../../weights/Experiment7_1/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
-		# 	torch.set_printoptions(profile="full")
-		# 	print("*"*100,file=f)
-		# 	print("PROCESSED OBSERVATIONS",file=f)
-		# 	print(obs_proc,file=f)	
-		# 	print("*"*100,file=f)
-		# 	print("WEIGHTS",file=f)
-		# 	print(alpha,file=f)
-		# 	print("*"*100,file=f)
-		# 	torch.set_printoptions(profile="default")
+		with open('../../weights/Experiment7_1/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+			torch.set_printoptions(profile="full")
+			print("*"*100,file=f)
+			print("PROCESSED OBSERVATIONS",file=f)
+			print(obs_proc,file=f)	
+			print("*"*100,file=f)
+			print("WEIGHTS",file=f)
+			print(alpha,file=f)
+			print("*"*100,file=f)
+			torch.set_printoptions(profile="default")
 		
 		return {'obs_proc': obs_proc}
 
