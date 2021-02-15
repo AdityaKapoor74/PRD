@@ -16,8 +16,8 @@ We are using Advantage Actor Critic Algorithm to test out our hypothesis with a 
 
 ## Environment
 The environment comprises of "N" agents and "N" goal positions. Every agent is assigned a goal position and an agent that it is paired with. The reward function is such that every agent recieves a sum of the penalties (L2 distance from the goal position) of the agent it is paired with and itself. Along with this, there is a collision penalty as well which is set to -1 if the the agent or its paired partner collides with any other agent. The goal of the environment is that all "N" agents need to reach their goal positions.
-* Reward Function = L2_dist(paired_agent_pose,paired_agent_goal_pose) + L2_dist(pose, goal_pose) + collision_penalty_paired_agent + collision
-* Observation Space for the Critic Network = {Position, Velocity, Goal Position, Paired Agent's Goal Position} 
+* Reward Function = L2_dist(pose, goal_pose) + collision_pen iff in proximity
+* Observation Space for the Critic Network = {Position, Velocity, Goal Position} 
 * Observation Space for the Actor Network = {Position, Velocity, Other Agent's Relative Position, Other Agent's Relative Velocity}
 
 ## Methodology
@@ -33,4 +33,4 @@ To go over the pipeline:
 * GAT NETWORK 2 (Calculate weights used for z calculations): We use either the preprocessed observations to calculate the weight values which are further used to calculate z values (z = weight x actions + weight x policies)
 * FCN (Calculate V matrix): We finally concatenate the processed observations with the z values to calculate the Value Matrix for every agent for every timestep
 
-Note: In this environment we do not use a binary variable to indicate pairing but the pairing is apparent as the observations of the paired agents have both their goal positions (itself/paired parnter)
+Note: In this environment we do not use a binary variable to indicate pairing but the pairing is apparent due to the collision penalty (if some other agent is in the proximity of the current agent, it is penalised)
