@@ -26,4 +26,4 @@ if __name__ == '__main__':
 	env = make_env(scenario_name="paired_by_sharing_goals",benchmark=False)
 	ma_controller = MAA2C(env,gif=False,save=True)
 
-	ma_controller.run(60000,100)
+	ma_controller.run(100000,100)

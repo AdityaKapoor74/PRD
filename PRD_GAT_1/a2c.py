@@ -16,14 +16,19 @@ import datetime
 def create_model(
 	layer_sizes: Tuple,
 	weight_init: str = "xavier_uniform",
-	activation_func: str = "relu"
+	activation_func: str = "leaky_relu"
 	):
 
 	layers = []
 	limit = len(layer_sizes)
 
 	# add more activations
-	activation = nn.Tanh() if activation_func == "tanh" else nn.ReLU()
+	if activation_func == "tanh":
+		activation = nn.Tanh()
+	elif activation_func == "relu":
+		activation = nn.ReLU()
+	elif activation_func == "leaky_relu":
+		activation = nn.LeakyReLU()
 
 	# add more weight init
 	if weight_init == "xavier_uniform":
@@ -47,9 +52,9 @@ class GATLayerInput(nn.Module):
 	def __init__(self, in_dim, out_dim,num_agents):
 		super(GATLayerInput, self).__init__()
 		# equation (1)
-		self.fc = nn.Linear(in_dim, out_dim, bias=False)
+		self.fc = nn.Linear(in_dim, out_dim, bias=True)
 		# equation (2)
-		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=True)
 
 		self.num_agents = num_agents
 		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
@@ -60,7 +65,7 @@ class GATLayerInput(nn.Module):
 		"""Reinitialize learnable parameters."""
 		gain = nn.init.calculate_gain('leaky_relu')
 		nn.init.xavier_uniform_(self.fc.weight, gain=gain)
-		nn.init.xavier_uniform_(self.attn_fc.weight, gain=gain)
+		nn.init.xavier_uniform_(self.attn_fc.weight)
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
@@ -80,7 +85,7 @@ class GATLayerInput(nn.Module):
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
 		
-		with open('../../weights/Experiment7_2/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+		with open('../../weights/Experiment7_1_retry/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
 			torch.set_printoptions(profile="full")
 			print("*"*100,file=f)
 			print("PROCESSED OBSERVATIONS",file=f)
@@ -96,7 +101,7 @@ class GATLayerInput(nn.Module):
 	def forward(self, g, observations):
 		self.g = g
 		# equation (1)
-		features = self.fc(observations)
+		features = F.leaky_relu(self.fc(observations))
 		self.g.ndata['features'] = features
 		# equation (2)
 		self.g.apply_edges(self.edge_attention)
@@ -115,10 +120,10 @@ class GATLayer(nn.Module):
 		self.device = "cpu"
 		# equation (1)
 		# z(l)i=W(l)h(l)i,(1)
-		self.fc = nn.Linear(in_dim, out_dim, bias=False)
+		self.fc = nn.Linear(in_dim, out_dim, bias=True)
 		# equation (2)
 		# e(l)ij=LeakyReLU(a⃗ (l)T(z(l)i|z(l)j)),(2)
-		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=True)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -140,7 +145,7 @@ class GATLayer(nn.Module):
 		"""Reinitialize learnable parameters."""
 		gain = nn.init.calculate_gain('leaky_relu')
 		nn.init.xavier_uniform_(self.fc.weight, gain=gain)
-		nn.init.xavier_uniform_(self.attn_fc.weight, gain=gain)
+		nn.init.xavier_uniform_(self.attn_fc.weight)
 
 	def edge_attention(self, edges):
 		# edge UDF for equation (2)
@@ -176,7 +181,7 @@ class GATLayer(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		z_ = self.fc(h)
+		z_ = F.leaky_relu(self.fc(h))
 		self.g.ndata['z_'] = z_
 		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
 		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)

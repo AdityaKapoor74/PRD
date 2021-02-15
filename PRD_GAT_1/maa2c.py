@@ -33,26 +33,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment7_2/critic_networks/'
+			critic_dir = '../../models/Experiment7_1_retry/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment7_2/actor_networks/'
+			actor_dir = '../../models/Experiment7_1_retry/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment7_2/'
+			weight_dir = '../../weights/Experiment7_1_retry/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment7_2/'
+			tensorboard_dir = '../../runs/Experiment7_1_retry/'
 
 
 			# paths for models, tensorboard and gifs
@@ -62,7 +62,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment7_2/'
+			gif_dir = '../../gifs/Experiment7_1_retry/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
