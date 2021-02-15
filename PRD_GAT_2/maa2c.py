@@ -33,26 +33,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment7_3/critic_networks/'
+			critic_dir = '../../models/Experiment8_1/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment7_3/actor_networks/'
+			actor_dir = '../../models/Experiment8_1/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment7_3/'
+			weight_dir = '../../weights/Experiment8_1/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment7_3/'
+			tensorboard_dir = '../../runs/Experiment8_1/'
 
 
 			# paths for models, tensorboard and gifs
@@ -62,7 +62,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment7_3/'
+			gif_dir = '../../gifs/Experiment8_1/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -104,7 +104,7 @@ class MAA2C:
 		return actions
 
 
-	def calculate_weights(self,weights):
+	def calculate_weights(self,weights,agent_pairings):
 		paired_agents_weight = 0
 		paired_agents_weight_count = 0
 		unpaired_agents_weight = 0
@@ -113,16 +113,16 @@ class MAA2C:
 		for k in range(weights.shape[0]):
 			for i in range(self.num_agents):
 				for j in range(self.num_agents):
-					if self.num_agents-1-i == j:
-						paired_agents_weight += weights[k][i][j]
+					if agent_pairings[k][i][j] == 1:
+						paired_agents_weight += weights[k][i][j].item()
 						paired_agents_weight_count += 1
 					else:
-						unpaired_agents_weight += weights[k][i][j]
+						unpaired_agents_weight += weights[k][i][j].item()
 						unpaired_agents_weight_count += 1
 
-		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
+		return round(paired_agents_weight/paired_agents_weight_count,4), round(unpaired_agents_weight/unpaired_agents_weight_count,4)
 
-	def calculate_metrics(self,weights,threshold):
+	def calculate_metrics(self,weights,threshold,agent_pairings):
 
 		TP = [0]*self.num_agents
 		FP = [0]*self.num_agents
@@ -142,7 +142,7 @@ class MAA2C:
 		for k in range(weights.shape[0]):
 			for i in range(self.num_agents):
 				for j in range(self.num_agents):
-					if self.num_agents-1-i == j:
+					if agent_pairings[k][i][j] == 1:
 						if weights[k][i][j] >= threshold:
 							TP[i] += 1
 						else:
@@ -191,6 +191,7 @@ class MAA2C:
 		# actor_graphs = dgl.batch(actor_graphs).to(self.device)
 		rewards = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[5] for sars in trajectory])
+		agent_pairings = [sars[6] for sars in trajectory]
 
 		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,policies.reshape(-1,self.num_actions),actions.reshape(-1,self.num_actions),states_actor,rewards,dones)
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
@@ -199,7 +200,7 @@ class MAA2C:
 
 		if not(self.gif) and self.save:
 			for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
-				TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta)
+				TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta,agent_pairings)
 
 				for i in range(self.num_agents):
 					self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
@@ -228,7 +229,7 @@ class MAA2C:
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 			self.writer.add_scalar('Weights/Average Weights',torch.mean(weights).item(),episode)
-			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
+			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights,agent_pairings)
 			self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
 			self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
 
@@ -349,7 +350,13 @@ class MAA2C:
 
 
 
-				next_states,rewards,dones,info = self.env.step(actions)
+				next_states,rewards_agent_pairings,dones,info = self.env.step(actions)
+				agent_pairings = []
+				rewards = []
+				for i in range(self.num_agents):
+					rewards.append(rewards_agent_pairings[i][0])
+					agent_pairings.append(rewards_agent_pairings[i][1])
+
 				next_states_critic,next_states_actor = self.split_states(next_states)
 				
 				episode_reward += np.sum(rewards)
@@ -358,7 +365,7 @@ class MAA2C:
 					if all(dones) or step == max_steps-1:
 
 						dones = [1 for _ in range(self.num_agents)]
-						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
+						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones,agent_pairings])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
 						print("*"*100)
@@ -370,7 +377,7 @@ class MAA2C:
 						break
 					else:
 						dones = [0 for _ in range(self.num_agents)]
-						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
+						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones,agent_pairings])
 						states_critic,states_actor = next_states_critic,next_states_actor
 						states = next_states
 

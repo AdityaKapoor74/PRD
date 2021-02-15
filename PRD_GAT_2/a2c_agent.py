@@ -38,7 +38,7 @@ class A2CAgent:
 		self.gif = gif
 
 
-		self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
+		self.critic_preprocess_input_dim = 2*3 # (pose,vel,goal pose, paired agent goal pose)
 		self.critic_output_dim = 1
 		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 16, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 
@@ -159,31 +159,42 @@ class A2CAgent:
 	# # ***********************************************************************************
 		
 	# **********************************
-		if self.update_both > self.ub_counter:
-			self.critic_optimizer.zero_grad()
-			value_loss.backward(retain_graph=True)
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
-			self.critic_optimizer.step()
+		self.critic_optimizer.zero_grad()
+		value_loss.backward(retain_graph=True)
+		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+		self.critic_optimizer.step()
 
 
-			self.policy_optimizer.zero_grad()
-			policy_loss.backward(retain_graph=False)
-			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-			self.policy_optimizer.step()
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward(retain_graph=False)
+		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		self.policy_optimizer.step()
+		# UPDATING CRITIC > ACTOR
+		# if self.update_both > self.ub_counter:
+		# 	self.critic_optimizer.zero_grad()
+		# 	value_loss.backward(retain_graph=True)
+		# 	grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+		# 	self.critic_optimizer.step()
 
-			self.ub_counter += 1
-			self.spu_counter = 0
-		else:
-			self.critic_optimizer.zero_grad()
-			value_loss.backward(retain_graph=False)
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
-			self.critic_optimizer.step()
 
-			grad_norm_policy = -100
+		# 	self.policy_optimizer.zero_grad()
+		# 	policy_loss.backward(retain_graph=False)
+		# 	grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		# 	self.policy_optimizer.step()
 
-			if self.spu_counter > self.stop_policy_update:
-				self.ub_counter = 0
+		# 	self.ub_counter += 1
+		# 	self.spu_counter = 0
+		# else:
+		# 	self.critic_optimizer.zero_grad()
+		# 	value_loss.backward(retain_graph=False)
+		# 	grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+		# 	self.critic_optimizer.step()
 
-			self.spu_counter += 1
+		# 	grad_norm_policy = -100
+
+		# 	if self.spu_counter > self.stop_policy_update:
+		# 		self.ub_counter = 0
+
+		# 	self.spu_counter += 1
 	# # ***********************************************************************************
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights
