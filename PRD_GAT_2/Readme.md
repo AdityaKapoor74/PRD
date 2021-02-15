@@ -7,7 +7,7 @@
 
 
 ## Partial Reward Decoupling
-Here we are tackling the credit assignment problem (internally) pertaining to multi-agent reinforcement learning. The idea is to learn to recognize the relevant set of agents, in a very large system, whose actions have a direct influence over their rewards. In short, the aim is to determine which actions taken by agents in a large group of cooperating agents helped the group achieve its goal and hence learn more rapidly.
+Here we are tackling the credit assignment problem pertaining to multi-agent reinforcement learning. The idea is to learn to recognize the relevant set of agents, in a very large system, whose actions have a direct influence over their rewards. In short, the aim is to determine which actions taken by agents in a large group of cooperating agents helped the group achieve its goal and hence learn more rapidly.
 
 ## Architecture
 We are using Advantage Actor Critic Algorithm to test out our hypothesis with a little tweaks while calculating the Values and Advantage function.
