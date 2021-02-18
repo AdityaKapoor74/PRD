@@ -85,7 +85,7 @@ class GATLayerInput(nn.Module):
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
 		
-		with open('../../weights/Experiment7_1_retry/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+		with open('../../weights/Experiment7_5/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
 			torch.set_printoptions(profile="full")
 			print("*"*100,file=f)
 			print("PROCESSED OBSERVATIONS",file=f)
@@ -120,10 +120,11 @@ class GATLayer(nn.Module):
 		self.device = "cpu"
 		# equation (1)
 		# z(l)i=W(l)h(l)i,(1)
-		self.fc = nn.Linear(in_dim, out_dim, bias=True)
+		# self.fc = nn.Linear(in_dim, out_dim, bias=True)
 		# equation (2)
 		# e(l)ij=LeakyReLU(a⃗ (l)T(z(l)i|z(l)j)),(2)
-		self.attn_fc = nn.Linear(2 * out_dim, 1, bias=True)
+		# self.attn_fc = nn.Linear(2 * out_dim, 1, bias=True)
+		self.attn_fc = nn.Linear(2 * in_dim, 1, bias=True)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -144,7 +145,7 @@ class GATLayer(nn.Module):
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
 		# gain = nn.init.calculate_gain('leaky_relu')
-		nn.init.xavier_uniform_(self.fc.weight)
+		# nn.init.xavier_uniform_(self.fc.weight)
 		nn.init.xavier_uniform_(self.attn_fc.weight)
 
 	def edge_attention(self, edges):
@@ -181,8 +182,9 @@ class GATLayer(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		z_ = self.fc(h)
-		self.g.ndata['z_'] = z_
+		# z_ = self.fc(h)
+		# self.g.ndata['z_'] = z_
+		self.g.ndata['z_'] = h
 		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
 		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)
 		# equation (2)
