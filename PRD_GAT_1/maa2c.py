@@ -33,26 +33,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment7_5/critic_networks/'
+			critic_dir = '../../models/Experiment7_6/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment7_5/actor_networks/'
+			actor_dir = '../../models/Experiment7_6/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment7_5/'
+			weight_dir = '../../weights/Experiment7_6/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment7_5/'
+			tensorboard_dir = '../../runs/Experiment7_6/'
 
 
 			# paths for models, tensorboard and gifs
@@ -62,7 +62,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'_dropping_some_layers.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment7_5/'
+			gif_dir = '../../gifs/Experiment7_6/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -266,7 +266,7 @@ class MAA2C:
 		graph = dgl.graph((self.src_edges_critic,self.dest_edges_critic),idtype=torch.int32, device=self.device)
 
 		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
-
+		graph.ndata['goals'] = torch.FloatTensor(states_critic[:,-4:]).to(self.device)
 			   
 		return graph
 

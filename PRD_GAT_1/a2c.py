@@ -85,7 +85,7 @@ class GATLayerInput(nn.Module):
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
 		
-		with open('../../weights/Experiment7_5/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+		with open('../../weights/Experiment7_6/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
 			torch.set_printoptions(profile="full")
 			print("*"*100,file=f)
 			print("PROCESSED OBSERVATIONS",file=f)
@@ -219,7 +219,7 @@ class CriticNetwork(nn.Module):
 		# features = g.ndata['obs_proc']
 		features = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
-		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['goals'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
 
