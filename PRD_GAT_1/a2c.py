@@ -63,8 +63,8 @@ class GATLayerInput(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain = nn.init.calculate_gain('leaky_relu')
-		nn.init.xavier_uniform_(self.fc.weight, gain=gain)
+		# gain = nn.init.calculate_gain('leaky_relu')
+		nn.init.xavier_uniform_(self.fc.weight)
 		nn.init.xavier_uniform_(self.attn_fc.weight)
 
 	def edge_attention(self, edges):
@@ -101,7 +101,7 @@ class GATLayerInput(nn.Module):
 	def forward(self, g, observations):
 		self.g = g
 		# equation (1)
-		features = F.leaky_relu(self.fc(observations))
+		features = self.fc(observations)
 		self.g.ndata['features'] = features
 		# equation (2)
 		self.g.apply_edges(self.edge_attention)
@@ -143,8 +143,8 @@ class GATLayer(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain = nn.init.calculate_gain('leaky_relu')
-		nn.init.xavier_uniform_(self.fc.weight, gain=gain)
+		# gain = nn.init.calculate_gain('leaky_relu')
+		nn.init.xavier_uniform_(self.fc.weight)
 		nn.init.xavier_uniform_(self.attn_fc.weight)
 
 	def edge_attention(self, edges):
@@ -181,7 +181,7 @@ class GATLayer(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		z_ = F.leaky_relu(self.fc(h))
+		z_ = self.fc(h)
 		self.g.ndata['z_'] = z_
 		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
 		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)
