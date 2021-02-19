@@ -38,7 +38,8 @@ class A2CAgent:
 		self.gif = gif
 
 
-		self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
+		# self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
+		self.critic_preprocess_input_dim = 2*3
 		self.critic_output_dim = 1
 		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 

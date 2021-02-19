@@ -266,7 +266,10 @@ class MAA2C:
 		graph = dgl.graph((self.src_edges_critic,self.dest_edges_critic),idtype=torch.int32, device=self.device)
 
 		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
-		graph.ndata['goals'] = torch.FloatTensor(states_critic[:,-4:]).to(self.device)
+		pose_goal = []
+		for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
+			pose_goal.append(np.concatenate([pose,goal]))
+		graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
 			   
 		return graph
 
