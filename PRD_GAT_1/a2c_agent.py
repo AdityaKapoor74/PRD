@@ -19,7 +19,8 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-5,
+		lambda_ = 1e-3,
+		trace_decay = 0.95,
 		gif = False
 		):
 
@@ -29,6 +30,7 @@ class A2CAgent:
 		self.gamma = gamma
 		self.entropy_pen = entropy_pen
 		self.lambda_ = lambda_
+		self.trace_decay = trace_decay
 
 		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.device = "cpu"
@@ -90,14 +92,29 @@ class A2CAgent:
 
 
 
-	def calculate_advantages(self,returns, values, normalize = False):
-	
-		advantages = returns - values
+	def calculate_advantages(self,returns, values, rewards, GAE = False, normalize = False):
+		
+		advantages = None
+
+		if GAE:
+			advantages = []
+			advantage = 0
+			next_value = 0
+			
+			for r, v in zip(reversed(rewards), reversed(values)):
+				td_error = r + next_value * self.gamma - v
+				advantage = td_error + advantage * self.gamma * self.trace_decay
+				next_value = v
+				advantages.insert(0, advantage)
+
+			advantages = torch.stack(advantages)
+		else:
+			advantages = returns - values
 		
 		if normalize:
 			
 			advantages = (advantages - advantages.mean()) / advantages.std()
-			
+		
 		return advantages
 
 
@@ -152,7 +169,7 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values),dim=-2)
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, True, False),dim=-2)
 
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
