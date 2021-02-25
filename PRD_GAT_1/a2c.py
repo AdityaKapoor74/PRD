@@ -8,6 +8,7 @@ import dgl
 import dgl.function as fn
 from dgl import DGLGraph
 import datetime
+import math
 
 # *******************************************
 # Q(s,a) 
@@ -110,6 +111,57 @@ class GATLayerInput(nn.Module):
 
 
 
+class SoftAttentionInput(nn.Module):
+	def __init__(self, in_dim, out_dim,num_agents):
+		super(SoftAttentionInput, self).__init__()
+		# equation (1)
+		self.fc = nn.Linear(in_dim, out_dim, bias=True)
+
+		self.d_k = out_dim
+
+		self.num_agents = num_agents
+		self.agent_pairing = torch.zeros(self.num_agents,self.num_agents)
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		# gain = nn.init.calculate_gain('leaky_relu')
+		nn.init.xavier_uniform_(self.fc.weight)
+
+
+	def message_func(self, edges):
+		return {'features': edges.src['features'], 'score': ((edges.src['features'] * edges.dst['features']).sum(-1, keepdim=True))}
+
+	def reduce_func(self, nodes):
+		# reduce UDF for equation (3) & (4)
+		# equation (3)
+		alpha = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		# equation (4)
+		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
+		
+		with open('../../weights/Experiment8_3/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+			torch.set_printoptions(profile="full")
+			print("*"*100,file=f)
+			print("PROCESSED OBSERVATIONS",file=f)
+			print(obs_proc,file=f)	
+			print("*"*100,file=f)
+			print("WEIGHTS",file=f)
+			print(alpha,file=f)
+			print("*"*100,file=f)
+			torch.set_printoptions(profile="default")
+		
+		return {'obs_proc': obs_proc}
+
+	def forward(self, g, observations):
+		self.g = g
+		features = self.fc(observations)
+		self.g.ndata['features'] = features
+		self.g.update_all(self.message_func, self.reduce_func)
+		return self.g.ndata.pop('obs_proc')
+
+
+
 class GATLayer(nn.Module):
 	def __init__(self, in_dim, out_dim, num_agents,num_actions):
 		super(GATLayer, self).__init__()
@@ -192,6 +244,77 @@ class GATLayer(nn.Module):
 		self.g.update_all(self.message_func, self.reduce_func)
 		return self.g.ndata.pop('obs_final'), self.g.ndata.pop('w')
 
+
+class SoftAttentionWeight(nn.Module):
+	def __init__(self, in_dim, out_dim, num_agents,num_actions):
+		super(SoftAttentionWeight, self).__init__()
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.device = "cpu"
+		self.fc = nn.Linear(in_dim, out_dim, bias=True)
+		# dimesion of query
+		self.d_k = out_dim
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
+		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
+		one_hots = torch.ones(num_actions)
+		zero_hots = torch.zeros(num_actions)
+
+		for i in range(self.num_agents):
+			for j in range(self.num_agents):
+				self.place_policies[i][j][j] = one_hots
+				self.place_zs[i][j][j] = zero_hots
+
+		self.place_policies = self.place_policies.reshape(self.num_agents,-1,num_actions)
+		self.place_zs = self.place_zs.reshape(self.num_agents,-1,num_actions)
+
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		# gain = nn.init.calculate_gain('leaky_relu')
+		nn.init.xavier_uniform_(self.fc.weight)
+
+
+	def message_func(self, edges):
+		# message UDF for equation (3)
+		# α(l)ij=exp(e(l)ij)∑k∈N(i)exp(e(l)ik),(3)
+		return {'score': ((edges.src['features'] * edges.dst['features']).sum(-1, keepdim=True)), 'pi': edges.src['pi'], 'act': edges.src['act']}
+
+	def reduce_func(self, nodes):
+		# reduce UDF for equation (3)
+		# equation (3)
+		w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi']
+		z = z.repeat(1,self.num_agents,1)
+		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
+		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
+		z = (pi+zs)
+		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.num_actions)
+		z = torch.mean(z,dim=-2)
+
+		obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
+		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
+		
+		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.num_actions)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
+
+		return {'obs_final':obs_final, 'w': w}
+
+	def forward(self, g, h, policies, actions):
+		# equation (1)
+		self.g = g
+		features = self.fc(h)
+		self.g.ndata['features'] = features
+		# self.g.ndata['z_'] = h
+		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
+		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)
+		# equation (3) & (4)
+		self.g.update_all(self.message_func, self.reduce_func)
+		return self.g.ndata.pop('obs_final'), self.g.ndata.pop('w')
+
+
 class ValueNetwork(nn.Module):
 	def __init__(
 		self,
@@ -209,8 +332,11 @@ class ValueNetwork(nn.Module):
 class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
-		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		# self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		# self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		# SCALAR DOT ATTENTION
+		self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
