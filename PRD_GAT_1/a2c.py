@@ -294,7 +294,6 @@ class SoftAttentionWeight(nn.Module):
 		z = (pi+zs)
 		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.num_actions)
 		z = torch.mean(z,dim=-2)
-
 		obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
 		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
 		
@@ -332,11 +331,11 @@ class ValueNetwork(nn.Module):
 class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
-		# self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		# self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		# SCALAR DOT ATTENTION
-		self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		# self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		# self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
