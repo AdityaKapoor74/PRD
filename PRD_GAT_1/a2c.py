@@ -115,8 +115,16 @@ class SoftAttentionInput(nn.Module):
 	def __init__(self, in_dim, out_dim,num_agents):
 		super(SoftAttentionInput, self).__init__()
 		# equation (1)
-		self.fc = nn.Linear(in_dim, out_dim, bias=True)
+		self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
 
+		self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+
+		self.value_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+
+		# output dim of query
 		self.d_k = out_dim
 
 		self.num_agents = num_agents
@@ -126,19 +134,24 @@ class SoftAttentionInput(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		# gain = nn.init.calculate_gain('leaky_relu')
-		nn.init.xavier_uniform_(self.fc.weight)
+		gain = nn.init.calculate_gain('leaky_relu')
+		nn.init.xavier_uniform_(self.key_fc_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.key_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.query_fc_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.value_fc_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.value_fc_layer_2.weight)
 
 
 	def message_func(self, edges):
-		return {'features': edges.src['features'], 'score': ((edges.src['features'] * edges.dst['features']).sum(-1, keepdim=True))}
+		return {'value': edges.src['value'], 'score': ((edges.src['key'] * edges.dst['query']).sum(-1, keepdim=True))}
 
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3) & (4)
 		# equation (3)
 		alpha = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
 		# equation (4)
-		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
+		obs_proc = torch.sum(alpha * nodes.mailbox['value'], dim=1)
 		
 		with open('../../weights/Experiment8_3/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
 			torch.set_printoptions(profile="full")
@@ -155,8 +168,15 @@ class SoftAttentionInput(nn.Module):
 
 	def forward(self, g, observations):
 		self.g = g
-		features = self.fc(observations)
-		self.g.ndata['features'] = features
+		key = F.leaky_relu(self.key_fc_layer_1(observations))
+		key = self.key_fc_layer_2(key)
+		query = F.leaky_relu(self.query_fc_layer_1(observations))
+		query = self.query_fc_layer_2(query)
+		features = F.leaky_relu(self.value_fc_layer_1(observations))
+		features = self.value_fc_layer_2(features)
+		self.g.ndata['value'] = features
+		self.g.ndata['key'] = key
+		self.g.ndata['query'] = query
 		self.g.update_all(self.message_func, self.reduce_func)
 		return self.g.ndata.pop('obs_proc')
 
@@ -252,7 +272,12 @@ class SoftAttentionWeight(nn.Module):
 		self.num_actions = num_actions
 		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.device = "cpu"
-		self.fc = nn.Linear(in_dim, out_dim, bias=True)
+		self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+
+		self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+
 		# dimesion of query
 		self.d_k = out_dim
 
@@ -274,14 +299,15 @@ class SoftAttentionWeight(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		# gain = nn.init.calculate_gain('leaky_relu')
-		nn.init.xavier_uniform_(self.fc.weight)
+		gain = nn.init.calculate_gain('leaky_relu')
+		nn.init.xavier_uniform_(self.key_fc_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.key_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.query_fc_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
 
 
 	def message_func(self, edges):
-		# message UDF for equation (3)
-		# α(l)ij=exp(e(l)ij)∑k∈N(i)exp(e(l)ik),(3)
-		return {'score': ((edges.src['features'] * edges.dst['features']).sum(-1, keepdim=True)), 'pi': edges.src['pi'], 'act': edges.src['act']}
+		return {'score': ((edges.src['key'] * edges.dst['query']).sum(-1, keepdim=True)), 'pi': edges.src['pi'], 'act': edges.src['act']}
 
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
@@ -304,9 +330,13 @@ class SoftAttentionWeight(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		features = self.fc(h)
-		self.g.ndata['features'] = features
-		# self.g.ndata['z_'] = h
+		key = F.leaky_relu(self.key_fc_layer_1(h))
+		key = self.key_fc_layer_2(key)
+		query = F.leaky_relu(self.query_fc_layer_1(h))
+		query = self.query_fc_layer_2(query)
+		self.g.ndata['key'] = key
+		self.g.ndata['query'] = query
+
 		self.g.ndata['pi'] = policies.reshape(-1,self.num_actions)
 		self.g.ndata['act'] = actions.reshape(-1,self.num_actions)
 		# equation (3) & (4)
@@ -331,16 +361,14 @@ class ValueNetwork(nn.Module):
 class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
-		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		# self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		# self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		# SCALAR DOT ATTENTION
-		# self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		# self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
-		# g = self.input_processor(g)
-		# features = g.ndata['obs_proc']
 		features = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
 		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)

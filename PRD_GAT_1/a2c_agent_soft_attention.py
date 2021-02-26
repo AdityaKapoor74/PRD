@@ -101,6 +101,7 @@ class A2CAgent:
 			previous_value = 0
 			running_advants = 0
 			rewards = rewards.unsqueeze(-1)
+			dones = dones.unsqueeze(-1)
 			for t in reversed(range(0, len(rewards))):
 				running_delta = rewards[t] + (self.gamma * previous_value * dones[t]) - values.data[t]
 				previous_value = values.data[t]
