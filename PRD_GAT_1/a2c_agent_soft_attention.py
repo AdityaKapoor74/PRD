@@ -92,7 +92,7 @@ class A2CAgent:
 
 
 
-	def calculate_advantages(self,returns, values, rewards, dones, GAE = False, normalize = False):
+	def calculate_advantages(self, returns, values, rewards, dones, GAE = False, normalize = False):
 		
 		advantages = None
 

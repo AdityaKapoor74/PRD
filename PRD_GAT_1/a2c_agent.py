@@ -103,6 +103,7 @@ class A2CAgent:
 			rewards = rewards.unsqueeze(-1)
 			dones = dones.unsqueeze(-1)
 			masks = 1 - dones
+			print(masks)
 			for t in reversed(range(0, len(rewards))):
 				running_delta = rewards[t] + (self.gamma * previous_value * masks[t]) - values.data[t]
 				previous_value = values.data[t]
