@@ -102,11 +102,12 @@ class A2CAgent:
 			running_advants = 0
 			rewards = rewards.unsqueeze(-1)
 			dones = dones.unsqueeze(-1)
+			masks = 1 - dones
 			for t in reversed(range(0, len(rewards))):
-				running_delta = rewards[t] + (self.gamma * previous_value * dones[t]) - values.data[t]
+				running_delta = rewards[t] + (self.gamma * previous_value * masks[t]) - values.data[t]
 				previous_value = values.data[t]
 				
-				running_advants = running_delta + (self.gamma * self.trace_decay * running_advants * dones[t])
+				running_advants = running_delta + (self.gamma * self.trace_decay * running_advants * masks[t])
 				advantages.append(running_advants)
 
 			advantages = torch.stack(advantages)	

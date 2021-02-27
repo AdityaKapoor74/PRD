@@ -85,16 +85,16 @@ class GATLayerInput(nn.Module):
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
 		
-		# with open('../../weights/Experiment8_2/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
-		# 	torch.set_printoptions(profile="full")
-		# 	print("*"*100,file=f)
-		# 	print("PROCESSED OBSERVATIONS",file=f)
-		# 	print(obs_proc,file=f)	
-		# 	print("*"*100,file=f)
-		# 	print("WEIGHTS",file=f)
-		# 	print(alpha,file=f)
-		# 	print("*"*100,file=f)
-		# 	torch.set_printoptions(profile="default")
+		with open('../../weights/Experiment8_2/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+			torch.set_printoptions(profile="full")
+			print("*"*100,file=f)
+			print("PROCESSED OBSERVATIONS",file=f)
+			print(obs_proc,file=f)	
+			print("*"*100,file=f)
+			print("WEIGHTS",file=f)
+			print(alpha,file=f)
+			print("*"*100,file=f)
+			torch.set_printoptions(profile="default")
 		
 		return {'obs_proc': obs_proc}
 
@@ -361,11 +361,11 @@ class ValueNetwork(nn.Module):
 class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
-		# self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		# self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		# SCALAR DOT ATTENTION
-		self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		# self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		# self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):
