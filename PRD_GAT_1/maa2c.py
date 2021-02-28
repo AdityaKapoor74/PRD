@@ -361,7 +361,7 @@ class MAA2C:
 				if not(self.gif):
 					if all(dones) or step == max_steps-1:
 
-						dones = [1 for _ in range(self.num_agents)]
+						# dones = [1 for _ in range(self.num_agents)]
 						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
@@ -373,7 +373,7 @@ class MAA2C:
 
 						break
 					else:
-						dones = [0 for _ in range(self.num_agents)]
+						# dones = [0 for _ in range(self.num_agents)]
 						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
 						states_critic,states_actor = next_states_critic,next_states_actor
 						states = next_states
