@@ -19,7 +19,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-4,
+		lambda_ = 1e-5,
 		trace_decay = 0.95,
 		gif = False
 		):
@@ -98,20 +98,19 @@ class A2CAgent:
 
 		if GAE:
 			advantages = []
-			previous_value = 0
-			running_advants = 0
+			next_value = 0
+			advantage = 0
 			rewards = rewards.unsqueeze(-1)
 			dones = dones.unsqueeze(-1)
 			masks = 1 - dones
 			for t in reversed(range(0, len(rewards))):
-				running_delta = rewards[t] + (self.gamma * previous_value * masks[t]) - values.data[t]
-				previous_value = values.data[t]
+				td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+				next_value = values.data[t]
 				
-				running_advants = running_delta + (self.gamma * self.trace_decay * running_advants * masks[t])
-				advantages.append(running_advants)
+				advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
+				advantages.insert(0, advantage)
 
-			advantages = torch.stack(advantages)
-
+			advantages = torch.stack(advantages)	
 		else:
 			advantages = returns - values
 		
