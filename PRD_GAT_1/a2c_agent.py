@@ -20,7 +20,7 @@ class A2CAgent:
 		entropy_pen=0.008, 
 		gamma=0.99,
 		lambda_ = 1e-3,
-		trace_decay = 1.0,
+		trace_decay = 0.98,
 		gif = False
 		):
 
@@ -153,9 +153,10 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values, weights = self.critic_network.forward(critic_graphs, probs.clone(), one_hot_actions)
+		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.clone(), one_hot_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		weights = weights.reshape(-1,self.num_agents,self.num_agents)
+		weights_preproc = weights_preproc.reshape(-1,self.num_agents,self.num_agents)
 		
 
 	# # ***********************************************************************************
@@ -219,4 +220,4 @@ class A2CAgent:
 
 		# 	self.spu_counter += 1
 	# # ***********************************************************************************
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc

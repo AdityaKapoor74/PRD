@@ -6,8 +6,8 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-# from a2c_agent import A2CAgent
-from a2c_agent_soft_attention import A2CAgent
+from a2c_agent import A2CAgent
+# from a2c_agent_soft_attention import A2CAgent
 import datetime
 
 import dgl
@@ -194,7 +194,7 @@ class MAA2C:
 		dones = torch.FloatTensor([sars[5] for sars in trajectory])
 
 		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,policies.reshape(-1,self.num_actions),actions.reshape(-1,self.num_actions),states_actor,rewards,dones)
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
 
 
 
@@ -220,6 +220,27 @@ class MAA2C:
 				self.writer.add_scalar('Weight Metric/Recall threshold:'+str(theta),sum(recall),episode)
 
 
+				TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights_preproc,theta)
+
+				for i in range(self.num_agents):
+					self.writer.add_scalar('PreProcWeight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/FN (agent'+str(i)+') threshold:'+str(theta),FN[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall[i],episode)
+
+				self.writer.add_scalar('PreProcWeight Metric/TP threshold:'+str(theta),sum(TP),episode)
+				self.writer.add_scalar('PreProcWeight Metric/FP threshold:'+str(theta),sum(FP),episode)
+				self.writer.add_scalar('PreProcWeight Metric/TN threshold:'+str(theta),sum(TN),episode)
+				self.writer.add_scalar('PreProcWeight Metric/FN threshold:'+str(theta),sum(FN),episode)
+				self.writer.add_scalar('PreProcWeight Metric/Accuracy threshold:'+str(theta),sum(accuracy),episode)
+				self.writer.add_scalar('PreProcWeight Metric/Precision threshold:'+str(theta),sum(precision),episode)
+				self.writer.add_scalar('PreProcWeight Metric/Recall threshold:'+str(theta),sum(recall),episode)
+
+
+
 
 
 		if not(self.gif) and self.save:
@@ -232,6 +253,9 @@ class MAA2C:
 			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
 			self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
 			self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
+			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc)
+			self.writer.add_scalar('PreprocWeights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
+			self.writer.add_scalar('PreprocWeights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
 
 
 			with open(self.filename,'a+') as f:
