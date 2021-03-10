@@ -20,8 +20,8 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 0.001,
-		lambda__ = 0.001,
+		lambda_ = 0.0001,
+		lambda__ = 0.0001,
 		trace_decay = 0.95,
 		gif = False
 		):
