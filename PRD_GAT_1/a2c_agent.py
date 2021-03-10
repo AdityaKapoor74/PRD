@@ -51,9 +51,9 @@ class A2CAgent:
 		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
 
 		# weight assignment
-		self.weight_assignment = torch.zeros([self.num_agents,self.num_agents]).to(self.device)
-		for i in range(self.weight_assignment.shape[0]):
-			self.weight_assignment[i][self.num_agents-1-i] = 1
+		# self.weight_assignment = torch.zeros([self.num_agents,self.num_agents]).to(self.device)
+		# for i in range(self.weight_assignment.shape[0]):
+		# 	self.weight_assignment[i][self.num_agents-1-i] = 1
 
 		# self.stop_policy_update = 100
 		# self.update_both = 100
@@ -74,7 +74,7 @@ class A2CAgent:
 
 
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		# self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
 	def get_action(self,state):
@@ -169,7 +169,7 @@ class A2CAgent:
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights) #self.lambda_*torch.sum(weights)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
@@ -186,15 +186,15 @@ class A2CAgent:
 		
 	# **********************************
 		self.critic_optimizer.zero_grad()
-		value_loss.backward(retain_graph=True)
+		value_loss.backward(retain_graph=False)
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 		self.critic_optimizer.step()
 
 
-		self.policy_optimizer.zero_grad()
-		policy_loss.backward(retain_graph=False)
+		# self.policy_optimizer.zero_grad()
+		# policy_loss.backward(retain_graph=False)
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-		self.policy_optimizer.step()
+		# self.policy_optimizer.step()
 		
 		# TRIN CRITIC > ACTOR
 		# if self.update_both > self.ub_counter:
