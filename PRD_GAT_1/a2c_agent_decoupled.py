@@ -21,7 +21,7 @@ class A2CAgent:
 		entropy_pen=0.008, 
 		gamma=0.99,
 		lambda_ = 0.1,
-		lambda__ = 1.0,
+		lambda__ = 0.1,
 		trace_decay = 0.95,
 		gif = False
 		):
