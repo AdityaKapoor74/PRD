@@ -50,10 +50,15 @@ class A2CAgent:
 		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
 		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
 
-		self.stop_policy_update = 100
-		self.update_both = 100
-		self.spu_counter = 0
-		self.ub_counter = 0
+		# weight assignment
+		self.weight_assignment = torch.zeros([self.num_agents,self.num_agents]).to(self.device)
+		for i in range(self.weight_assignment.shape[0]):
+			self.weight_assignment[i][self.num_agents-1-i] = 1
+
+		# self.stop_policy_update = 100
+		# self.update_both = 100
+		# self.spu_counter = 0
+		# self.ub_counter = 0
 
 
 
@@ -164,8 +169,7 @@ class A2CAgent:
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights)
-
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights) #self.lambda_*torch.sum(weights)
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************

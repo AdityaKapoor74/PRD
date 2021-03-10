@@ -85,16 +85,16 @@ class GATLayerInput(nn.Module):
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['features'], dim=1)
 		
-		with open('../../weights/Experiment8_2/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
-			torch.set_printoptions(profile="full")
-			print("*"*100,file=f)
-			print("PROCESSED OBSERVATIONS",file=f)
-			print(obs_proc,file=f)	
-			print("*"*100,file=f)
-			print("WEIGHTS",file=f)
-			print(alpha,file=f)
-			print("*"*100,file=f)
-			torch.set_printoptions(profile="default")
+		# with open('../../weights/Experiment10/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs.txt','a+') as f:
+		# 	torch.set_printoptions(profile="full")
+		# 	print("*"*100,file=f)
+		# 	print("PROCESSED OBSERVATIONS",file=f)
+		# 	print(obs_proc,file=f)	
+		# 	print("*"*100,file=f)
+		# 	print("WEIGHTS",file=f)
+		# 	print(alpha,file=f)
+		# 	print("*"*100,file=f)
+		# 	torch.set_printoptions(profile="default")
 		
 		return {'obs_proc': obs_proc, 'weights':alpha}
 
@@ -153,26 +153,26 @@ class SoftAttentionInput(nn.Module):
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['value'], dim=1)
 		
-		with open('../../weights/Experiment8_3/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs_no_relu.txt','a+') as f:
-			torch.set_printoptions(profile="full")
-			print("*"*100,file=f)
-			print("PROCESSED OBSERVATIONS",file=f)
-			print(obs_proc,file=f)	
-			print("*"*100,file=f)
-			print("WEIGHTS",file=f)
-			print(alpha,file=f)
-			print("*"*100,file=f)
-			torch.set_printoptions(profile="default")
+		# with open('../../weights/Experiment10/'+f"{datetime.datetime.now():%d-%m-%Y}"+'preprocessed_obs_no_relu.txt','a+') as f:
+		# 	torch.set_printoptions(profile="full")
+		# 	print("*"*100,file=f)
+		# 	print("PROCESSED OBSERVATIONS",file=f)
+		# 	print(obs_proc,file=f)	
+		# 	print("*"*100,file=f)
+		# 	print("WEIGHTS",file=f)
+		# 	print(alpha,file=f)
+		# 	print("*"*100,file=f)
+		# 	torch.set_printoptions(profile="default")
 		
 		return {'obs_proc': obs_proc, "weights":alpha}
 
 	def forward(self, g, observations):
 		self.g = g
-		key = self.key_fc_layer_1(observations)
+		key = torch.tanh(self.key_fc_layer_1(observations))
 		key = self.key_fc_layer_2(key)
-		query = self.query_fc_layer_1(observations)
+		query = torch.tanh(self.query_fc_layer_1(observations))
 		query = self.query_fc_layer_2(query)
-		features = self.value_fc_layer_1(observations)
+		features = torch.tanh(self.value_fc_layer_1(observations))
 		features = self.value_fc_layer_2(features)
 		self.g.ndata['value'] = features
 		self.g.ndata['key'] = key
@@ -330,9 +330,9 @@ class SoftAttentionWeight(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		key = self.key_fc_layer_1(h)
+		key = torch.tanh(self.key_fc_layer_1(h))
 		key = self.key_fc_layer_2(key)
-		query = self.query_fc_layer_1(h)
+		query = torch.tanh(self.query_fc_layer_1(h))
 		query = self.query_fc_layer_2(query)
 		self.g.ndata['key'] = key
 		self.g.ndata['query'] = query
@@ -361,11 +361,11 @@ class ValueNetwork(nn.Module):
 class CriticNetwork(nn.Module):
 	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
-		self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		# self.input_processor = GATLayerInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		# self.weight_layer = GATLayer(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		# SCALAR DOT ATTENTION
-		# self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
-		# self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		self.input_processor = SoftAttentionInput(preprocess_input_dim, preprocess_output_dim, num_agents)
+		self.weight_layer = SoftAttentionWeight(weight_input_dim, weight_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):

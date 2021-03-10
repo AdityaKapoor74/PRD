@@ -165,7 +165,7 @@ class A2CAgent:
 		V_values_, weights_, weights_preproc_ = self.critic_network_.forward(critic_graphs, probs.detach(), one_hot_actions)
 		V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
 		# Advantage calculation (V)
-		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions, weights_)
+		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions, weights_.detach())
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		V_values_ = V_values_.reshape(-1,self.num_agents,self.num_agents)
 		V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
