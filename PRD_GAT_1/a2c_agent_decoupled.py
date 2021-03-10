@@ -181,7 +181,7 @@ class A2CAgent:
 		# Loss for V
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights)
 		# Loss for V'
-		target_values = rewards.unsqueeze(-2).repeat(1,self.num_agents,1) + V_values_next
+		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next
 		value_loss_ = F.smooth_l1_loss(V_values_,target_values) + self.lambda__*torch.sum(weights_)
 
 	# # ***********************************************************************************
