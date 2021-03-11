@@ -32,28 +32,37 @@ class MAA2C:
 
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
+		# pairings
+		self.pairings = torch.zeros([self.num_agents,1])
+		key = [i for i in range(self.num_agents//2)]
+		for i in range(self.num_agents//2):
+			self.pairings[i][0] = key[i]
+			self.pairings[self.num_agents-1-i][0] = key[i]
+
+		print(self.pairings)
+
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment10_1/critic_networks/'
+			critic_dir = '../../models/Experiment12/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment10_1/actor_networks/'
+			actor_dir = '../../models/Experiment12/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment10_1/'
+			weight_dir = '../../weights/Experiment12/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment10_1/'
+			tensorboard_dir = '../../runs/Experiment12/'
 
 
 			# paths for models, tensorboard and gifs
@@ -63,7 +72,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment10_1/'
+			gif_dir = '../../gifs/Experiment12/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -290,7 +299,8 @@ class MAA2C:
 		# graph = dgl.transform.add_self_loop(graph)
 		graph = dgl.graph((self.src_edges_critic,self.dest_edges_critic),idtype=torch.int32, device=self.device)
 
-		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
+		# graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
+		graph.ndata['obs'] = torch.cat([torch.FloatTensor(states_critic[:,:-2]),self.pairings], dim=-1).to(self.device)
 		pose_goal = []
 		for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
 			pose_goal.append(np.concatenate([pose,goal]))

@@ -41,7 +41,7 @@ class A2CAgent:
 
 
 		# self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
-		self.critic_preprocess_input_dim = 2*3+2
+		self.critic_preprocess_input_dim = 2*3+1 #2*3+2
 		self.critic_output_dim = 1
 		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 16, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 
@@ -51,11 +51,11 @@ class A2CAgent:
 		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
 
 		# weight assignment
-		self.weight_assignment = torch.zeros([self.num_agents,self.num_agents]).to(self.device)
-		for i in range(self.weight_assignment.shape[0]):
-			self.weight_assignment[i][self.num_agents-1-i] = 1
+		# self.weight_assignment = torch.zeros([self.num_agents,self.num_agents]).to(self.device)
+		# for i in range(self.weight_assignment.shape[0]):
+		# 	self.weight_assignment[i][self.num_agents-1-i] = 1
 
-		self.weight_loss = torch.nn.SmoothL1Loss(reduction="sum")
+		# self.weight_loss = torch.nn.SmoothL1Loss(reduction="sum")
 
 		# self.stop_policy_update = 100
 		# self.update_both = 100
@@ -171,7 +171,7 @@ class A2CAgent:
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*torch.sum(weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
