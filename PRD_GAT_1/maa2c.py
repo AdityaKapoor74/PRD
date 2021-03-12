@@ -34,12 +34,10 @@ class MAA2C:
 
 		# pairings
 		self.pairings = torch.zeros([self.num_agents,1])
-		key = [i for i in range(self.num_agents//2)]
+		key = [i+1 for i in range(self.num_agents//2)]
 		for i in range(self.num_agents//2):
 			self.pairings[i][0] = key[i]
 			self.pairings[self.num_agents-1-i][0] = key[i]
-
-		print(self.pairings)
 
 
 		if not(self.gif) and self.save:
