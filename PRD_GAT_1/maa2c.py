@@ -396,7 +396,7 @@ class MAA2C:
 						# dones = [1 for _ in range(self.num_agents)]
 						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
 						print("*"*100)
-						print("EPISODE: {} | REWARD: {} \n".format(episode,np.round(episode_reward,decimals=4)))
+						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step+1,max_steps))
 						print("*"*100)
 
 						if not(self.gif) and self.save:
