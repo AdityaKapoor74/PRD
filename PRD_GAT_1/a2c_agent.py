@@ -19,7 +19,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-5,
+		lambda_ = 1e-3,
 		trace_decay = 0.98,
 		gif = False
 		):
@@ -41,9 +41,10 @@ class A2CAgent:
 
 
 		# self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
-		self.critic_preprocess_input_dim = 2*3+1 #2*3+2
+		self.critic_preprocess_input_dim = 2*3+2 #2*3+2
 		self.critic_output_dim = 1
-		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 16, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		# self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 16, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, 1, 4, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
