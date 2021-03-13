@@ -156,7 +156,8 @@ class SoftAttentionInput(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3) & (4)
 		# equation (3)
-		alpha = torch.sigmoid(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5))
+		# alpha = torch.sigmoid(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5))
+		alpha = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['value'], dim=1)
 		
@@ -326,7 +327,8 @@ class SoftAttentionWeight(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
 		# equation (3)
-		w = torch.sigmoid(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5))
+		# w = torch.sigmoid(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5))
+		w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
 		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi']
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
