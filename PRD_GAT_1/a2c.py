@@ -127,7 +127,7 @@ class SoftAttentionInput(nn.Module):
 		# self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
 		self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
-		# output dim of query
+		# output dim of key
 		self.d_k = out_dim
 
 		self.num_agents = num_agents
@@ -291,7 +291,7 @@ class SoftAttentionWeight(nn.Module):
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
 		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
-		# dimesion of query
+		# dimesion of key
 		self.d_k = out_dim
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
