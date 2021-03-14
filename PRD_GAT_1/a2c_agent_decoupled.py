@@ -22,7 +22,7 @@ class A2CAgent:
 		gamma=0.99,
 		lambda_ = 0.0,
 		lambda__ = 0.0,
-		trace_decay = 0.95,
+		trace_decay = 0.99,
 		gif = False
 		):
 
@@ -144,6 +144,22 @@ class A2CAgent:
 			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
 			
 		return returns_tensor
+
+
+	def calculate_critic_loss(self, values, next_values, rewards):
+		# will use trace decay for discounting here as well
+		loss = 0
+		L = 0
+		R = 0
+		for i in range(rewards.shape[0]):
+			R += self.gamma**i * rewards[i]
+			estimated = R + self.gamma**i * values[i]
+			target = self.gamma**(i+1) * next_values[i]
+			loss += F.smooth_l1_loss(estimated,target)
+
+
+		return loss.to(self.device)
+
 
 
 
