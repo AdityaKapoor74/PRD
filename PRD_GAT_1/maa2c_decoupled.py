@@ -34,26 +34,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment9_1/critic_networks/'
+			critic_dir = '../../models/Experiment9_2/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment9_1/actor_networks/'
+			actor_dir = '../../models/Experiment9_2/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment9_1/'
+			weight_dir = '../../weights/Experiment9_2/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment9_1/'
+			tensorboard_dir = '../../runs/Experiment9_2/'
 
 
 			# paths for models, tensorboard and gifs
@@ -63,7 +63,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'no_relu.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment9_1/'
+			gif_dir = '../../gifs/Experiment9_2/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -195,7 +195,7 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory])
 		
-		value_loss, value_loss_, policy_loss, entropy, grad_norm_value, grad_norm_value_, grad_norm_policy, weights, weights_, weights_preproc, weights_preproc_ = self.agents.update(critic_graphs,next_critic_graphs,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		value_loss, value_loss_, policy_loss, entropy, grad_norm_value, grad_norm_value_, grad_norm_policy, weights_, weights_preproc, weights_preproc_ = self.agents.update(critic_graphs,next_critic_graphs,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 
 
@@ -309,6 +309,11 @@ class MAA2C:
 		graph = dgl.graph((self.src_edges_actor,self.dest_edges_actor),idtype=torch.int32, device=self.device)
 
 		graph.ndata['obs'] = torch.FloatTensor(states_actor).to(self.device)
+
+		pose_goal = []
+		for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
+			pose_goal.append(np.concatenate([pose,goal]))
+		graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
 			   
 		return graph
 

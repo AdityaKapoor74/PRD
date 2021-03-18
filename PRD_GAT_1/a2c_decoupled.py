@@ -53,15 +53,15 @@ class SoftAttentionInput_9_1(nn.Module):
 		# equation (1)
 		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(16, out_dim, bias=False)
+		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(16, out_dim, bias=False)
+		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# self.value_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.value_fc_layer = nn.Linear(16, out_dim, bias=False)
+		self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# output dim of key
 		self.d_k = out_dim
@@ -163,7 +163,7 @@ class SoftAttentionWeight_9_1(nn.Module):
 
 		return {'obs_final':obs_final}
 
-	def forward(self, g, h, policies, actions, weights):
+	def forward(self, g, policies, actions, weights):
 		# equation (1)
 		self.w = weights
 		self.g = g
@@ -184,11 +184,11 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		self.device = "cpu"
 		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(in_dim, 16, bias=False)
+		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(in_dim, 16, bias=False)
+		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# dimesion of query
 		self.d_k = out_dim
@@ -292,7 +292,7 @@ class CriticNetwork(nn.Module):
 	def forward(self, g, policies, actions, weights):
 		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
-		obs_final = self.weight_layer(g,g.ndata['obs'],policies,actions,weights)
+		obs_final = self.weight_layer(g,policies,actions,weights)
 		x = self.value_layer(obs_final)
 		return x, weights_preproc
 
@@ -309,7 +309,7 @@ class CriticNetwork_(nn.Module):
 	def forward(self, g, policies, actions):
 		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
-		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['mypose_goalpose'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights, weights_preproc
 

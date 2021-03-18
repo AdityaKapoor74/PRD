@@ -21,7 +21,6 @@ class A2CAgent:
 		entropy_pen=0.008, 
 		gamma=0.99,
 		lambda_ = 0.0,
-		lambda__ = 0.0,
 		trace_decay = 0.99,
 		gif = False
 		):
@@ -33,7 +32,6 @@ class A2CAgent:
 		self.gamma = gamma
 		self.entropy_pen = entropy_pen
 		self.lambda_ = lambda_
-		self.lambda__ = lambda__
 		self.trace_decay = trace_decay
 
 		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -47,8 +45,8 @@ class A2CAgent:
 		# self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
 		self.critic_preprocess_input_dim = 2*3+2
 		self.critic_output_dim = 1
-		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 16, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		self.critic_network_ = CriticNetwork_(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 16, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		self.critic_network_ = CriticNetwork_(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
@@ -146,6 +144,7 @@ class A2CAgent:
 		return returns_tensor
 
 
+	# to be continued
 	def calculate_critic_loss(self, values, next_values, rewards):
 		# will use trace decay for discounting here as well
 		loss = 0
@@ -159,9 +158,6 @@ class A2CAgent:
 
 
 		return loss.to(self.device)
-
-
-
 
 
 
@@ -181,7 +177,7 @@ class A2CAgent:
 		V_values_, weights_, weights_preproc_ = self.critic_network_.forward(critic_graphs, probs.detach(), one_hot_actions)
 		V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
 		# Advantage calculation (V)
-		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions, weights_.detach())
+		V_values, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions, weights_.detach())
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		V_values_ = V_values_.reshape(-1,self.num_agents,self.num_agents)
 		V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
@@ -195,10 +191,10 @@ class A2CAgent:
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 		# Loss for V
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 		# Loss for V'
 		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next
-		value_loss_ = F.smooth_l1_loss(V_values_,target_values) + self.lambda__*torch.sum(weights_)
+		value_loss_ = F.smooth_l1_loss(V_values_,target_values) + self.lambda_*torch.sum(weights_)
 
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -234,4 +230,4 @@ class A2CAgent:
 		self.policy_optimizer.step()
 		
 
-		return value_loss, value_loss_, policy_loss, entropy, grad_norm_value, grad_norm_value_, grad_norm_policy, weights, weights_, weights_preproc, weights_preproc_
+		return value_loss, value_loss_, policy_loss, entropy, grad_norm_value, grad_norm_value_, grad_norm_policy, weights_, weights_preproc, weights_preproc_
