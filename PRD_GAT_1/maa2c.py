@@ -265,13 +265,13 @@ class MAA2C:
 			self.writer.add_scalar('PreprocWeights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
 
 
-			with open(self.filename,'a+') as f:
-				torch.set_printoptions(profile="full")
-				print("*"*50,file=f)
-				print("EPISODE:",episode,file=f)
-				print("*"*50,file=f)
-				print(weights, file=f)
-				torch.set_printoptions(profile="default")
+			# with open(self.filename,'a+') as f:
+			# 	torch.set_printoptions(profile="full")
+			# 	print("*"*50,file=f)
+			# 	print("EPISODE:",episode,file=f)
+			# 	print("*"*50,file=f)
+			# 	print(weights, file=f)
+			# 	torch.set_printoptions(profile="default")
 
 
 
