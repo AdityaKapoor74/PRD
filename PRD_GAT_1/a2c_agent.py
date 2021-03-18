@@ -149,6 +149,29 @@ class A2CAgent:
 
 
 
+	# critic loss analogous to GAE: weighted averaging from TD(1) error to MC error
+	def calculate_critic_loss(self, values, rewards, dones):
+		critic_losses = []
+		next_value = 0
+		critic_loss = 0
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
+		masks = 1 - dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = (rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]) ** 2
+			next_value = values.data[t]
+			
+			critic_loss = td_error + (self.gamma * self.trace_decay * critic_loss * masks[t])
+			critic_losses.insert(0, critic_loss)
+
+		critic_losses = torch.stack(critic_losses)
+		
+		
+		return critic_losses
+
+
+
+
 
 	def update(self,critic_graphs,one_hot_actions,actions,states_actor,rewards,dones):
 
@@ -172,7 +195,7 @@ class A2CAgent:
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) #+ self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
