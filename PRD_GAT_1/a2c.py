@@ -117,15 +117,15 @@ class SoftAttentionInput(nn.Module):
 		# equation (1)
 		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# self.value_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# output dim of key
 		self.d_k = out_dim
@@ -156,8 +156,8 @@ class SoftAttentionInput(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3) & (4)
 		# equation (3)
-		# alpha = torch.sigmoid(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5))
-		alpha = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		alpha = torch.softmax(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5), dim=-1)
+		# alpha = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['value'], dim=1)
 		
@@ -285,11 +285,11 @@ class SoftAttentionWeight(nn.Module):
 		self.device = "cpu"
 		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
 
 		# dimesion of key
 		self.d_k = out_dim
@@ -327,8 +327,8 @@ class SoftAttentionWeight(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
 		# equation (3)
-		# w = torch.sigmoid(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5))
-		w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		w = torch.softmax(torch.exp(nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5), dim=-1)
+		# w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
 		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi']
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
