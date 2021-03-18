@@ -144,20 +144,25 @@ class A2CAgent:
 		return returns_tensor
 
 
-	# to be continued
-	def calculate_critic_loss(self, values, next_values, rewards):
-		# will use trace decay for discounting here as well
-		loss = 0
-		L = 0
-		R = 0
-		for i in range(rewards.shape[0]):
-			R += self.gamma**i * rewards[i]
-			estimated = R + self.gamma**i * values[i]
-			target = self.gamma**(i+1) * next_values[i]
-			loss += F.smooth_l1_loss(estimated,target)
+	# critic loss analogous to GAE: weighted averaging from TD(1) error to MC error
+	def calculate_critic_loss(self, values, rewards, dones):
+		critic_losses = []
+		next_value = 0
+		critic_loss = 0
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
+		masks = 1 - dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = (rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]) ** 2
+			next_value = values.data[t]
+			
+			critic_loss = td_error + (self.gamma * self.trace_decay * critic_loss * masks[t])
+			critic_losses.insert(0, critic_loss)
 
-
-		return loss.to(self.device)
+		critic_losses = torch.stack(critic_losses)
+		
+		
+		return critic_losses
 
 
 
@@ -195,6 +200,7 @@ class A2CAgent:
 		# Loss for V'
 		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next
 		value_loss_ = F.smooth_l1_loss(V_values_,target_values) + self.lambda_*torch.sum(weights_)
+		# value_loss_ = self.calculate_critic_loss(V_values_, rewards, dones) + self.lambda_*torch.sum(weights_)
 
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
