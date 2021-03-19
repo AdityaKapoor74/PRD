@@ -144,27 +144,6 @@ class A2CAgent:
 		return returns_tensor
 
 
-	# critic loss analogous to GAE: weighted averaging from TD(1) error to MC error
-	def calculate_critic_loss(self, values, rewards, dones):
-		critic_losses = []
-		next_value = 0
-		critic_loss = 0
-		rewards = rewards.unsqueeze(-1)
-		dones = dones.unsqueeze(-1)
-		masks = 1 - dones
-		for t in reversed(range(0, len(rewards))):
-			td_error = (rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]) ** 2
-			next_value = values.data[t]
-			
-			critic_loss = td_error + (self.gamma * self.trace_decay * critic_loss * masks[t])
-			critic_losses.insert(0, critic_loss)
-
-		critic_losses = torch.stack(critic_losses)
-		
-		
-		return critic_losses
-
-
 
 	def update(self,critic_graphs,next_critic_graphs,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
 
