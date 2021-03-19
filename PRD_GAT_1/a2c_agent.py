@@ -158,13 +158,15 @@ class A2CAgent:
 		dones = dones.unsqueeze(-1)
 		masks = 1 - dones
 		for t in reversed(range(0, len(rewards))):
-			td_error = (rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]) ** 2
+			td_error = (rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t])**2
 			next_value = values.data[t]
 			
 			critic_loss = td_error + (self.gamma * self.trace_decay * critic_loss * masks[t])
 			critic_losses.insert(0, critic_loss)
 
-		critic_losses = torch.stack(critic_losses) + values
+		critic_losses = torch.stack(critic_losses)
+
+		return critic_losses.to(self.device)
 		
 		
 
@@ -183,11 +185,10 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.clone(), one_hot_actions)
+		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		weights = weights.reshape(-1,self.num_agents,self.num_agents)
 		weights_preproc = weights_preproc.reshape(-1,self.num_agents,self.num_agents)
-		
 
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
@@ -195,6 +196,7 @@ class A2CAgent:
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
+		value_loss = torch.mean(self.calculate_critic_loss(rewards,V_values,dones)) + self.lambda_*torch.sum(weights)
 	# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
@@ -202,10 +204,7 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		advantage = self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False)
-		V_targets = V_values + advantage
-		value_loss = F.smooth_l1_loss(V_values,V_targets) + self.lambda_*torch.sum(weights)
-		advantage = torch.sum(advantage,dim=-2)
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
 
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
