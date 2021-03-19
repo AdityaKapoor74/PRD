@@ -41,26 +41,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment16_2/critic_networks/'
+			critic_dir = '../../models/Experiment16_3/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment16_2/actor_networks/'
+			actor_dir = '../../models/Experiment16_3/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment16_2/'
+			weight_dir = '../../weights/Experiment16_3/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment16_2/'
+			tensorboard_dir = '../../runs/Experiment16_3/'
 
 
 			# paths for models, tensorboard and gifs
@@ -70,7 +70,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment16_2/'
+			gif_dir = '../../gifs/Experiment16_3/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -303,14 +303,16 @@ class MAA2C:
 		# graph.ndata['obs'] = torch.cat([torch.FloatTensor(states_critic[:,:-2]),self.pairings], dim=-1).to(self.device)
 		
 		# current_agent_pose and paired_agent_goal_pose
-		# pose_goal = []
-		# for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
-		# 	pose_goal.append(np.concatenate([pose,goal]))
-		# graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
+		pose_goal = []
+		for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
+			pose_goal.append(np.concatenate([pose,goal]))
+			
+		graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
 		# print(graph.ndata['mypose_goalpose'])
 
 		# current_agent goal pose and paired_agent goal pose
-		graph.ndata['my_goal_paired_goal'] = torch.FloatTensor(states_critic[:,-4:])
+		# print(torch.FloatTensor(states_critic[:,-4:]))
+		# graph.ndata['my_goal_paired_goal'] = torch.FloatTensor(states_critic[:,-4:]).to(self.device)
 
 		return graph
 
