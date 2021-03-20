@@ -115,17 +115,17 @@ class SoftAttentionInput(nn.Module):
 	def __init__(self, in_dim, out_dim,num_agents):
 		super(SoftAttentionInput, self).__init__()
 		# equation (1)
-		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
-		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+		# self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
-		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
-		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+		# self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
-		# self.value_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
-		# self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.value_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+		# self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# output dim of key
 		self.d_k = out_dim
@@ -138,16 +138,16 @@ class SoftAttentionInput(nn.Module):
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
 		# gain = nn.init.calculate_gain('leaky_relu')
-		# nn.init.xavier_uniform_(self.key_fc_layer_1.weight)
-		# nn.init.xavier_uniform_(self.key_fc_layer_2.weight)
-		# nn.init.xavier_uniform_(self.query_fc_layer_1.weight)
-		# nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
-		# nn.init.xavier_uniform_(self.value_fc_layer_1.weight)
-		# nn.init.xavier_uniform_(self.value_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.key_fc_layer_1.weight)
+		nn.init.xavier_uniform_(self.key_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.query_fc_layer_1.weight)
+		nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.value_fc_layer_1.weight)
+		nn.init.xavier_uniform_(self.value_fc_layer_2.weight)
 
-		nn.init.xavier_uniform_(self.query_fc_layer.weight)
-		nn.init.xavier_uniform_(self.value_fc_layer.weight)
-		nn.init.xavier_uniform_(self.key_fc_layer.weight)
+		# nn.init.xavier_uniform_(self.query_fc_layer.weight)
+		# nn.init.xavier_uniform_(self.value_fc_layer.weight)
+		# nn.init.xavier_uniform_(self.key_fc_layer.weight)
 
 
 	def message_func(self, edges):
@@ -176,15 +176,15 @@ class SoftAttentionInput(nn.Module):
 
 	def forward(self, g, observations):
 		self.g = g
-		# key = torch.tanh(self.key_fc_layer_1(observations))
-		# key = self.key_fc_layer_2(key)
-		key = self.key_fc_layer(observations)
-		# query = torch.tanh(self.query_fc_layer_1(observations))
-		# query = self.query_fc_layer_2(query)
-		query = self.query_fc_layer(observations)
-		# features = torch.tanh(self.value_fc_layer_1(observations))
-		# features = self.value_fc_layer_2(features)
-		value = self.value_fc_layer(observations)
+		key = torch.tanh(self.key_fc_layer_1(observations))
+		key = self.key_fc_layer_2(key)
+		# key = self.key_fc_layer(observations)
+		query = torch.tanh(self.query_fc_layer_1(observations))
+		query = self.query_fc_layer_2(query)
+		# query = self.query_fc_layer(observations)
+		value = torch.tanh(self.value_fc_layer_1(observations))
+		value = self.value_fc_layer_2(value)
+		# value = self.value_fc_layer(observations)
 		self.g.ndata['value'] = value
 		self.g.ndata['key'] = key
 		self.g.ndata['query'] = query
@@ -283,13 +283,13 @@ class SoftAttentionWeight(nn.Module):
 		self.num_actions = num_actions
 		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.device = "cpu"
-		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
-		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+		# self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
-		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
-		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+		self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
+		self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
+		# self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# dimesion of key
 		self.d_k = out_dim
@@ -313,12 +313,12 @@ class SoftAttentionWeight(nn.Module):
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
 		# gain = nn.init.calculate_gain('leaky_relu')
-		# nn.init.xavier_uniform_(self.key_fc_layer_1.weight)
-		# nn.init.xavier_uniform_(self.key_fc_layer_2.weight)
-		# nn.init.xavier_uniform_(self.query_fc_layer_1.weight)
-		# nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
-		nn.init.xavier_uniform_(self.key_fc_layer.weight)
-		nn.init.xavier_uniform_(self.query_fc_layer.weight)
+		nn.init.xavier_uniform_(self.key_fc_layer_1.weight)
+		nn.init.xavier_uniform_(self.key_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.query_fc_layer_1.weight)
+		nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
+		# nn.init.xavier_uniform_(self.key_fc_layer.weight)
+		# nn.init.xavier_uniform_(self.query_fc_layer.weight)
 
 
 	def message_func(self, edges):
@@ -346,12 +346,12 @@ class SoftAttentionWeight(nn.Module):
 	def forward(self, g, h, policies, actions):
 		# equation (1)
 		self.g = g
-		# key = torch.tanh(self.key_fc_layer_1(h))
-		# key = self.key_fc_layer_2(key)
-		key = self.key_fc_layer(h)
-		# query = torch.tanh(self.query_fc_layer_1(h))
-		# query = self.query_fc_layer_2(query)
-		query = self.query_fc_layer(h)
+		key = torch.tanh(self.key_fc_layer_1(h))
+		key = self.key_fc_layer_2(key)
+		# key = self.key_fc_layer(h)
+		query = torch.tanh(self.query_fc_layer_1(h))
+		query = self.query_fc_layer_2(query)
+		# query = self.query_fc_layer(h)
 		self.g.ndata['key'] = key
 		self.g.ndata['query'] = query
 
@@ -389,7 +389,7 @@ class CriticNetwork(nn.Module):
 	def forward(self, g, policies, actions):
 		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
-		obs_final, weights = self.weight_layer(g,g.ndata['mypose_goalpose'],policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights, weights_preproc
 

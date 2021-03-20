@@ -41,26 +41,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment16_3/critic_networks/'
+			critic_dir = '../../models/Experiment17_2/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment16_3/actor_networks/'
+			actor_dir = '../../models/Experiment17_2/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment16_3/'
+			weight_dir = '../../weights/Experiment17_2/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment16_3/'
+			tensorboard_dir = '../../runs/Experiment17_2/'
 
 
 			# paths for models, tensorboard and gifs
@@ -70,7 +70,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment16_3/'
+			gif_dir = '../../gifs/Experiment17_2/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -187,22 +187,22 @@ class MAA2C:
 	def update(self,trajectory,episode):
 
 
-		# critic_graphs = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		# critic_graphs = torch.Tensor([sars[0] for sars in trajectory]).to(self.device)
 		critic_graphs = [sars[0] for sars in trajectory]
-		# critic_graphs = [item for sublist in critic_graphs for item in sublist]
+		next_critic_graphs = [sars[1] for sars in trajectory]
 		critic_graphs = dgl.batch(critic_graphs).to(self.device)
-		one_hot_actions = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		states_actor = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		# actor_graphs = [sars[3] for sars in trajectory]
-		# actor_graphs = dgl.batch(actor_graphs).to(self.device)
-		rewards = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[5] for sars in trajectory])
+		next_critic_graphs = dgl.batch(next_critic_graphs).to(self.device)
 
-		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy = self.agents.update(critic_graphs,policies.reshape(-1,self.num_actions),actions.reshape(-1,self.num_actions),states_actor,rewards,dones)
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc = self.agents.update(critic_graphs,one_hot_actions,actions,states_actor,rewards,dones)
+		one_hot_actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+		one_hot_next_actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+		actions = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
 
+		states_actor = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
+		next_states_actor = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
+
+		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
+		dones = torch.FloatTensor([sars[8] for sars in trajectory])
+		
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc = self.agents.update(critic_graphs,next_critic_graphs,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 
 		if not(self.gif) and self.save:
@@ -303,11 +303,11 @@ class MAA2C:
 		# graph.ndata['obs'] = torch.cat([torch.FloatTensor(states_critic[:,:-2]),self.pairings], dim=-1).to(self.device)
 		
 		# current_agent_pose and paired_agent_goal_pose
-		pose_goal = []
-		for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
-			pose_goal.append(np.concatenate([pose,goal]))
+		# pose_goal = []
+		# for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
+		# 	pose_goal.append(np.concatenate([pose,goal]))
 
-		graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
+		# graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
 
 		# current_agent goal pose and paired_agent goal pose
 		# print(torch.FloatTensor(states_critic[:,-4:]))
@@ -396,6 +396,17 @@ class MAA2C:
 
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
+
+				# next actions
+				next_actions = self.get_actions(next_states_actor)
+
+
+				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
+				for i,act in enumerate(next_actions):
+					one_hot_next_actions[i][act] = 1
+
+				# graph for next state
+				next_states_critic_graph = self.construct_agent_graph_critic(next_states_critic)
 				
 				episode_reward += np.sum(rewards)
 
@@ -403,7 +414,7 @@ class MAA2C:
 					if all(dones) or step == max_steps-1:
 
 						# dones = [1 for _ in range(self.num_agents)]
-						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
+						trajectory.append([states_critic_graph,next_states_critic_graph,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step+1,max_steps))
 						print("*"*100)
@@ -415,7 +426,7 @@ class MAA2C:
 						break
 					else:
 						# dones = [0 for _ in range(self.num_agents)]
-						trajectory.append([states_critic_graph,one_hot_actions,actions,states_actor,rewards,dones])
+						trajectory.append([states_critic_graph,next_states_critic_graph,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						states_critic,states_actor = next_states_critic,next_states_actor
 						states = next_states
 

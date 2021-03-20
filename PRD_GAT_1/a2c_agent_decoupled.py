@@ -20,7 +20,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-3,
+		lambda_ = 0.0,
 		trace_decay = 0.99,
 		gif = False
 		):
@@ -177,7 +177,7 @@ class A2CAgent:
 		# Loss for V
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 		# Loss for V'
-		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) #+ self.gamma*V_values_next
+		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) #+ self.gamma*V_values_next*(1-dones)
 		value_loss_ = F.smooth_l1_loss(V_values_,target_values) + self.lambda_*torch.sum(weights_)
 		# value_loss_ = self.calculate_critic_loss(V_values_, rewards, dones) + self.lambda_*torch.sum(weights_)
 
