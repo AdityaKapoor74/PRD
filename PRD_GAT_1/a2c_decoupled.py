@@ -53,15 +53,15 @@ class SoftAttentionInput_9_1(nn.Module):
 		# equation (1)
 		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
+		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
+		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# self.value_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
+		self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# output dim of key
 		self.d_k = out_dim
@@ -184,11 +184,11 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		self.device = "cpu"
 		# self.key_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.key_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
+		self.key_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
-		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=False)
+		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# dimesion of query
 		self.d_k = out_dim
