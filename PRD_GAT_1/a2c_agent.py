@@ -45,9 +45,9 @@ class A2CAgent:
 		self.critic_preprocess_input_dim = 2*3+2 #2*3+2
 		self.critic_output_dim = 1
 		# self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 16, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 32, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		self.critic_network_target = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 32, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		self.critic_network_target.load_state_dict(self.critic_network.state_dict())
+		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		# self.critic_network_target = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 32, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		# self.critic_network_target.load_state_dict(self.critic_network.state_dict())
 
 
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
@@ -169,9 +169,9 @@ class A2CAgent:
 		Calculate V values
 		'''
 		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions)
-		V_values_next, _, _ = self.critic_network_target.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
+		# V_values_next, _, _ = self.critic_network_target.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-		V_values_next = V_values.reshape(-1,self.num_agents,self.num_agents)
+		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 		weights = weights.reshape(-1,self.num_agents,self.num_agents)
 		weights_preproc = weights_preproc.reshape(-1,self.num_agents,self.num_agents)
 
@@ -180,9 +180,9 @@ class A2CAgent:
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
-		value_loss = F.smooth_l1_loss(V_values,target_values) + self.lambda_*torch.sum(weights)
+		# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
+		# value_loss = F.smooth_l1_loss(V_values,target_values) + self.lambda_*torch.sum(weights)
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
@@ -211,8 +211,8 @@ class A2CAgent:
 
 
 
-		for target_param, param in zip(self.critic_network_target.parameters(), self.critic_network.parameters()):
-			target_param.data.copy_(param.data * (1.0 - self.tau) + target_param.data * self.tau)
+		# for target_param, param in zip(self.critic_network_target.parameters(), self.critic_network.parameters()):
+		# 	target_param.data.copy_(param.data * (1.0 - self.tau) + target_param.data * self.tau)
 		
 		# TRIN CRITIC > ACTOR
 		# if self.update_both > self.ub_counter:

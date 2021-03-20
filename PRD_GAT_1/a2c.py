@@ -389,7 +389,7 @@ class CriticNetwork(nn.Module):
 	def forward(self, g, policies, actions):
 		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
-		obs_final, weights = self.weight_layer(g,g.ndata['obs'],policies,actions)
+		obs_final, weights = self.weight_layer(g,g.ndata['mypose_goalpose'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights, weights_preproc
 
