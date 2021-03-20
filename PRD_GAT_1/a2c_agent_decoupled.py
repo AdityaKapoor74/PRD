@@ -152,19 +152,19 @@ class A2CAgent:
 		'''
 		# probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
 		probs = self.policy_network.forward(states_actor)
-		# next_probs = self.policy_network.forward(next_states_actor)
+		next_probs = self.policy_network.forward(next_states_actor)
 
 		'''
 		Calculate V values
 		'''
 		# weight network (V')
 		V_values_, weights_, weights_preproc_ = self.critic_network_.forward(critic_graphs, probs.detach(), one_hot_actions)
-		# V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
+		V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
 		# Advantage calculation (V)
 		V_values, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions, weights_.detach())
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		V_values_ = V_values_.reshape(-1,self.num_agents,self.num_agents)
-		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+		V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 		weights_ = weights_.reshape(-1,self.num_agents,self.num_agents)
 		weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents)
 		
@@ -177,7 +177,7 @@ class A2CAgent:
 		# Loss for V
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 		# Loss for V'
-		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) #+ self.gamma*V_values_next*(1-dones)
+		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 		value_loss_ = F.smooth_l1_loss(V_values_,target_values) + self.lambda_*torch.sum(weights_)
 		# value_loss_ = self.calculate_critic_loss(V_values_, rewards, dones) + self.lambda_*torch.sum(weights_)
 
