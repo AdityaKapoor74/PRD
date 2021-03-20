@@ -45,8 +45,8 @@ class A2CAgent:
 		# self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
 		self.critic_preprocess_input_dim = 2*3+2
 		self.critic_output_dim = 1
-		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		self.critic_network_ = CriticNetwork_(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 32, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		self.critic_network_ = CriticNetwork_(self.critic_preprocess_input_dim, 16, self.critic_preprocess_input_dim, 32, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
@@ -152,19 +152,19 @@ class A2CAgent:
 		'''
 		# probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
 		probs = self.policy_network.forward(states_actor)
-		# next_probs = self.policy_network.forward(next_states_actor)
+		next_probs = self.policy_network.forward(next_states_actor)
 
 		'''
 		Calculate V values
 		'''
 		# weight network (V')
 		V_values_, weights_, weights_preproc_ = self.critic_network_.forward(critic_graphs, probs.detach(), one_hot_actions)
-		# V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
+		V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
 		# Advantage calculation (V)
 		V_values, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions, weights_.detach())
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		V_values_ = V_values_.reshape(-1,self.num_agents,self.num_agents)
-		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+		V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 		weights_ = weights_.reshape(-1,self.num_agents,self.num_agents)
 		weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents)
 		
@@ -177,7 +177,7 @@ class A2CAgent:
 		# Loss for V
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 		# Loss for V'
-		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) #+ self.gamma*V_values_next
+		target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next
 		value_loss_ = F.smooth_l1_loss(V_values_,target_values) + self.lambda_*torch.sum(weights_)
 		# value_loss_ = self.calculate_critic_loss(V_values_, rewards, dones) + self.lambda_*torch.sum(weights_)
 

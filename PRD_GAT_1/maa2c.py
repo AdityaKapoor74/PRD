@@ -306,9 +306,8 @@ class MAA2C:
 		pose_goal = []
 		for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
 			pose_goal.append(np.concatenate([pose,goal]))
-			
+
 		graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
-		# print(graph.ndata['mypose_goalpose'])
 
 		# current_agent goal pose and paired_agent goal pose
 		# print(torch.FloatTensor(states_critic[:,-4:]))
