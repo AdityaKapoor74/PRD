@@ -92,7 +92,9 @@ class SoftAttentionInput_9_1(nn.Module):
 		# reduce UDF for equation (3) & (4)
 		# equation (3)
 		# alpha = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
-		alpha = torch.softmax(torch.exp((nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5)), dim=-2)
+		# alpha = torch.softmax(torch.exp((nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5)), dim=-2)
+		alpha = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
+		print(alpha)
 		# equation (4)
 		obs_proc = torch.sum(alpha * nodes.mailbox['value'], dim=1)
 		
