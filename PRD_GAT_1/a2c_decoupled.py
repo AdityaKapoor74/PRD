@@ -151,7 +151,7 @@ class SoftAttentionWeight_9_1(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
 		# equation (3)
-		z = self.w*nodes.mailbox['act'] + (1-self.w)*nodes.mailbox['pi']
+		z = self.w*nodes.mailbox['act'] #+ (1-self.w)*nodes.mailbox['pi']
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
