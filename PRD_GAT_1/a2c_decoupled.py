@@ -121,7 +121,7 @@ class SoftAttentionInput_9_1(nn.Module):
 
 
 class SoftAttentionWeight_9_1(nn.Module):
-	def __init__(self, in_dim, out_dim, num_agents,num_actions):
+	def __init__(self, in_dim, out_dim, z_output_dim, num_agents,num_actions):
 		super(SoftAttentionWeight_9_1, self).__init__()
 		self.num_agents = num_agents
 		self.num_actions = num_actions
@@ -130,6 +130,11 @@ class SoftAttentionWeight_9_1(nn.Module):
 
 		# store weights
 		self.w = None
+
+		# z processing layers
+		self.z_output_dim = z_output_dim
+		self.z_fc_layer_1 = nn.Linear(num_actions, 16, bias=True)
+		self.z_fc_layer_2 = nn.Linear(16, self.z_output_dim, bias=True)
 
 		# add noise
 		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.1]))
@@ -155,17 +160,22 @@ class SoftAttentionWeight_9_1(nn.Module):
 		# reduce UDF for equation (3)
 		# equation (3)
 		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = self.w*nodes.mailbox['act'] + (1-self.w)*nodes.mailbox['pi'] + noise 
+		z = self.w*nodes.mailbox['act'] + (1-self.w)*nodes.mailbox['pi'] #+ noise 
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
 		z = (pi+zs)
-		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.num_actions)
+
+		# processing z layers
+		z_proc = torch.tanh(self.z_fc_layer_1(z))
+		z = self.z_fc_layer_2(z_proc)
+
+		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.z_output_dim)
 		z = torch.mean(z,dim=-2)
 		obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
 		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
 		
-		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.num_actions)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
+		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.z_output_dim)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
 
 		return {'obs_final':obs_final}
 
@@ -182,7 +192,7 @@ class SoftAttentionWeight_9_1(nn.Module):
 
 
 class SoftAttentionWeight_9_1_(nn.Module):
-	def __init__(self, in_dim, out_dim, num_agents,num_actions):
+	def __init__(self, in_dim, out_dim, z_output_dim, num_agents,num_actions):
 		super(SoftAttentionWeight_9_1_, self).__init__()
 		self.num_agents = num_agents
 		self.num_actions = num_actions
@@ -195,6 +205,11 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		# self.query_fc_layer_1 = nn.Linear(in_dim, 32, bias=True)
 		# self.query_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
 		self.query_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
+
+		# processing of z values
+		self.z_output_dim = z_output_dim
+		self.z_fc_layer_1 = nn.Linear(num_actions, 16, bias=True)
+		self.z_fc_layer_2 = nn.Linear(16, self.z_output_dim, bias=True)
 
 		# dimesion of query
 		self.d_k = out_dim
@@ -235,20 +250,25 @@ class SoftAttentionWeight_9_1_(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
 		# equation (3)
-		# w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
-		w = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
+		w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		# w = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
 		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi'] + noise
+		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi'] #+ noise
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
 		z = (pi+zs)
-		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.num_actions)
+
+		# processing z layers
+		z_proc = torch.tanh(self.z_fc_layer_1(z))
+		z = self.z_fc_layer_2(z_proc)
+
+		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.z_output_dim)
 		z = torch.mean(z,dim=-2)
 		obs_proc = self.g.ndata['obs_proc'].reshape(-1,self.num_agents,self.g.ndata['obs_proc'].shape[1]).repeat(1,self.num_agents,1)
 		obs_proc = obs_proc.reshape(obs_proc.shape[0],self.num_agents,self.num_agents,-1)
 		
-		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.num_actions)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
+		obs_final = torch.cat([obs_proc.reshape(-1,obs_proc.shape[-1]),z.reshape(-1,self.z_output_dim)],dim=-1).reshape(obs_proc.shape[0]*obs_proc.shape[1],obs_proc.shape[2],-1)
 
 		return {'obs_final':obs_final, 'w': w}
 
@@ -293,11 +313,11 @@ class ValueNetwork(nn.Module):
 
 
 class CriticNetwork(nn.Module):
-	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
+	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, z_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork, self).__init__()
 		# SCALAR DOT ATTENTION
 		self.input_processor = SoftAttentionInput_9_1(preprocess_input_dim, preprocess_output_dim, num_agents)
-		self.weight_layer = SoftAttentionWeight_9_1(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		self.weight_layer = SoftAttentionWeight_9_1(weight_input_dim, weight_output_dim, z_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions, weights):
@@ -310,11 +330,11 @@ class CriticNetwork(nn.Module):
 
 
 class CriticNetwork_(nn.Module):
-	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, input_dim, output_dim, num_agents, num_actions):
+	def __init__(self, preprocess_input_dim, preprocess_output_dim, weight_input_dim, weight_output_dim, z_output_dim, input_dim, output_dim, num_agents, num_actions):
 		super(CriticNetwork_, self).__init__()
 		# SCALAR DOT ATTENTION
 		self.input_processor = SoftAttentionInput_9_1(preprocess_input_dim, preprocess_output_dim, num_agents)
-		self.weight_layer = SoftAttentionWeight_9_1_(weight_input_dim, weight_output_dim, num_agents, num_actions)
+		self.weight_layer = SoftAttentionWeight_9_1_(weight_input_dim, weight_output_dim, z_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g, policies, actions):

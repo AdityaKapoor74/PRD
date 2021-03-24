@@ -44,9 +44,15 @@ class A2CAgent:
 
 		# self.critic_preprocess_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose)
 		self.critic_preprocess_input_dim = 2*3+2
+		self.critic_preprocess_output_dim = 16
+		self.weight_input_dim = 4
+		self.weight_output_dim = 8
+		self.z_output_dim = 8 #self.env.action_space[0].n
+		self.value_input_dim = self.critic_preprocess_output_dim+self.z_output_dim
 		self.critic_output_dim = 1
-		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
-		self.critic_network_ = CriticNetwork_(self.critic_preprocess_input_dim, 16, 4, 8, 16+self.env.action_space[0].n, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		
+		self.critic_network = CriticNetwork(self.critic_preprocess_input_dim, self.critic_preprocess_output_dim, self.weight_input_dim, self.weight_output_dim, self.z_output_dim, self.value_input_dim, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
+		self.critic_network_ = CriticNetwork_(self.critic_preprocess_input_dim, self.critic_preprocess_output_dim, self.weight_input_dim, self.weight_output_dim, self.z_output_dim, self.value_input_dim, self.critic_output_dim, self.num_agents, self.env.action_space[0].n).to(self.device)
 
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
