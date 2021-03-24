@@ -132,7 +132,7 @@ class SoftAttentionWeight_9_1(nn.Module):
 		self.w = None
 
 		# add noise
-		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.1]))
+		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.01]))
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -155,7 +155,7 @@ class SoftAttentionWeight_9_1(nn.Module):
 		# reduce UDF for equation (3)
 		# equation (3)
 		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = self.w*nodes.mailbox['act'] + (1-self.w)*nodes.mailbox['pi'] #+ noise 
+		z = self.w*nodes.mailbox['act'] + (1-self.w)*nodes.mailbox['pi'] + noise 
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
@@ -200,7 +200,7 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		self.d_k = out_dim
 
 		# add noise
-		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.1]))
+		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.01]))
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -238,7 +238,7 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		# w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
 		w = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
 		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi'] #+ noise
+		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi'] + noise
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
