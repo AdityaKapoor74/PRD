@@ -155,7 +155,7 @@ class SoftAttentionWeight_9_1(nn.Module):
 		# reduce UDF for equation (3)
 		# equation (3)
 		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = self.w*nodes.mailbox['act'] + noise #+ (1-self.w)*nodes.mailbox['pi']
+		z = self.w*nodes.mailbox['act'] + (1-self.w)*nodes.mailbox['pi'] #+ noise 
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
@@ -235,9 +235,10 @@ class SoftAttentionWeight_9_1_(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
 		# equation (3)
-		w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		# w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		w = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
 		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = w*nodes.mailbox['act'] + noise #+ (1-w)*nodes.mailbox['pi']
+		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi'] #+ noise
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
