@@ -63,6 +63,10 @@ class SoftAttentionInput_9_1(nn.Module):
 		self.value_fc_layer_2 = nn.Linear(32, out_dim, bias=True)
 		# self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
+		# concatenate values of the current node with the aggregated (weighted sum) of neighbor nodes to get feature vec for current node
+		self.values_indiv_nodes = None
+		self.node_features_fc_layer = nn.Linear(2*out_dim, out_dim)
+
 		# output dim of key
 		self.d_k = out_dim
 
@@ -80,6 +84,7 @@ class SoftAttentionInput_9_1(nn.Module):
 		nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
 		nn.init.xavier_uniform_(self.value_fc_layer_1.weight)
 		nn.init.xavier_uniform_(self.value_fc_layer_2.weight)
+		nn.init.xavier_uniform_(self.node_features_fc_layer.weight)
 		# nn.init.xavier_uniform_(self.key_fc_layer.weight)
 		# nn.init.xavier_uniform_(self.query_fc_layer.weight)
 		# nn.init.xavier_uniform_(self.value_fc_layer.weight)
@@ -95,9 +100,11 @@ class SoftAttentionInput_9_1(nn.Module):
 		# alpha = torch.softmax(torch.exp((nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5)), dim=-2)
 		alpha = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
 		# equation (4)
-		obs_proc = torch.sum(alpha * nodes.mailbox['value'], dim=1)
+		obs_proc_neighbors = torch.sum(alpha * nodes.mailbox['value'], dim=1)
+		obs_proc_current_node = torch.cat([self.values_indiv_nodes, obs_proc_neighbors], dim=-1)
+		node_features = self.node_features_fc_layer(obs_proc_current_node)
 		
-		return {'obs_proc': obs_proc, "weights":alpha}
+		return {'obs_proc': node_features, "weights":alpha}
 
 	def forward(self, g, observations):
 		self.g = g
@@ -111,6 +118,7 @@ class SoftAttentionInput_9_1(nn.Module):
 		values = self.value_fc_layer_2(values)
 		# values = self.value_fc_layer(observations)
 
+		self.values_indiv_nodes = values
 		self.g.ndata['value'] = values
 		self.g.ndata['key'] = key
 		self.g.ndata['query'] = query
@@ -320,8 +328,8 @@ class CriticNetwork(nn.Module):
 		self.weight_layer = SoftAttentionWeight_9_1(weight_input_dim, weight_output_dim, z_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
-	def forward(self, g, policies, actions, weights):
-		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
+	def forward(self, g_preproc, g, policies, actions, weights):
+		features, weights_preproc = self.input_processor(g_preproc, g_preproc.ndata['obs'])
 		g.ndata['obs_proc'] = features
 		obs_final = self.weight_layer(g,policies,actions,weights)
 		x = self.value_layer(obs_final)
@@ -337,8 +345,8 @@ class CriticNetwork_(nn.Module):
 		self.weight_layer = SoftAttentionWeight_9_1_(weight_input_dim, weight_output_dim, z_output_dim, num_agents, num_actions)
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
-	def forward(self, g, policies, actions):
-		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
+	def forward(self, g_preproc, g, policies, actions):
+		features, weights_preproc = self.input_processor(g_preproc, g_preproc.ndata['obs'])
 		g.ndata['obs_proc'] = features
 		obs_final, weights = self.weight_layer(g,g.ndata['mypose_goalpose'],policies,actions)
 		x = self.value_layer(obs_final)

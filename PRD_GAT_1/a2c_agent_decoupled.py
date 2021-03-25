@@ -151,7 +151,7 @@ class A2CAgent:
 
 
 
-	def update(self,critic_graphs,next_critic_graphs,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
+	def update(self,critic_graphs_preproc, critic_graphs, next_critic_graphs_preproc, next_critic_graphs, one_hot_actions, one_hot_next_actions, actions, states_actor, next_states_actor, rewards, dones):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -164,15 +164,16 @@ class A2CAgent:
 		Calculate V values
 		'''
 		# weight network (V')
-		V_values_, weights_, weights_preproc_ = self.critic_network_.forward(critic_graphs, probs.detach(), one_hot_actions)
-		V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
+		V_values_, weights_, weights_preproc_ = self.critic_network_.forward(critic_graphs_preproc, critic_graphs, probs.detach(), one_hot_actions)
+		V_values_next, _, _ = self.critic_network_.forward(next_critic_graphs_preproc, next_critic_graphs, next_probs.detach(), one_hot_next_actions)
 		# Advantage calculation (V)
-		V_values, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions, weights_.detach())
+		V_values, weights_preproc = self.critic_network.forward(critic_graphs_preproc, critic_graphs, probs.detach(), one_hot_actions, weights_.detach())
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		V_values_ = V_values_.reshape(-1,self.num_agents,self.num_agents)
 		V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 		weights_ = weights_.reshape(-1,self.num_agents,self.num_agents)
-		weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents)
+		# weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents)
+		weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents-1)
 		
 
 	# # ***********************************************************************************
