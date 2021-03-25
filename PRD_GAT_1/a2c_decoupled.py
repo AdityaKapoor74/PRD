@@ -86,7 +86,7 @@ class SoftAttentionInput_9_1(nn.Module):
 		nn.init.xavier_uniform_(self.value_fc_layer_2.weight)
 
 		# nn.init.xavier_uniform_(self.node_features_fc_layer.weight)
-		
+
 		# nn.init.xavier_uniform_(self.key_fc_layer.weight)
 		# nn.init.xavier_uniform_(self.query_fc_layer.weight)
 		# nn.init.xavier_uniform_(self.value_fc_layer.weight)
@@ -225,7 +225,7 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		self.d_k = out_dim
 
 		# add noise
-		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.01]))
+		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.1]))
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
