@@ -64,8 +64,8 @@ class SoftAttentionInput_9_1(nn.Module):
 		# self.value_fc_layer = nn.Linear(in_dim, out_dim, bias=True)
 
 		# concatenate values of the current node with the aggregated (weighted sum) of neighbor nodes to get feature vec for current node
-		self.values_indiv_nodes = None
-		self.node_features_fc_layer = nn.Linear(2*out_dim, out_dim)
+		# self.values_indiv_nodes = None
+		# self.node_features_fc_layer = nn.Linear(2*out_dim, out_dim)
 
 		# output dim of key
 		self.d_k = out_dim
@@ -84,7 +84,9 @@ class SoftAttentionInput_9_1(nn.Module):
 		nn.init.xavier_uniform_(self.query_fc_layer_2.weight)
 		nn.init.xavier_uniform_(self.value_fc_layer_1.weight)
 		nn.init.xavier_uniform_(self.value_fc_layer_2.weight)
-		nn.init.xavier_uniform_(self.node_features_fc_layer.weight)
+
+		# nn.init.xavier_uniform_(self.node_features_fc_layer.weight)
+		
 		# nn.init.xavier_uniform_(self.key_fc_layer.weight)
 		# nn.init.xavier_uniform_(self.query_fc_layer.weight)
 		# nn.init.xavier_uniform_(self.value_fc_layer.weight)
@@ -100,11 +102,15 @@ class SoftAttentionInput_9_1(nn.Module):
 		# alpha = torch.softmax(torch.exp((nodes.mailbox['score'] / math.sqrt(self.d_k)).clamp(-5, 5)), dim=-2)
 		alpha = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
 		# equation (4)
-		obs_proc_neighbors = torch.sum(alpha * nodes.mailbox['value'], dim=1)
-		obs_proc_current_node = torch.cat([self.values_indiv_nodes, obs_proc_neighbors], dim=-1)
-		node_features = self.node_features_fc_layer(obs_proc_current_node)
+		obs_proc = torch.sum(alpha * nodes.mailbox['value'], dim=1)
+
+		return {'obs_proc': obs_proc, "weights": alpha}
+
+		# obs_proc_neighbors = torch.sum(alpha * nodes.mailbox['value'], dim=1)
+		# obs_proc_current_node = torch.cat([self.values_indiv_nodes, obs_proc_neighbors], dim=-1)
+		# node_features = self.node_features_fc_layer(obs_proc_current_node)
 		
-		return {'obs_proc': node_features, "weights":alpha}
+		# return {'obs_proc': node_features, "weights": alpha}
 
 	def forward(self, g, observations):
 		self.g = g
@@ -118,7 +124,7 @@ class SoftAttentionInput_9_1(nn.Module):
 		values = self.value_fc_layer_2(values)
 		# values = self.value_fc_layer(observations)
 
-		self.values_indiv_nodes = values
+		# self.values_indiv_nodes = values
 		self.g.ndata['value'] = values
 		self.g.ndata['key'] = key
 		self.g.ndata['query'] = query
@@ -144,9 +150,6 @@ class SoftAttentionWeight_9_1(nn.Module):
 		self.z_fc_layer_1 = nn.Linear(num_actions, 16, bias=True)
 		self.z_fc_layer_2 = nn.Linear(16, self.z_output_dim, bias=True)
 
-		# add noise
-		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.1]))
-
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		one_hots = torch.ones(num_actions)
@@ -167,8 +170,7 @@ class SoftAttentionWeight_9_1(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
 		# equation (3)
-		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = self.w*nodes.mailbox['act'] + (1-self.w)*nodes.mailbox['pi'] #+ noise 
+		z = self.w*nodes.mailbox['act'] #+ (1-self.w)*nodes.mailbox['pi'] 
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
@@ -223,7 +225,7 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		self.d_k = out_dim
 
 		# add noise
-		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.1]))
+		self.normal_dist = torch.distributions.Normal(loc=torch.tensor([0.]), scale=torch.tensor([0.01]))
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -258,10 +260,10 @@ class SoftAttentionWeight_9_1_(nn.Module):
 	def reduce_func(self, nodes):
 		# reduce UDF for equation (3)
 		# equation (3)
-		w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k))
+		noise = self.normal_dist.sample((nodes.mailbox['score'].view(-1).size())).reshape(nodes.mailbox['score'].size())
+		w = torch.sigmoid(nodes.mailbox['score'] / math.sqrt(self.d_k)) + noise
 		# w = torch.softmax(nodes.mailbox['score'] / math.sqrt(self.d_k), dim=-2)
-		noise = self.normal_dist.sample((nodes.mailbox['act'].view(-1).size())).reshape(nodes.mailbox['act'].size())
-		z = w*nodes.mailbox['act'] + (1-w)*nodes.mailbox['pi'] #+ noise
+		z = w*nodes.mailbox['act'] #+ (1-w)*nodes.mailbox['pi']
 		z = z.repeat(1,self.num_agents,1)
 		pi = nodes.mailbox['pi'].repeat(1,self.num_agents,1).reshape(-1,self.place_policies.shape[0],self.place_policies.shape[1],self.place_policies.shape[2])*self.place_policies
 		zs = z.reshape(-1,self.place_zs.shape[0],self.place_zs.shape[1],self.place_zs.shape[2])*self.place_zs
@@ -329,7 +331,7 @@ class CriticNetwork(nn.Module):
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g_preproc, g, policies, actions, weights):
-		features, weights_preproc = self.input_processor(g_preproc, g_preproc.ndata['obs'])
+		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
 		obs_final = self.weight_layer(g,policies,actions,weights)
 		x = self.value_layer(obs_final)
@@ -346,7 +348,7 @@ class CriticNetwork_(nn.Module):
 		self.value_layer = ValueNetwork(input_dim, output_dim)
 
 	def forward(self, g_preproc, g, policies, actions):
-		features, weights_preproc = self.input_processor(g_preproc, g_preproc.ndata['obs'])
+		features, weights_preproc = self.input_processor(g, g.ndata['obs'])
 		g.ndata['obs_proc'] = features
 		obs_final, weights = self.weight_layer(g,g.ndata['mypose_goalpose'],policies,actions)
 		x = self.value_layer(obs_final)

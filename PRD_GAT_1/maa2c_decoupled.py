@@ -31,26 +31,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment25/critic_networks/'
+			critic_dir = '../../models/Experiment22_2/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment25/actor_networks/'
+			actor_dir = '../../models/Experiment22_2/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment25/'
+			weight_dir = '../../weights/Experiment22_2/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment25/'
+			tensorboard_dir = '../../runs/Experiment22_2/'
 
 
 			# paths for models, tensorboard and gifs
@@ -60,7 +60,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment25/'
+			gif_dir = '../../gifs/Experiment22_2/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -129,7 +129,7 @@ class MAA2C:
 
 		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
 
-
+	# hard coded for 4 agent case
 	def calculate_weights_preproc(self,weights_preproc):
 		paired_agents_weight = 0
 		paired_agents_weight_count = 0
@@ -283,14 +283,17 @@ class MAA2C:
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value_',grad_norm_value_,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-			self.writer.add_scalar('Weights/Average Weights',torch.mean(weights_).item(),episode)
 			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_)
-			self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
-			self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
-			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc_)
-			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights_preproc(weights_preproc_)
-			self.writer.add_scalar('PreprocWeights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
-			self.writer.add_scalar('PreprocWeights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
+			self.writer.add_scalars('Weights/Average Weights',{'Total':torch.mean(weights_).item(),'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+			# self.writer.add_scalar('Weights/Average Weights',torch.mean(weights_).item(),episode)
+			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_)
+			# self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
+			# self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
+			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc_)
+			self.writer.add_scalars('PreprocWeights/Average Weights',{'Total':torch.mean(weights_preproc_).item(),'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights_preproc(weights_preproc_)
+			# self.writer.add_scalar('PreprocWeights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
+			# self.writer.add_scalar('PreprocWeights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
 
 
 			# with open(self.filename,'a+') as f:

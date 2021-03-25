@@ -172,8 +172,8 @@ class A2CAgent:
 		V_values_ = V_values_.reshape(-1,self.num_agents,self.num_agents)
 		V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 		weights_ = weights_.reshape(-1,self.num_agents,self.num_agents)
-		# weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents)
-		weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents-1)
+		weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents)
+		# weights_preproc_ = weights_preproc_.reshape(-1,self.num_agents,self.num_agents-1)
 		
 
 	# # ***********************************************************************************
