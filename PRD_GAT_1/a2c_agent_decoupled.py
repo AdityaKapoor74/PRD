@@ -47,7 +47,7 @@ class A2CAgent:
 		self.critic_preprocess_output_dim = 16
 		self.weight_input_dim = 4
 		self.weight_output_dim = 8
-		self.z_output_dim = 8 #self.env.action_space[0].n
+		self.z_output_dim = self.env.action_space[0].n #8 
 		self.value_input_dim = self.critic_preprocess_output_dim+self.z_output_dim
 		self.critic_output_dim = 1
 		

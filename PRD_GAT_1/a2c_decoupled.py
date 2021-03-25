@@ -147,8 +147,8 @@ class SoftAttentionWeight_9_1(nn.Module):
 
 		# z processing layers
 		self.z_output_dim = z_output_dim
-		self.z_fc_layer_1 = nn.Linear(num_actions, 16, bias=True)
-		self.z_fc_layer_2 = nn.Linear(16, self.z_output_dim, bias=True)
+		# self.z_fc_layer_1 = nn.Linear(num_actions, 16, bias=True)
+		# self.z_fc_layer_2 = nn.Linear(16, self.z_output_dim, bias=True)
 
 		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
 		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,num_actions).to(self.device)
@@ -177,8 +177,8 @@ class SoftAttentionWeight_9_1(nn.Module):
 		z = (pi+zs)
 
 		# processing z layers
-		z_proc = torch.tanh(self.z_fc_layer_1(z))
-		z = self.z_fc_layer_2(z_proc)
+		# z_proc = torch.tanh(self.z_fc_layer_1(z))
+		# z = self.z_fc_layer_2(z_proc)
 
 		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.z_output_dim)
 		z = torch.mean(z,dim=-2)
@@ -270,8 +270,8 @@ class SoftAttentionWeight_9_1_(nn.Module):
 		z = (pi+zs)
 
 		# processing z layers
-		z_proc = torch.tanh(self.z_fc_layer_1(z))
-		z = self.z_fc_layer_2(z_proc)
+		# z_proc = torch.tanh(self.z_fc_layer_1(z))
+		# z = self.z_fc_layer_2(z_proc)
 
 		z = z.reshape(z.shape[0],z.shape[1],self.num_agents,self.num_agents,self.z_output_dim)
 		z = torch.mean(z,dim=-2)
