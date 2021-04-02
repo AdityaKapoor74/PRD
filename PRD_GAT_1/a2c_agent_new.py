@@ -45,9 +45,9 @@ class A2CAgent:
 		self.obs_z_input_dim = 2*3+2 + self.num_actions
 		self.obs_z_output_dim = 32
 		# Case 1
-		# self.final_input_dim = self.obs_z_output_dim
+		self.final_input_dim = self.obs_z_output_dim
 		# Case 2
-		self.final_input_dim = self.obs_z_output_dim*2
+		# self.final_input_dim = self.obs_z_output_dim*2
 		self.final_output_dim = 1
 		self.critic_network = CriticNetwork(self.weight_input_dim, self.weight_output_dim, self.obs_z_input_dim, self.obs_z_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
 

@@ -422,11 +422,11 @@ class CriticNetwork(nn.Module):
 		weights_obsz = weights_obsz.repeat(1,self.num_agents,1,1).reshape(weights_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 
 		# # CASE 1, Value = aggregation of all attention_value_other_obsz
-		# node_features = torch.mean(attention_value_other_obsz * weights_obsz, dim=-2)
+		node_features = torch.mean(attention_value_other_obsz * weights_obsz, dim=-2)
 
 		# # CASE 2, Value = attention_value_src_obsz, aggregation of all attention_value_other_obsz
-		attention_value_src_obsz = attention_value_src_obsz.repeat(1,self.num_agents,1).reshape(attention_value_src_obsz.shape[0],self.num_agents,self.num_agents,-1)
-		node_features = torch.cat([attention_value_src_obsz,torch.mean(attention_value_other_obsz * weights_obsz, dim=-2)], dim=-1)
+		# attention_value_src_obsz = attention_value_src_obsz.repeat(1,self.num_agents,1).reshape(attention_value_src_obsz.shape[0],self.num_agents,self.num_agents,-1)
+		# node_features = torch.cat([attention_value_src_obsz,torch.mean(attention_value_other_obsz * weights_obsz, dim=-2)], dim=-1)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
