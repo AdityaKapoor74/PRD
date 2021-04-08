@@ -24,7 +24,7 @@ In this methodology we have 3 networks for the Critic Architecture stacked toget
 2) Scalar Dot Product Attention to calculate the z values (We use raw observations to calculate the weights; sometimes a small subset of the raw observations is also used) (SIGMOID to calculate the weights so that there is a pair-wise dependency)
 3) Fully Connected Network to calculate the Value estimates for an agent i not conditioned on agent j's actions; output is a NxN matrix where N is the number of agents
 
-
+<!-- ARCHITECTURE 2 -->
 ## Architecture 2
 
 In this methodology we have 3 networks for the Critic Architecture stacked together:-
@@ -33,9 +33,12 @@ In this methodology we have 3 networks for the Critic Architecture stacked toget
 3) Fully Connected Network to calculate the Value estimates for an agent i not conditioned on agent j's actions; output is a NxN matrix where N is the number of agents
 
 
-
+<!-- ARCHITECTURE 3 -->
 ## Architecture 3
 
 In this methodology we have 2 networks for the Critic Architecture stacked together:-
 1) Scalar Dot Product Attention to do the message passing of the observations of every agent to every other agent; sharing of information (we use raw observations concatenated with action values to calculate the weights) (SIGMOID/SOFTMAX to calculate the weights)
 2) Fully Connected Network to calculate the Value estimates for an agent i not conditioned on agent j's actions; output is a NxN matrix where N is the number of agents
+
+
+NOTE: Decoupled files consist of 2 Critic Networks, 1 to get the Value Estimates and the other to calculate the Weights for Z(s). For the Critic, to calculate the Value Estimates, we use the Monte Carlo (discounted returns) target for calculating the loss. For the other Critic, we use TD-error to calculate the loss; in some experiments we also use to calculate the immediate reward.
