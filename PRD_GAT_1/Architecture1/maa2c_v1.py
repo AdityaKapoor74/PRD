@@ -6,11 +6,14 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent_v2 import A2CAgent
+from a2c_agent_v1 import A2CAgent
+# from a2c_agent_soft_attention import A2CAgent
 import datetime
 
 import dgl
 import networkx as nx
+
+TIME_PER_STEP = 0.1
 
 class MAA2C:
 
@@ -22,48 +25,58 @@ class MAA2C:
 		self.save = save
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
+		self.one_hot_actions = torch.zeros(self.env.action_space[0].n,self.env.action_space[0].n)
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
+		for i in range(self.env.action_space[0].n):
+			self.one_hot_actions[i][i] = 1
 
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
+		# pairings
+		self.pairings = torch.zeros([self.num_agents,1])
+		key = [i+1 for i in range(self.num_agents//2)]
+		for i in range(self.num_agents//2):
+			self.pairings[i][0] = key[i]
+			self.pairings[self.num_agents-1-i][0] = key[i]
+
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment28_try7/critic_networks/'
+			critic_dir = '../../models/Experiment19/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment28_try7/actor_networks/'
+			actor_dir = '../../models/Experiment19/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment28_try7/'
+			weight_dir = '../../weights/Experiment19/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment28_try7/'
+			tensorboard_dir = '../../runs/Experiment19/'
 
 
 			# paths for models, tensorboard and gifs
-			self.critic_model_path = critic_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'leaky_relu'
-			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'leaky_relu'
-			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'leaky_relu'
-			self.filename = weight_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'leaky_relu.txt'
+			self.critic_model_path = critic_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
+			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
+			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
+			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment28_try7/'
+			gif_dir = '../../gifs/Experiment19/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
+			self.gif_path = gif_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
 
 		if not(self.gif) and self.save:
 			self.writer = SummaryWriter(self.tensorboard_path)
@@ -73,7 +86,6 @@ class MAA2C:
 		self.src_edges_actor = []
 		self.dest_edges_actor = []
 
-		# Fully connected graph for Critic, No self loops for Policy
 		for i in range(self.num_agents):
 			for j in range(self.num_agents):
 				self.src_edges_critic.append(i)
@@ -83,11 +95,8 @@ class MAA2C:
 				self.src_edges_actor.append(i)
 				self.dest_edges_actor.append(j)
 
-		# GRAPH FOR CRITIC
 		self.src_edges_critic = torch.tensor(self.src_edges_critic)
 		self.dest_edges_critic = torch.tensor(self.dest_edges_critic)
-
-		# GRAPH FOR ACTOR
 		self.src_edges_actor = torch.tensor(self.src_edges_actor)
 		self.dest_edges_actor = torch.tensor(self.dest_edges_actor)
 
@@ -177,8 +186,11 @@ class MAA2C:
 
 	def update(self,trajectory,episode):
 
-		states_critic = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		next_states_critic = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+
+		critic_graphs = [sars[0] for sars in trajectory]
+		next_critic_graphs = [sars[1] for sars in trajectory]
+		critic_graphs = dgl.batch(critic_graphs).to(self.device)
+		next_critic_graphs = dgl.batch(next_critic_graphs).to(self.device)
 
 		one_hot_actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
 		one_hot_next_actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
@@ -190,29 +202,52 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory])
 		
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc = self.agents.update(critic_graphs,next_critic_graphs,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 
-		# if not(self.gif) and self.save:
-		# 	for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
-		# 		TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta)
+		if not(self.gif) and self.save:
+			for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
+				TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta)
 
-		# 		for i in range(self.num_agents):
-		# 			self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/FN (agent'+str(i)+') threshold:'+str(theta),FN[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall[i],episode)
+				for i in range(self.num_agents):
+					self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
+					self.writer.add_scalar('Weight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
+					self.writer.add_scalar('Weight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
+					self.writer.add_scalar('Weight Metric/FN (agent'+str(i)+') threshold:'+str(theta),FN[i],episode)
+					self.writer.add_scalar('Weight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy[i],episode)
+					self.writer.add_scalar('Weight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision[i],episode)
+					self.writer.add_scalar('Weight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall[i],episode)
 
-		# 		self.writer.add_scalar('Weight Metric/TP threshold:'+str(theta),sum(TP),episode)
-		# 		self.writer.add_scalar('Weight Metric/FP threshold:'+str(theta),sum(FP),episode)
-		# 		self.writer.add_scalar('Weight Metric/TN threshold:'+str(theta),sum(TN),episode)
-		# 		self.writer.add_scalar('Weight Metric/FN threshold:'+str(theta),sum(FN),episode)
-		# 		self.writer.add_scalar('Weight Metric/Accuracy threshold:'+str(theta),sum(accuracy),episode)
-		# 		self.writer.add_scalar('Weight Metric/Precision threshold:'+str(theta),sum(precision),episode)
-		# 		self.writer.add_scalar('Weight Metric/Recall threshold:'+str(theta),sum(recall),episode)
+				self.writer.add_scalar('Weight Metric/TP threshold:'+str(theta),sum(TP),episode)
+				self.writer.add_scalar('Weight Metric/FP threshold:'+str(theta),sum(FP),episode)
+				self.writer.add_scalar('Weight Metric/TN threshold:'+str(theta),sum(TN),episode)
+				self.writer.add_scalar('Weight Metric/FN threshold:'+str(theta),sum(FN),episode)
+				self.writer.add_scalar('Weight Metric/Accuracy threshold:'+str(theta),sum(accuracy),episode)
+				self.writer.add_scalar('Weight Metric/Precision threshold:'+str(theta),sum(precision),episode)
+				self.writer.add_scalar('Weight Metric/Recall threshold:'+str(theta),sum(recall),episode)
+
+
+				TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights_preproc,theta)
+
+				for i in range(self.num_agents):
+					self.writer.add_scalar('PreProcWeight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/FN (agent'+str(i)+') threshold:'+str(theta),FN[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision[i],episode)
+					self.writer.add_scalar('PreProcWeight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall[i],episode)
+
+				self.writer.add_scalar('PreProcWeight Metric/TP threshold:'+str(theta),sum(TP),episode)
+				self.writer.add_scalar('PreProcWeight Metric/FP threshold:'+str(theta),sum(FP),episode)
+				self.writer.add_scalar('PreProcWeight Metric/TN threshold:'+str(theta),sum(TN),episode)
+				self.writer.add_scalar('PreProcWeight Metric/FN threshold:'+str(theta),sum(FN),episode)
+				self.writer.add_scalar('PreProcWeight Metric/Accuracy threshold:'+str(theta),sum(accuracy),episode)
+				self.writer.add_scalar('PreProcWeight Metric/Precision threshold:'+str(theta),sum(precision),episode)
+				self.writer.add_scalar('PreProcWeight Metric/Recall threshold:'+str(theta),sum(recall),episode)
+
+
+
 
 
 		if not(self.gif) and self.save:
@@ -221,11 +256,22 @@ class MAA2C:
 			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-			# self.writer.add_scalar('Weights/Average Weights',torch.mean(weights).item(),episode)
+			self.writer.add_scalar('Weights/Average Weights',torch.mean(weights).item(),episode)
 			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
-			self.writer.add_scalars('Weights/Average_Weights',{'Total':torch.mean(weights).item(),'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			# self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
-			# self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
+			self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
+			self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
+			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc)
+			self.writer.add_scalar('PreprocWeights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
+			self.writer.add_scalar('PreprocWeights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
+
+
+			# with open(self.filename,'a+') as f:
+			# 	torch.set_printoptions(profile="full")
+			# 	print("*"*50,file=f)
+			# 	print("EPISODE:",episode,file=f)
+			# 	print("*"*50,file=f)
+			# 	print(weights, file=f)
+			# 	torch.set_printoptions(profile="default")
 
 
 
@@ -242,6 +288,43 @@ class MAA2C:
 
 		return states_critic,states_actor
 
+
+
+	def construct_agent_graph_critic(self,states_critic):
+
+		# graph = nx.complete_graph(self.num_agents)
+		# graph = dgl.from_networkx(graph).to(self.device)
+		# graph = dgl.transform.add_self_loop(graph)
+		graph = dgl.graph((self.src_edges_critic,self.dest_edges_critic),idtype=torch.int32, device=self.device)
+
+		graph.ndata['obs'] = torch.FloatTensor(states_critic).to(self.device)
+
+		# graph.ndata['pairings'] = torch.FloatTensor(self.pairings).to(self.device)
+		# graph.ndata['obs'] = torch.cat([torch.FloatTensor(states_critic[:,:-2]),self.pairings], dim=-1).to(self.device)
+		
+		# current_agent_pose and paired_agent_goal_pose
+		pose_goal = []
+		for pose, goal in zip(states_critic[:,:2],states_critic[:,-2:]):
+			pose_goal.append(np.concatenate([pose,goal]))
+
+		graph.ndata['mypose_goalpose'] = torch.FloatTensor(pose_goal).to(self.device)
+
+		# current_agent goal pose and paired_agent goal pose
+		# print(torch.FloatTensor(states_critic[:,-4:]))
+		# graph.ndata['my_goal_paired_goal'] = torch.FloatTensor(states_critic[:,-4:]).to(self.device)
+
+		return graph
+
+
+	def construct_agent_graph_actor(self,states_actor):
+
+		# graph = nx.complete_graph(self.num_agents)
+		# graph = dgl.from_networkx(graph).to(self.device)
+		graph = dgl.graph((self.src_edges_actor,self.dest_edges_actor),idtype=torch.int32, device=self.device)
+
+		graph.ndata['obs'] = torch.FloatTensor(states_actor).to(self.device)
+			   
+		return graph
 
 
 	def make_gif(self,images,fname,fps=10, scale=1.0):
@@ -307,6 +390,10 @@ class MAA2C:
 					one_hot_actions[i][act] = 1
 
 
+				states_critic_graph = self.construct_agent_graph_critic(states_critic)
+
+
+
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
 
@@ -318,13 +405,16 @@ class MAA2C:
 				for i,act in enumerate(next_actions):
 					one_hot_next_actions[i][act] = 1
 
-
+				# graph for next state
+				next_states_critic_graph = self.construct_agent_graph_critic(next_states_critic)
+				
 				episode_reward += np.sum(rewards)
 
 				if not(self.gif):
 					if all(dones) or step == max_steps-1:
 
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
+						# dones = [1 for _ in range(self.num_agents)]
+						trajectory.append([states_critic_graph,next_states_critic_graph,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step+1,max_steps))
 						print("*"*100)
@@ -335,7 +425,8 @@ class MAA2C:
 
 						break
 					else:
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
+						# dones = [0 for _ in range(self.num_agents)]
+						trajectory.append([states_critic_graph,next_states_critic_graph,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						states_critic,states_actor = next_states_critic,next_states_actor
 						states = next_states
 
@@ -351,9 +442,9 @@ class MAA2C:
 
 			if not(self.gif):
 				self.update(trajectory,episode) 
-
 			elif self.gif and not(episode%gif_checkpoint):
 				print("GENERATING GIF")
+				# self.make_gif(np.array(images),gif_file_name+str(episode),duration=len(images)*3*TIME_PER_STEP,true_image=True,salience=False)
 				self.make_gif(np.array(images),self.gif_path)
 
 

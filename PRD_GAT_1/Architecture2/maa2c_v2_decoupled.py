@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent_new import A2CAgent
+from a2c_agent_v2_decoupled import A2CAgent
 # from a2c_agent_soft_attention import A2CAgent
 import datetime
 

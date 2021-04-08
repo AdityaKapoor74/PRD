@@ -1,5 +1,5 @@
 # from maa2c import MAA2C
-from maa2c_decoupled import MAA2C
+from maa2c_v1_decoupled import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario

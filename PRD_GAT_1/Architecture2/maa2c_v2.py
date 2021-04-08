@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent import A2CAgent
+from a2c_agent_v2 import A2CAgent
 # from a2c_agent_soft_attention import A2CAgent
 import datetime
 
@@ -41,42 +41,42 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../models/Experiment19/critic_networks/'
+			critic_dir = '../../models/Experiment26/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../models/Experiment19/actor_networks/'
+			actor_dir = '../../models/Experiment26/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment19/'
+			weight_dir = '../../weights/Experiment26/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../runs/Experiment19/'
+			tensorboard_dir = '../../runs/Experiment26/'
 
 
 			# paths for models, tensorboard and gifs
-			self.critic_model_path = critic_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
-			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
-			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
-			self.filename = weight_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
+			self.critic_model_path = critic_dir+str(self.date_time)+'VN_SAT_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
+			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
+			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh'
+			self.filename = weight_dir+str(self.date_time)+'VN_SAT_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
 
 		elif self.gif:
-			gif_dir = '../../gifs/Experiment19/'
+			gif_dir = '../../gifs/Experiment26/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'_VN_GAT1_PREPROC_GAT1_FC1_lr'+str(self.agents.value_lr)+'_PN_FC2_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
+			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_lambda'+str(self.agents.lambda_)+'.gif'
 
 		if not(self.gif) and self.save:
 			self.writer = SummaryWriter(self.tensorboard_path)

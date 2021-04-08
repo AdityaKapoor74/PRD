@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c import PolicyNetwork, CriticNetwork
+from a2c_v1 import PolicyNetwork, CriticNetwork
 import torch.nn.functional as F
 import dgl
 from torch.utils.data import DataLoader
