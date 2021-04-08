@@ -38,4 +38,4 @@ In this methodology we have 3 networks for the Critic Architecture stacked toget
 
 In this methodology we have 2 networks for the Critic Architecture stacked together:-
 1) Scalar Dot Product Attention to do the message passing of the observations of every agent to every other agent; sharing of information (we use raw observations concatenated with action values to calculate the weights) (SIGMOID/SOFTMAX to calculate the weights)
-3) Fully Connected Network to calculate the Value estimates for an agent i not conditioned on agent j's actions; output is a NxN matrix where N is the number of agents
+2) Fully Connected Network to calculate the Value estimates for an agent i not conditioned on agent j's actions; output is a NxN matrix where N is the number of agents
