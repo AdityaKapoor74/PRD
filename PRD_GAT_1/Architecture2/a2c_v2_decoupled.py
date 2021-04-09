@@ -42,18 +42,14 @@ def create_model(
 	return nn.Sequential(*layers)
 
 
-
-
-class CriticNetwork(nn.Module):
+class WeightNetwork(nn.Module):
 	def __init__(self, weight_input_dim, weight_output_dim, obs_z_input_dim, obs_z_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
-		super(CriticNetwork, self).__init__()
+		super(WeightNetwork, self).__init__()
 		
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.device = "cpu"
-		self.z = None
-		self.weight_z = None
 
 		# *******************************************************************************************************
 		# WEIGHT NETWORK
@@ -184,6 +180,7 @@ class CriticNetwork(nn.Module):
 
 		# weight_obsz = torch.softmax(torch.exp((score_obsz / math.sqrt(self.d_k_obsz)).clamp(-5, 5)), dim=-1).unsqueeze(-1)
 		weight_obsz = torch.softmax(scores_obsz/math.sqrt(self.d_k_obsz), dim=-1)
+		ret_weight_obsz = weight_obsz.unsqueeze(-1)
 
 		# inflating the dimensions to include policies so that we can calculate V(i,j) = Estimated return for agent i not conditioned on agent j's actions
 		obs_z = obs_z.repeat(1,1,self.num_agents,1).reshape(obs_z.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
@@ -207,7 +204,137 @@ class CriticNetwork(nn.Module):
 		Value = self.final_value_layer_2(Value)
 
 
-		return Value, weight_z, weight_obsz
+		return Value, weight_z, ret_weight_obsz
+
+
+
+
+class CriticNetwork(nn.Module):
+	def __init__(self, obs_z_input_dim, obs_z_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
+		super(CriticNetwork, self).__init__()
+		
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.device = "cpu"
+
+		# *******************************************************************************************************
+		# PROCESSING OF OBSERVATIONS AND Zs
+		self.key_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		self.key_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		# self.key_fc_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+
+		self.query_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		self.query_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		# self.query_fc_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+
+		self.attention_value_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		self.attention_value_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		# self.attention_value_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+
+
+		# dimesion of key
+		self.d_k_obsz = obs_z_output_dim
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layer_1 = nn.Linear(final_input_dim, 64, bias=True)
+		self.final_value_layer_2 = nn.Linear(64, final_output_dim, bias=True)
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# Extracting source nodes observation,z values
+		self.source_obsz = torch.zeros(self.num_agents,self.num_agents,obs_z_input_dim).to(self.device)
+		one_hots = torch.ones(obs_z_input_dim)
+		for j in range(self.num_agents):
+			self.source_obsz[j][j] = one_hots
+		# ********************************************************************************************************	
+
+		# ********************************************************************************************************
+		# Placing Policies instead of zs
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.num_agents,obs_z_input_dim).to(self.device)
+		self.place_zs = torch.ones(self.num_agents,self.num_agents,self.num_agents,obs_z_input_dim).to(self.device)
+		one_hots = torch.ones(obs_z_input_dim)
+		zero_hots = torch.zeros(obs_z_input_dim)
+
+		for i in range(self.num_agents):
+			for j in range(self.num_agents):
+				self.place_policies[i][j][j] = one_hots
+				self.place_zs[i][j][j] = zero_hots
+		# ********************************************************************************************************* 
+
+		# self.reset_parameters()
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.key_obsz_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.key_obsz_layer_2.weight, gain=gain)
+		nn.init.xavier_uniform_(self.query_obsz_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.query_obsz_layer_2.weight, gain=gain)
+		nn.init.xavier_uniform_(self.attention_value_obsz_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.attention_value_obsz_layer_2.weight, gain=gain)
+
+		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain)
+
+
+
+	def forward(self, states, policies, actions, weight_z):
+		
+		policies = policies.repeat(1,self.num_agents,1).reshape(policies.shape[0],self.num_agents,self.num_agents,-1)
+		actions = actions.repeat(1,self.num_agents,1).reshape(actions.shape[0],self.num_agents,self.num_agents,-1)
+		z = weight_z*actions + (1-weight_z)*policies
+
+		states = states.repeat(1,self.num_agents,1).reshape(states.shape[0],self.num_agents,self.num_agents,-1)
+
+		obs_z = torch.cat([states,z],dim=-1)
+
+		obs_z_shape = obs_z.shape
+		source_obsz = self.source_obsz
+		source_obsz = source_obsz.repeat(obs_z.shape[0],1,1).reshape(obs_z_shape)
+
+		# storing obs_z for every node --> obs_1, z_11; obs_2, z_21 ...
+		source_obs_z = torch.sum(source_obsz * obs_z, dim=-2) #to match dimensions
+		source_obs_z = source_obs_z.repeat(1,1,self.num_agents).reshape(obs_z_shape)
+
+		key_obsz = F.leaky_relu(self.key_obsz_layer_1(source_obs_z))
+		key_obsz = self.key_obsz_layer_2(key_obsz)
+
+		query_obsz = F.leaky_relu(self.query_obsz_layer_1(obs_z))
+		query_obsz = self.query_obsz_layer_2(query_obsz)
+
+		scores_obsz = torch.sum(key_obsz*query_obsz, dim=-1)
+
+		# weight_obsz = torch.softmax(torch.exp((score_obsz / math.sqrt(self.d_k_obsz)).clamp(-5, 5)), dim=-1).unsqueeze(-1)
+		weight_obsz = torch.softmax(scores_obsz/math.sqrt(self.d_k_obsz), dim=-1)
+		ret_weight_obsz = weight_obsz.unsqueeze(-1)
+
+		# inflating the dimensions to include policies so that we can calculate V(i,j) = Estimated return for agent i not conditioned on agent j's actions
+		obs_z = obs_z.repeat(1,1,self.num_agents,1).reshape(obs_z.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		# doing these operations to get timesteps x num_agents x num_agents x num_agents x dimension
+		place_policies = torch.cat([states,policies],dim=-1)
+		place_policies = place_policies.repeat(1,self.num_agents,1,1).reshape(place_policies.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		obs_zs = obs_z*self.place_zs
+		obs_pis = place_policies*self.place_policies
+		obs_z_pi = obs_zs + obs_pis
+
+		attention_value_other_obsz = F.leaky_relu(self.attention_value_obsz_layer_1(obs_z_pi))
+		attention_value_other_obsz = self.attention_value_obsz_layer_2(attention_value_other_obsz)
+
+		weight_obsz = weight_obsz.unsqueeze(-2).repeat(1,1,self.num_agents,1).reshape(weight_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+
+		node_features = torch.mean(attention_value_other_obsz * weight_obsz, dim=-2)
+
+		node_features = torch.cat([states,node_features], dim=-1)
+
+		Value = F.leaky_relu(self.final_value_layer_1(node_features))
+		Value = self.final_value_layer_2(Value)
+
+
+		return Value, ret_weight_obsz
 
 
 

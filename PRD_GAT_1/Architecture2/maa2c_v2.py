@@ -12,7 +12,6 @@ import datetime
 import dgl
 import networkx as nx
 
-TIME_PER_STEP = 0.1
 
 class MAA2C:
 
@@ -197,7 +196,7 @@ class MAA2C:
 		dones = torch.FloatTensor([sars[8] for sars in trajectory])
 		
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-
+		paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc)
 		# if not(self.gif) and self.save:
 		# 	for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
 		# 		TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta)

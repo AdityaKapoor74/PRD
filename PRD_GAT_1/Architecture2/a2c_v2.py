@@ -188,6 +188,7 @@ class CriticNetwork(nn.Module):
 
 		# weight_obsz = torch.softmax(torch.exp((score_obsz / math.sqrt(self.d_k_obsz)).clamp(-5, 5)), dim=-1).unsqueeze(-1)
 		weight_obsz = torch.softmax(scores_obsz/math.sqrt(self.d_k_obsz), dim=-1)
+		ret_weight_obsz = weight_obsz.unsqueeze(-1)
 
 		# inflating the dimensions to include policies so that we can calculate V(i,j) = Estimated return for agent i not conditioned on agent j's actions
 		obs_z = obs_z.repeat(1,1,self.num_agents,1).reshape(obs_z.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
@@ -201,8 +202,8 @@ class CriticNetwork(nn.Module):
 		attention_value_other_obsz = F.leaky_relu(self.attention_value_obsz_layer_1(obs_z_pi))
 		attention_value_other_obsz = self.attention_value_obsz_layer_2(attention_value_other_obsz)
 
-		weight_obsz = weight_obsz.repeat(1,self.num_agents,1,1).reshape(weight_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
-
+		weight_obsz = weight_obsz.unsqueeze(-2).repeat(1,1,self.num_agents,1).reshape(weight_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		
 		node_features = torch.mean(attention_value_other_obsz * weight_obsz, dim=-2)
 
 		node_features = torch.cat([states,node_features], dim=-1)
@@ -211,7 +212,7 @@ class CriticNetwork(nn.Module):
 		Value = self.final_value_layer_2(Value)
 
 
-		return Value, weight_z, weight_obsz
+		return Value, weight_z, ret_weight_obsz
 
 
 
