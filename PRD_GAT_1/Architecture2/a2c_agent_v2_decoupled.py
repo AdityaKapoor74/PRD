@@ -7,7 +7,6 @@ from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c_v2_decoupled import PolicyNetwork, CriticNetwork
 import torch.nn.functional as F
-import dgl
 from torch.utils.data import DataLoader
 
 class A2CAgent:
@@ -19,7 +18,7 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 1e-5,
+		lambda_ = 0.0,
 		trace_decay = 0.98,
 		gif = False
 		):
@@ -41,13 +40,10 @@ class A2CAgent:
 		self.gif = gif
 
 		self.weight_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose) --> observations
-		self.weight_output_dim = 32
+		self.weight_output_dim = 16
 		self.obs_z_input_dim = 2*3+2 + self.num_actions
 		self.obs_z_output_dim = 32
-		# Case 1
-		self.final_input_dim = self.obs_z_output_dim
-		# Case 2
-		# self.final_input_dim = self.obs_z_output_dim*2
+		self.final_input_dim = self.obs_z_output_dim + self.weight_input_dim
 		self.final_output_dim = 1
 		self.critic_network = CriticNetwork(self.weight_input_dim, self.weight_output_dim, self.obs_z_input_dim, self.obs_z_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
 
@@ -135,7 +131,7 @@ class A2CAgent:
 
 
 
-	def update(self,critic_graphs,next_critic_graphs,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
+	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -147,8 +143,8 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values, weights, weights_preproc = self.critic_network.forward(critic_graphs, probs.detach(), one_hot_actions)
-		# V_values_next, _, _ = self.critic_network_target.forward(next_critic_graphs, next_probs.detach(), one_hot_next_actions)
+		V_values, weights, weights_preproc = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		# V_values_next, _, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 		weights = weights.reshape(-1,self.num_agents,self.num_agents)
