@@ -69,6 +69,9 @@ class CriticNetwork(nn.Module):
 
 		# dimesion of key
 		self.d_k_weight = weight_output_dim
+
+		self.actions_noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		self.action_noise_uniform = torch.rand
 		# ********************************************************************************************************
 
 		# *******************************************************************************************************
@@ -164,8 +167,8 @@ class CriticNetwork(nn.Module):
 
 		scores_z = scores_z.reshape(-1,self.num_agents,1)
 
-		# weight_z = F.softmax(scores_z/math.sqrt(d_k_weight), dim=-2)
-		weight_z = torch.sigmoid(scores_z/math.sqrt(self.d_k_weight))
+		weight_z = F.softmax(scores_z/math.sqrt(self.d_k_weight), dim=-2)
+		# weight_z = torch.sigmoid(scores_z/math.sqrt(self.d_k_weight))
 		# weight_z = F.leaky_relu(scores_z/math.sqrt(self.d_k_weight))
 		# MAX = 1 and MIN = 0
 		# weight_z = torch.max(torch.Tensor([0.0]).to(self.device),torch.min(torch.Tensor([1.0]).to(self.device),weight_z))
@@ -177,7 +180,9 @@ class CriticNetwork(nn.Module):
 		# print(policies)
 		# print("ACTIONS")
 		# print(actions)
-		z = weight_z*actions + (1-weight_z)*policies
+		# normal_noise = self.actions_noise_normal.sample((actions.view(-1).size())).reshape(actions.size())
+		uniform_noise = self.action_noise_uniform((actions.view(-1).size())).reshape(actions.size())
+		z = weight_z*actions + uniform_noise
 		# print("Z")
 		# print(z)
 

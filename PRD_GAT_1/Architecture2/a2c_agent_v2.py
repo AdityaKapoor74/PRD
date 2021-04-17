@@ -41,10 +41,10 @@ class A2CAgent:
 		self.gif = gif
 
 		self.weight_input_dim = 2*3+2 # (pose,vel,goal pose, paired agent goal pose) --> observations
-		self.weight_output_dim = 16
+		self.weight_output_dim = 1
 		self.obs_z_input_dim = 2*3+2 + self.num_actions
-		self.obs_z_output_dim = 32
-		self.final_input_dim = self.obs_z_output_dim + self.weight_input_dim
+		self.obs_z_output_dim = 16
+		self.final_input_dim = 2*self.weight_input_dim+self.num_actions #self.obs_z_output_dim + self.weight_input_dim
 		self.final_output_dim = 1
 		self.critic_network = CriticNetwork(self.weight_input_dim, self.weight_output_dim, self.obs_z_input_dim, self.obs_z_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
 
@@ -56,8 +56,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../models/Experiment2/critic_networks/25-01-2021_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_PN_FC2_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode46000.pt"
-		# model_path_policy = "../../models/Experiment2/actor_networks/25-01-2021_PN_FC2_lr0.0002_VN_GAT1_PREPROC_GAT1_FC1_lr0.0002_GradNorm0.5_Entropy0.008_lambda0.1_epsiode46000.pt"
+		# model_path_value = "../../../models/Experiment37/critic_networks/11-04-2021VN_SAT_SAT_FCN_lr0.0002_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda0.0tanh_epsiode6000.pt"
+		# model_path_policy = "../../../models/Experiment29/actor_networks/09-04-2021_PN_FCN_lr0.0002VN_SAT_SAT_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda1e-05tanh_epsiode24000.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -155,7 +155,8 @@ class A2CAgent:
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 		# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
+		value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2)) + self.lambda_*torch.sum(weights)
+		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
 		# value_loss = F.smooth_l1_loss(V_values,target_values) + self.lambda_*torch.sum(weights)
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -172,15 +173,16 @@ class A2CAgent:
 		
 	# **********************************
 		self.critic_optimizer.zero_grad()
-		value_loss.backward(retain_graph=True)
+		value_loss.backward(retain_graph=False)
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 		self.critic_optimizer.step()
 
 
-		self.policy_optimizer.zero_grad()
-		policy_loss.backward(retain_graph=False)
-		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-		self.policy_optimizer.step()
+		# self.policy_optimizer.zero_grad()
+		# policy_loss.backward(retain_graph=False)
+		# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		# self.policy_optimizer.step()
+		grad_norm_policy = 0
 
 
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc

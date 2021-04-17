@@ -53,13 +53,13 @@ class WeightNetwork(nn.Module):
 
 		# *******************************************************************************************************
 		# WEIGHT NETWORK
-		self.key_weight_layer_1 = nn.Linear(weight_input_dim, 64, bias=True)
-		self.key_weight_layer_2 = nn.Linear(64, weight_output_dim, bias=True)
-		# self.key_fc_layer = nn.Linear(weight_input_dim, weight_output_dim, bias=True)
+		# self.key_weight_layer_1 = nn.Linear(weight_input_dim, 64, bias=True)
+		# self.key_weight_layer_2 = nn.Linear(64, weight_output_dim, bias=True)
+		self.key_weight_layer = nn.Linear(weight_input_dim, weight_output_dim, bias=False)
 
-		self.query_weight_layer_1 = nn.Linear(weight_input_dim, 64, bias=True)
-		self.query_weight_layer_2 = nn.Linear(64, weight_output_dim, bias=True)
-		# self.query_fc_layer = nn.Linear(weight_input_dim, weight_output_dim, bias=True)
+		# self.query_weight_layer_1 = nn.Linear(weight_input_dim, 64, bias=True)
+		# self.query_weight_layer_2 = nn.Linear(64, weight_output_dim, bias=True)
+		self.query_weight_layer = nn.Linear(weight_input_dim, weight_output_dim, bias=False)
 
 		# dimesion of key
 		self.d_k_weight = weight_output_dim
@@ -67,17 +67,17 @@ class WeightNetwork(nn.Module):
 
 		# *******************************************************************************************************
 		# PROCESSING OF OBSERVATIONS
-		self.key_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
-		self.key_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
-		# self.key_fc_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+		# self.key_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		# self.key_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		self.key_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=False)
 
-		self.query_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
-		self.query_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
-		# self.query_fc_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+		# self.query_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		# self.query_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		self.query_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=False)
 
-		self.attention_value_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
-		self.attention_value_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
-		# self.attention_value_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+		# self.attention_value_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		# self.attention_value_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		self.attention_value_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=False)
 
 
 		# dimesion of key
@@ -140,13 +140,20 @@ class WeightNetwork(nn.Module):
 
 	def forward(self, states, policies, actions):
 		# equation (1)
-		key_z = F.leaky_relu(self.key_weight_layer_1(states))
-		key_z = self.key_weight_layer_2(key_z)
+		# key_z = F.leaky_relu(self.key_weight_layer_1(states))
+		# key_z = self.key_weight_layer_2(key_z)
+		key_z = self.key_weight_layer(states)
 
-		query_z = F.leaky_relu(self.query_weight_layer_1(states))
-		query_z = self.query_weight_layer_2(query_z)
+		# query_z = F.leaky_relu(self.query_weight_layer_1(states))
+		# query_z = self.query_weight_layer_2(query_z)
+		query_z = self.query_weight_layer(states)
 
-
+		# print("KEY")
+		# print(key_z)
+		# print("KEY transpose")
+		# print(key_z.transpose(1,2))
+		# print("QUERY")
+		# print(query_z)
 		scores_z = torch.bmm(query_z,key_z.transpose(1,2)).transpose(1,2).reshape(-1,1)
 		scores_z = scores_z.reshape(-1,self.num_agents,1)
 
@@ -157,6 +164,7 @@ class WeightNetwork(nn.Module):
 		actions = actions.repeat(1,self.num_agents,1).reshape(actions.shape[0],self.num_agents,self.num_agents,-1)
 		z = weight_z*actions + (1-weight_z)*policies
 
+		states_ = states
 		states = states.repeat(1,self.num_agents,1).reshape(states.shape[0],self.num_agents,self.num_agents,-1)
 
 		obs_z = torch.cat([states,z],dim=-1)
@@ -169,11 +177,13 @@ class WeightNetwork(nn.Module):
 		source_obs_z = torch.sum(source_obsz * obs_z, dim=-2) #to match dimensions
 		source_obs_z = source_obs_z.repeat(1,1,self.num_agents).reshape(obs_z_shape)
 
-		key_obsz = F.leaky_relu(self.key_obsz_layer_1(source_obs_z))
-		key_obsz = self.key_obsz_layer_2(key_obsz)
+		# key_obsz = F.leaky_relu(self.key_obsz_layer_1(source_obs_z))
+		# key_obsz = self.key_obsz_layer_2(key_obsz)
+		key_obsz = self.key_obsz_layer(source_obs_z)
 
-		query_obsz = F.leaky_relu(self.query_obsz_layer_1(obs_z))
-		query_obsz = self.query_obsz_layer_2(query_obsz)
+		# query_obsz = F.leaky_relu(self.query_obsz_layer_1(obs_z))
+		# query_obsz = self.query_obsz_layer_2(query_obsz)
+		query_obsz = self.query_obsz_layer(obs_z)
 
 
 		scores_obsz = torch.sum(key_obsz*query_obsz, dim=-1)
@@ -181,6 +191,9 @@ class WeightNetwork(nn.Module):
 		# weight_obsz = torch.softmax(torch.exp((score_obsz / math.sqrt(self.d_k_obsz)).clamp(-5, 5)), dim=-1).unsqueeze(-1)
 		weight_obsz = torch.softmax(scores_obsz/math.sqrt(self.d_k_obsz), dim=-1)
 		ret_weight_obsz = weight_obsz.unsqueeze(-1)
+		# print("WEIGHTS_OBSZ BEFORE")
+		# print(weight_obsz.shape)
+		# print(weight_obsz)
 
 		# inflating the dimensions to include policies so that we can calculate V(i,j) = Estimated return for agent i not conditioned on agent j's actions
 		obs_z = obs_z.repeat(1,1,self.num_agents,1).reshape(obs_z.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
@@ -191,14 +204,20 @@ class WeightNetwork(nn.Module):
 		obs_pis = place_policies*self.place_policies
 		obs_z_pi = obs_zs + obs_pis
 
-		attention_value_other_obsz = F.leaky_relu(self.attention_value_obsz_layer_1(obs_z_pi))
-		attention_value_other_obsz = self.attention_value_obsz_layer_2(attention_value_other_obsz)
+		# attention_value_other_obsz = F.leaky_relu(self.attention_value_obsz_layer_1(obs_z_pi))
+		# attention_value_other_obsz = self.attention_value_obsz_layer_2(attention_value_other_obsz)
+		attention_value_other_obsz = self.attention_value_obsz_layer(obs_z_pi)
 
-		weight_obsz = weight_obsz.repeat(1,self.num_agents,1,1).reshape(weight_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		# print(weight_obsz.unsqueeze(-1).repeat(1,1,self.num_agents,1).reshape(weight_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1))
+		weight_obsz = weight_obsz.unsqueeze(-2).repeat(1,1,self.num_agents,1).reshape(weight_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		# print("WEIGHT OBSZ")
+		# print(weight_obsz.shape)
+		# print(weight_obsz)
 
 		node_features = torch.mean(attention_value_other_obsz * weight_obsz, dim=-2)
 
-		node_features = torch.cat([states,node_features], dim=-1)
+		states_ = states_.unsqueeze(-2).repeat(1,1,self.num_agents,1)
+		node_features = torch.cat([states_,node_features], dim=-1)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
@@ -220,17 +239,17 @@ class CriticNetwork(nn.Module):
 
 		# *******************************************************************************************************
 		# PROCESSING OF OBSERVATIONS AND Zs
-		self.key_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
-		self.key_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
-		# self.key_fc_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+		# self.key_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		# self.key_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		self.key_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=False)
 
-		self.query_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
-		self.query_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
-		# self.query_fc_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+		# self.query_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		# self.query_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		self.query_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=False)
 
-		self.attention_value_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
-		self.attention_value_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
-		# self.attention_value_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=True)
+		# self.attention_value_obsz_layer_1 = nn.Linear(obs_z_input_dim, 64, bias=True)
+		# self.attention_value_obsz_layer_2 = nn.Linear(64, obs_z_output_dim, bias=True)
+		self.attention_value_obsz_layer = nn.Linear(obs_z_input_dim, obs_z_output_dim, bias=False)
 
 
 		# dimesion of key
@@ -288,6 +307,7 @@ class CriticNetwork(nn.Module):
 		actions = actions.repeat(1,self.num_agents,1).reshape(actions.shape[0],self.num_agents,self.num_agents,-1)
 		z = weight_z*actions + (1-weight_z)*policies
 
+		states_ = states
 		states = states.repeat(1,self.num_agents,1).reshape(states.shape[0],self.num_agents,self.num_agents,-1)
 
 		obs_z = torch.cat([states,z],dim=-1)
@@ -300,11 +320,13 @@ class CriticNetwork(nn.Module):
 		source_obs_z = torch.sum(source_obsz * obs_z, dim=-2) #to match dimensions
 		source_obs_z = source_obs_z.repeat(1,1,self.num_agents).reshape(obs_z_shape)
 
-		key_obsz = F.leaky_relu(self.key_obsz_layer_1(source_obs_z))
-		key_obsz = self.key_obsz_layer_2(key_obsz)
+		# key_obsz = F.leaky_relu(self.key_obsz_layer_1(source_obs_z))
+		# key_obsz = self.key_obsz_layer_2(key_obsz)
+		key_obsz = self.key_obsz_layer(source_obs_z)
 
-		query_obsz = F.leaky_relu(self.query_obsz_layer_1(obs_z))
-		query_obsz = self.query_obsz_layer_2(query_obsz)
+		# query_obsz = F.leaky_relu(self.query_obsz_layer_1(obs_z))
+		# query_obsz = self.query_obsz_layer_2(query_obsz)
+		query_obsz = self.query_obsz_layer(obs_z)
 
 		scores_obsz = torch.sum(key_obsz*query_obsz, dim=-1)
 
@@ -321,17 +343,42 @@ class CriticNetwork(nn.Module):
 		obs_pis = place_policies*self.place_policies
 		obs_z_pi = obs_zs + obs_pis
 
-		attention_value_other_obsz = F.leaky_relu(self.attention_value_obsz_layer_1(obs_z_pi))
-		attention_value_other_obsz = self.attention_value_obsz_layer_2(attention_value_other_obsz)
+		# print("OBSERVATION_Z_PI")
+		# print(obs_z_pi.shape)
+		# print(obs_z_pi)
+
+		# attention_value_other_obsz = F.leaky_relu(self.attention_value_obsz_layer_1(obs_z_pi))
+		# attention_value_other_obsz = self.attention_value_obsz_layer_2(attention_value_other_obsz)
+		attention_value_other_obsz = self.attention_value_obsz_layer(obs_z_pi)
+		# print("ATTENTION VALUES")
+		# print(attention_value_other_obsz.shape)
+		# print(attention_value_other_obsz)
 
 		weight_obsz = weight_obsz.unsqueeze(-2).repeat(1,1,self.num_agents,1).reshape(weight_obsz.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		# print("WEIGHTS_OBSZ")
+		# print(weight_obsz.shape)
+		# print(weight_obsz)
 
 		node_features = torch.mean(attention_value_other_obsz * weight_obsz, dim=-2)
+		# print("AGGREGATED ATTENTION VALUES")
+		# print(node_features.shape)
+		# print(node_features)
 
-		node_features = torch.cat([states,node_features], dim=-1)
+		# print("STATES")
+		# print(states_.unsqueeze(-2).repeat(1,1,self.num_agents,1))
+		# print(states_.unsqueeze(-2).repeat(1,1,self.num_agents,1).shape)
+		states_ = states_.unsqueeze(-2).repeat(1,1,self.num_agents,1)
+		node_features = torch.cat([states_,node_features], dim=-1)
+		# print("NODE FEATURES")
+		# print(node_features.shape)
+		# print(node_features)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
+
+		# print("VALUE")
+		# print(Value.shape)
+		# print(Value)
 
 
 		return Value, ret_weight_obsz

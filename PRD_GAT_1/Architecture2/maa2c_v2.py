@@ -39,26 +39,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../../models/Experiment29/critic_networks/'
+			critic_dir = '../../../models/Experiment36/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../../models/Experiment29/actor_networks/'
+			actor_dir = '../../../models/Experiment36/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../weights/Experiment29/'
+			weight_dir = '../../weights/Experiment36/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../../runs/Experiment29/'
+			tensorboard_dir = '../../../runs/Experiment36/'
 
 
 			# paths for models, tensorboard and gifs
@@ -68,7 +68,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'VN_SAT_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+'_lambda'+str(self.agents.lambda_)+'tanh.txt'
 
 		elif self.gif:
-			gif_dir = '../../../gifs/Experiment29/'
+			gif_dir = '../../../gifs/Experiment36/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -196,7 +196,6 @@ class MAA2C:
 		dones = torch.FloatTensor([sars[8] for sars in trajectory])
 		
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weights_preproc = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-		paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc)
 		# if not(self.gif) and self.save:
 		# 	for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
 		# 		TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta)
@@ -253,10 +252,10 @@ class MAA2C:
 			# self.writer.add_scalar('Weights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
 			# self.writer.add_scalar('Weights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
 			self.writer.add_scalars('Weights/Average_Weights',{'Total':torch.mean(weights).item(),'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc)
+			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_preproc)
 			# self.writer.add_scalar('PreprocWeights/Average Paired Agent Weights',paired_agent_avg_weight,episode)
 			# self.writer.add_scalar('PreprocWeights/Average Unpaired Agent Weights',unpaired_agent_avg_weight,episode)
-			self.writer.add_scalars('Weights_PreProc/Average_Weights',{'Total':torch.mean(weights_preproc).item(),'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+			# self.writer.add_scalars('Weights_PreProc/Average_Weights',{'Total':torch.mean(weights_preproc).item(),'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
 			
 
 
