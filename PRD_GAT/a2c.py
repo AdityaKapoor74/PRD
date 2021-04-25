@@ -288,18 +288,7 @@ class CriticNetwork(nn.Module):
 		obs_final, weights = self.weight_layer(g,g.ndata['obs_proc'],policies,actions)
 		x = self.value_layer(obs_final)
 		return x, weights
-
-# class PolicyNetwork(nn.Module):
-# 	def __init__(self, input_dim, output_dim):
-# 		super(PolicyNetwork,self).__init__()
-# 		self.policy_layer1 = GNNLayer(input_dim, 64)
-# 		self.policy_layer2 = GNNLayer(64, output_dim)
-
-# 	def forward(self, g):
-# 		features = g.ndata['obs']
-# 		x = F.relu(self.policy_layer1(g, features))
-# 		x = F.softmax(self.policy_layer2(g, x),-1)
-# 		return x
+		
 
 class PolicyNetwork(nn.Module):
 	def __init__(

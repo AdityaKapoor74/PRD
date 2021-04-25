@@ -67,10 +67,10 @@ class CriticNetwork(nn.Module):
 		# self.query_layer_2 = nn.Linear(32, obs_act_output_dim, bias=False)
 		self.query_layer = nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False)
 
-		self.attention_value_layer_1 = nn.Linear(obs_act_input_dim, 32, bias=False)
+		# self.attention_value_layer_1 = nn.Linear(obs_act_input_dim, 32, bias=False)
 		# self.attention_value_layer_norm = nn.LayerNorm(32)
-		self.attention_value_layer_2 = nn.Linear(32, obs_act_output_dim, bias=False)
-		# self.attention_value_layer = nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False)
+		# self.attention_value_layer_2 = nn.Linear(32, obs_act_output_dim, bias=False)
+		self.attention_value_layer = nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False)
 
 		# dimesion of key
 		self.d_k_obs_act = obs_act_output_dim
@@ -119,12 +119,12 @@ class CriticNetwork(nn.Module):
 		# nn.init.xavier_uniform_(self.key_layer_2.weight, gain=gain)
 		# nn.init.xavier_uniform_(self.query_layer_1.weight, gain=gain)
 		# nn.init.xavier_uniform_(self.query_layer_2.weight, gain=gain)
-		nn.init.xavier_uniform_(self.attention_value_layer_1.weight, gain=gain)
-		nn.init.xavier_uniform_(self.attention_value_layer_2.weight, gain=gain)
+		# nn.init.xavier_uniform_(self.attention_value_layer_1.weight, gain=gain)
+		# nn.init.xavier_uniform_(self.attention_value_layer_2.weight, gain=gain)
 
-		nn.init.xavier_uniform_(self.key_layer.weight, gain=gain)
-		nn.init.xavier_uniform_(self.query_layer.weight, gain=gain)
-		# nn.init.xavier_uniform_(self.attention_value_layer.weight, gain=gain)
+		nn.init.xavier_uniform_(self.key_layer.weight)
+		nn.init.xavier_uniform_(self.query_layer.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer.weight)
 
 
 		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain)
@@ -200,14 +200,10 @@ class CriticNetwork(nn.Module):
 
 		# attention_values = F.leaky_relu(self.attention_value_layer_1(obs_actions_policies))
 		# attention_values = self.attention_value_layer_2(self.attention_value_layer_norm(attention_values))
-		attention_values = torch.tanh(self.attention_value_layer_1(obs_actions_policies))
-		attention_values = torch.tanh(self.attention_value_layer_2(attention_values))
+		# attention_values = torch.tanh(self.attention_value_layer_1(obs_actions_policies))
+		# attention_values = torch.tanh(self.attention_value_layer_2(attention_values))
+		attention_values = torch.tanh(self.attention_value_layer(obs_actions_policies))
 
-		# normal_noise = self.noise_normal.sample((actions.view(-1).size())).reshape(actions.size())
-		uniform_noise = self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size())
-		attention_values_noise = attention_values + uniform_noise
-
-		attention_values_noise = attention_values_noise.repeat(1,self.num_agents,1,1).reshape(attention_values_noise.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 		# print("ATTENTION VALUES")
 		# print(attention_values_noise)
 		current_node_states = states.unsqueeze(-2).repeat(1,1,self.num_agents,1)
@@ -216,7 +212,15 @@ class CriticNetwork(nn.Module):
 
 		# print("AGGREGATING ATTENTION VALUES")
 		# print(torch.mean(attention_values_noise*weight, dim=-2))
-		node_features = torch.cat([current_node_states,torch.mean(attention_values_noise*weight, dim=-2)], dim=-1)
+		# normal_noise = self.noise_normal.sample((actions.view(-1).size())).reshape(actions.size())
+
+		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+
+		uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
+		attention_values_noise = attention_values*weight + uniform_noise
+		# attention_values_noise = attention_values + uniform_noise
+
+		node_features = torch.cat([current_node_states,torch.mean(attention_values_noise, dim=-2)], dim=-1)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)

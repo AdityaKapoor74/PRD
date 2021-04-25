@@ -19,7 +19,6 @@ class A2CAgent:
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
-		lambda_ = 0.0,
 		trace_decay = 0.98,
 		gif = False
 		):
@@ -29,7 +28,6 @@ class A2CAgent:
 		self.policy_lr = policy_lr
 		self.gamma = gamma
 		self.entropy_pen = entropy_pen
-		self.lambda_ = lambda_
 		self.trace_decay = trace_decay
 		self.tau = 0.999
 
@@ -40,9 +38,9 @@ class A2CAgent:
 		self.num_actions = self.env.action_space[0].n
 		self.gif = gif
 
-		self.obs_act_input_dim = 2*3 + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+		self.obs_act_input_dim = 2*4 + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 		self.obs_act_output_dim = 16
-		self.final_input_dim = 2*3 + self.obs_act_output_dim #self.obs_z_output_dim + self.weight_input_dim
+		self.final_input_dim = 2*4 + self.obs_act_output_dim #self.obs_z_output_dim + self.weight_input_dim
 		self.final_output_dim = 1
 		self.critic_network = CriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
 
@@ -143,19 +141,19 @@ class A2CAgent:
 		Calculate V values
 		'''
 		V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		# V_values_next, _, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-
+		masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights, dim=-1), num_classes=self.num_agents),-1,-2)
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 		# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-		value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2)) #+ self.lambda_*torch.sum(weights)
-		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.lambda_*torch.sum(weights) #self.weight_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)#self.lambda_*F.smooth_l1_loss(self.weight_assignment.unsqueeze(0).repeat(weights.shape[0],1,1),weights)
-		# value_loss = F.smooth_l1_loss(V_values,target_values) + self.lambda_*torch.sum(weights)
+		# value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2)) #+ self.lambda_*torch.sum(weights)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+		# value_loss = F.smooth_l1_loss(V_values,target_values)
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
@@ -163,7 +161,9 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		# MASKING ADVANTAGES
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
@@ -176,11 +176,11 @@ class A2CAgent:
 		self.critic_optimizer.step()
 
 
-		# self.policy_optimizer.zero_grad()
-		# policy_loss.backward(retain_graph=False)
-		# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-		# self.policy_optimizer.step()
-		grad_norm_policy = 0
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward(retain_graph=False)
+		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		self.policy_optimizer.step()
+		# grad_norm_policy = 0
 
 
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights
