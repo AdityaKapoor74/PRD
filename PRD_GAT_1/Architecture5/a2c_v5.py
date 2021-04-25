@@ -217,7 +217,7 @@ class CriticNetwork(nn.Module):
 		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 
 		uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
-		attention_values_noise = attention_values*weight + uniform_noise
+		attention_values_noise = attention_values*weight #+ uniform_noise
 		# attention_values_noise = attention_values + uniform_noise
 
 		node_features = torch.cat([current_node_states,torch.mean(attention_values_noise, dim=-2)], dim=-1)

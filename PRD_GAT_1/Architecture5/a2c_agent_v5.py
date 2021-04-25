@@ -161,9 +161,9 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
 		# MASKING ADVANTAGES
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
