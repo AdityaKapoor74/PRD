@@ -7,3 +7,6 @@
 [submodule "PRD_GAT_2/multiagent-particle-envs"]
 	path = PRD_GAT_2/multiagent-particle-envs
 	url = https://github.com/AdityaKapoor74/multiagent-particle-envs.git
+[submodule "multiagent-particle-envs"]
+	path = multiagent-particle-envs
+	url = https://github.com/AdityaKapoor74/multiagent-particle-envs.git
