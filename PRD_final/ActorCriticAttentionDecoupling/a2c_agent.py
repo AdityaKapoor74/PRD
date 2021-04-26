@@ -20,7 +20,6 @@ class A2CAgent:
 		entropy_pen=0.008, 
 		gamma=0.99,
 		trace_decay = 0.98,
-		threshold = 0.1,
 		tau = 0.999,
 		select_above_threshold = 0.1,
 		softmax_cut_threshold = 0.1,
@@ -56,9 +55,9 @@ class A2CAgent:
 		self.final_output_dim = 1
 		
 		# SCALAR DOT PRODUCT
-		# self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 		# GRAPH ATTENTION
-		self.critic_network = GraphAttentionCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		# self.critic_network = GraphAttentionCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
@@ -66,9 +65,9 @@ class A2CAgent:
 		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
 		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
 
-		self.self_loop = torch.zeros(self.num_agents,self.num_agents)
+		self.self_loop = torch.ones(self.num_agents,self.num_agents)
 		for i in range(self.self_loop.shape[0]):
-			self.self_loop[i][i] = 1
+			self.self_loop[i][i] = 0
 
 
 		# Loading models
