@@ -48,9 +48,9 @@ def create_model(
 
 
 
-class CriticNetwork(nn.Module):
+class ScalarDotProductCriticNetwork(nn.Module):
 	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
-		super(CriticNetwork, self).__init__()
+		super(ScalarDotProductCriticNetwork, self).__init__()
 		
 		self.num_agents = num_agents
 		self.num_actions = num_actions
@@ -144,24 +144,135 @@ class CriticNetwork(nn.Module):
 		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 
 		# SOFTMAX
-		attention_values_noise = attention_values*weight
+		weighted_attention_values = attention_values*weight
 
 		# SOFTMAX WITH NOISE
 		# uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
-		# attention_values_noise = attention_values*weight + uniform_noise
+		# weighted_attention_values = attention_values*weight + uniform_noise
 
 		# SOFTMAX WITH NORMALIZATION
 		scaling_weight = F.relu(weight - self.threshold)
 		scaling_weight = torch.div(scaling_weight,torch.sum(scaling_weight,dim =-2).repeat(1,1,1,self.num_agents).unsqueeze(-1))
-		attention_values_noise = attention_values*scaling_weight
+		weighted_attention_values = attention_values*scaling_weight
 
 
-		node_features = torch.cat([current_node_states,torch.mean(attention_values_noise, dim=-2)], dim=-1)
+		node_features = torch.cat([current_node_states,torch.mean(weighted_attention_values, dim=-2)], dim=-1)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
 
 		return Value, ret_weight
+
+
+
+class GraphAttentionCriticNetwork(nn.Module):
+	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
+		super(GraphAttentionCriticNetwork, self).__init__()
+		
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.device = "cpu"
+
+		self.embedding = nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False)
+
+		self.attention = nn.Linear(2*obs_act_output_dim, 1, bias=False)
+
+		# NOISE
+		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		self.noise_uniform = torch.rand
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layer_1 = nn.Linear(final_input_dim, 64, bias=False)
+		self.final_value_layer_2 = nn.Linear(64, final_output_dim, bias=False)
+		# ********************************************************************************************************	
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+		self.threshold = threshold
+		# ********************************************************************************************************* 
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.embedding.weight)
+		nn.init.xavier_uniform_(self.attention.weight)
+
+
+		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain)
+
+
+
+	def forward(self, states, policies, actions):
+
+		# input to KEY, QUERY and ATTENTION VALUE NETWORK
+		obs_actions = torch.cat([states,actions],dim=-1)
+
+		# For calculating the right advantages
+		obs_policy = torch.cat([states,policies], dim=-1)
+
+		embeddings = self.embedding(obs_actions)
+
+		# print("EMBEDDINGS")
+		# print(embeddings)
+		source_nodes = embeddings.unsqueeze(-2).repeat(1,1,self.num_agents,1)
+		# print("SOURCE NODES")
+		# print(source_nodes)
+		neighboring_nodes = embeddings.unsqueeze(-3).repeat(1,self.num_agents,1,1)
+		# print("NEIGHBORING NODE")
+		# print(neighboring_nodes)
+
+		attention_input = torch.cat([source_nodes,neighboring_nodes], dim=-1)
+		attention_scores = F.leaky_relu(self.attention(attention_input))
+		weight = F.softmax(attention_scores, dim=-2)
+		ret_weight = weight
+		weight = weight.repeat(1,1,self.num_agents,1).reshape(-1,self.num_agents,self.num_agents,self.num_agents,1)
+		# print("WEIGHT")
+		# print(weight)
+
+
+		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+		embeddings = torch.tanh(self.embedding(obs_actions_policies))
+
+		current_node_states = states.unsqueeze(-2).repeat(1,1,self.num_agents,1)
+
+		embeddings = embeddings.repeat(1,self.num_agents,1,1).reshape(embeddings.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+
+		# SOFTMAX
+		weighted_embeddings = embeddings*weight
+
+		# SOFTMAX WITH NOISE
+		# uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
+		# weighted_embeddings = embeddings*weight + uniform_noise
+
+		# SOFTMAX WITH NORMALIZATION
+		# scaling_weight = F.relu(weight - self.threshold)
+		# scaling_weight = torch.div(scaling_weight,torch.sum(scaling_weight,dim =-2).repeat(1,1,1,self.num_agents).unsqueeze(-1))
+		# weighted_embeddings = weighted_embeddings*scaling_weight
+
+
+		node_features = torch.cat([current_node_states,torch.mean(weighted_embeddings, dim=-2)], dim=-1)
+
+		Value = F.leaky_relu(self.final_value_layer_1(node_features))
+		Value = self.final_value_layer_2(Value)
+
+		return Value, ret_weight
+
 
 
 

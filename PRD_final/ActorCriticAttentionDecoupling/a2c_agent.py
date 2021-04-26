@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_v5 import PolicyNetwork, CriticNetwork
+from a2c import PolicyNetwork, ScalarDotProductCriticNetwork, GraphAttentionCriticNetwork
 import torch.nn.functional as F
 import dgl
 from torch.utils.data import DataLoader
@@ -54,7 +54,12 @@ class A2CAgent:
 		self.obs_act_output_dim = 16
 		self.final_input_dim = 2*4 + self.obs_act_output_dim #self.obs_z_output_dim + self.weight_input_dim
 		self.final_output_dim = 1
-		self.critic_network = CriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		
+		# SCALAR DOT PRODUCT
+		# self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		# GRAPH ATTENTION
+		self.critic_network = GraphAttentionCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
 
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
