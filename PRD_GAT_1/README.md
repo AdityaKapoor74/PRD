@@ -15,7 +15,7 @@ We are using Advantage Actor Critic Algorithm to test out our hypothesis with a 
 * Policy Network - FCN
 
 <!-- ARCHITECTURE 1 -->
-1. Architecture 1
+### Architecture 1
 
 In this methodology we have 3 networks for the Critic Architecture that are/ stacked together:-
   1. Scalar Dot Product Attention to do the preprocessing of the observations of every agent with a message passing round (we use raw observations to calculate the weights) (SOFTMAX to calculate the weights)
@@ -23,7 +23,7 @@ In this methodology we have 3 networks for the Critic Architecture that are/ sta
   3. Fully Connected Network to calculate the Value estimates for an agent i not conditioned on agent j's actions; output is a NxN matrix where N is the number of agents
 
 <!-- ARCHITECTURE 2 -->
-2. Architecture 2
+### Architecture 2
 
 In this methodology we have 3 networks for the Critic Architecture that are stacked together:-
   1. Scalar Dot Product Attention to calculate the z values (We use raw observations to calculate the weights) (SIGMOID to calculate the weights so that there is a pair-wise dependency)
@@ -32,7 +32,7 @@ In this methodology we have 3 networks for the Critic Architecture that are stac
 
 
 <!-- ARCHITECTURE 3 -->
-3. Architecture 3
+### Architecture 3
 
 In this methodology we have 2 networks for the Critic Architecture that are stacked together:-
   1. Scalar Dot Product Attention to do the message passing of the observations of every agent to every other agent; sharing of information (we use raw observations concatenated with action values to calculate the weights) (SIGMOID/SOFTMAX to calculate the weights)
@@ -42,7 +42,7 @@ In this methodology we have 2 networks for the Critic Architecture that are stac
 
 
 <!-- ARCHITECTURE 4 -->
-4. Architecture 4
+### Architecture 4
 
 In this methodology we have 2 networks for the Critic Architecture that are stacked together:-
   1. Scalar Dot Product Attention to do the message passing of the observations of every agent to every other agent; sharing of information (we use raw observations to calculate the weights) (SIGMOID/SOFTMAX to calculate the weights)
@@ -52,7 +52,7 @@ In this methodology we have 2 networks for the Critic Architecture that are stac
 
 
 <!-- ARCHITECTURE 5 -->
-5. Architecture 5
+### Architecture 5
 
 In this methodology we have 2 networks for the Critic Architecture that are stacked together:-
   1. Scalar Dot Product Attention to do the message passing of the observations of every agent to every other agent; sharing of information (we use raw observations to calculate the weights) (SOFTMAX to calculate the weights)
