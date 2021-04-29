@@ -177,8 +177,13 @@ class A2CAgent:
 		# MONTE CARLO LOSS
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
+		# SUMMED VALUE LOSS
+		summed_Value = torch.sum(V_values,dim=-2)
+		summed_discounted_reward = torch.sum(discounted_rewards,dim=-2)
+		value_loss = F.smooth_l1_loss(summed_Value,summed_discounted_reward)
+
 		# ADDING L1 Regularization
-		value_loss = value_loss + self.lambda_*torch.sum(weights*self.self_loop)
+		# value_loss = value_loss + self.lambda_*torch.sum(weights*self.self_loop)
 		
 		# # ***********************************************************************************
 	# 	#update actor (policy net)

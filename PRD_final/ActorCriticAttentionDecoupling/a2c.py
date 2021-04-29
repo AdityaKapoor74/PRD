@@ -129,7 +129,6 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		weight = F.softmax(score_obs_actions/math.sqrt(self.d_k_obs_act), dim=-2)
 		weight = weight.reshape(weight.shape[0]//self.num_agents,self.num_agents,-1)
 		ret_weight = weight
-		weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
 
@@ -144,16 +143,20 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 
 		# SOFTMAX
+		weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		weighted_attention_values = attention_values*weight
 
 		# SOFTMAX WITH NOISE
+		# weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		# uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
 		# weighted_attention_values = attention_values*weight + uniform_noise
 
 		# SOFTMAX WITH NORMALIZATION
-		scaling_weight = F.relu(weight - self.threshold)
-		scaling_weight = torch.div(scaling_weight,torch.sum(scaling_weight,dim =-2).repeat(1,1,1,self.num_agents).unsqueeze(-1))
-		weighted_attention_values = attention_values*scaling_weight
+		# scaling_weight = F.relu(weight - self.threshold)
+		# scaling_weight = torch.div(scaling_weight,torch.sum(scaling_weight,dim =-1).unsqueeze(-1))
+		# ret_weight = scaling_weight
+		# scaling_weight = scaling_weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+		# weighted_attention_values = attention_values*scaling_weight
 
 
 		node_features = torch.cat([current_node_states,torch.mean(weighted_attention_values, dim=-2)], dim=-1)
