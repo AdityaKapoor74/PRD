@@ -14,7 +14,7 @@ class A2CAgent:
 	def __init__(
 		self, 
 		env, 
-		value_lr=1e-2, #1e-2 for environment 1
+		value_lr=1e-1, #1e-2 for environment 1
 		policy_lr=1e-3, 
 		entropy_pen=0.01, 
 		gamma=0.99,

@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent import A2CAgent
+from a2c_agent_paired_agents import A2CAgent
 import datetime
 
 import dgl

@@ -181,7 +181,7 @@ class MAA2C:
 			self.calculate_indiv_weights_obs(weights_obs)
 			for i in range(self.num_agents):
 				landmark = 'landmark %d' % i
-				self.writer.add_scalars('Weights/Average_Weights_Landmark_Landmark/'+landmark,self.weight_obs_act_dictionary[landmark],episode)
+				self.writer.add_scalars('Weights/Average_Weights_Landmark_Landmark/'+landmark,self.weight_obs_dictionary[landmark],episode)
 
 			# ENTROPY OF WEIGHTS_OBS_ACT
 			entropy_weights = -torch.mean(torch.sum(weights_obs_act * torch.log(torch.clamp(weights_obs_act, 1e-10,1.0)), dim=2))

@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c import PolicyNetwork, ScalarDotProductCriticNetwork, GraphAttentionCriticNetwork, QNetwork, DualAttentionCriticNetwork
+from a2c_paired_agents import PolicyNetwork, ScalarDotProductCriticNetwork, GraphAttentionCriticNetwork, QNetwork, DualAttentionCriticNetwork
 import torch.nn.functional as F
 import dgl
 
