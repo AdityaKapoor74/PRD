@@ -10,3 +10,6 @@
 [submodule "multiagent-particle-envs"]
 	path = multiagent-particle-envs
 	url = https://github.com/AdityaKapoor74/multiagent-particle-envs.git
+[submodule "PRD_final/ActorCriticAttentionDecoupling/multiagent-particle-envs"]
+	path = PRD_final/ActorCriticAttentionDecoupling/multiagent-particle-envs
+	url = https://github.com/AdityaKapoor74/multiagent-particle-envs.git
