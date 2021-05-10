@@ -159,7 +159,8 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		# weighted_attention_values = attention_values*scaling_weight
 
 
-		node_features = torch.cat([current_node_states,torch.mean(weighted_attention_values, dim=-2)], dim=-1)
+		# node_features = torch.cat([current_node_states,torch.mean(weighted_attention_values, dim=-2)], dim=-1)
+		node_features = torch.mean(weighted_attention_values, dim=-2)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)

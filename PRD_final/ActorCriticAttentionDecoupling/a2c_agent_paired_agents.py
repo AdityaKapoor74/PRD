@@ -50,36 +50,17 @@ class A2CAgent:
 
 		# ENVIRONMENT 1
 		self.obs_input_dim = 2*4
-		self.obs_out_dim = 16
-		# self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
-		# ENVIRONMENT 2
-		self.obs_act_input_dim = (2+self.num_agents)*2 + self.num_actions # (pose, vel, all goal positions, actions) num_goals = num_agents
+		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 		self.obs_act_output_dim = 16
 		# ENVIRONMENT 1
-		# self.final_input_dim = self.obs_input_dim + self.obs_act_output_dim #self.obs_z_output_dim + self.weight_input_dim
-		# self.final_input_dim = self.obs_out_dim + self.obs_act_output_dim
-		# ENVIRONMENT 2
-		self.final_input_dim = (2+self.num_agents)*2 + self.obs_act_output_dim
-		
+		self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
 		self.final_output_dim = 1
 		
 		# SCALAR DOT PRODUCT
 		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		# GRAPH ATTENTION
-		# self.critic_network = GraphAttentionCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		# Q NETWORK
-		# self.critic_network = QNetwork(self.obs_input_dim, self.obs_out_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
-		# DUAL NETWORK: Q and V
-		# self.value_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		# self.final_input_dim = self.obs_out_dim + self.obs_act_output_dim
-		# self.qvalue_network = QNetwork(self.obs_input_dim, self.obs_out_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
-		# DUALATTENTION NETWORK
-		# self.critic_network = DualAttentionCriticNetwork(self.obs_input_dim, self.obs_out_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
-
+		
 		# ENVIRONMENT 1
-		# self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
-		# ENVIRONMENT 2
-		self.policy_input_dim = (self.num_agents*3)*2 # pose,vel --> itself; relative pose and vel --> other agents; relative pose --> goals
+		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
 		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
 		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
@@ -101,8 +82,6 @@ class A2CAgent:
 
 
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
-		# self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
-		# self.qvalue_optimizer = optim.Adam(self.qvalue_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
@@ -185,26 +164,7 @@ class A2CAgent:
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 
-		'''
-		Calculate DualAttention Values
-		'''
-		# V_values, weights_obs_actions, weights_obs = self.critic_network(states_critic, probs.detach(), one_hot_actions)
-		# V_values_next, _, _ = self.critic_network(next_states_critic, next_probs.detach(), one_hot_next_actions)
-		# V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-
-
-		'''
-		Calculate QValues and Values
-		'''
-		# Q_values, weight_obs, weight_obs_actions = self.qvalue_network.forward(states_critic, one_hot_actions)
-		# V_values, weights = self.value_network.forward(states_critic, probs.detach(), one_hot_actions)
-		# V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-
-		# Q-LOSS
-		# discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-1)
-		# qvalue_loss = F.smooth_l1_loss(Q_values,discounted_rewards)
-
+		
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
@@ -236,10 +196,6 @@ class A2CAgent:
 		
 		
 		# MASKING ADVANTAGES
-		# TOP 1 (Q net)
-		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weight_obs_actions.squeeze(-1), dim=-1), num_classes=self.num_agents),-1,-2)
-		# TOP 1 (DualAttention Value net)
-		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights_obs_actions.squeeze(-1), dim=-1), num_classes=self.num_agents),-1,-2)
 		# Top 1
 		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
 		# Top K
@@ -268,16 +224,6 @@ class A2CAgent:
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 		self.critic_optimizer.step()
 
-		# self.qvalue_optimizer.zero_grad()
-		# qvalue_loss.backward(retain_graph=False)
-		# grad_norm_qvalue = torch.nn.utils.clip_grad_norm_(self.qvalue_network.parameters(),0.5)
-		# self.qvalue_optimizer.step()
-
-		# self.value_optimizer.zero_grad()
-		# value_loss.backward(retain_graph=False)
-		# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(),0.5)
-		# self.value_optimizer.step()
-
 
 		self.policy_optimizer.zero_grad()
 		policy_loss.backward(retain_graph=False)
@@ -287,7 +233,3 @@ class A2CAgent:
 
 		# V values
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights
-		# Q Network with Value Network
-		# return value_loss, qvalue_loss, policy_loss, entropy, grad_norm_value, grad_norm_qvalue, grad_norm_policy, weights, weight_obs, weight_obs_actions
-		# DualAttention Network
-		# return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights_obs_actions,weights_obs

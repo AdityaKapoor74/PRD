@@ -23,20 +23,7 @@ class MAA2C:
 		self.save = save
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
-		self.one_hot_actions = torch.zeros(self.env.action_space[0].n,self.env.action_space[0].n)
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
-		for i in range(self.env.action_space[0].n):
-			self.one_hot_actions[i][i] = 1
-
-		# ENVIRONMENT 2
-		self.weight_dictionary = {}
-
-		for i in range(self.num_agents):
-			agent_name = 'agent %d' % i
-			self.weight_dictionary[agent_name] = {}
-			for j in range(self.num_agents):
-				agent_name_ = 'agent %d' % j
-				self.weight_dictionary[agent_name][agent_name_] = 0
 
 
 
@@ -44,26 +31,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../../models/Scalar_dot_product/Environment2/4_Agents/SingleAttentionMechanism/Experiment1_1_exist_pen_0.01/critic_networks/'
+			critic_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run1/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../../models/Scalar_dot_product/Environment2/4_Agents/SingleAttentionMechanism/Experiment1_1_exist_pen_0.01/actor_networks/'
+			actor_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run1/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../../weights/Scalar_dot_product/Environment2/4_Agents/SingleAttentionMechanism/Experiment1_1_exist_pen_0.01/'
+			weight_dir = '../../../weights/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run1/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../../runs/Scalar_dot_product/Environment2/4_Agents/SingleAttentionMechanism/Experiment1_1_exist_pen_0.01/'
+			tensorboard_dir = '../../../runs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run1/'
 
 
 			# paths for models, tensorboard and gifs
@@ -73,7 +60,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.txt'
 
 		elif self.gif:
-			gif_dir = '../../../gifs/Scalar_dot_product/Environment2/4_Agents/SingleAttentionMechanism/Experiment1_1_exist_pen_0.01/'
+			gif_dir = '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run1/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -132,69 +119,6 @@ class MAA2C:
 		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
 
 
-	def calculate_indiv_weights(self,weights):
-		weights_per_agent = torch.sum(weights,dim=0) / weights.shape[0]
-
-		for i in range(self.num_agents):
-			agent_name = 'agent %d' % i
-			for j in range(self.num_agents):
-				agent_name_ = 'agent %d' % j
-				self.weight_dictionary[agent_name][agent_name_] = weights_per_agent[i][j].item()
-
-
-	def calculate_metrics(self,weights,threshold):
-
-		TP = [0]*self.num_agents
-		FP = [0]*self.num_agents
-		TN = [0]*self.num_agents
-		FN = [0]*self.num_agents
-		accuracy = [0]*self.num_agents
-		precision = [0]*self.num_agents
-		recall = [0]*self.num_agents
-
-		TP_rate = [0]*self.num_agents
-		FP_rate = [0]*self.num_agents
-		TN_rate = [0]*self.num_agents
-		FN_rate = [0]*self.num_agents
-
-		
-
-		for k in range(weights.shape[0]):
-			for i in range(self.num_agents):
-				for j in range(self.num_agents):
-					if self.num_agents-1-i == j:
-						if weights[k][i][j] >= threshold:
-							TP[i] += 1
-						else:
-							FN[i] += 1
-					else:
-						if weights[k][i][j] >= threshold:
-							FP[i] += 1
-						else:
-							TN[i] += 1
-
-		# calculate accuracy/precision/recall before calculating rates
-		for i in range(self.num_agents):
-			TP_rate[i] = TP[i]/(TP[i]+FN[i])
-			FP_rate[i] = FP[i]/(FP[i]+TN[i])
-			TN_rate[i] = TN[i]/(TN[i]+FP[i])
-			FN_rate[i] = FN[i]/(FN[i]+TP[i])
-
-			if (TP[i]+TN[i]+FP[i]+FN[i]) == 0:
-				accuracy[i] = 0
-			else:
-				accuracy[i] = round((TP[i]+TN[i])/(TP[i]+TN[i]+FP[i]+FN[i]),4)
-			if (TP[i]+FP[i]) == 0:
-				precision[i] = 0
-			else:
-				precision[i] = round((TP[i]/(TP[i]+FP[i])),4)
-			if (TP[i]+FN[i]) == 0:
-				recall[i] = 0
-			else:
-				recall[i] = round((TP[i]/(TP[i]+FN[i])),4)
-
-		return TP_rate, FP_rate, TN_rate, FN_rate, accuracy, precision, recall
-
 
 	def update(self,trajectory,episode):
 
@@ -211,35 +135,7 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory])
 		
-		# Value Net
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-		# Q Net with Value Net
-		# value_loss, qvalue_loss, policy_loss, entropy, grad_norm_value, grad_norm_qvalue, grad_norm_policy, weights, weight_obs, weight_obs_actions = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-		# DualAttnetion Value Net
-		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights_obs_actions,weights_obs = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-
-		# if not(self.gif) and self.save:
-		# 	for theta in [1e-5,1e-4,1e-3,1e-2,1e-1]:
-		# 		TP, FP, TN, FN, accuracy, precision, recall = self.calculate_metrics(weights,theta)
-
-		# 		for i in range(self.num_agents):
-		# 			self.writer.add_scalar('Weight Metric/TP (agent'+str(i)+') threshold:'+str(theta),TP[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/FP (agent'+str(i)+') threshold:'+str(theta),FP[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/TN (agent'+str(i)+') threshold:'+str(theta),TN[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/FN (agent'+str(i)+') threshold:'+str(theta),FN[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/Accuracy (agent'+str(i)+') threshold:'+str(theta),accuracy[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/Precision (agent'+str(i)+') threshold:'+str(theta),precision[i],episode)
-		# 			self.writer.add_scalar('Weight Metric/Recall (agent'+str(i)+') threshold:'+str(theta),recall[i],episode)
-
-		# 		self.writer.add_scalar('Weight Metric/TP threshold:'+str(theta),sum(TP),episode)
-		# 		self.writer.add_scalar('Weight Metric/FP threshold:'+str(theta),sum(FP),episode)
-		# 		self.writer.add_scalar('Weight Metric/TN threshold:'+str(theta),sum(TN),episode)
-		# 		self.writer.add_scalar('Weight Metric/FN threshold:'+str(theta),sum(FN),episode)
-		# 		self.writer.add_scalar('Weight Metric/Accuracy threshold:'+str(theta),sum(accuracy),episode)
-		# 		self.writer.add_scalar('Weight Metric/Precision threshold:'+str(theta),sum(precision),episode)
-		# 		self.writer.add_scalar('Weight Metric/Recall threshold:'+str(theta),sum(recall),episode)
-
-
 
 
 
@@ -249,35 +145,10 @@ class MAA2C:
 			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-			# ENVIRONMENT 1
-			# Value Net
-			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
-			# self.writer.add_scalars('Weights_Obs_Act/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			
-			# Dual Attention
-			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_obs_actions)
-			# self.writer.add_scalars('Weights_Obs_Act/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_obs)
-			# self.writer.add_scalars('Weights_Obs/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			
 
-			# Q Net and V Net
-			# self.writer.add_scalar('Gradient Normalization/Grad Norm QValue',grad_norm_qvalue,episode)
-			# self.writer.add_scalar('Loss/QValue Loss',qvalue_loss.item(),episode)
+			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
+			self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
 			
-			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weight_obs)
-			# self.writer.add_scalars('QWeights_Obs/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weight_obs_actions)
-			# self.writer.add_scalars('QWeights_Obs_Act/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-
-			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
-			# self.writer.add_scalars('VWeights_Obs_Act/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			
-			# # ENVIRONMENT 2
-			self.calculate_indiv_weights(weights)
-			for i in range(self.num_agents):
-				agent_name = 'agent %d' % i
-				self.writer.add_scalars('Weights/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
@@ -400,8 +271,6 @@ class MAA2C:
 
 			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
-				# torch.save(self.agents.qvalue_network.state_dict(), self.critic_model_path+'_qval_epsiode'+str(episode)+'.pt')
-				# torch.save(self.agents.value_network.state_dict(), self.critic_model_path+'_val_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if not(self.gif):
