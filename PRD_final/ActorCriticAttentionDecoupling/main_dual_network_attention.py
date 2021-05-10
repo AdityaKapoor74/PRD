@@ -1,5 +1,5 @@
 # from maa2c import MAA2C
-from maa2c import MAA2C
+from maa2c_dual_network_attention import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario
@@ -23,10 +23,7 @@ def make_env(scenario_name, benchmark=False):
 
 
 if __name__ == '__main__':
-	# ENVIRONMENT 1
-	# env = make_env(scenario_name="paired_by_sharing_goals",benchmark=False)
-	# ENVIRONMENT 2
-	env = make_env(scenario_name="paired_goals",benchmark=False)
+	env = make_env(scenario_name="paired_by_sharing_goals",benchmark=False)
 
 	ma_controller = MAA2C(env,gif=False,save=True)
-	ma_controller.run(1000000,100)
+	ma_controller.run(100000,100)

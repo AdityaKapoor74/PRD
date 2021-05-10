@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c import PolicyNetwork, ScalarDotProductCriticNetwork, GraphAttentionCriticNetwork, QNetwork, DualAttentionCriticNetwork
+from a2c_multi_circular import PolicyNetwork, ScalarDotProductCriticNetwork
 import torch.nn.functional as F
 import dgl
 
@@ -14,7 +14,7 @@ class A2CAgent:
 	def __init__(
 		self, 
 		env, 
-		value_lr=2e-4, #1e-2 for environment 1
+		value_lr=1e-2, #1e-2 for environment 1
 		policy_lr=2e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
@@ -48,45 +48,19 @@ class A2CAgent:
 		self.num_actions = self.env.action_space[0].n
 		self.gif = gif
 
-		# ENVIRONMENT 1
-		self.obs_input_dim = 2*4
-		self.obs_out_dim = 16
-		# self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
-		# ENVIRONMENT 2
-		self.obs_act_input_dim = (2+self.num_agents)*2 + self.num_actions # (pose, vel, all goal positions, actions) num_goals = num_agents
+		self.obs_input_dim = 2*3
+		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 		self.obs_act_output_dim = 16
-		# ENVIRONMENT 1
-		# self.final_input_dim = self.obs_input_dim + self.obs_act_output_dim #self.obs_z_output_dim + self.weight_input_dim
-		# self.final_input_dim = self.obs_out_dim + self.obs_act_output_dim
-		# ENVIRONMENT 2
-		self.final_input_dim = (2+self.num_agents)*2 + self.obs_act_output_dim
-		
+		self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim
 		self.final_output_dim = 1
 		
 		# SCALAR DOT PRODUCT
 		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		# GRAPH ATTENTION
-		# self.critic_network = GraphAttentionCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		# Q NETWORK
-		# self.critic_network = QNetwork(self.obs_input_dim, self.obs_out_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
-		# DUAL NETWORK: Q and V
-		# self.value_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		# self.final_input_dim = self.obs_out_dim + self.obs_act_output_dim
-		# self.qvalue_network = QNetwork(self.obs_input_dim, self.obs_out_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
-		# DUALATTENTION NETWORK
-		# self.critic_network = DualAttentionCriticNetwork(self.obs_input_dim, self.obs_out_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
-
-		# ENVIRONMENT 1
-		# self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
-		# ENVIRONMENT 2
-		self.policy_input_dim = (self.num_agents*3)*2 # pose,vel --> itself; relative pose and vel --> other agents; relative pose --> goals
+		
+		self.policy_input_dim = 2*3 + (self.num_agents-1)*2*2 # pose,vel,goal --> itself; relative pose and vel --> other agents
 		self.policy_output_dim = self.env.action_space[0].n
 		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
 		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
-
-		self.self_loop = torch.ones(self.num_agents,self.num_agents)
-		for i in range(self.self_loop.shape[0]):
-			self.self_loop[i][i] = 0
 
 
 		# Loading models
@@ -101,8 +75,6 @@ class A2CAgent:
 
 
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
-		# self.value_optimizer = optim.Adam(self.value_network.parameters(),lr=self.value_lr)
-		# self.qvalue_optimizer = optim.Adam(self.qvalue_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
@@ -173,7 +145,6 @@ class A2CAgent:
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		# probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
 		probs = self.policy_network.forward(states_actor)
 		# next_probs = self.policy_network.forward(next_states_actor)
 
@@ -220,9 +191,6 @@ class A2CAgent:
 
 		# REGRESSING ON IMMEDIATE REWARD
 		# value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2))
-
-		# ADDING L1 Regularization
-		# value_loss = value_loss + self.lambda_*torch.sum(weights*self.self_loop)
 		
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -236,10 +204,6 @@ class A2CAgent:
 		
 		
 		# MASKING ADVANTAGES
-		# TOP 1 (Q net)
-		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weight_obs_actions.squeeze(-1), dim=-1), num_classes=self.num_agents),-1,-2)
-		# TOP 1 (DualAttention Value net)
-		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights_obs_actions.squeeze(-1), dim=-1), num_classes=self.num_agents),-1,-2)
 		# Top 1
 		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
 		# Top K
@@ -287,7 +251,3 @@ class A2CAgent:
 
 		# V values
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights
-		# Q Network with Value Network
-		# return value_loss, qvalue_loss, policy_loss, entropy, grad_norm_value, grad_norm_qvalue, grad_norm_policy, weights, weight_obs, weight_obs_actions
-		# DualAttention Network
-		# return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights_obs_actions,weights_obs
