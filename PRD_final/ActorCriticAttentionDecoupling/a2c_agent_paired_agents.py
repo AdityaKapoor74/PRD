@@ -207,10 +207,10 @@ class A2CAgent:
 		# Above threshold
 		# masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
 
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
 
 		# SCALING ADVANTAGES
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents,dim=-2)
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents,dim=-2)
 		
 		# SOFT ADVANTAGES
 		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights ,dim=-2)
