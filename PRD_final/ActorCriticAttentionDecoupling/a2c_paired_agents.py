@@ -50,8 +50,8 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		
 		self.num_agents = num_agents
 		self.num_actions = num_actions
-		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
 
 		self.key_layer = nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False)
 
@@ -510,6 +510,112 @@ class DualAttentionCriticNetwork(nn.Module):
 
 		return Value, ret_weight_obs_actions, weight_obs
 
+
+
+class MultiHeadAttentionCriticNetwork(nn.Module):
+	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1, num_heads=2):
+		super(MultiHeadAttentionCriticNetwork, self).__init__()
+		
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.device = "cpu"
+		self.num_heads = num_heads
+
+		self.key_networks = []
+		self.query_networks = []
+		self.attention_value_networks = []
+
+		for i in range(self.num_heads):
+			self.key_networks.append(nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False))
+			self.query_networks.append(nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False))
+			self.attention_value_networks.append(nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False))
+
+		
+		self.d_k = obs_act_output_dim
+
+
+		# NOISE
+		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		self.noise_uniform = torch.rand
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layer_1 = nn.Linear(final_input_dim * self.num_heads, 64, bias=False)
+		self.final_value_layer_2 = nn.Linear(64, final_output_dim, bias=False)
+		# ********************************************************************************************************	
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+		self.threshold = threshold
+		# ********************************************************************************************************* 
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain = nn.init.calculate_gain('leaky_relu')
+
+		for i in range(self.num_heads):
+			nn.init.xavier_uniform_(self.key_networks[i].weight)
+			nn.init.xavier_uniform_(self.query_networks[i].weight)
+			nn.init.xavier_uniform_(self.attention_value_networks[i].weight)
+
+
+		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain)
+
+
+
+	def forward(self, states, policies, actions):
+
+		# ATTENTION NETWORK FOR OBSERVATIONS AND ACTIONS
+		# input to KEY, QUERY and ATTENTION VALUE NETWORK
+		obs_actions = torch.cat([states,actions],dim=-1)
+		# For calculating the right advantages
+		obs_policy = torch.cat([states,policies], dim=-1)
+
+		weighted_attention_values_list = []
+		weight_obs_actions_list = []
+		for i in range(self.num_heads):
+			# KEYS
+			key_obs_actions = self.key_networks[i](obs_actions)
+			# QUERIES
+			query_obs_actions = self.query_networks[i](obs_actions)
+			# SCORE
+			score_obs_actions = torch.bmm(query_obs_actions,key_obs_actions.transpose(1,2)).transpose(1,2).reshape(-1,1)
+			score_obs_actions = score_obs_actions.reshape(-1,self.num_agents,1)
+			# WEIGHT
+			weight_obs_actions = F.softmax(score_obs_actions/math.sqrt(self.d_k), dim=-2)
+			weight_obs_actions = weight_obs_actions.reshape(weight_obs_actions.shape[0]//self.num_agents,self.num_agents,-1)
+			weight_obs_actions_list.append(weight_obs_actions)
+			# MERGING OBSERVATION AND ACTIONS
+			obs_actions_ = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+			obs_policy_ = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+			obs_actions_policies = self.place_policies*obs_policy_ + self.place_actions*obs_actions_
+			# ATTENTION VALUES
+			attention_values = torch.tanh(self.attention_value_networks[i](obs_actions_policies))
+			attention_values_ = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+			# WEIGHTED AVERAGE OF ATTENTION VALUES
+			weight_obs_actions_ = weight_obs_actions.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+			uniform_noise = (self.noise_uniform((attention_values_.view(-1).size())).reshape(attention_values_.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
+			weighted_attention_values_list.append(torch.mean(attention_values_*weight_obs_actions_ + uniform_noise, dim=-2))
+
+
+		weighted_attention_values_list = torch.cat([agg_values for agg_values in weighted_attention_values_list], dim=-1)
+
+		Value = F.leaky_relu(self.final_value_layer_1(weighted_attention_values_list))
+		Value = self.final_value_layer_2(Value)
+
+		return Value, weight_obs_actions_list
 
 
 

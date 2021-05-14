@@ -14,8 +14,8 @@ import datetime
 class MAA2C:
 
 	def __init__(self,env, gif=True, save=True):
-		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
 		self.env = env
 		self.gif = gif
 		self.save = save
@@ -29,26 +29,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run2/critic_networks/'
+			critic_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run2/actor_networks/'
+			actor_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../../weights/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run2/'
+			weight_dir = '../../../weights/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../../runs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run2/'
+			tensorboard_dir = '../../../runs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/'
 
 
 			# paths for models, tensorboard and gifs
@@ -58,7 +58,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.txt'
 
 		elif self.gif:
-			gif_dir = '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_run2/'
+			gif_dir = '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -131,7 +131,7 @@ class MAA2C:
 		next_states_actor = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
 
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[8] for sars in trajectory])
+		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
@@ -151,6 +151,13 @@ class MAA2C:
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
 
+			# MULTIHEAD ATTENTION
+			# for i in range(self.agents.num_heads):
+			# 	paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights[i])
+			# 	self.writer.add_scalars('Weights/Average_Weights_Head'+str(i),{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+
+			# 	entropy_weights = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2))
+			# 	self.writer.add_scalar('Weights/Entropy_Head'+str(i), entropy_weights.item(), episode)
 
 
 

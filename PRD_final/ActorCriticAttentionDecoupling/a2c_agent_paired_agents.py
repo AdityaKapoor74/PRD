@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_paired_agents import PolicyNetwork, ScalarDotProductCriticNetwork, GraphAttentionCriticNetwork, QNetwork, DualAttentionCriticNetwork
+from a2c_paired_agents import PolicyNetwork, ScalarDotProductCriticNetwork, GraphAttentionCriticNetwork, QNetwork, DualAttentionCriticNetwork, MultiHeadAttentionCriticNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -13,8 +13,8 @@ class A2CAgent:
 	def __init__(
 		self, 
 		env, 
-		value_lr=2e-4, #1e-2 for environment 1
-		policy_lr=2e-4, 
+		value_lr=1e-2, #1e-2 for single head
+		policy_lr=2e-4, # 2e-4 for single head
 		entropy_pen=0.008, 
 		gamma=0.99,
 		trace_decay = 0.98,
@@ -22,6 +22,7 @@ class A2CAgent:
 		select_above_threshold = 0.1,
 		softmax_cut_threshold = 0.1,
 		top_k = 2,
+		num_heads = 2,
 		lambda_ = 1e-3,
 		gif = False
 		):
@@ -35,13 +36,14 @@ class A2CAgent:
 		self.tau = tau
 		self.lambda_ = lambda_
 		self.top_k = top_k
+		self.num_heads = num_heads
 		# Used for masking advantages above a threshold
 		self.select_above_threshold = select_above_threshold
 		# cut the tail of softmax --> Used in softmax with normalization
 		self.softmax_cut_threshold = softmax_cut_threshold
 
-		# self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
@@ -57,7 +59,8 @@ class A2CAgent:
 		
 		# SCALAR DOT PRODUCT
 		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		
+		# Multi Head Attention
+		# self.critic_network = MultiHeadAttentionCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold, ).to(self.device)
 		# ENVIRONMENT 1
 		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		self.policy_output_dim = self.env.action_space[0].n
@@ -167,7 +170,7 @@ class A2CAgent:
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
-		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1)
+		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 
 		# BOOTSTRAP LOSS
@@ -191,12 +194,13 @@ class A2CAgent:
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		# NO MASKING OF ADVANTAGES
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
-		
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		# NO MASKING ADVANTAGES WITH SCALING
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2) * self.num_agents
 		
 		# MASKING ADVANTAGES
 		# Top 1
-		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
+		masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
 		# Top K
 		# values, indices = torch.topk(weights,k=self.top_k,dim=-1)
 		# masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
@@ -206,8 +210,11 @@ class A2CAgent:
 		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
 
 		# SCALING ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents,dim=-2)
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents,dim=-2)
 		
+		# SOFT ADVANTAGES
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights ,dim=-2)
+
 		# SOFT WEIGHTED ADVANTAGES
 		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights * self.num_agents ,dim=-2)
 

@@ -137,7 +137,11 @@ class ScalarDotProductCriticNetwork(nn.Module):
 
 		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 
-		attention_values = torch.tanh(self.attention_value_layer(obs_actions_policies))
+		# with noise
+		# attention_values = torch.tanh(self.attention_value_layer(obs_actions_policies))
+
+		# without noise
+		attention_values = self.attention_value_layer(obs_actions_policies)
 
 		current_node_states = states.unsqueeze(-2).repeat(1,1,self.num_agents,1)
 
@@ -145,7 +149,8 @@ class ScalarDotProductCriticNetwork(nn.Module):
 
 		# SOFTMAX
 		weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
-		weighted_attention_values = attention_values*weight
+		# uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1
+		weighted_attention_values = attention_values*weight #+ uniform_noise
 
 		# SOFTMAX WITH NOISE
 		# weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)

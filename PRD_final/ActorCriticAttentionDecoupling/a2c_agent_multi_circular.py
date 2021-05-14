@@ -73,6 +73,9 @@ class A2CAgent:
 		# self.critic_network.load_state_dict(torch.load(model_path_value))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
+		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents)
+		for i in range(self.num_agents):
+			self.greedy_policy[i][i] = 1
 
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
@@ -200,9 +203,12 @@ class A2CAgent:
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		# NO MASKING OF ADVANTAGES
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
-		
-		
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		# NO MASKING OF ADVANTAGES SCALED
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2) * self.num_agents
+		# GREEDY POLICY
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * self.greedy_policy,dim=-2)
+
 		# MASKING ADVANTAGES
 		# Top 1
 		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
@@ -218,6 +224,8 @@ class A2CAgent:
 		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents,dim=-2)
 		
 		# SOFT WEIGHTED ADVANTAGES
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights ,dim=-2)
+		# SOFT WEIGHTED ADVANTAGES SCALED
 		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights * self.num_agents ,dim=-2)
 
 		probs = Categorical(probs)

@@ -14,9 +14,9 @@ class A2CAgent:
 	def __init__(
 		self, 
 		env, 
-		value_lr=1e-1, #1e-2 for environment 1
-		policy_lr=1e-3, 
-		entropy_pen=0.01, 
+		value_lr=1e-3, #1e-2 for environment 1
+		policy_lr=3e-4, 
+		entropy_pen=0.008, 
 		gamma=0.99,
 		trace_decay = 0.98,
 		tau = 0.999,
@@ -68,8 +68,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_policy = "../../../models/Scalar_dot_product/simple_spread/4_Agents/SingleAttentionMechanism/without_prd/actor_networks/09-05-2021_PN_FCN_lr0.0002VN_SAT_FCN_lr0.0002_GradNorm0.5_Entropy0.08_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode83000.pt"
-		# model_path_value = "../../../models/Scalar_dot_product/simple_spread/4_Agents/SingleAttentionMechanism/without_prd/critic_networks/09-05-2021VN_ATN_FCN_lr0.0002_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.08_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode83000.pt"
+		# model_path_policy = "../../../models/Scalar_dot_product/simple_spread/1_agent/DualAttention/without_prd/actor_networks/10-05-2021_PN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode6000.pt"
+		# model_path_value = "../../../models/Scalar_dot_product/simple_spread/1_agent/DualAttention/without_prd/critic_networks/10-05-2021VN_ATN_FCN_lr0.01_PN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode6000.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -143,7 +143,7 @@ class A2CAgent:
 		
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,goal_states,next_goal_states):
+	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,goal_states,next_goal_states,which_agent):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -193,11 +193,13 @@ class A2CAgent:
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		# NO MASKING OF ADVANTAGES
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
-		
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		# HARDCODE ADVANTAGES
+		which_agent = which_agent.transpose(-1,-2)
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * which_agent,dim=-2)	
 		
 		# we got w_i_j --> for landmark i attention to agent j; we need to make it wji --> weight agent j gives to landmark i, because advantage over actions of an action of agent
-		# weights_agent = weights.transpose(1,2)
+		# weights_agent = weights_obs_actions.transpose(1,2)
 		# Top 1
 		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights_agent.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
 		# Top K
