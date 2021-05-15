@@ -51,7 +51,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		# self.device = "cpu"
+		self.device = "cpu"
 
 		self.key_layer = nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False)
 
