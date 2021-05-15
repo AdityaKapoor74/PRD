@@ -43,7 +43,7 @@ class A2CAgent:
 		self.softmax_cut_threshold = softmax_cut_threshold
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		# self.device = "cpu"
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
@@ -194,9 +194,9 @@ class A2CAgent:
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		# NO MASKING OF ADVANTAGES
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
 		# NO MASKING ADVANTAGES WITH SCALING
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2) * self.num_agents
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2) * self.num_agents
 		
 		# MASKING ADVANTAGES
 		# Top 1
