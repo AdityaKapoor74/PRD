@@ -202,21 +202,20 @@ class A2CAgent:
 		# Top 1
 		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
 		# Top K
-		# values, indices = torch.topk(weights,k=self.top_k,dim=-1)
+		# values, indices = torch.topk(weights,k=1,dim=-1)
 		# masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
 		# Above threshold
 		# masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
 
+		# TOP_K ADVANTAGES
 		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
-
 		# SCALING ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents,dim=-2)
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents/self.top_k,dim=-2)
 		
 		# SOFT ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights ,dim=-2)
-
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
 		# SOFT WEIGHTED ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights * self.num_agents ,dim=-2)
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) * self.num_agents ,dim=-2)
 
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()

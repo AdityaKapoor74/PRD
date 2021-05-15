@@ -13,89 +13,74 @@ import datetime
 
 class MAA2C:
 
-	def __init__(self,env, gif=True, save=True):
+	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		self.env = env
-		self.gif = gif
-		self.save = save
+		self.gif = dictionary["gif"]
+		self.save = dictionary["save"]
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 
+		self.max_episodes = dictionary["max_episodes"]
+		self.max_time_steps = dictionary["max_time_steps"]
 
+		self.agents = A2CAgent(self.env, dictionary)
 
-		self.agents = A2CAgent(self.env, gif = self.gif)
+		self.weight_dictionary = {}
+
+		for i in range(self.num_agents):
+			agent_name = 'agent %d' % i
+			self.weight_dictionary[agent_name] = {}
+			for j in range(self.num_agents):
+				agent_name_ = 'agent %d' % j
+				self.weight_dictionary[agent_name][agent_name_] = 0
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_soft_adv/critic_networks/'
+			critic_dir = dictionary["critic_dir"]
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_soft_adv/actor_networks/'
+			actor_dir = dictionary["actor_dir"]
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
-				print("Actor Directory can not be created")  
-			weight_dir = '../../../weights/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_soft_adv/'
-			try: 
-				os.makedirs(weight_dir, exist_ok = True) 
-				print("Weights Directory created successfully") 
-			except OSError as error: 
-				print("Weights Directory can not be created") 
+				print("Actor Directory can not be created")
 
-			tensorboard_dir = '../../../runs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_soft_adv/'
+			tensorboard_dir = dictionary["tensorboard_dir"]
 
 
 			# paths for models, tensorboard and gifs
-			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
-			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
-			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
-			self.filename = weight_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.txt'
-
+			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
+			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
+			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
+	
 		elif self.gif:
-			gif_dir = '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_soft_adv/'
+			gif_dir = dictionary["gif_dir"]
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.gif'
+			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.gif'
 
 		if not(self.gif) and self.save:
 			self.writer = SummaryWriter(self.tensorboard_path)
-			
-		self.src_edges_critic = []
-		self.dest_edges_critic = []
-		self.src_edges_actor = []
-		self.dest_edges_actor = []
-
-		for i in range(self.num_agents):
-			for j in range(self.num_agents):
-				self.src_edges_critic.append(i)
-				self.dest_edges_critic.append(j)
-				if i==j:
-					continue
-				self.src_edges_actor.append(i)
-				self.dest_edges_actor.append(j)
-
-		self.src_edges_critic = torch.tensor(self.src_edges_critic)
-		self.dest_edges_critic = torch.tensor(self.dest_edges_critic)
-		self.src_edges_actor = torch.tensor(self.src_edges_actor)
-		self.dest_edges_actor = torch.tensor(self.dest_edges_actor)
-
-
 
 	def get_actions(self,states):
-		actions = []
-		for i in range(self.num_agents):
-			action = self.agents.get_action(states[i])
-			actions.append(action)
+		# actions = []
+		# for i in range(self.num_agents):
+		# 	action = self.agents.get_action(states[i])
+		# 	actions.append(action)
+		# return actions
+		actions = self.agents.get_action(states)
 		return actions
+
 
 
 	def calculate_weights(self,weights):
@@ -117,6 +102,15 @@ class MAA2C:
 		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
 
 
+	def calculate_indiv_weights(self,weights):
+		weights_per_agent = torch.sum(weights,dim=0) / weights.shape[0]
+
+		for i in range(self.num_agents):
+			agent_name = 'agent %d' % i
+			for j in range(self.num_agents):
+				agent_name_ = 'agent %d' % j
+				self.weight_dictionary[agent_name][agent_name_] = weights_per_agent[i][j].item()
+
 
 	def update(self,trajectory,episode):
 
@@ -133,7 +127,10 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		# MLP POLICY
+		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		# GNN POLICY
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 
 
@@ -146,10 +143,18 @@ class MAA2C:
 
 			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
 			self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+
+			self.calculate_indiv_weights(weight_policy)
+			for i in range(self.num_agents):
+				agent_name = 'agent %d' % i
+				self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 			
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
+
+			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
 			# MULTIHEAD ATTENTION
 			# for i in range(self.agents.num_heads):
@@ -210,8 +215,8 @@ class MAA2C:
 
 
 
-	def run(self,max_episode,max_steps):  
-		for episode in range(1,max_episode):
+	def run(self):  
+		for episode in range(1,self.max_episodes+1):
 			states = self.env.reset()
 
 			images = []
@@ -222,7 +227,7 @@ class MAA2C:
 
 			trajectory = []
 			episode_reward = 0
-			for step in range(max_steps):
+			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
 					# At each step, append an image to list
@@ -252,11 +257,11 @@ class MAA2C:
 				episode_reward += np.sum(rewards)
 
 				if not(self.gif):
-					if all(dones) or step == max_steps-1:
+					if all(dones) or step == self.max_time_steps:
 
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
-						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step+1,max_steps))
+						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
 
 						if not(self.gif) and self.save:
