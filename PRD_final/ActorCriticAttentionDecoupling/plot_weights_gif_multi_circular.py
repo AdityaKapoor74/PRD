@@ -171,7 +171,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		# scaling_weight = scaling_weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		# weighted_attention_values = attention_values*scaling_weight
 
-		node_features = torch.cat([current_node_states,torch.mean(weighted_attention_values, dim=-2)], dim=-1)
+		node_features = torch.mean(weighted_attention_values, dim=-2)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
@@ -281,7 +281,7 @@ def run(env, max_steps):
 	obs_input_dim = 2*3
 	obs_act_input_dim = obs_input_dim + num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 	obs_act_output_dim = 16
-	final_input_dim = obs_act_output_dim + obs_input_dim
+	final_input_dim = obs_act_output_dim
 	final_output_dim = 1
 
 	# SCALAR DOT PRODUCT
@@ -294,8 +294,8 @@ def run(env, max_steps):
 
 
 	# Loading models
-	model_path_value = "../../../models/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/without_prd/critic_networks/07-05-2021VN_ATN_FCN_lr0.01_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode13000.pt"
-	model_path_policy = "../../../models/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/without_prd/actor_networks/07-05-2021_PN_FCN_lr0.0002VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode13000.pt"
+	model_path_value = "../../../models/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/without_noise/with_prd_soft_adv_scaled/critic_networks/13-05-2021VN_ATN_FCN_lr0.01_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode32000.pt"
+	model_path_policy = "../../../models/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/without_noise/with_prd_soft_adv_scaled/actor_networks/13-05-2021_PN_FCN_lr0.0002VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode32000.pt"
 	# For CPU
 	critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 	policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -303,18 +303,18 @@ def run(env, max_steps):
 	# critic_network.load_state_dict(torch.load(model_path_value))
 	# policy_network.load_state_dict(torch.load(model_path_policy))
 
-	tensorboard_dir = '../../../runs/plot_weights_gif/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/without_prd/'
+	tensorboard_dir = '../../../runs/plot_weights_gif_multi_circular/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/with_prd_soft_adv_scaled/'
 	writer = SummaryWriter(tensorboard_dir)
 
 
-	gif_dir = '../../../gifs/plot_weights_gif/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/without_prd/'
+	gif_dir = '../../../gifs/plot_weights_gif_multi_circular/Scalar_dot_product/multi_circular/4_Agents/SingleAttentionMechanism/with_prd_soft_adv_scaled/'
 	try: 
 		os.makedirs(gif_dir, exist_ok = True) 
 		print("Gif Directory created successfully") 
 	except OSError as error: 
 		print("Gif Directory can not be created")
 
-	gif_path = gif_dir+'multi_circular_without_prd.gif'
+	gif_path = gif_dir+'multi_circular_with_prd_soft_adv_scaled.gif'
 
 	weight_dictionary = {}
 
@@ -386,4 +386,4 @@ def run(env, max_steps):
 if __name__ == '__main__':
 	env = make_env(scenario_name="multi_circular",benchmark=False)
 
-	run(env,1000)
+	run(env,50)

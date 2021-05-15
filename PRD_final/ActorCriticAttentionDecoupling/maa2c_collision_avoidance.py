@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent_paired_agents import A2CAgent
+from a2c_agent_collision_avoidance import A2CAgent
 import datetime
 
 
@@ -24,31 +24,41 @@ class MAA2C:
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 
 
+		self.weight_dictionary = {}
+
+		for i in range(self.num_agents):
+			agent_name = 'agent %d' % i
+			self.weight_dictionary[agent_name] = {}
+			for j in range(self.num_agents):
+				agent_name_ = 'agent %d' % j
+				self.weight_dictionary[agent_name][agent_name_] = 0
+
+
 
 		self.agents = A2CAgent(self.env, gif = self.gif)
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/16_Agents/SingleAttentionMechanism/without_prd/critic_networks/'
+			critic_dir = '../../../models/Scalar_dot_product/collision_avoidance/4_Agents/SingleAttentionMechanism/with_prd_soft_adv_scaled/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/16_Agents/SingleAttentionMechanism/without_prd/actor_networks/'
+			actor_dir = '../../../models/Scalar_dot_product/collision_avoidance/4_Agents/SingleAttentionMechanism/with_prd_soft_adv_scaled/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../../weights/Scalar_dot_product/paired_by_sharing_goals/16_Agents/SingleAttentionMechanism/without_prd/'
+			weight_dir = '../../../weights/Scalar_dot_product/collision_avoidance/4_Agents/SingleAttentionMechanism/with_prd_soft_adv_scaled/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../../runs/Scalar_dot_product/paired_by_sharing_goals/16_Agents/SingleAttentionMechanism/without_prd/'
+			tensorboard_dir = '../../../runs/Scalar_dot_product/collision_avoidance/4_Agents/SingleAttentionMechanism/with_prd_soft_adv_scaled/'
 
 
 			# paths for models, tensorboard and gifs
@@ -58,7 +68,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.txt'
 
 		elif self.gif:
-			gif_dir = '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/16_Agents/SingleAttentionMechanism/without_prd/'
+			gif_dir = '../../../gifs/Scalar_dot_product/collision_avoidance/4_Agents/SingleAttentionMechanism/with_prd_soft_adv_scaled/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -68,25 +78,6 @@ class MAA2C:
 
 		if not(self.gif) and self.save:
 			self.writer = SummaryWriter(self.tensorboard_path)
-			
-		self.src_edges_critic = []
-		self.dest_edges_critic = []
-		self.src_edges_actor = []
-		self.dest_edges_actor = []
-
-		for i in range(self.num_agents):
-			for j in range(self.num_agents):
-				self.src_edges_critic.append(i)
-				self.dest_edges_critic.append(j)
-				if i==j:
-					continue
-				self.src_edges_actor.append(i)
-				self.dest_edges_actor.append(j)
-
-		self.src_edges_critic = torch.tensor(self.src_edges_critic)
-		self.dest_edges_critic = torch.tensor(self.dest_edges_critic)
-		self.src_edges_actor = torch.tensor(self.src_edges_actor)
-		self.dest_edges_actor = torch.tensor(self.dest_edges_actor)
 
 
 
@@ -98,23 +89,14 @@ class MAA2C:
 		return actions
 
 
-	def calculate_weights(self,weights):
-		paired_agents_weight = 0
-		paired_agents_weight_count = 0
-		unpaired_agents_weight = 0
-		unpaired_agents_weight_count = 0
+	def calculate_indiv_weights(self,weights):
+		weights_per_agent = torch.sum(weights,dim=0) / weights.shape[0]
 
-		for k in range(weights.shape[0]):
-			for i in range(self.num_agents):
-				for j in range(self.num_agents):
-					if self.num_agents-1-i == j:
-						paired_agents_weight += weights[k][i][j]
-						paired_agents_weight_count += 1
-					else:
-						unpaired_agents_weight += weights[k][i][j]
-						unpaired_agents_weight_count += 1
-
-		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
+		for i in range(self.num_agents):
+			agent_name = 'agent %d' % i
+			for j in range(self.num_agents):
+				agent_name_ = 'agent %d' % j
+				self.weight_dictionary[agent_name][agent_name_] = weights_per_agent[i][j].item()
 
 
 
@@ -144,21 +126,14 @@ class MAA2C:
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
-			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
-			self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-			
+			self.calculate_indiv_weights(weights)
+			for i in range(self.num_agents):
+				agent_name = 'agent %d' % i
+				self.writer.add_scalars('Weights/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
-
-			# MULTIHEAD ATTENTION
-			# for i in range(self.agents.num_heads):
-			# 	paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights[i])
-			# 	self.writer.add_scalars('Weights/Average_Weights_Head'+str(i),{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-
-			# 	entropy_weights = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2))
-			# 	self.writer.add_scalar('Weights/Entropy_Head'+str(i), entropy_weights.item(), episode)
-
 
 
 	def split_states(self,states):

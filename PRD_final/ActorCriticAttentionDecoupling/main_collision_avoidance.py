@@ -1,5 +1,5 @@
 # from maa2c import MAA2C
-from maa2c_paired_agents import MAA2C
+from maa2c_collision_avoidance import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario
@@ -15,14 +15,14 @@ def make_env(scenario_name, benchmark=False):
 	world = scenario.make_world()
 	# create multiagent environment
 	if benchmark:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward_paired_agents, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward_paired_agents, scenario.observation, None, scenario.isFinished)
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
 	return env
 
 
 
 if __name__ == '__main__':
-	env = make_env(scenario_name="paired_by_sharing_goals",benchmark=False)
-	ma_controller = MAA2C(env,gif=False,save=False)
+	env = make_env(scenario_name="collision_avoidance",benchmark=False)
+	ma_controller = MAA2C(env,gif=False,save=True)
 	ma_controller.run(30000,100)
