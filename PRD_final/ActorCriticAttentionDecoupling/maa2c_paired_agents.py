@@ -29,26 +29,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/critic_networks/'
+			critic_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1_scaled/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/actor_networks/'
+			actor_dir = '../../../models/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1_scaled/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../../weights/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/'
+			weight_dir = '../../../weights/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1_scaled/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../../runs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/'
+			tensorboard_dir = '../../../runs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1_scaled/'
 
 
 			# paths for models, tensorboard and gifs
@@ -58,7 +58,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.txt'
 
 		elif self.gif:
-			gif_dir = '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1/'
+			gif_dir = '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/8_Agents/SingleAttentionMechanism/with_prd_top1_scaled/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
