@@ -15,7 +15,7 @@ class MAA2C:
 
 	def __init__(self,env, gif=True, save=True):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		# self.device = "cpu"
+		self.device = "cpu"
 		self.env = env
 		self.gif = gif
 		self.save = save
