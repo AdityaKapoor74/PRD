@@ -24,5 +24,5 @@ def make_env(scenario_name, benchmark=False):
 
 if __name__ == '__main__':
 	env = make_env(scenario_name="paired_by_sharing_goals",benchmark=False)
-	ma_controller = MAA2C(env,gif=False,save=False)
+	ma_controller = MAA2C(env,gif=False,save=True)
 	ma_controller.run(30000,100)
