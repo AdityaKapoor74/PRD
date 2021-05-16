@@ -217,7 +217,7 @@ class MAA2C:
 
 	def run(self):  
 		for episode in range(1,self.max_episodes+1):
-			states = self.env.reset()
+			states = self.env.reset(self.num_agents)
 
 			images = []
 

@@ -13,7 +13,7 @@ if __name__ == '__main__':
 	experiment_type = ["without_prd", "with_prd_top1", "with_prd_top5", "with_prd_top8", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top5_scaled", "with_prd_top8_scaled", "with_prd_soft_adv_scaled"]
 
 	top_k_list = [0, 1, 5, 8, 0, 0, 1, 5, 8, 0]
-	
+
 	for i in range(len(env_list[:1])):
 		for j in range(len(experiment_type)):
 			dictionary = {
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type[j],
 				"top_k": top_k_list[j],
 				"gif": False,
-				"save": True,
+				"save": False,
 				"max_episodes": 40000,
 				"max_time_steps": 100,
 			}
