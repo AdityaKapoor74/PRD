@@ -196,16 +196,16 @@ class A2CAgent:
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		advantage = None
-		if self.experiment_type == "without_prd":
+		if self.experiment_type == "without_prd" or self.experiment_type == "without_prd_scaled":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
 		elif "top" in self.experiment_type:
 			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
 			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
-		elif self.experiment_type == "above_threshold":
+		elif self.experiment_type in "above_threshold":
 			masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
-		elif self.experiment_type == "with_prd_soft_adv":
+		elif self.experiment_type == "with_prd_soft_adv" or self.experiment_type == "with_prd_soft_adv_scaled":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
 
 		if "scaled" in self.experiment_type:

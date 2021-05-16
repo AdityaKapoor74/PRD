@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_collision_avoidance import PolicyNetwork, ScalarDotProductCriticNetwork, GraphAttentionCriticNetwork, QNetwork, DualAttentionCriticNetwork, MultiHeadAttentionCriticNetwork
+from a2c_collision_avoidance import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -13,63 +13,61 @@ class A2CAgent:
 	def __init__(
 		self, 
 		env, 
-		value_lr=1e-2, #1e-2 for single head
-		policy_lr=2e-4, # 2e-4 for single head
-		entropy_pen=0.008, 
-		gamma=0.99,
-		trace_decay = 0.98,
-		tau = 0.999,
-		select_above_threshold = 0.1,
-		softmax_cut_threshold = 0.1,
-		top_k = 2,
-		num_heads = 2,
-		lambda_ = 1e-3,
-		gif = False
+		dictionary
 		):
 
 		self.env = env
-		self.value_lr = value_lr
-		self.policy_lr = policy_lr
-		self.gamma = gamma
-		self.entropy_pen = entropy_pen
-		self.trace_decay = trace_decay
-		self.tau = tau
-		self.lambda_ = lambda_
-		self.top_k = top_k
-		self.num_heads = num_heads
+		self.value_lr = dictionary["value_lr"]
+		self.policy_lr = dictionary["policy_lr"]
+		self.gamma = dictionary["gamma"]
+		self.entropy_pen = dictionary["entropy_pen"]
+		self.trace_decay = dictionary["trace_decay"]
+		self.top_k = dictionary["top_k"]
 		# Used for masking advantages above a threshold
-		self.select_above_threshold = select_above_threshold
+		self.select_above_threshold = dictionary["select_above_threshold"]
 		# cut the tail of softmax --> Used in softmax with normalization
-		self.softmax_cut_threshold = softmax_cut_threshold
+		self.softmax_cut_threshold = dictionary["softmax_cut_threshold"]
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		# self.device = "cpu"
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
-		self.gif = gif
+		self.gif = dictionary["gif"]
 
-		# ENVIRONMENT 1
+
+		self.experiment_type = dictionary["experiment_type"]
+		self.scaling_factor = None
+		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
+			self.scaling_factor = self.num_agents
+		elif "top" in self.experiment_type:
+			self.scaling_factor = self.num_agents/self.top_k
+
+		print(self.experiment_type, self.scaling_factor)
+
+
+		# SCALAR DOT PRODUCT
 		self.obs_input_dim = 2*3
 		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 		self.obs_act_output_dim = 16
-		# ENVIRONMENT 1
 		self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
 		self.final_output_dim = 1
-		
-		# SCALAR DOT PRODUCT
 		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		# Multi Head Attention
-		# self.critic_network = MultiHeadAttentionCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold, ).to(self.device)
-		# ENVIRONMENT 1
-		self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
-		self.policy_output_dim = self.env.action_space[0].n
-		policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
-		self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
+		
+		
+		# SCALAR DOT PRODUCT POLICY NETWORK
+		self.obs_input_dim = 2*3
+		self.obs_output_dim = 16
+		self.final_input_dim = self.obs_output_dim
+		self.final_output_dim = self.num_actions
+		self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
-		self.self_loop = torch.ones(self.num_agents,self.num_agents)
-		for i in range(self.self_loop.shape[0]):
-			self.self_loop[i][i] = 0
+
+		# MLP POLICY
+		# self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
+		# self.policy_output_dim = self.env.action_space[0].n
+		# policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
+		# self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
 
 
 		# Loading models
@@ -88,11 +86,18 @@ class A2CAgent:
 
 
 	def get_action(self,state):
-		state = torch.FloatTensor(state).to(self.device)
-		dists = self.policy_network.forward(state)
-		probs = Categorical(dists)
-		index = probs.sample().cpu().detach().item()
+		# MLP
+		# state = torch.FloatTensor(state).to(self.device)
+		# dists = self.policy_network.forward(state)
+		# probs = Categorical(dists)
+		# index = probs.sample().cpu().detach().item()
 
+		# return index
+
+		# GNN
+		state = torch.FloatTensor([state]).to(self.device)
+		dists, _ = self.policy_network.forward(state)
+		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
 		return index
 
 
@@ -154,9 +159,13 @@ class A2CAgent:
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
+		# MLP
 		# probs = self.policy_network.forward(actor_graphs).reshape(-1,self.num_agents,self.num_actions)
-		probs = self.policy_network.forward(states_actor)
+		# probs = self.policy_network.forward(states_actor)
 		# next_probs = self.policy_network.forward(next_states_actor)
+
+		# GNN
+		probs, weight_policy = self.policy_network.forward(states_actor)
 
 		'''
 		Calculate V values
@@ -182,9 +191,6 @@ class A2CAgent:
 
 		# REGRESSING ON IMMEDIATE REWARD
 		# value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2))
-
-		# ADDING L1 Regularization
-		# value_loss = value_loss + self.lambda_*torch.sum(weights*self.self_loop)
 		
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -193,29 +199,22 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		# NO MASKING OF ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
-		# NO MASKING ADVANTAGES WITH SCALING
-		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2) * self.num_agents
-		
-		# MASKING ADVANTAGES
-		# Top 1
-		# masking_advantage = torch.transpose(F.one_hot(torch.argmax(weights.detach(), dim=-1), num_classes=self.num_agents),-1,-2)
-		# Top K
-		# values, indices = torch.topk(weights,k=1,dim=-1)
-		# masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
-		# Above threshold
-		# masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
+		advantage = None
+		if self.experiment_type == "without_prd" or self.experiment_type == "without_prd_scaled":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
+		elif "top" in self.experiment_type:
+			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
+			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
+		elif self.experiment_type in "above_threshold":
+			masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
+		elif self.experiment_type == "with_prd_soft_adv" or self.experiment_type == "with_prd_soft_adv_scaled":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
 
-		# TOP_K ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
-		# SCALING ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage * self.num_agents/self.top_k,dim=-2)
-		
-		# SOFT ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
-		# SOFT WEIGHTED ADVANTAGES
-		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) * self.num_agents ,dim=-2)
+		if "scaled" in self.experiment_type:
+			advantage = advantage * self.scaling_factor
+
 
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
@@ -237,4 +236,4 @@ class A2CAgent:
 		# grad_norm_policy = 0
 
 		# V values
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy

@@ -21,8 +21,33 @@ def make_env(scenario_name, benchmark=False):
 	return env
 
 
+def run_file(dictionary):
+	env = make_env(scenario_name=dictionary["env"],benchmark=False)
+	ma_controller = MAA2C(env,dictionary)
+	ma_controller.run()
+
+
 
 if __name__ == '__main__':
-	env = make_env(scenario_name="collision_avoidance",benchmark=False)
-	ma_controller = MAA2C(env,gif=False,save=True)
-	ma_controller.run(30000,100)
+	dictionary = {
+			"critic_dir": '../../../models/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/without_prd_scaled/critic_networks/',
+			"actor_dir": '../../../models/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/without_prd_scaled/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/without_prd_scaled/',
+			"gif_dir": '../../../gifs/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/without_prd_scaled/',
+			"env": "collision_avoidance", 
+			"value_lr": 1e-2, #1e-2 for single head
+			"policy_lr": 1e-3, # 2e-4 for single head
+			"entropy_pen": 0.008, 
+			"gamma": 0.99,
+			"trace_decay": None,
+			"select_above_threshold": 0.1,
+			"softmax_cut_threshold": 0.1,
+			"top_k": 2,
+			"gif": False,
+			"save": True,
+			"max_episodes": 40000,
+			"max_time_steps": 100,
+		}
+	env = make_env(scenario_name=dictionary["env"],benchmark=False)
+	a_controller = MAA2C(env,dictionary)
+	ma_controller.run()
