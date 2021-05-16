@@ -217,7 +217,16 @@ class MAA2C:
 
 	def run(self):  
 		for episode in range(1,self.max_episodes+1):
-			states = self.env.reset(self.num_agents)
+
+			states = self.env.reset()
+
+			# RANDOMIZING NUMBER OF AGENTS
+			self.num_agents = self.env.n
+			self.agents.num_agents = self.num_agents
+			self.agents.critic_network.num_agents = self.num_agents
+			self.agents.policy_network.num_agents = self.num_agents
+			self.agents.get_scaling_factor()
+
 
 			images = []
 

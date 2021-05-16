@@ -37,10 +37,7 @@ class A2CAgent:
 
 		self.experiment_type = dictionary["experiment_type"]
 		self.scaling_factor = None
-		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
-			self.scaling_factor = self.num_agents
-		elif "top" in self.experiment_type:
-			self.scaling_factor = self.num_agents/self.top_k
+		
 
 
 
@@ -80,6 +77,14 @@ class A2CAgent:
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
+
+	def get_scaling_factor(self):
+		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
+			self.scaling_factor = self.num_agents
+		elif "top" in self.experiment_type:
+			self.scaling_factor = self.num_agents/self.top_k
+
+		return self.scaling_factor
 
 	def get_action(self,state):
 		# MLP

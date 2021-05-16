@@ -83,9 +83,22 @@ class ScalarDotProductCriticNetwork(nn.Module):
 			self.place_actions[j][j] = zero_hots
 
 		self.threshold = threshold
+		self.obs_act_input_dim = obs_act_input_dim
 		# ********************************************************************************************************* 
 
 		self.reset_parameters()
+
+
+	def mixing_actions_policies(self):
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(self.obs_act_input_dim)
+		zero_hots = torch.zeros(self.obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
@@ -129,6 +142,9 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
 
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+
+		# RANDOMIZING NUMBER OF AGENTS
+		self.mixing_actions_policies()
 
 		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 
@@ -475,6 +491,7 @@ class DualAttentionCriticNetwork(nn.Module):
 		# MERGING OBSERVATION AND ACTIONS
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+
 		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 		# ATTENTION VALUES
 		attention_values = self.attention_value_layer_obs_act(obs_actions_policies)
