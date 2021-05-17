@@ -144,10 +144,10 @@ class MAA2C:
 			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
 			self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
 
-			self.calculate_indiv_weights(weight_policy)
-			for i in range(self.num_agents):
-				agent_name = 'agent %d' % i
-				self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+			# self.calculate_indiv_weights(weight_policy)
+			# for i in range(self.num_agents):
+			# 	agent_name = 'agent %d' % i
+			# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 			
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
@@ -221,11 +221,11 @@ class MAA2C:
 			states = self.env.reset()
 
 			# RANDOMIZING NUMBER OF AGENTS
-			# self.num_agents = self.env.n
-			# self.agents.num_agents = self.num_agents
-			# self.agents.critic_network.num_agents = self.num_agents
-			# self.agents.policy_network.num_agents = self.num_agents
-			# self.agents.get_scaling_factor()
+			self.num_agents = self.env.n
+			self.agents.num_agents = self.num_agents
+			self.agents.critic_network.num_agents = self.num_agents
+			self.agents.policy_network.num_agents = self.num_agents
+			self.agents.get_scaling_factor()
 
 
 			images = []
