@@ -17,7 +17,7 @@ if __name__ == '__main__':
 				"critic_dir": '../../../models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
 				"actor_dir": '../../../models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
 				"tensorboard_dir":'../../../runs/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
-				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/4_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
+				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
 				"policy_lr": 1e-3, # 2e-4 for single head
