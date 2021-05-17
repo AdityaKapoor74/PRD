@@ -12,7 +12,7 @@ if __name__ == '__main__':
 	top_k_list = [0, 1, 5, 8, 0, 0, 1, 5, 8, 0]
 
 	for i in range(len(env_list[:1])):
-		for j in range(len(experiment_type)):
+		for j in range(len(experiment_type[5:])):
 			dictionary = {
 				"critic_dir": '../../../models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
 				"actor_dir": '../../../models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
