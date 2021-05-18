@@ -14,7 +14,7 @@ class A2CAgent:
 	def __init__(
 		self, 
 		env, 
-		value_lr=1e-3, #1e-2 for environment 1
+		value_lr=1e-2, #1e-2 for environment 1
 		policy_lr=3e-4, 
 		entropy_pen=0.008, 
 		gamma=0.99,
@@ -195,7 +195,6 @@ class A2CAgent:
 		# NO MASKING OF ADVANTAGES
 		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
 		# HARDCODE ADVANTAGES
-		which_agent = which_agent.transpose(-1,-2)
 		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * which_agent,dim=-2)	
 		
 		# we got w_i_j --> for landmark i attention to agent j; we need to make it wji --> weight agent j gives to landmark i, because advantage over actions of an action of agent

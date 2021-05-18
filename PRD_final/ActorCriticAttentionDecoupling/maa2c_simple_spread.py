@@ -59,26 +59,26 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			critic_dir = '../../../models/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code_adv_pen_no_imp/critic_networks/'
+			critic_dir = '../../../models/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code/critic_networks/'
 			try: 
 				os.makedirs(critic_dir, exist_ok = True) 
 				print("Critic Directory created successfully") 
 			except OSError as error: 
 				print("Critic Directory can not be created") 
-			actor_dir = '../../../models/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code_adv_pen_no_imp/actor_networks/'
+			actor_dir = '../../../models/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code/actor_networks/'
 			try: 
 				os.makedirs(actor_dir, exist_ok = True) 
 				print("Actor Directory created successfully") 
 			except OSError as error: 
 				print("Actor Directory can not be created")  
-			weight_dir = '../../../weights/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code_adv_pen_no_imp/'
+			weight_dir = '../../../weights/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code/'
 			try: 
 				os.makedirs(weight_dir, exist_ok = True) 
 				print("Weights Directory created successfully") 
 			except OSError as error: 
 				print("Weights Directory can not be created") 
 
-			tensorboard_dir = '../../../runs/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code_adv_pen_no_imp/'
+			tensorboard_dir = '../../../runs/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code/'
 
 
 			# paths for models, tensorboard and gifs
@@ -88,7 +88,7 @@ class MAA2C:
 			self.filename = weight_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"lambda_"+str(self.agents.lambda_)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.txt'
 
 		elif self.gif:
-			gif_dir = '../../../gifs/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code_adv_pen_no_imp/'
+			gif_dir = '../../../gifs/Scalar_dot_product/simple_spread/2_agents/DualAttention/without_noise/hard_code/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -278,13 +278,12 @@ class MAA2C:
 				next_states,rewards_,dones,info = self.env.step(actions)
 				# rewards_ = (rewards, closest agent)
 				rewards = []
-				which_agent = []
+				landmark_agent = [[0]*self.num_agents for i in range(self.num_agents)]
 				for i in range(len(rewards_)):
 					rewards.append(rewards_[i][0])
 					# which_agent.append(rewards_[i][1])
-					one_hot_which_agent = [2]*self.num_agents
-					one_hot_which_agent[rewards_[i][1]] = 1
-					which_agent.append(one_hot_which_agent)
+					landmark_agent[i][rewards_[i][1]] = 1
+
 
 				next_states_critic,next_states_actor,next_goal_states = self.split_states(next_states)
 
@@ -301,7 +300,7 @@ class MAA2C:
 				if not(self.gif):
 					if all(dones) or step == max_steps-1:
 
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,goal_states,next_goal_states,which_agent])
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,goal_states,next_goal_states,landmark_agent])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step+1,max_steps))
 						print("*"*100)
@@ -312,7 +311,7 @@ class MAA2C:
 
 						break
 					else:
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,goal_states,next_goal_states,which_agent])
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,goal_states,next_goal_states,landmark_agent])
 						states_critic,states_actor,goal_states = next_states_critic,next_states_actor,next_goal_states
 						states = next_states
 
