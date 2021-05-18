@@ -31,7 +31,7 @@ if __name__ == '__main__':
 				"top_k": top_k_list[j],
 				"gif": False,
 				"save": True,
-				"max_episodes": 40000,
+				"max_episodes": 80000,
 				"max_time_steps": 100,
 			}
 
