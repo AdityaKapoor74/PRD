@@ -44,9 +44,9 @@ if __name__ == '__main__':
 			"softmax_cut_threshold": 0.1,
 			"top_k": 2,
 			"gif": False,
-			"save": False,
-			"max_episodes": 1,
-			"max_time_steps": 10,
+			"save": True,
+			"max_episodes": 80000,
+			"max_time_steps": 100,
 			"experiment_type": "without_prd",
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
