@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_paired_agents import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
+from a2c_crowd_nav import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -31,41 +31,47 @@ class A2CAgent:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		
-		self.num_agents = self.env.n
+		self.num_agents = dictionary["num_agents"]
+		self.num_people = dictionary["num_people"]
 		self.num_actions = self.env.action_space[0].n
 		self.gif = dictionary["gif"]
 
+
 		self.experiment_type = dictionary["experiment_type"]
-		self.scaling_factor = self.get_scaling_factor()
-		
+		self.scaling_factor = None
+		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
+			self.scaling_factor = self.num_agents
+		elif "top" in self.experiment_type:
+			self.scaling_factor = self.num_agents/self.top_k
+
+		print(self.experiment_type, self.scaling_factor)
 
 
-
-		# SCALAR DOT PRODUCT CRITIC NETWORK
-		self.obs_input_dim = 2*4
-		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
-		self.obs_act_output_dim = 16
-		self.final_input_dim = self.obs_act_output_dim
+		# SCALAR DOT PRODUCT
+		self.obs_agent_input_dim = 2*3
+		self.obs_act_agent_input_dim = self.obs_agent_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+		self.obs_act_agent_output_dim = 16
+		self.obs_people_input_dim = 2*2
+		self.obs_act_people_input_dim = self.obs_people_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+		self.obs_act_people_output_dim = 16
+		self.final_input_dim = self.obs_act_agent_output_dim + self.obs_act_people_output_dim
 		self.final_output_dim = 1
-		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_agent_input_dim, self.obs_act_agent_output_dim, self.obs_act_people_input_dim, self.obs_act_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_people, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		
 		
 		# SCALAR DOT PRODUCT POLICY NETWORK
-		self.obs_input_dim = 2*3
-		self.obs_output_dim = 16
-		self.final_input_dim = self.obs_output_dim
+		self.obs_agent_input_dim = 2*3
+		self.obs_agent_output_dim = 16
+		self.obs_people_input_dim = 2*2 # (pose,vel,goal pose, paired agent goal pose) --> observations 
+		self.obs_people_output_dim = 16
+		self.final_input_dim = self.obs_agent_output_dim + self.obs_people_output_dim
 		self.final_output_dim = self.num_actions
-		self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-
-		# POLICY MLP
-		# self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
-		# self.policy_output_dim = self.env.action_space[0].n
-		# policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
-		# self.policy_network = PolicyNetwork(policy_network_size).to(self.device)
+		self.policy_network = ScalarDotProductPolicyNetwork(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_people, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 
 		# Loading models
-		# model_path_value = "../../../models/Experiment37/critic_networks/11-04-2021VN_SAT_SAT_FCN_lr0.0002_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda0.0tanh_epsiode6000.pt"
-		# model_path_policy = "../../../models/Experiment29/actor_networks/09-04-2021_PN_FCN_lr0.0002VN_SAT_SAT_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda1e-05tanh_epsiode24000.pt"
+		# model_path_value = "../../../models/Scalar_dot_product/crowd_nav/3_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/critic_networks/22-05-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode40000.pt"
+		# model_path_policy = "../../../models/Scalar_dot_product/crowd_nav/3_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/actor_networks/22-05-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode40000.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -78,15 +84,7 @@ class A2CAgent:
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
-	def get_scaling_factor(self):
-		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
-			self.scaling_factor = self.num_agents
-		elif "top" in self.experiment_type:
-			self.scaling_factor = self.num_agents/self.top_k
-
-		return self.scaling_factor
-
-	def get_action(self,state):
+	def get_action(self,state, state_people):
 		# MLP
 		# state = torch.FloatTensor(state).to(self.device)
 		# dists = self.policy_network.forward(state)
@@ -97,7 +95,8 @@ class A2CAgent:
 
 		# GNN
 		state = torch.FloatTensor([state]).to(self.device)
-		dists, _ = self.policy_network.forward(state)
+		state_people = torch.FloatTensor([state_people]).to(self.device)
+		dists, _, _ = self.policy_network.forward(state, state_people)
 		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
 		return index
 
@@ -155,7 +154,7 @@ class A2CAgent:
 
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
+	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people,next_states_critic_people,one_hot_actions_people,one_hot_next_actions_people,states_actor_people,next_states_actor_people):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -166,12 +165,12 @@ class A2CAgent:
 		# next_probs = self.policy_network.forward(next_states_actor)
 
 		# GNN
-		probs, weight_policy = self.policy_network.forward(states_actor)
+		probs, weight_policy, weight_policy_people = self.policy_network.forward(states_actor,states_actor_people)
 
 		'''
 		Calculate V values
 		'''
-		V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		V_values, weights, weights_people = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions, states_critic_people, one_hot_actions_people)
 		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
@@ -215,7 +214,8 @@ class A2CAgent:
 
 		if "scaled" in self.experiment_type:
 			advantage = advantage * self.scaling_factor
-	
+
+
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
@@ -236,4 +236,4 @@ class A2CAgent:
 		# grad_norm_policy = 0
 
 		# V values
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_people, weight_policy_people
