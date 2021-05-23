@@ -18,9 +18,9 @@ if __name__ == '__main__':
 	for i in range(len(env_list[:1])):
 		for j in range(len(experiment_type)):
 			dictionary = {
-				"critic_dir": '../../../scaled_run3/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
-				"actor_dir": '../../../scaled_run3/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
-				"tensorboard_dir":'../../../scaled_run3/runs/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
+				"critic_dir": '../../../scaled_run4/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../scaled_run4/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../scaled_run4/runs/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
