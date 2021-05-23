@@ -5,22 +5,22 @@ from main_paired_agents import run_file
 
 
 if __name__ == '__main__':
-	env_list = ["paired_by_sharing_goals", "collision_avoidance"]
+	env_list = ["paired_by_sharing_goals"]
 
 	experiment_type = ["without_prd", "with_prd_top1", "with_prd_top5", "with_prd_top8", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top5_scaled", "with_prd_top8_scaled", "with_prd_soft_adv_scaled"]
 
-	experiment_type = ["without_prd_scaled", "with_prd_top1_scaled", "with_prd_top5_scaled", "with_prd_top8_scaled", "with_prd_soft_adv_scaled"]
+	# experiment_type = ["without_prd_scaled", "with_prd_top1_scaled", "with_prd_top5_scaled", "with_prd_top8_scaled", "with_prd_soft_adv_scaled"]
 
 	top_k_list = [0, 1, 5, 8, 0, 0, 1, 5, 8, 0]
 
-	top_k_list = [0, 1, 5, 8, 0]
+	# top_k_list = [0, 1, 5, 8, 0]
 
-	for i in range(len(env_list[:1])):
+	for i in range(len(env_list)):
 		for j in range(len(experiment_type)):
 			dictionary = {
-				"critic_dir": '../../../scaled_run4/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
-				"actor_dir": '../../../scaled_run4/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
-				"tensorboard_dir":'../../../scaled_run4/runs/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
+				"critic_dir": '../../../run5/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../run5/models/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../run5/runs/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/10_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
