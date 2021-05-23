@@ -36,6 +36,7 @@ class A2CAgent:
 		self.gif = dictionary["gif"]
 
 		self.experiment_type = dictionary["experiment_type"]
+		self.scaling_factor = None
 		self.scaling_factor = self.get_scaling_factor()
 		
 
