@@ -40,6 +40,12 @@ class A2CAgent:
 			self.scaling_factor = self.num_agents
 		elif "top" in self.experiment_type:
 			self.scaling_factor = self.num_agents/self.top_k
+
+		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
+		for i in range(self.num_agents):
+			self.greedy_policy[i][i] = 1
+
+		print(self.experiment_type, self.top_k)
 		
 
 
@@ -215,6 +221,9 @@ class A2CAgent:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
 		elif self.experiment_type == "with_prd_soft_adv" or self.experiment_type == "with_prd_soft_adv_scaled":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
+		elif self.experiment_type == "greedy_policy":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * self.greedy_policy ,dim=-2)
+
 
 		if "scaled" in self.experiment_type:
 			advantage = advantage * self.scaling_factor

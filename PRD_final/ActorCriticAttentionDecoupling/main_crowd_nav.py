@@ -30,12 +30,12 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/critic_networks/',
-			"actor_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/actor_networks/',
-			"tensorboard_dir":'../../../runs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/',
-			"gif_dir": '../../../gifs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/',
+			"critic_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/critic_networks/',
+			"actor_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/',
+			"gif_dir": '../../../gifs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/',
 			"env": "crowd_nav", 
-			"experiment_type": "without_prd",
+			"experiment_type": "greedy_policy",
 			"num_agents": 6,
 			"num_people": 4,
 			"value_lr": 1e-2, #1e-2 for single head

@@ -210,16 +210,6 @@ class MAA2C:
 		clip.write_gif(fname, fps=fps)
 
 
-	def predict(self, pose, goal_pose):
-		
-		theta = np.arctan2(goal_pose[1]-pose[1], goal_pose[0]-pose[0])
-		vx = np.cos(theta) * self_state.v_pref
-		vy = np.sin(theta) * self_state.v_pref
-		action = ActionXY(vx, vy)
-
-		return action
-
-
 
 	def run(self):  
 		for episode in range(1,self.max_episodes+1):
@@ -314,10 +304,12 @@ class MAA2C:
 					else:
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people,next_states_critic_people,one_hot_actions_people,one_hot_next_actions_people,states_actor_people,next_states_actor_people])
 						states_critic,states_actor = next_states_critic,next_states_actor
+						# states_critic_people,states_actor_people = next_states_critic_people,next_states_actor_people
 						states = next_states
 
 				else:
 					states_critic,states_actor = next_states_critic,next_states_actor
+					# states_critic_people,states_actor_people = next_states_critic_people,next_states_actor_people
 					states = next_states
 
 

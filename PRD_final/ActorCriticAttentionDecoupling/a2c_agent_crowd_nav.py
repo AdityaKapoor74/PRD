@@ -44,6 +44,12 @@ class A2CAgent:
 		elif "top" in self.experiment_type:
 			self.scaling_factor = self.num_agents/self.top_k
 
+
+		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
+		for i in range(self.num_agents):
+			self.greedy_policy[i][i] = 1
+
+
 		print(self.experiment_type, self.scaling_factor)
 
 
@@ -70,8 +76,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../../models/Scalar_dot_product/crowd_nav/3_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/critic_networks/22-05-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode40000.pt"
-		# model_path_policy = "../../../models/Scalar_dot_product/crowd_nav/3_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/actor_networks/22-05-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode40000.pt"
+		# model_path_value = "../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/critic_networks/24-05-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode80000.pt"
+		# model_path_policy = "../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/actor_networks/24-05-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode80000.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -211,6 +217,8 @@ class A2CAgent:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
 		elif self.experiment_type == "with_prd_soft_adv" or self.experiment_type == "with_prd_soft_adv_scaled":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
+		elif self.experiment_type == "greedy_policy":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * self.greedy_policy ,dim=-2)
 
 		if "scaled" in self.experiment_type:
 			advantage = advantage * self.scaling_factor
