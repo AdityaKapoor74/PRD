@@ -30,14 +30,14 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/critic_networks/',
-			"actor_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/actor_networks/',
-			"tensorboard_dir":'../../../runs/Scalar_dot_product/crowd_nav/6_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/',
-			"gif_dir": '../../../gifs/Scalar_dot_product/crowd_nav/6_Agents_2_People/SingleAttentionMechanism/with_prd_soft_adv/',
+			"critic_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/critic_networks/',
+			"actor_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/',
+			"gif_dir": '../../../gifs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/without_prd/',
 			"env": "crowd_nav", 
-			"experiment_type": "with_prd_soft_adv",
+			"experiment_type": "without_prd",
 			"num_agents": 6,
-			"num_people": 2,
+			"num_people": 4,
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.008, 

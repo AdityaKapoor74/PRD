@@ -11,7 +11,6 @@ import datetime
 import random
 
 
-
 class MAA2C:
 
 	def __init__(self,env, dictionary):
@@ -211,6 +210,15 @@ class MAA2C:
 		clip.write_gif(fname, fps=fps)
 
 
+	def predict(self, pose, goal_pose):
+		
+		theta = np.arctan2(goal_pose[1]-pose[1], goal_pose[0]-pose[0])
+		vx = np.cos(theta) * self_state.v_pref
+		vy = np.sin(theta) * self_state.v_pref
+		action = ActionXY(vx, vy)
+
+		return action
+
 
 
 	def run(self):  
@@ -245,7 +253,16 @@ class MAA2C:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				actions_people = [random.randint(0,4) for i in range(self.num_people)]
+				actions_people = []
+				for i in range(self.num_people):
+					if i%4 == 0:
+						actions_people.append(2)
+					elif i%4 == 1:
+						actions_people.append(4)
+					elif i%4 == 2:
+						actions_people.append(1)
+					elif i%4 == 3:
+						actions_people.append(3)
 				one_hot_actions_people = np.zeros((self.num_people,self.num_actions))
 				for i,act in enumerate(actions_people):
 					one_hot_actions_people[i][act] = 1
@@ -263,7 +280,16 @@ class MAA2C:
 				for i,act in enumerate(next_actions):
 					one_hot_next_actions[i][act] = 1
 
-				next_actions_people = [random.randint(0,4) for i in range(self.num_people)]
+				next_actions_people = []
+				for i in range(self.num_people):
+					if i%4 == 0:
+						next_actions_people.append(2)
+					elif i%4 == 1:
+						next_actions_people.append(4)
+					elif i%4 == 2:
+						next_actions_people.append(1)
+					elif i%4 == 3:
+						next_actions_people.append(3)
 				one_hot_next_actions_people = np.zeros((self.num_people,self.num_actions))
 				for i,act in enumerate(next_actions_people):
 					one_hot_next_actions[i][act] = 1

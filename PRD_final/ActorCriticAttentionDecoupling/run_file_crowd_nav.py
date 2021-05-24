@@ -1,7 +1,7 @@
 import os
 import sys
 
-from main_collision_avoidance import run_file
+from main_crowd_nav import run_file
 
 
 
@@ -15,10 +15,12 @@ if __name__ == '__main__':
 	for i in range(len(env_list)):
 		for j in range(len(experiment_type)):
 			dictionary = {
-				"critic_dir": '../../../run4/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
-				"actor_dir": '../../../run4/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
-				"tensorboard_dir":'../../../run4/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
-				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
+				"critic_dir": '../../../run1/models/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../run1/models/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../run1/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/',
+				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/',
+				"num_agents": 6,
+				"num_people": 4,
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
 				"policy_lr": 1e-3, # 2e-4 for single head
@@ -31,7 +33,7 @@ if __name__ == '__main__':
 				"top_k": top_k_list[j],
 				"gif": False,
 				"save": True,
-				"max_episodes": 80000,
+				"max_episodes": 100000,
 				"max_time_steps": 100,
 			}
 
