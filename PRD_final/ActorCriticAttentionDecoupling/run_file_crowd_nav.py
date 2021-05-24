@@ -15,9 +15,9 @@ if __name__ == '__main__':
 	for i in range(len(env_list)):
 		for j in range(len(experiment_type)):
 			dictionary = {
-				"critic_dir": '../../../run1/models/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
-				"actor_dir": '../../../run1/models/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
-				"tensorboard_dir":'../../../run1/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/',
+				"critic_dir": '../../../run2/models/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../run2/models/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../run2/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/',
 				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/6_Agents_4_People/DualAttentionMechanism/'+experiment_type[j]+'/',
 				"num_agents": 6,
 				"num_people": 4,
