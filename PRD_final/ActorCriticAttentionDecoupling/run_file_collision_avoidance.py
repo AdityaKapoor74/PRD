@@ -8,12 +8,12 @@ from main_collision_avoidance import run_file
 if __name__ == '__main__':
 	env_list = ["collision_avoidance"]
 
-	experiment_type = ["without_prd", "with_prd_top1", "with_prd_top3", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top3_scaled", "with_prd_soft_adv_scaled"]
+	experiment_type = ["greedy_policy", "without_prd", "with_prd_top1", "with_prd_top3", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top3_scaled", "with_prd_soft_adv_scaled"]
 
 	top_k_list = [0, 1, 3, 0, 0, 1, 3, 0]
 	
 	for i in range(len(env_list)):
-		for j in range(len(experiment_type)):
+		for experiment in experiment_type:
 			dictionary = {
 				"critic_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment+'/critic_networks/',
 				"actor_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment+'/actor_networks/',
