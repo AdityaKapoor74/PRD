@@ -33,7 +33,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type[j],
 				"top_k": top_k_list[j],
 				"gif": False,
-				"save": False,
+				"save": True,
 				"max_episodes": 80000,
 				"max_time_steps": 100,
 			}
