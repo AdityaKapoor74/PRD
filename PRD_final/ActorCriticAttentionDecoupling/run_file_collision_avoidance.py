@@ -15,9 +15,9 @@ if __name__ == '__main__':
 	for i in range(len(env_list)):
 		for j in range(len(experiment_type)):
 			dictionary = {
-				"critic_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
-				"actor_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
-				"tensorboard_dir":'../../../run_shared_collision_rew/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
+				"critic_dir": '../../../run_other_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../run_other_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../run_other_collision_rew/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
