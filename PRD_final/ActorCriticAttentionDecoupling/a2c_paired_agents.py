@@ -144,7 +144,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
 
 		# RANDOMIZING NUMBER OF AGENTS
-		# self.mixing_actions_policies()
+		self.mixing_actions_policies()
 
 		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 

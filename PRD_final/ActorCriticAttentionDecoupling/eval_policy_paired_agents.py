@@ -94,7 +94,7 @@ def run(env, max_episodes, max_steps):
 
 	experiment_type = ["without_prd", "with_prd_top1", "with_prd_top5", "with_prd_top8", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top5_scaled", "with_prd_top8_scaled", "with_prd_soft_adv_scaled"]
 
-	runs = ["run1", "run2", "run3", "run4"]
+	runs = ["run1", "run2", "run3", "run4", "run5"]
 
 	for run in runs:
 
@@ -152,6 +152,10 @@ def run(env, max_episodes, max_steps):
 
 						states_critic,states_actor = next_states_critic,next_states_actor
 						states = next_states
+
+					print("*"*50)
+					print("RUN NUMBER", run, "EXPERIMENT", experiment, "MODEL EPISODE", episode_num, "EPISODE REWARD", total_rewards, "FINAL TIMESTEP", final_time_step)
+					print("*"*50)
 
 					rewards_list.append(total_rewards)
 					time_steps_list.append(final_time_step)

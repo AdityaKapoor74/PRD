@@ -36,6 +36,7 @@ class A2CAgent:
 		self.gif = dictionary["gif"]
 
 		self.experiment_type = dictionary["experiment_type"]
+		self.scaling_factor = None
 		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
 			self.scaling_factor = self.num_agents
 		elif "top" in self.experiment_type:

@@ -221,11 +221,11 @@ class MAA2C:
 			states = self.env.reset()
 
 			# RANDOMIZING NUMBER OF AGENTS
-			# self.num_agents = self.env.n
-			# self.agents.num_agents = self.num_agents
-			# self.agents.critic_network.num_agents = self.num_agents
-			# self.agents.policy_network.num_agents = self.num_agents
-			# self.agents.get_scaling_factor()
+			self.num_agents = self.env.n
+			self.agents.num_agents = self.num_agents
+			self.agents.critic_network.num_agents = self.num_agents
+			self.agents.policy_network.num_agents = self.num_agents
+			self.agents.get_scaling_factor()
 
 
 			images = []

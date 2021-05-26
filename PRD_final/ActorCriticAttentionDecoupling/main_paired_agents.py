@@ -44,7 +44,7 @@ if __name__ == '__main__':
 			"softmax_cut_threshold": 0.1,
 			"top_k": 2,
 			"gif": False,
-			"save": True,
+			"save": False,
 			"max_episodes": 80000,
 			"max_time_steps": 100,
 			"experiment_type": "without_prd",
