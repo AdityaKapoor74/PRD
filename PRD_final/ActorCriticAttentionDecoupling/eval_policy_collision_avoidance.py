@@ -21,11 +21,7 @@ from typing import Any, List, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import dgl 
 import numpy as np
-import dgl
-import dgl.function as fn
-from dgl import DGLGraph
 import datetime
 import math
 
@@ -94,14 +90,16 @@ def run(env, max_episodes, max_steps):
 
 	experiment_type = ["without_prd", "with_prd_top1", "with_prd_top3", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top3_scaled", "with_prd_soft_adv_scaled"]
 
-	runs = ["run1", "run2", "run3", "run4"]
+	runs = ["run1", "run2", "run3", "run4", "run5"]
 
 	for run in runs:
-
 		for experiment in experiment_type:
 
 			# Loading models
-			model_dir_policy = "../../../remote_stations/collision_avoidance/"+run+"/models/Scalar_dot_product/collision_avoidance/6_Agents/SingleAttentionMechanism/" + experiment + "/actor_networks/"
+			# FOR LOCAL SYSTEM
+			# model_dir_policy = "../../../remote_stations/collision_avoidance/"+run+"/models/Scalar_dot_product/collision_avoidance/6_Agents/SingleAttentionMechanism/" + experiment + "/actor_networks/"
+			# FOR REMOTE SYSTEM
+			model_dir_policy = "../../../models/"+run+"/models/Scalar_dot_product/collision_avoidance/6_Agents/SingleAttentionMechanism/" + experiment + "/actor_networks/"
 			
 			policy_eval_file_path = policy_eval_dir+'collision_avoidance_6_Agents_' + experiment + '.txt'
 
@@ -113,7 +111,6 @@ def run(env, max_episodes, max_steps):
 			for file in onlyfiles:
 
 				episode_num = file.split('_')[-1][7:-3]
-				print(episode_num)
 				model_path_policy = model_dir_policy + file
 				# For CPU
 				# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -146,12 +143,17 @@ def run(env, max_episodes, max_steps):
 
 						total_rewards += np.sum(rewards)
 
+
 						if all(dones):
 							final_time_step = step
 							break
 
 						states_critic,states_actor = next_states_critic,next_states_actor
 						states = next_states
+
+					print("*"*50)
+					print("RUN NUMBER", run, "EXPERIMENT", experiment, "MODEL EPISODE", episode_num, "EPISODE REWARD", total_rewards, "FINAL TIMESTEP", final_time_step)
+					print("*"*50)
 
 					rewards_list.append(total_rewards)
 					time_steps_list.append(final_time_step)
@@ -173,9 +175,11 @@ def run(env, max_episodes, max_steps):
 				simplejson.dump(time_steps, fp)
 				fp.write("\n")
 
+			print("SAVED DATA!")
+
 if __name__ == '__main__':
 	env = make_env(scenario_name="collision_avoidance",benchmark=False)
 
-	run(env, max_episodes=1, max_steps=100)
+	run(env, max_episodes=1000, max_steps=100)
 
 

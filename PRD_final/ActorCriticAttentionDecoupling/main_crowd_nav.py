@@ -30,16 +30,16 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/critic_networks/',
-			"actor_dir": '../../../models/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/actor_networks/',
-			"tensorboard_dir":'../../../runs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/',
-			"gif_dir": '../../../gifs/Scalar_dot_product/crowd_nav/6_Agents_4_People/SingleAttentionMechanism/greedy_policy/',
+			"critic_dir": '../../../models/Scalar_dot_product/crowd_nav_enforced_coop/6_Agents_4_People/SingleAttentionMechanism/with_prd_soft_adv/critic_networks/',
+			"actor_dir": '../../../models/Scalar_dot_product/crowd_nav_enforced_coop/6_Agents_4_People/SingleAttentionMechanism/with_prd_soft_adv/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/crowd_nav_enforced_coop/6_Agents_4_People/SingleAttentionMechanism/with_prd_soft_adv/',
+			"gif_dir": '../../../gifs/Scalar_dot_product/crowd_nav_enforced_coop/6_Agents_4_People/SingleAttentionMechanism/with_prd_soft_adv/',
 			"env": "crowd_nav", 
-			"experiment_type": "greedy_policy",
+			"experiment_type": "with_prd_soft_adv",
 			"num_agents": 6,
 			"num_people": 4,
-			"value_lr": 1e-2, #1e-2 for single head
-			"policy_lr": 1e-3, # 2e-4 for single head
+			"value_lr": 3e-4, #1e-2 for single head
+			"policy_lr": 3e-4, # 2e-4 for single head
 			"entropy_pen": 0.008, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
