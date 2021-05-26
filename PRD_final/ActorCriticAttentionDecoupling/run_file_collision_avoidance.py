@@ -13,12 +13,12 @@ if __name__ == '__main__':
 	top_k_list = [0, 1, 3, 0, 0, 1, 3, 0]
 	
 	for i in range(len(env_list)):
-		for experiment in experiment_type:
+		for j in range(len(experiment_type)):
 			dictionary = {
-				"critic_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment+'/critic_networks/',
-				"actor_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment+'/actor_networks/',
-				"tensorboard_dir":'../../../run_shared_collision_rew/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment+'/',
-				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment+'/',
+				"critic_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../run_shared_collision_rew/models/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../run_shared_collision_rew/runs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
+				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/6_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
 				"policy_lr": 1e-3, # 2e-4 for single head
@@ -27,7 +27,7 @@ if __name__ == '__main__':
 				"trace_decay": 0.98,
 				"select_above_threshold": 0.1,
 				"softmax_cut_threshold": 0.1,
-				"experiment_type": experiment,
+				"experiment_type": experiment_type[j],
 				"top_k": top_k_list[j],
 				"gif": False,
 				"save": True,
