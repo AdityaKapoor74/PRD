@@ -113,7 +113,6 @@ def run(env, max_episodes, max_steps):
 			for file in onlyfiles:
 
 				episode_num = file.split('_')[-1][7:-3]
-				print(episode_num)
 				model_path_policy = model_dir_policy + file
 				# For CPU
 				# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -180,6 +179,6 @@ def run(env, max_episodes, max_steps):
 if __name__ == '__main__':
 	env = make_env(scenario_name="paired_by_sharing_goals",benchmark=False)
 
-	run(env, max_episodes=1, max_steps=100)
+	run(env, max_episodes=1000, max_steps=100)
 
 
