@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_collision_avoidance import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
+from a2c_collision_avoidance import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -53,11 +53,12 @@ class A2CAgent:
 
 		# SCALAR DOT PRODUCT
 		self.obs_input_dim = 2*3
+		self.obs_output_dim = 16
 		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 		self.obs_act_output_dim = 16
 		self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
 		self.final_output_dim = 1
-		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 		
 		
 		# SCALAR DOT PRODUCT POLICY NETWORK

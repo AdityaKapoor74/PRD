@@ -9,18 +9,16 @@ if __name__ == '__main__':
 
 	experiment_type = ["without_prd", "with_prd_top1", "with_prd_top5", "with_prd_top8", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top5_scaled", "with_prd_top8_scaled", "with_prd_soft_adv_scaled"]
 
-	# experiment_type = ["without_prd_scaled", "with_prd_top1_scaled", "with_prd_top5_scaled", "with_prd_top8_scaled", "with_prd_soft_adv_scaled"]
-
+	
 	top_k_list = [0, 1, 5, 8, 0, 0, 1, 5, 8, 0]
 
-	# top_k_list = [0, 1, 5, 8, 0]
 
 	for i in range(len(env_list)):
 		for j in range(len(experiment_type)):
 			dictionary = {
-				"critic_dir": '../../../run_var_agent_1/models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
-				"actor_dir": '../../../run_var_agent_1/models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
-				"tensorboard_dir":'../../../run_var_agent_1/runs/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
+				"critic_dir": '../../../paired_agent_run1/models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../paired_agent_run1/models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../paired_agent_run1/runs/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
