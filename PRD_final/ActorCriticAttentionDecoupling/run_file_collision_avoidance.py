@@ -18,10 +18,10 @@ if __name__ == '__main__':
 	for i in range(len(env_list)):
 		for j in range(len(experiment_type)):
 			dictionary = {
-			"critic_dir": '../../../collision_avoidance_no_collision_pen_12_Agents/models/'+experiment_type[j]+'/critic_networks/',
-			"actor_dir": '../../../collision_avoidance_no_collision_pen_12_Agents/models/'+experiment_type[j]+'/actor_networks/',
-			"tensorboard_dir":'../../../collision_avoidance_no_collision_pen_12_Agents/runs/'+experiment_type[j]+'/',
-			"gif_dir": '../../../collision_avoidance_no_collision_pen_12_Agents/gifs/'+experiment_type[j]+'/',
+			"critic_dir": '../../../collision_avoidance_no_collision_pen_14_Agents/models/'+experiment_type[j]+'/critic_networks/',
+			"actor_dir": '../../../collision_avoidance_no_collision_pen_14_Agents/models/'+experiment_type[j]+'/actor_networks/',
+			"tensorboard_dir":'../../../collision_avoidance_no_collision_pen_14_Agents/runs/'+experiment_type[j]+'/',
+			"gif_dir": '../../../collision_avoidance_no_collision_pen_14_Agents/gifs/'+experiment_type[j]+'/',
 			"env": env_list[i], 
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
