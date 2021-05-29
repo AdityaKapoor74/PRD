@@ -32,8 +32,8 @@ if __name__ == '__main__':
 			"softmax_cut_threshold": 0.1,
 			"experiment_type": experiment_type[j],
 			"top_k": top_k_list[j],
-			"gif": False,
-			"save": True,
+			"gif": True,
+			"save": False,
 			"max_episodes": 200000,
 			"max_time_steps": 100,
 			}
