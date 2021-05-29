@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent_collision_avoidance import A2CAgent
+from a2c_agent_coma import A2CAgent
 import datetime
 
 
@@ -69,9 +69,10 @@ class MAA2C:
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
+			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.gif'
 
 		if not(self.gif) and self.save:
+			print("TENSORBOARD")
 			self.writer = SummaryWriter(self.tensorboard_path)
 
 
@@ -97,6 +98,27 @@ class MAA2C:
 			for j in range(self.num_agents):
 				agent_name_ = 'agent %d' % j
 				self.weight_dictionary[agent_name][agent_name_] = weights_per_agent[i][j].item()
+
+
+
+	def calculate_weights(self,weights):
+		paired_agents_weight = 0
+		paired_agents_weight_count = 0
+		unpaired_agents_weight = 0
+		unpaired_agents_weight_count = 0
+
+		for k in range(weights.shape[0]):
+			for i in range(self.num_agents):
+				for j in range(self.num_agents):
+					if self.num_agents-1-i == j:
+						paired_agents_weight += weights[k][i][j]
+						paired_agents_weight_count += 1
+					else:
+						unpaired_agents_weight += weights[k][i][j]
+						unpaired_agents_weight_count += 1
+
+		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
+
 
 
 
@@ -134,6 +156,9 @@ class MAA2C:
 			# for i in range(self.num_agents):
 			# 	agent_name = 'agent %d' % i
 			# 	self.writer.add_scalars('Weights/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+
+			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
+			self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
 
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
@@ -215,6 +240,7 @@ class MAA2C:
 				else:
 					actions = self.get_actions(states_actor)
 
+
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
@@ -263,4 +289,4 @@ class MAA2C:
 				self.update(trajectory,episode) 
 			elif self.gif and not(episode%gif_checkpoint):
 				print("GENERATING GIF")
-				self.make_gif(np.array(images),self.gif_path+"_episode"+str(episode)+'.gif')
+				self.make_gif(np.array(images),self.gif_path)

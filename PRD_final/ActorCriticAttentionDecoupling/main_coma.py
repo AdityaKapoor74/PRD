@@ -1,5 +1,5 @@
 # from maa2c import MAA2C
-from maa2c_collision_avoidance import MAA2C
+from maa2c_coma import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario
@@ -15,9 +15,9 @@ def make_env(scenario_name, benchmark=False):
 	world = scenario.make_world()
 	# create multiagent environment
 	if benchmark:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward_paired_agents, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward_paired_agents, scenario.observation, None, scenario.isFinished)
 	return env
 
 
@@ -30,11 +30,12 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../collision_avoidance_no_collision_pen_6_Agents/models/with_prd_top2/critic_networks/',
-			"actor_dir": '../../../collision_avoidance_no_collision_pen_6_Agents/models/with_prd_top2/actor_networks/',
-			"tensorboard_dir":'../../../collision_avoidance_no_collision_pen_6_Agents/runs/with_prd_top2/',
-			"gif_dir": '../../../collision_avoidance_no_collision_pen_6_Agents/gifs/with_prd_top2/',
-			"env": "collision_avoidance", 
+			"critic_dir": '../../../paired_agents_2_Agents_coma/models/critic_networks/',
+			"actor_dir": '../../../paired_agents_2_Agents_coma/models/actor_networks/',
+			"tensorboard_dir":'../../../paired_agents_2_Agents_coma/runs/',
+			"gif_dir": '../../../paired_agents_2_Agents_coma/gifs/',
+			"env": "paired_by_sharing_goals", 
+			"experiment_type":"coma",
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.008, 
@@ -42,7 +43,6 @@ if __name__ == '__main__':
 			"trace_decay": 0.98,
 			"select_above_threshold": 0.1,
 			"softmax_cut_threshold": 0.1,
-			"experiment_type": "with_prd_top2",
 			"top_k": 2,
 			"gif": False,
 			"save": True,
