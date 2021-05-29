@@ -205,7 +205,7 @@ class A2CAgent:
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
-
+		
 		advantage = torch.sum(Q_values_max - V_values_baseline, dim=-2)
 
 

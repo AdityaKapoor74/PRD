@@ -30,10 +30,10 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../paired_agents_2_Agents_coma/models/critic_networks/',
-			"actor_dir": '../../../paired_agents_2_Agents_coma/models/actor_networks/',
-			"tensorboard_dir":'../../../paired_agents_2_Agents_coma/runs/',
-			"gif_dir": '../../../paired_agents_2_Agents_coma/gifs/',
+			"critic_dir": '../../../paired_agents_4_Agents_coma/models/critic_networks/',
+			"actor_dir": '../../../paired_agents_4_Agents_coma/models/actor_networks/',
+			"tensorboard_dir":'../../../paired_agents_4_Agents_coma/runs/',
+			"gif_dir": '../../../paired_agents_4_Agents_coma/gifs/',
 			"env": "paired_by_sharing_goals", 
 			"experiment_type":"coma",
 			"value_lr": 1e-2, #1e-2 for single head
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 			"top_k": 2,
 			"gif": False,
 			"save": True,
-			"max_episodes": 80000,
+			"max_episodes": 200000,
 			"max_time_steps": 100,
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
