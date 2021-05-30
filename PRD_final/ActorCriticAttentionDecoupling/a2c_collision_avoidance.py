@@ -101,7 +101,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 
 
 
-	def forward(self, states, policies, actions):
+	def forward(self, states, policies, actions, temp = 1.0):
 
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)

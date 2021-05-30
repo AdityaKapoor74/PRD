@@ -5,7 +5,8 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_paired_agents import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
+from a2c_paired_agents import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork,ScalarDotProductCriticNetworkV2,ScalarDotProductCriticNetworkV3,ScalarDotProductCriticNetworkV4,ScalarDotProductCriticNetworkV5,ScalarDotProductCriticNetworkV6
+from a2c_paired_agents import DualAttentionCriticNetworkV2
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -53,11 +54,27 @@ class A2CAgent:
 		# SCALAR DOT PRODUCT CRITIC NETWORK
 		self.obs_input_dim = 2*4
 		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
-		self.obs_act_output_dim = 16
+		self.obs_act_output_dim = dictionary["obs_act_output_dim"]
+		self.obs_output_dim = self.obs_act_output_dim
 		self.final_input_dim = self.obs_act_output_dim
 		self.final_output_dim = 1
-		self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-		
+		if dictionary["critic_version"] == 1:
+			self.critic_network = ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["critic_version"] == 2:
+			self.critic_network = ScalarDotProductCriticNetworkV2(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["critic_version"] == 3:
+			self.critic_network = ScalarDotProductCriticNetworkV3(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["critic_version"] == 4:
+			self.critic_network = ScalarDotProductCriticNetworkV4(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["critic_version"] == 5:
+			self.critic_network = ScalarDotProductCriticNetworkV5(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["critic_version"] == 6:
+			self.critic_network = ScalarDotProductCriticNetworkV6(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["critic_version"] == "DualAttentionCriticNetworkV2":
+			self.critic_network = DualAttentionCriticNetworkV2(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, 2*self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions,  self.softmax_cut_threshold).to(self.device)
+		else:
+			assert False
+
 		# SCALAR DOT PRODUCT POLICY NETWORK
 		self.obs_input_dim = 2*3
 		self.obs_output_dim = 16

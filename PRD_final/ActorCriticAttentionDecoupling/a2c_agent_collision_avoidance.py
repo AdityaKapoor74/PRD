@@ -37,6 +37,7 @@ class A2CAgent:
 
 
 		self.experiment_type = dictionary["experiment_type"]
+		print('experiment_type: ', self.experiment_type)
 		self.scaling_factor = None
 		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
 			self.scaling_factor = self.num_agents
@@ -207,7 +208,7 @@ class A2CAgent:
 		advantage = None
 		if self.experiment_type == "without_prd" or self.experiment_type == "without_prd_scaled":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
-		elif "top" in self.experiment_type:
+		elif "top" == self.experiment_type:
 			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
 			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
@@ -217,7 +218,19 @@ class A2CAgent:
 		elif self.experiment_type == "with_prd_soft_adv" or self.experiment_type == "with_prd_soft_adv_scaled":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
 		elif self.experiment_type == "greedy_policy":
+			
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * self.greedy_policy ,dim=-2)
+		elif self.experiment_type == "greedy_and_top":
+			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
+			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
+			masking_advantage = masking_advantage + self.greedy_policy > 0
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage ,dim=-2)
+
+
+
+		else:
+			print('Unknown experiment type')
+			assert False
 
 
 		if "scaled" in self.experiment_type:

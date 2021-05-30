@@ -1,3 +1,4 @@
+from comet_ml import Experiment
 import os
 import torch
 import torch.nn.functional as F 
@@ -5,10 +6,11 @@ import torch.optim as optim
 from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 from a2c_agent_collision_avoidance import A2CAgent
 import datetime
 
+experiment = Experiment('9mxH2vYX20hn9laEr0KtHLjAa',project_name="PRD",disabled=False)
 
 
 class MAA2C:
@@ -16,6 +18,8 @@ class MAA2C:
 	def __init__(self,env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
+		experiment.log_parameters(dictionary)
+		experiment.log_parameter('n_agents',env.n)
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save = dictionary["save"]
@@ -71,8 +75,8 @@ class MAA2C:
 				print("Gif Directory can not be created")
 			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.gif'
 
-		if not(self.gif) and self.save:
-			self.writer = SummaryWriter(self.tensorboard_path)
+		# if not(self.gif) and self.save:
+			# self.writer = SummaryWriter(self.tensorboard_path)
 
 
 
@@ -124,11 +128,18 @@ class MAA2C:
 
 
 		if not(self.gif) and self.save:
-			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			# self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+			# self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+			# self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+			# self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+			# self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+
+			experiment.log_metric('entropy_loss',entropy.item(),step=episode)
+			experiment.log_metric('value_loss',value_loss.item(),step=episode)
+			experiment.log_metric('policy_loss',policy_loss.item(),step=episode)
+			experiment.log_metric('grad_norm_value',grad_norm_value,step=episode)
+			experiment.log_metric('grad_norm_policy',grad_norm_policy,step=episode)
+
 
 			# self.calculate_indiv_weights(weights)
 			# for i in range(self.num_agents):
@@ -137,10 +148,13 @@ class MAA2C:
 
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
+			# self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
 
 			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+
+			experiment.log_metric('weigth_entropy',entropy_weights.item(),episode)
+			experiment.log_metric('weigths_policy_entropy',entropy_weights.item(),episode)
 
 
 	def split_states(self,states):
@@ -242,8 +256,10 @@ class MAA2C:
 						print("*"*100)
 
 						if not(self.gif) and self.save:
-							self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
-							self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+							# self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
+							# self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+							experiment.log_metric('episode_length',step,episode)
+							experiment.log_metric('Reward', episode_reward,episode)
 
 						break
 					else:

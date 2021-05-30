@@ -1,8 +1,6 @@
-# from maa2c import MAA2C
 from maa2c_paired_agents import MAA2C
 
 from multiagent.environment import MultiAgentEnv
-# from multiagent.scenarios.simple_spread import Scenario
 import multiagent.scenarios as scenarios
 import torch 
 import numpy as np
@@ -30,16 +28,17 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_gnn_policy/critic_networks/',
-			"actor_dir": '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_gnn_policy/actor_networks/',
-			"tensorboard_dir":'../../../runs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_gnn_policy/',
-			"gif_dir": '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/without_prd_gnn_policy/',
-			"env": "paired_by_sharing_goals", 
+			"critic_dir": '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/with_prd_gnn_policy/critic_networks/',
+			"actor_dir": '../../../models/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/with_prd_gnn_policy/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/with_prd_gnn_policy/',
+			"gif_dir": '../../../gifs/Scalar_dot_product/paired_by_sharing_goals/4_Agents/SingleAttentionMechanism/with_prd_gnn_policy/',
+			"env": "paired_by_sharing_goals",
+			# "env":"collision_avoidance", 
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.008, 
 			"gamma": 0.99,
-			"trace_decay": None,
+			"trace_decay": .98,
 			"select_above_threshold": 0.1,
 			"softmax_cut_threshold": 0.1,
 			"top_k": 2,
@@ -47,7 +46,12 @@ if __name__ == '__main__':
 			"save": True,
 			"max_episodes": 80000,
 			"max_time_steps": 100,
-			"experiment_type": "without_prd",
+			#"experiment_type": "without_prd",
+			# "experiment_type":"with_prd_soft_adv",
+			"experiment_type":"greedy_policy",
+			# "experiment_type":"with_prd_soft_adv_scaled"
+			"critic_version":5,
+			"obs_act_output_dim":64
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)
