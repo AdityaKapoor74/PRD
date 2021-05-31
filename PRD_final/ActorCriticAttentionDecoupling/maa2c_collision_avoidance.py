@@ -26,6 +26,7 @@ class MAA2C:
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
+		self.gamma = dictionary["gamma"]
 
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
@@ -218,6 +219,7 @@ class MAA2C:
 
 			trajectory = []
 			episode_reward = 0
+			discounted_reward = 0 
 			for step in range(1,self.max_time_steps+1):
 
 				if self.gif:
@@ -246,6 +248,7 @@ class MAA2C:
 					one_hot_next_actions[i][act] = 1
 
 				episode_reward += np.sum(rewards)
+				discounted_reward +=  self.gamma**step * np.sum(rewards)
 
 				if not(self.gif):
 					if all(dones) or step == self.max_time_steps:
@@ -260,6 +263,7 @@ class MAA2C:
 							# self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
 							experiment.log_metric('episode_length',step,episode)
 							experiment.log_metric('Reward', episode_reward,episode)
+							experiment.log_metric('discounted_reward',discounted_reward)
 
 						break
 					else:

@@ -29,13 +29,19 @@ def run_file(dictionary):
 
 
 if __name__ == '__main__':
+
+	# experiment_type = "greedy_policy"
+	# experiment_type = "top"
+	# experiment_type = "without_prd"
+	experiment_type = "with_prd_soft_adv_scaled"
+
 	dictionary = {
-			"critic_dir": '../../../models/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/greedy_rewards/critic_networks/',
-			"actor_dir": '../../../models/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/greedy_rewards/actor_networks/',
-			"tensorboard_dir":'../../../runs/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/greedy_rewards/',
-			"gif_dir": '../../../gifs/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/without_prd_scaled/',
+			"critic_dir": '../../../models/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/'+experiment_type+'/critic_networks/',
+			"actor_dir": '../../../models/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/'+experiment_type+'/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/'+experiment_type+'/',
+			"gif_dir": '../../../gifs/Scalar_dot_product/collision_avoidance/8_Agents/SingleAttentionMechanism/'+experiment_type+'/',
 			"env": "collision_avoidance", 
-			"experiment_type":"without_prd",
+			"experiment_type":experiment_type,
 			# "experiment_type":"greedy_policy",
 			# "experiment_type":"top",
 			# "experiment_type":"with_prd_soft_adv",
