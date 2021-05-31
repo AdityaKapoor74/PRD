@@ -20,10 +20,10 @@ if __name__ == '__main__':
 				# "actor_dir": '../../../paired_agent_run1/models/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/actor_networks/',
 				# "tensorboard_dir":'../../../paired_agent_run1/runs/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
 				# "gif_dir": '../../../gifs/Scalar_dot_product/'+env_list[i]+'/Variable_Agents/SingleAttentionMechanism/'+experiment_type[j]+'/',
-				"critic_dir": '../../../paired_agent_run3_10_Agents/models/'+experiment_type[j]+'/critic_networks/',
-				"actor_dir": '../../../paired_agent_run3_10_Agents/models/'+experiment_type[j]+'/actor_networks/',
-				"tensorboard_dir":'../../../paired_agent_run3_10_Agents/runs/'+experiment_type[j]+'/',
-				"gif_dir": '../../../gifs/paired_agent_run3_10_Agents/'+experiment_type[j]+'/',
+				"critic_dir": '../../../paired_agent_run4_10_Agents/models/'+experiment_type[j]+'/critic_networks/',
+				"actor_dir": '../../../paired_agent_run4_10_Agents/models/'+experiment_type[j]+'/actor_networks/',
+				"tensorboard_dir":'../../../paired_agent_run4_10_Agents/runs/'+experiment_type[j]+'/',
+				"gif_dir": '../../../gifs/paired_agent_run4_10_Agents/'+experiment_type[j]+'/',
 				"env": env_list[i], 
 				"value_lr": 1e-2, #1e-2 for single head
 				"policy_lr": 1e-3, # 2e-4 for single head
