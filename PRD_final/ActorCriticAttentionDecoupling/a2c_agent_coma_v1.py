@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_paired_agents import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
+from a2c_coma_v1 import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -35,6 +35,7 @@ class A2CAgent:
 		self.num_actions = self.env.action_space[0].n
 		self.gif = dictionary["gif"]
 
+
 		self.experiment_type = dictionary["experiment_type"]
 		self.scaling_factor = None
 		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
@@ -42,32 +43,33 @@ class A2CAgent:
 		elif "top" in self.experiment_type:
 			self.scaling_factor = self.num_agents/self.top_k
 
+
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
 		for i in range(self.num_agents):
 			self.greedy_policy[i][i] = 1
 
-		print(self.experiment_type, self.top_k)
-		
+		print(self.experiment_type, self.scaling_factor)
 
 
-
-		# SCALAR DOT PRODUCT CRITIC NETWORK
+		# SCALAR DOT PRODUCT
 		self.obs_input_dim = 2*4
-		self.obs_output_dim = 64
+		self.obs_output_dim = 16
 		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
-		self.obs_act_output_dim = 64
-		self.final_input_dim = self.obs_act_output_dim
-		self.final_output_dim = 1
+		self.obs_act_output_dim = 16
+		self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
+		self.final_output_dim = self.num_actions
 		self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		
 		
 		# SCALAR DOT PRODUCT POLICY NETWORK
 		self.obs_input_dim = 2*3
-		self.obs_output_dim = 64
+		self.obs_output_dim = 16
 		self.final_input_dim = self.obs_output_dim
 		self.final_output_dim = self.num_actions
 		self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
-		# POLICY MLP
+
+		# MLP POLICY
 		# self.policy_input_dim = 2*(3+2*(self.num_agents-1)) #2 for pose, 2 for vel and 2 for goal of current agent and rest (2 each) for relative position and relative velocity of other agents
 		# self.policy_output_dim = self.env.action_space[0].n
 		# policy_network_size = (self.policy_input_dim,512,256,self.policy_output_dim)
@@ -75,8 +77,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../../models/Experiment37/critic_networks/11-04-2021VN_SAT_SAT_FCN_lr0.0002_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda0.0tanh_epsiode6000.pt"
-		# model_path_policy = "../../../models/Experiment29/actor_networks/09-04-2021_PN_FCN_lr0.0002VN_SAT_SAT_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda1e-05tanh_epsiode24000.pt"
+		# model_path_value = "../../../models/Scalar_dot_product/collision_avoidance/4_Agents/SingleAttentionMechanism/with_prd_soft_adv/critic_networks/14-05-2021VN_ATN_FCN_lr0.01_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode29000.pt"
+		# model_path_policy = "../../../models/Scalar_dot_product/collision_avoidance/4_Agents/SingleAttentionMechanism/with_prd_soft_adv/actor_networks/14-05-2021_PN_FCN_lr0.0002VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98lambda_0.001topK_2select_above_threshold0.1softmax_cut_threshold0.1_epsiode29000.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -88,14 +90,6 @@ class A2CAgent:
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
-
-	def get_scaling_factor(self):
-		if self.experiment_type == "without_prd_scaled" or self.experiment_type == "with_prd_soft_adv_scaled":
-			self.scaling_factor = self.num_agents
-		elif "top" in self.experiment_type:
-			self.scaling_factor = self.num_agents/self.top_k
-
-		return self.scaling_factor
 
 	def get_action(self,state):
 		# MLP
@@ -182,54 +176,34 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+		Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+		V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
 
 		
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
 	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
-		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
-		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
+		discounted_rewards = self.calculate_returns(rewards,self.gamma).to(self.device)
 
 		# BOOTSTRAP LOSS
 		# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 		# value_loss = F.smooth_l1_loss(V_values,target_values)
 
 		# MONTE CARLO LOSS
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
-
-		# REGRESSING ON IMMEDIATE REWARD
-		# value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2))
+		value_loss = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
 		
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
 	# # ***********************************************************************************
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+		
 
-		# summing across each agent j to get the advantage
-		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		advantage = None
-		if self.experiment_type == "without_prd" or self.experiment_type == "without_prd_scaled":
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
-		elif "top" in self.experiment_type:
-			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
-			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
-		elif self.experiment_type in "above_threshold":
-			masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
-		elif self.experiment_type == "with_prd_soft_adv" or self.experiment_type == "with_prd_soft_adv_scaled":
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
-		elif self.experiment_type == "greedy_policy":
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * self.greedy_policy ,dim=-2)
+		advantage = Q_values_act_chosen - V_values_baseline
 
 
-		if "scaled" in self.experiment_type:
-			advantage = advantage * self.scaling_factor
-	
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
@@ -249,5 +223,4 @@ class A2CAgent:
 		self.policy_optimizer.step()
 		# grad_norm_policy = 0
 
-		# V values
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
