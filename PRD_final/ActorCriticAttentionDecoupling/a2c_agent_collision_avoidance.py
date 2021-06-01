@@ -23,6 +23,7 @@ class A2CAgent:
 		self.entropy_pen = dictionary["entropy_pen"]
 		self.trace_decay = dictionary["trace_decay"]
 		self.top_k = dictionary["top_k"]
+		self.l1_pen = dictionary["l1_pen"]
 		# Used for masking advantages above a threshold
 		self.select_above_threshold = dictionary["select_above_threshold"]
 		# cut the tail of softmax --> Used in softmax with normalization
@@ -177,6 +178,7 @@ class A2CAgent:
 		Calculate V values
 		'''
 		V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		print('weights.shape: ', weights.shape)
 		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
@@ -193,7 +195,11 @@ class A2CAgent:
 		# value_loss = F.smooth_l1_loss(V_values,target_values)
 
 		# MONTE CARLO LOSS
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+		# print('weights: ', weights)
+		weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
+		# print('weights_off_diagonal: ', weights_off_diagonal)
+		l1_weights = torch.mean(weights_off_diagonal)
+		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.l1_pen*l1_weights
 
 		# REGRESSING ON IMMEDIATE REWARD
 		# value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2))

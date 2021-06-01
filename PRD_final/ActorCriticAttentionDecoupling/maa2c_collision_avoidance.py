@@ -20,6 +20,7 @@ class MAA2C:
 		# self.device = "cpu"
 		experiment.log_parameters(dictionary)
 		experiment.log_parameter('n_agents',env.n)
+		experiment.add_tag('collision pen  0.001')
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save = dictionary["save"]
