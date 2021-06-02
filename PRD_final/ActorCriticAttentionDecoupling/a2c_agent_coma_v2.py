@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_coma import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
+from a2c_coma_v2 import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
