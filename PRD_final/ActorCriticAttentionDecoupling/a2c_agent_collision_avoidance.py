@@ -231,6 +231,8 @@ class A2CAgent:
 			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
 			masking_advantage = masking_advantage + self.greedy_policy > 0
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage ,dim=-2)
+		elif self.experiment_type == "without_prd_mean":
+			advantage = 1/self.num_agents*torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False),dim=-2)
 
 
 

@@ -32,9 +32,9 @@ if __name__ == '__main__':
 
 	# experiment_type = "greedy_policy"
 	# experiment_type = "top"
-	# experiment_type = "without_prd"
+	experiment_type = "without_prd"
 	# experiment_type = "with_prd_soft_adv_scaled"
-	experiment_type = "with_prd_soft_adv"
+	# experiment_type = "with_prd_soft_adv"
 
 	dictionary = {
 			"critic_dir": '../../../models/Scalar_dot_product/collision_avoidance_no_width/8_Agents/SingleAttentionMechanism/'+experiment_type+'/critic_networks/',
@@ -50,8 +50,8 @@ if __name__ == '__main__':
 			# "experiment_type":"greedy_and_top",
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
-			"entropy_pen": 0.008,
-			"l1_pen":0.1, 
+			"entropy_pen": 0.0, #0.008,
+			"l1_pen":0.0,#0.1, 
 			"gamma": 0.99,
 			"trace_decay": .98,
 			"select_above_threshold": 0.1,

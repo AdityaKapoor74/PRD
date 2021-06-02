@@ -124,7 +124,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 
 		weight = F.softmax(score_obs_actions/math.sqrt(self.d_k_obs_act), dim=-2)
 		weight = weight.reshape(weight.shape[0]//self.num_agents,self.num_agents,-1)
-		ret_weight = weight
+		ret_weight = weight # T x N x N
 		
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
 
@@ -139,6 +139,9 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 
 		# SOFTMAX
+		# T x N x 1 x N
+		# T x N x N x N
+		# T x N x N x N x 1
 		weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		weighted_attention_values = attention_values*weight
 
@@ -156,7 +159,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 
 
 		# node_features = torch.cat([current_node_states,torch.mean(weighted_attention_values, dim=-2)], dim=-1)
-		node_features = torch.mean(weighted_attention_values, dim=-2)
+		node_features = torch.mean(weighted_attention_values, dim=-2) # T x N x N x N x d
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
