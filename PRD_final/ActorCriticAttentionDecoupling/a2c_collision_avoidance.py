@@ -16,14 +16,17 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 
-		self.key_layer = nn.Linear(obs_input_dim, obs_output_dim, bias=False)
+		self.obs_emb = nn.Sequential(nn.Linear(obs_input_dim,64),nn.ReLU())
+		self.obs_act_emb = nn.Sequential(nn.Linear(obs_act_input_dim,64),nn.ReLU())
 
-		self.query_layer = nn.Linear(obs_input_dim, obs_output_dim, bias=False)
+		self.key_layer = nn.Linear(64, obs_output_dim, bias=False)
 
-		self.attention_value_layer = nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=False)
+		self.query_layer = nn.Linear(64, obs_output_dim, bias=False)
+
+		self.attention_value_layer = nn.Linear(64, obs_act_output_dim, bias=False)
 
 		# dimesion of key
-		self.d_k_obs = obs_output_dim
+		self.d_k_obs_act = obs_act_output_dim
 
 		# NOISE
 		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
@@ -46,44 +49,66 @@ class ScalarDotProductCriticNetwork(nn.Module):
 			self.place_actions[j][j] = zero_hots
 
 		self.threshold = threshold
+		self.obs_act_input_dim = obs_act_input_dim
 		# ********************************************************************************************************* 
 
 		self.reset_parameters()
 
+
+	def mixing_actions_policies(self):
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(self.obs_act_input_dim)
+		zero_hots = torch.zeros(self.obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain = nn.init.calculate_gain('leaky_relu')
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+		gain_relu = nn.init.calculate_gain('relu')
+
+		nn.init.xavier_uniform_(self.obs_emb[0].weight, gain=gain_relu)
+		nn.init.xavier_uniform_(self.obs_act_emb[0].weight, gain=gain_relu)
 
 		nn.init.xavier_uniform_(self.key_layer.weight)
 		nn.init.xavier_uniform_(self.query_layer.weight)
 		nn.init.xavier_uniform_(self.attention_value_layer.weight)
 
 
-		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain)
-		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain)
+		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain_leaky)
 
 
 
 	def forward(self, states, policies, actions):
 
-		# input to ATTENTION VALUE NETWORK
+		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
+		# print("OBSERVATIONS ACTIONS")
+		# print(obs_actions)
 
 		# For calculating the right advantages
 		obs_policy = torch.cat([states,policies], dim=-1)
 
+		# embedding the observations
+		states_embed = self.obs_emb(states)
+
 		# KEYS
-		key_obs_actions = self.key_layer(states)
+		key_obs_actions = self.key_layer(states_embed)
 
 		# QUERIES
-		query_obs_actions = self.query_layer(states)
+		query_obs_actions = self.query_layer(states_embed)
 
 		score_obs_actions = torch.bmm(query_obs_actions,key_obs_actions.transpose(1,2)).transpose(1,2).reshape(-1,1)
 
 		score_obs_actions = score_obs_actions.reshape(-1,self.num_agents,1)
 
 
-		weight = F.softmax(score_obs_actions/math.sqrt(self.d_k_obs), dim=-2)
+		weight = F.softmax(score_obs_actions/math.sqrt(self.d_k_obs_act), dim=-2)
 		weight = weight.reshape(weight.shape[0]//self.num_agents,self.num_agents,-1)
 		ret_weight = weight
 		
@@ -91,9 +116,15 @@ class ScalarDotProductCriticNetwork(nn.Module):
 
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
 
+		# RANDOMIZING NUMBER OF AGENTS
+		# self.mixing_actions_policies()
+
 		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 
-		attention_values = torch.tanh(self.attention_value_layer(obs_actions_policies))
+		# embedding the observation_actions_policies
+		obs_action_policies_embed = self.obs_act_emb(obs_actions_policies)
+
+		attention_values = torch.tanh(self.attention_value_layer(obs_action_policies_embed))
 
 		current_node_states = states.unsqueeze(-2).repeat(1,1,self.num_agents,1)
 
@@ -121,7 +152,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		Value = self.final_value_layer_2(Value)
 
 		return Value, ret_weight
-
+		
 
 
 class ScalarDotProductPolicyNetwork(nn.Module):

@@ -30,23 +30,23 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../collision_avoidance_no_collision_pen_6_Agents/models/with_prd_top2/critic_networks/',
-			"actor_dir": '../../../collision_avoidance_no_collision_pen_6_Agents/models/with_prd_top2/actor_networks/',
-			"tensorboard_dir":'../../../collision_avoidance_no_collision_pen_6_Agents/runs/with_prd_top2/',
-			"gif_dir": '../../../collision_avoidance_no_collision_pen_6_Agents/gifs/with_prd_top2/',
-			"env": "multi_circular", 
+			"critic_dir": '../../../collision_avoidance_no_collision_pen_16_Agents/models/without_prd/critic_networks/',
+			"actor_dir": '../../../collision_avoidance_no_collision_pen_16_Agents/models/without_prd/actor_networks/',
+			"tensorboard_dir":'../../../collision_avoidance_no_collision_pen_16_Agents/runs/without_prd/',
+			"gif_dir": '../../../collision_avoidance_no_collision_pen_16_Agents/gifs/without_prd/',
+			"env": "collision_avoidance", 
 			"value_lr": 1e-2, #1e-2 for single head
-			"policy_lr": 1e-3, # 2e-4 for single head
+			"policy_lr": 5e-4, # 2e-4 for single head
 			"entropy_pen": 0.008, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
 			"select_above_threshold": 0.1,
 			"softmax_cut_threshold": 0.1,
-			"experiment_type": "with_prd_top2",
-			"top_k": 2,
+			"experiment_type": "without_prd",
+			"top_k": 0,
 			"gif": False,
-			"save": False,
-			"max_episodes": 80000,
+			"save": True,
+			"max_episodes": 100000,
 			"max_time_steps": 100,
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)

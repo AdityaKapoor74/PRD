@@ -52,13 +52,13 @@ class A2CAgent:
 
 
 		# SCALAR DOT PRODUCT FOR Q NETWORK
-		self.obs_input_dim = 2*4
-		self.obs_output_dim = 16
-		self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
-		self.obs_act_output_dim = 16
-		self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
-		self.final_output_dim = self.num_actions
-		self.critic_network_Q = ScalarDotProductCriticNetwork_Q(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		# self.obs_input_dim = 2*4
+		# self.obs_output_dim = 16
+		# self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+		# self.obs_act_output_dim = 16
+		# self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
+		# self.final_output_dim = self.num_actions
+		# self.critic_network_Q = ScalarDotProductCriticNetwork_Q(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 		
 		# SCALAR DOT PRODUCT FOR V NETWORK
 		self.obs_input_dim = 2*4
@@ -96,7 +96,7 @@ class A2CAgent:
 		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 
-		self.critic_optimizer_Q = optim.Adam(self.critic_network_Q.parameters(),lr=self.value_lr)
+		# self.critic_optimizer_Q = optim.Adam(self.critic_network_Q.parameters(),lr=self.value_lr)
 		self.critic_optimizer_V = optim.Adam(self.critic_network_V.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
@@ -186,9 +186,9 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		Q_values, weights_Q = self.critic_network_Q.forward(states_critic, probs.detach(), one_hot_actions)
+		# Q_values, weights_Q = self.critic_network_Q.forward(states_critic, probs.detach(), one_hot_actions)
 		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-		Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_agents, self.num_actions) * one_hot_actions.unsqueeze(-2), dim=-1)
+		# Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_agents, self.num_actions) * one_hot_actions.unsqueeze(-2), dim=-1)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 		V_values_baseline, weights_V = self.critic_network_V.forward(states_critic, probs.detach(), one_hot_actions)
 		V_values_baseline = V_values_baseline.reshape(-1,self.num_agents,self.num_agents)
@@ -206,7 +206,7 @@ class A2CAgent:
 		# value_loss = F.smooth_l1_loss(V_values,target_values)
 
 		# MONTE CARLO LOSS
-		value_loss_Q = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
+		# value_loss_Q = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
 		value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
 		
 		# # ***********************************************************************************
@@ -215,7 +215,12 @@ class A2CAgent:
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 		
 
-		advantage = torch.sum(Q_values_act_chosen - V_values_baseline, dim=-2)
+		# advantage = torch.sum(Q_values_act_chosen - V_values_baseline, dim=-2)
+		# advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values_baseline, rewards, dones, True, False), dim=-2)
+
+		values, indices = torch.topk(weights_V,k=1,dim=-1)
+		masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
+		advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values_baseline, rewards, dones, True, False) * masking_advantage,dim=-2)
 
 
 		probs = Categorical(probs)
@@ -225,10 +230,10 @@ class A2CAgent:
 	# # ***********************************************************************************
 		
 	# **********************************
-		self.critic_optimizer_Q.zero_grad()
-		value_loss_Q.backward(retain_graph=False)
-		grad_norm_value_Q = torch.nn.utils.clip_grad_norm_(self.critic_network_Q.parameters(),0.5)
-		self.critic_optimizer_Q.step()
+		# self.critic_optimizer_Q.zero_grad()
+		# value_loss_Q.backward(retain_graph=False)
+		# grad_norm_value_Q = torch.nn.utils.clip_grad_norm_(self.critic_network_Q.parameters(),0.5)
+		# self.critic_optimizer_Q.step()
 
 		self.critic_optimizer_V.zero_grad()
 		value_loss_V.backward(retain_graph=False)
@@ -242,4 +247,5 @@ class A2CAgent:
 		self.policy_optimizer.step()
 		# grad_norm_policy = 0
 
-		return value_loss_Q, value_loss_V, policy_loss, entropy, grad_norm_value_Q, grad_norm_value_V, grad_norm_policy, weights_Q, weights_V, weight_policy
+		# return value_loss_Q, value_loss_V, policy_loss, entropy, grad_norm_value_Q, grad_norm_value_V, grad_norm_policy, weights_Q, weights_V, weight_policy
+		return value_loss_V, policy_loss, entropy, grad_norm_value_V, grad_norm_policy, weights_V, weight_policy

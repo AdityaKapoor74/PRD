@@ -137,17 +137,18 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		value_loss_Q, value_loss_V, policy_loss, entropy, grad_norm_value_Q, grad_norm_value_V, grad_norm_policy, weights_Q, weights_V, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		# value_loss_Q, value_loss_V, policy_loss, entropy, grad_norm_value_Q, grad_norm_value_V, grad_norm_policy, weights_Q, weights_V, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
+		value_loss_V, policy_loss, entropy, grad_norm_value_V, grad_norm_policy, weights_V, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 
 
 		if not(self.gif) and self.save:
 			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Q-Value Loss',value_loss_Q.item(),episode)
+			# self.writer.add_scalar('Loss/Q-Value Loss',value_loss_Q.item(),episode)
 			self.writer.add_scalar('Loss/V-Value Loss',value_loss_V.item(),episode)
 			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Q-Value',grad_norm_value_Q,episode)
+			# self.writer.add_scalar('Gradient Normalization/Grad Norm Q-Value',grad_norm_value_Q,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm V-Value',grad_norm_value_V,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
@@ -156,12 +157,12 @@ class MAA2C:
 			# 	agent_name = 'agent %d' % i
 			# 	self.writer.add_scalars('Weights/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 
-			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_Q)
-			self.writer.add_scalars('Weights_Q/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+			# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_Q)
+			# self.writer.add_scalars('Weights_Q/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
 
 			# ENTROPY OF WEIGHTS Q
-			entropy_weights = -torch.mean(torch.sum(weights_Q * torch.log(torch.clamp(weights_Q, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Q/Entropy', entropy_weights.item(), episode)
+			# entropy_weights = -torch.mean(torch.sum(weights_Q * torch.log(torch.clamp(weights_Q, 1e-10,1.0)), dim=2))
+			# self.writer.add_scalar('Weights_Q/Entropy', entropy_weights.item(), episode)
 
 			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_V)
 			self.writer.add_scalars('Weights_V/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
@@ -288,7 +289,7 @@ class MAA2C:
 
 
 			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:
-				torch.save(self.agents.critic_network_Q.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_Q.pt')
+				# torch.save(self.agents.critic_network_Q.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_Q.pt')
 				torch.save(self.agents.critic_network_V.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_V.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 

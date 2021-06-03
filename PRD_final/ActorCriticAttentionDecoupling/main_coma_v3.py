@@ -30,12 +30,12 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../paired_agents_2_Agents_coma_v3/models/critic_networks/',
-			"actor_dir": '../../../paired_agents_2_Agents_coma_v3/models/actor_networks/',
-			"tensorboard_dir":'../../../paired_agents_2_Agents_coma_v3/runs/',
-			"gif_dir": '../../../paired_agents_2_Agents_coma_v3/gifs/',
+			"critic_dir": '../../../paired_agents_2_Agents_coma_v6/models/critic_networks/',
+			"actor_dir": '../../../paired_agents_2_Agents_coma_v6/models/actor_networks/',
+			"tensorboard_dir":'../../../paired_agents_2_Agents_coma_v6/runs/',
+			"gif_dir": '../../../paired_agents_2_Agents_coma_v6/gifs/',
 			"env": "paired_by_sharing_goals", 
-			"experiment_type":"coma_v3",
+			"experiment_type":"coma_v6",
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.008, 
