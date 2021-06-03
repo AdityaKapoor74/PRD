@@ -99,7 +99,7 @@ def run(env, max_episodes, max_steps):
 			# FOR LOCAL SYSTEM
 			# model_dir_policy = "../../../remote_stations/collision_avoidance/"+run+"/models/Scalar_dot_product/collision_avoidance/6_Agents/SingleAttentionMechanism/" + experiment + "/actor_networks/"
 			# FOR REMOTE SYSTEM
-			model_dir_policy = "../../../all_models/models/models"+run+"/" + experiment + "/actor_networks/"
+			model_dir_policy = "../../../all_models/models/models_"+run+"/" + experiment + "/actor_networks/"
 			
 			policy_eval_file_path = policy_eval_dir+'paired_by_sharing_goals_10_Agents' + experiment + '.txt'
 
