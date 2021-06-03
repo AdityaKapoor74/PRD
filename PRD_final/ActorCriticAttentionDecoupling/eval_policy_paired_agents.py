@@ -75,7 +75,7 @@ def run(env, max_episodes, max_steps):
 	num_actions = env.action_space[0].n
 
 	obs_input_dim = 2*3
-	obs_output_dim = 16
+	obs_output_dim = 64
 	final_input_dim = obs_output_dim
 	final_output_dim = num_actions
 	policy_network = ScalarDotProductPolicyNetwork(obs_input_dim, obs_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, softmax_cut_threshold).to(device)
