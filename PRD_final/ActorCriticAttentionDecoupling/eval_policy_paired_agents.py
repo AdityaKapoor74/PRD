@@ -88,7 +88,7 @@ def run(env, max_episodes, max_steps):
 		print("Policy Eval Directory can not be created")
 
 
-	experiment_type = ["greedy_policy", "without_prd", "with_prd_top1", "with_prd_top3", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top3_scaled", "with_prd_soft_adv_scaled"]
+	experiment_type = ["without_prd", "with_prd_top1", "with_prd_top3", "with_prd_soft_adv", "without_prd_scaled", "with_prd_top1_scaled", "with_prd_top3_scaled", "with_prd_soft_adv_scaled"]
 
 	runs = ["v1", "v2", "v3", "v4", "v5"]
 
@@ -99,7 +99,7 @@ def run(env, max_episodes, max_steps):
 			# FOR LOCAL SYSTEM
 			# model_dir_policy = "../../../remote_stations/collision_avoidance/"+run+"/models/Scalar_dot_product/collision_avoidance/6_Agents/SingleAttentionMechanism/" + experiment + "/actor_networks/"
 			# FOR REMOTE SYSTEM
-			model_dir_policy = "../../../all_models/models"+run+"/" + experiment + "/actor_networks/"
+			model_dir_policy = "../../../all_models/models/models"+run+"/" + experiment + "/actor_networks/"
 			
 			policy_eval_file_path = policy_eval_dir+'paired_by_sharing_goals_10_Agents' + experiment + '.txt'
 
