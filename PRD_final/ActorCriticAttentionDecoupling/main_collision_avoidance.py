@@ -63,7 +63,7 @@ if __name__ == '__main__':
 		"trace_decay": 0.98,
 		"select_above_threshold": 0.1,
 		"softmax_cut_threshold": 0.1,
-		"experiment_type": " without_prd",
+		"experiment_type": "without_prd",
 		"top_k": 0,
 		"gif": False,
 		"save": True,
