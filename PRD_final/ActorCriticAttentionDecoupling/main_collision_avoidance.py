@@ -57,7 +57,7 @@ if __name__ == '__main__':
 		"gif_dir": '../../../collision_avoidance_16_Agents_no_width/gifs/without_prd/',
 		"env": "collision_avoidance_no_width", 
 		"value_lr": 1e-2, #1e-2 for single head
-		"policy_lr": 5e-4, # 2e-4 for single head
+		"policy_lr": 25e-5, # 2e-4 for single head
 		"entropy_pen": 0.008, 
 		"gamma": 0.99,
 		"trace_decay": 0.98,
