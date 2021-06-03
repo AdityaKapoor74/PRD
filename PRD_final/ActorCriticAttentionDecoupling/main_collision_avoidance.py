@@ -29,34 +29,14 @@ def run_file(dictionary):
 
 
 if __name__ == '__main__':
-	# dictionary = {
-	# 		"critic_dir": '../../../collision_avoidance_16_Agents/models/greedy_policy/critic_networks/',
-	# 		"actor_dir": '../../../collision_avoidance_16_Agents/models/greedy_policy/actor_networks/',
-	# 		"tensorboard_dir":'../../../collision_avoidance_16_Agents/runs/greedy_policy/',
-	# 		"gif_dir": '../../../collision_avoidance_16_Agents/gifs/greedy_policy/',
-	# 		"env": "collision_avoidance", 
-	# 		"value_lr": 1e-2, #1e-2 for single head
-	# 		"policy_lr": 25e-5, # 2e-4 for single head
-	# 		"entropy_pen": 0.008, 
-	# 		"gamma": 0.99,
-	# 		"trace_decay": 0.98,
-	# 		"select_above_threshold": 0.1,
-	# 		"softmax_cut_threshold": 0.1,
-	# 		"experiment_type": "greedy_policy",
-	# 		"top_k": 0,
-	# 		"gif": False,
-	# 		"save": True,
-	# 		"max_episodes": 100000,
-	# 		"max_time_steps": 100,
-	# 	}
 	dictionary = {
-		"critic_dir": '../../../circular_env_4_Agents_2_Circles/models/greedy_policy/critic_networks/',
-		"actor_dir": '../../../circular_env_4_Agents_2_Circles/models/greedy_policy/actor_networks/',
-		"tensorboard_dir":'../../../circular_env_4_Agents_2_Circles/runs/greedy_policy/',
-		"gif_dir": '../../../circular_env_4_Agents_2_Circles/gifs/greedy_policy/',
-		"env": "multi_circular", 
+		"critic_dir": '../../../collision_avoidance_16_Agents/models/greedy_policy/critic_networks/',
+		"actor_dir": '../../../collision_avoidance_16_Agents/models/greedy_policy/actor_networks/',
+		"tensorboard_dir":'../../../collision_avoidance_16_Agents/runs/greedy_policy/',
+		"gif_dir": '../../../collision_avoidance_16_Agents/gifs/greedy_policy/',
+		"env": "collision_avoidance", 
 		"value_lr": 1e-2, #1e-2 for single head
-		"policy_lr": 1e-3, # 2e-4 for single head
+		"policy_lr": 25e-5, # 2e-4 for single head
 		"entropy_pen": 0.008, 
 		"gamma": 0.99,
 		"trace_decay": 0.98,
@@ -69,6 +49,26 @@ if __name__ == '__main__':
 		"max_episodes": 100000,
 		"max_time_steps": 100,
 	}
+	# dictionary = {
+	# 	"critic_dir": '../../../circular_env_4_Agents_2_Circles/models/greedy_policy/critic_networks/',
+	# 	"actor_dir": '../../../circular_env_4_Agents_2_Circles/models/greedy_policy/actor_networks/',
+	# 	"tensorboard_dir":'../../../circular_env_4_Agents_2_Circles/runs/greedy_policy/',
+	# 	"gif_dir": '../../../circular_env_4_Agents_2_Circles/gifs/greedy_policy/',
+	# 	"env": "multi_circular", 
+	# 	"value_lr": 1e-2, #1e-2 for single head
+	# 	"policy_lr": 1e-3, # 2e-4 for single head
+	# 	"entropy_pen": 0.008, 
+	# 	"gamma": 0.99,
+	# 	"trace_decay": 0.98,
+	# 	"select_above_threshold": 0.1,
+	# 	"softmax_cut_threshold": 0.1,
+	# 	"experiment_type": "greedy_policy",
+	# 	"top_k": 0,
+	# 	"gif": False,
+	# 	"save": True,
+	# 	"max_episodes": 100000,
+	# 	"max_time_steps": 100,
+	# }
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
