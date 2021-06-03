@@ -28,7 +28,7 @@ import math
 from os import listdir
 from os.path import isfile, join
 import pickle, simplejson
-from a2c_collision_avoidance import ScalarDotProductPolicyNetwork
+from a2c_paired_agents import ScalarDotProductPolicyNetwork
 
 
 eval_after = [i*1000 for i in range(1,80)]
