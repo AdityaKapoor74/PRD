@@ -30,10 +30,10 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	# dictionary = {
-	# 		"critic_dir": '../../../collision_avoidance_16_Agents/models/without_prd/critic_networks/',
-	# 		"actor_dir": '../../../collision_avoidance_16_Agents/models/without_prd/actor_networks/',
-	# 		"tensorboard_dir":'../../../collision_avoidance_16_Agents/runs/without_prd/',
-	# 		"gif_dir": '../../../collision_avoidance_16_Agents/gifs/without_prd/',
+	# 		"critic_dir": '../../../collision_avoidance_16_Agents/models/greedy_policy/critic_networks/',
+	# 		"actor_dir": '../../../collision_avoidance_16_Agents/models/greedy_policy/actor_networks/',
+	# 		"tensorboard_dir":'../../../collision_avoidance_16_Agents/runs/greedy_policy/',
+	# 		"gif_dir": '../../../collision_avoidance_16_Agents/gifs/greedy_policy/',
 	# 		"env": "collision_avoidance", 
 	# 		"value_lr": 1e-2, #1e-2 for single head
 	# 		"policy_lr": 25e-5, # 2e-4 for single head
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	# 		"trace_decay": 0.98,
 	# 		"select_above_threshold": 0.1,
 	# 		"softmax_cut_threshold": 0.1,
-	# 		"experiment_type": "without_prd",
+	# 		"experiment_type": "greedy_policy",
 	# 		"top_k": 0,
 	# 		"gif": False,
 	# 		"save": True,
@@ -50,10 +50,10 @@ if __name__ == '__main__':
 	# 		"max_time_steps": 100,
 	# 	}
 	dictionary = {
-		"critic_dir": '../../../circular_env_4_Agents_2_Circles/models/without_prd/critic_networks/',
-		"actor_dir": '../../../circular_env_4_Agents_2_Circles/models/without_prd/actor_networks/',
-		"tensorboard_dir":'../../../circular_env_4_Agents_2_Circles/runs/without_prd/',
-		"gif_dir": '../../../circular_env_4_Agents_2_Circles/gifs/without_prd/',
+		"critic_dir": '../../../circular_env_4_Agents_2_Circles/models/greedy_policy/critic_networks/',
+		"actor_dir": '../../../circular_env_4_Agents_2_Circles/models/greedy_policy/actor_networks/',
+		"tensorboard_dir":'../../../circular_env_4_Agents_2_Circles/runs/greedy_policy/',
+		"gif_dir": '../../../circular_env_4_Agents_2_Circles/gifs/greedy_policy/',
 		"env": "multi_circular", 
 		"value_lr": 1e-2, #1e-2 for single head
 		"policy_lr": 1e-3, # 2e-4 for single head
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 		"trace_decay": 0.98,
 		"select_above_threshold": 0.1,
 		"softmax_cut_threshold": 0.1,
-		"experiment_type": "without_prd",
+		"experiment_type": "greedy_policy",
 		"top_k": 0,
 		"gif": False,
 		"save": True,
