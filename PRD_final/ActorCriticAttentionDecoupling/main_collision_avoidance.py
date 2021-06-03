@@ -30,10 +30,10 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../collision_avoidance_no_collision_pen_16_Agents/models/without_prd/critic_networks/',
-			"actor_dir": '../../../collision_avoidance_no_collision_pen_16_Agents/models/without_prd/actor_networks/',
-			"tensorboard_dir":'../../../collision_avoidance_no_collision_pen_16_Agents/runs/without_prd/',
-			"gif_dir": '../../../collision_avoidance_no_collision_pen_16_Agents/gifs/without_prd/',
+			"critic_dir": '../../../collision_avoidance_16_Agents/models/without_prd/critic_networks/',
+			"actor_dir": '../../../collision_avoidance_16_Agents/models/without_prd/actor_networks/',
+			"tensorboard_dir":'../../../collision_avoidance_16_Agents/runs/without_prd/',
+			"gif_dir": '../../../collision_avoidance_16_Agents/gifs/without_prd/',
 			"env": "collision_avoidance", 
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 5e-4, # 2e-4 for single head
