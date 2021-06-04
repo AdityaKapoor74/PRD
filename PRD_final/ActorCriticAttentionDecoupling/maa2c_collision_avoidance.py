@@ -21,6 +21,7 @@ class MAA2C:
 		experiment.log_parameters(dictionary)
 		experiment.log_parameter('n_agents',env.n)
 		experiment.log_parameter('col_pen',env.world.col_pen)
+		experiment.add_tag('corrected critic version')
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save = dictionary["save"]
