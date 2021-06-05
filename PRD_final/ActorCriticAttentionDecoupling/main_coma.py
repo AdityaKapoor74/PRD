@@ -40,7 +40,7 @@ if __name__ == '__main__':
 			"env": "paired_by_sharing_goals", 
 			"experiment_type":"coma_v1",
 			"value_lr": 1e-2, #1e-2 for single head
-			"policy_lr": 5e-4, # 2e-4 for single head
+			"policy_lr": 7.5e-4, # 2e-4 for single head
 			"entropy_pen": 0.008, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
