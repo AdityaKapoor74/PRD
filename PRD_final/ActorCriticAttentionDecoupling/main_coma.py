@@ -1,5 +1,5 @@
 # from maa2c import MAA2C
-from maa2c_coma_v1 import MAA2C
+from maa2c_coma import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario
@@ -29,7 +29,10 @@ def run_file(dictionary):
 
 
 if __name__ == '__main__':
+
+	# VERSION 1
 	dictionary = {
+			"version": 1,
 			"critic_dir": '../../../paired_agents_4_Agents_coma_v1/models/critic_networks/',
 			"actor_dir": '../../../paired_agents_4_Agents_coma_v1/models/actor_networks/',
 			"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v1/runs/',
