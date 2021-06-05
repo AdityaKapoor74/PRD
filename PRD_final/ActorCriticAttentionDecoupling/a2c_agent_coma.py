@@ -68,6 +68,30 @@ class A2CAgent:
 			self.final_input_dim = self.obs_act_output_dim 
 			self.final_output_dim = self.num_actions
 			self.critic_network = ScalarDotProductCriticNetwork_V2(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif self.coma_version == 3:
+			self.obs_input_dim = 2*4
+			self.obs_output_dim = 64
+			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_output_dim = 64
+			self.final_input_dim = self.obs_act_output_dim 
+			self.final_output_dim = self.num_actions
+			self.critic_network_Q = ScalarDotProductCriticNetwork_V2(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			
+			self.obs_input_dim = 2*4
+			self.obs_output_dim = 64
+			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_output_dim = 64
+			self.final_input_dim = self.obs_act_output_dim 
+			self.final_output_dim = 1
+			self.critic_network_V = ScalarDotProductCriticNetwork_V2(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif self.coma_version == 4:
+			self.obs_input_dim = 2*4
+			self.obs_output_dim = 64
+			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_output_dim = 64
+			self.final_input_dim = self.obs_act_output_dim 
+			self.final_output_dim = 1
+			self.critic_network_V = ScalarDotProductCriticNetwork_V2(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 		
 		
 		# SCALAR DOT PRODUCT POLICY NETWORK
@@ -88,8 +112,15 @@ class A2CAgent:
 		# self.critic_network.load_state_dict(torch.load(model_path_value))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
+		if self.coma_version == 1 or self.coma_version == 2:
+			self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
+		elif self.coma_version == 3:
+			self.critic_optimizer_Q = optim.Adam(self.critic_network_Q.parameters(),lr=self.value_lr)
+			self.critic_optimizer_V = optim.Adam(self.critic_network_V.parameters(),lr=self.value_lr)
+		elif self.coma_version == 4:
+			self.critic_optimizer_V = optim.Adam(self.critic_network_V.parameters(),lr=self.value_lr)
 
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
+
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
@@ -162,10 +193,18 @@ class A2CAgent:
 			Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 			V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
-		else:
+		elif self.coma_version == 2:
 			Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents,self.num_agents, self.num_actions) * one_hot_actions.unsqueeze(-2), dim=-1)
 			V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents,self.num_agents, self.num_actions) * probs.detach().unsqueeze(-2), dim=-1)
+		elif self.coma_version == 3:
+			Q_values, weights_Q = self.critic_network_Q.forward(states_critic, probs.detach(), one_hot_actions)
+			Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents,self.num_agents, self.num_actions) * one_hot_actions.unsqueeze(-2), dim=-1)
+			V_values_baseline, weights_V = self.critic_network_V.forward(states_critic, probs.detach(), one_hot_actions)
+			V_values_baseline = V_values_baseline.reshape(-1,self.num_agents,self.num_agents)
+		elif self.coma_version == 4:
+			V_values_baseline, weights_V = self.critic_network_V.forward(states_critic, probs.detach(), one_hot_actions)
+			V_values_baseline = V_values_baseline.reshape(-1,self.num_agents,self.num_agents)
 
 		
 	# # ***********************************************************************************
@@ -177,8 +216,13 @@ class A2CAgent:
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 
-		
-		value_loss = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
+		if self.coma_version == 1 or self.coma_version == 2:
+			value_loss = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
+		elif self.coma_version == 3:
+			value_loss_Q = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
+			value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
+		elif self.coma_version == 4:
+			value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
 		
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -187,8 +231,17 @@ class A2CAgent:
 		
 		if self.coma_version == 1:
 			advantage = Q_values_act_chosen - V_values_baseline
-		else:
+		elif self.coma_version == 2 or self.coma_version == 3:
 			advantage = torch.sum(Q_values_act_chosen - V_values_baseline, dim=-2)
+		elif self.coma_version == 4:
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values_baseline, rewards, dones, False, False), dim=-2)
+		elif self.coma_version == 5:
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values_baseline, rewards, dones, True, False), dim=-2)
+		elif self.coma_version == 6:
+			values, indices = torch.topk(weights_V,k=1,dim=-1)
+			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values_baseline, rewards, dones, True, False) * masking_advantage,dim=-2)
+
 
 
 		probs = Categorical(probs)
@@ -197,10 +250,26 @@ class A2CAgent:
 	# # ***********************************************************************************
 		
 	# **********************************
-		self.critic_optimizer.zero_grad()
-		value_loss.backward(retain_graph=False)
-		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
-		self.critic_optimizer.step()
+		if self.coma_version == 1 or self.coma_version == 2:
+			self.critic_optimizer.zero_grad()
+			value_loss.backward(retain_graph=False)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+			self.critic_optimizer.step()
+		elif self.coma_version == 3:
+			self.critic_optimizer_Q.zero_grad()
+			value_loss_Q.backward(retain_graph=False)
+			grad_norm_value_Q = torch.nn.utils.clip_grad_norm_(self.critic_network_Q.parameters(),0.5)
+			self.critic_optimizer_Q.step()
+
+			self.critic_optimizer_V.zero_grad()
+			value_loss_V.backward(retain_graph=False)
+			grad_norm_value_V = torch.nn.utils.clip_grad_norm_(self.critic_network_V.parameters(),0.5)
+			self.critic_optimizer_V.step()
+		elif self.coma_version == 4:
+			self.critic_optimizer_V.zero_grad()
+			value_loss_V.backward(retain_graph=False)
+			grad_norm_value_V = torch.nn.utils.clip_grad_norm_(self.critic_network_V.parameters(),0.5)
+			self.critic_optimizer_V.step()
 
 
 		self.policy_optimizer.zero_grad()
@@ -208,4 +277,9 @@ class A2CAgent:
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		self.policy_optimizer.step()
 
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
+		if self.coma_version == 1 or self.coma_version == 2:
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
+		elif self.coma_version == 3:
+			return value_loss_Q, value_loss_V, policy_loss, entropy, grad_norm_value_Q, grad_norm_value_V, grad_norm_policy, weights_Q, weights_V, weight_policy
+		elif self.coma_version == 4:
+			return value_loss_V, policy_loss, entropy, grad_norm_value_V, grad_norm_policy, weights_V, weight_policy

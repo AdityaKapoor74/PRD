@@ -76,6 +76,98 @@ if __name__ == '__main__':
 			"max_time_steps": 100,
 		}
 
+	# VERSION 3
+	# dictionary = {
+	# 		"version": 3,
+	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v3/models/critic_networks/',
+	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v3/models/actor_networks/',
+	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v3/runs/',
+	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v3/gifs/',
+	# 		"env": "paired_by_sharing_goals", 
+	# 		"experiment_type":"coma_v3",
+	# 		"value_lr": 1e-2,
+	# 		"policy_lr": 1e-4, 
+	# 		"entropy_pen": 0.008, 
+	# 		"gamma": 0.99,
+	# 		"trace_decay": 0.98,
+	# 		"select_above_threshold": 0.1,
+	# 		"softmax_cut_threshold": 0.1,
+	# 		"top_k": 0,
+	# 		"gif": False,
+	# 		"save": False,
+	# 		"max_episodes": 200000,
+	# 		"max_time_steps": 100,
+	# 	}
+
+	# VERSION 4
+	# dictionary = {
+	# 		"version": 2,
+	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v4/models/critic_networks/',
+	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v4/models/actor_networks/',
+	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v4/runs/',
+	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v4/gifs/',
+	# 		"env": "paired_by_sharing_goals", 
+	# 		"experiment_type":"coma_v4",
+	# 		"value_lr": 1e-2,
+	# 		"policy_lr": 1e-4, 
+	# 		"entropy_pen": 0.008, 
+	# 		"gamma": 0.99,
+	# 		"trace_decay": 0.98,
+	# 		"select_above_threshold": 0.1,
+	# 		"softmax_cut_threshold": 0.1,
+	# 		"top_k": 0,
+	# 		"gif": False,
+	# 		"save": False,
+	# 		"max_episodes": 200000,
+	# 		"max_time_steps": 100,
+	# 	}
+
+	# VERSION 5
+	# dictionary = {
+	# 		"version": 2,
+	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v5/models/critic_networks/',
+	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v5/models/actor_networks/',
+	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v5/runs/',
+	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v5/gifs/',
+	# 		"env": "paired_by_sharing_goals", 
+	# 		"experiment_type":"coma_v5",
+	# 		"value_lr": 1e-2,
+	# 		"policy_lr": 1e-4, 
+	# 		"entropy_pen": 0.008, 
+	# 		"gamma": 0.99,
+	# 		"trace_decay": 0.98,
+	# 		"select_above_threshold": 0.1,
+	# 		"softmax_cut_threshold": 0.1,
+	# 		"top_k": 0,
+	# 		"gif": False,
+	# 		"save": False,
+	# 		"max_episodes": 200000,
+	# 		"max_time_steps": 100,
+	# 	}
+
+	# VERSION 6
+	# dictionary = {
+	# 		"version": 2,
+	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v6/models/critic_networks/',
+	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v6/models/actor_networks/',
+	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v6/runs/',
+	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v6/gifs/',
+	# 		"env": "paired_by_sharing_goals", 
+	# 		"experiment_type":"coma_v6",
+	# 		"value_lr": 1e-2,
+	# 		"policy_lr": 1e-4, 
+	# 		"entropy_pen": 0.008, 
+	# 		"gamma": 0.99,
+	# 		"trace_decay": 0.98,
+	# 		"select_above_threshold": 0.1,
+	# 		"softmax_cut_threshold": 0.1,
+	# 		"top_k": 0,
+	# 		"gif": False,
+	# 		"save": False,
+	# 		"max_episodes": 200000,
+	# 		"max_time_steps": 100,
+	# 	}
+
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()

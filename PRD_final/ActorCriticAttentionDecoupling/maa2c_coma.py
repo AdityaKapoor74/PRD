@@ -130,32 +130,47 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		# POLICY MLP
-		# value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-		# POLICY GNN
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-
+		if self.coma_version == 1 or self.coma_version == 2:
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		elif self.coma_version == 3:
+			value_loss_Q, value_loss_V, policy_loss, entropy, grad_norm_value_Q, grad_norm_value_V, grad_norm_policy, weights_Q, weights_V, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		else:
+			value_loss_V, policy_loss, entropy, grad_norm_value_V, grad_norm_policy, weights_V, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 
 
 		if not(self.gif) and self.save:
 			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
 			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			if self.coma_version == 1 or self.coma_version == 2:
+				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
+				self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
+			elif self.coma_version == 3:
+				self.writer.add_scalar('Loss/Q-Value Loss',value_loss_Q.item(),episode)
+				self.writer.add_scalar('Loss/V-Value Loss',value_loss_V.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm V-Value',grad_norm_value_V,episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Q-Value',grad_norm_value_Q,episode)
+				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_Q)
+				self.writer.add_scalars('Weights_Q/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				entropy_weights = -torch.mean(torch.sum(weights_Q * torch.log(torch.clamp(weights_Q, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Q/Entropy', entropy_weights.item(), episode)
+				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_V)
+				self.writer.add_scalars('Weights_V/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				entropy_weights = -torch.mean(torch.sum(weights_V * torch.log(torch.clamp(weights_V, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_V/Entropy', entropy_weights.item(), episode)
+			else:
+				self.writer.add_scalar('Loss/V-Value Loss',value_loss_V.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm V-Value',grad_norm_value_V,episode)
+				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_V)
+				self.writer.add_scalars('Weights_V/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				entropy_weights = -torch.mean(torch.sum(weights_V * torch.log(torch.clamp(weights_V, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_V/Entropy', entropy_weights.item(), episode)
 
-			# self.calculate_indiv_weights(weights)
-			# for i in range(self.num_agents):
-			# 	agent_name = 'agent %d' % i
-			# 	self.writer.add_scalars('Weights/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-
-			paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
-			self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
-
-			# ENTROPY OF WEIGHTS
-			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
 
 			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
@@ -279,8 +294,16 @@ class MAA2C:
 
 
 			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:
-				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+				if self.coma_version == 1 or self.coma_version == 2:
+					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')
+				elif self.coma_version == 3:
+					torch.save(self.agents.critic_network_Q.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_Q.pt')
+					torch.save(self.agents.critic_network_V.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_V.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+				else:
+					torch.save(self.agents.critic_network_V.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_V.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if not(self.gif):
 				self.update(trajectory,episode) 
