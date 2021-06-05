@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c_coma import ScalarDotProductCriticNetwork_V1, ScalarDotProductPolicyNetwork
+from a2c_coma import ScalarDotProductCriticNetwork_V1, ScalarDotProductCriticNetwork_V2, ScalarDotProductPolicyNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -57,9 +57,17 @@ class A2CAgent:
 			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 			self.obs_act_output_dim = 64
-			self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
+			self.final_input_dim = self.obs_act_output_dim
 			self.final_output_dim = self.num_actions
 			self.critic_network = ScalarDotProductCriticNetwork_V1(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif self.coma_version == 2:
+			self.obs_input_dim = 2*4
+			self.obs_output_dim = 64
+			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_output_dim = 64
+			self.final_input_dim = self.obs_act_output_dim 
+			self.final_output_dim = self.num_actions
+			self.critic_network = ScalarDotProductCriticNetwork_V2(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 		
 		
 		# SCALAR DOT PRODUCT POLICY NETWORK
@@ -147,31 +155,29 @@ class A2CAgent:
 
 	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
 
-		'''
-		Getting the probability mass function over the action space for each agent
-		'''
 		probs, weight_policy = self.policy_network.forward(states_actor)
 
-		'''
-		Calculate V values
-		'''
-		Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-		Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
-		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-		V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
+
+		if self.coma_version == 1:
+			Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
+			V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
+		else:
+			Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents,self.num_agents, self.num_actions) * one_hot_actions.unsqueeze(-2), dim=-1)
+			V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents,self.num_agents, self.num_actions) * probs.detach().unsqueeze(-2), dim=-1)
 
 		
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
-	# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
-		discounted_rewards = self.calculate_returns(rewards,self.gamma).to(self.device)
+		if self.coma_version == 1:
+			discounted_rewards = self.calculate_returns(rewards,self.gamma).to(self.device)
+		else:
+			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
+			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 
-		# BOOTSTRAP LOSS
-		# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-		# value_loss = F.smooth_l1_loss(V_values,target_values)
-
-		# MONTE CARLO LOSS
+		
 		value_loss = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
 		
 		# # ***********************************************************************************
@@ -179,8 +185,10 @@ class A2CAgent:
 	# # ***********************************************************************************
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 		
-
-		advantage = Q_values_act_chosen - V_values_baseline
+		if self.coma_version == 1:
+			advantage = Q_values_act_chosen - V_values_baseline
+		else:
+			advantage = torch.sum(Q_values_act_chosen - V_values_baseline, dim=-2)
 
 
 		probs = Categorical(probs)
@@ -199,6 +207,5 @@ class A2CAgent:
 		policy_loss.backward(retain_graph=False)
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		self.policy_optimizer.step()
-		# grad_norm_policy = 0
 
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
