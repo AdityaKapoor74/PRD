@@ -26,12 +26,12 @@ def make_env(scenario_name, benchmark=False):
 
 if __name__ == '__main__':
 
-	experiment_type = "greedy_policy"
+	# experiment_type = "greedy_policy"
 	# experiment_type = "top"
 	# experiment_type = "without_prd"
 	# experiment_type = "without_prd_mean"
 	# experiment_type = "with_prd_soft_adv_scaled"
-	# experiment_type = "with_prd_soft_adv"
+	experiment_type = "with_prd_soft_adv"
 
 
 	# env = make_env(scenario_name="multi_circular",benchmark=False)
@@ -63,7 +63,9 @@ if __name__ == '__main__':
 			"save": True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
-			"critic_version":5
+			"critic_version":5,
+			"obs_act_output_dim":64
+
 		}
 
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
