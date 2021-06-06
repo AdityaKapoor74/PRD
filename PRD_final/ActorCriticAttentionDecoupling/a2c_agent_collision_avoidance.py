@@ -25,6 +25,10 @@ class A2CAgent:
 		self.trace_decay = dictionary["trace_decay"]
 		self.top_k = dictionary["top_k"]
 		self.l1_pen = dictionary["l1_pen"]
+		self.anneal_l1_pen = dictionary["anneal_l1_pen"]
+		if self.anneal_l1_pen:
+			self.anneal_rate = dictionary["anneal_rate"]
+		self.max_episodes = dictionary["max_episodes"]
 		# Used for masking advantages above a threshold
 		self.select_above_threshold = dictionary["select_above_threshold"]
 		# cut the tail of softmax --> Used in softmax with normalization
@@ -169,7 +173,7 @@ class A2CAgent:
 
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
+	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode=None):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -186,7 +190,6 @@ class A2CAgent:
 		Calculate V values
 		'''
 		V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		print('weights.shape: ', weights.shape)
 		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
@@ -207,7 +210,12 @@ class A2CAgent:
 		weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
 		# print('weights_off_diagonal: ', weights_off_diagonal)
 		l1_weights = torch.mean(weights_off_diagonal)
-		value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.l1_pen*l1_weights
+		if not self.anneal_l1_pen:
+			value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.l1_pen*l1_weights
+		else:
+			assert episode is not None
+			l1_pen = self.l1_pen * np.exp(-self.anneal_rate*episode)
+			value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + l1_pen*l1_weights
 
 		# REGRESSING ON IMMEDIATE REWARD
 		# value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2))

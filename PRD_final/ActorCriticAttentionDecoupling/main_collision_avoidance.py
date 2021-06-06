@@ -61,8 +61,9 @@ if __name__ == '__main__':
 			"save": True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
-			"critic_version":5,
-			"obs_act_output_dim":64
+			"critic_version":3,
+			"obs_act_output_dim":64,
+			"anneal_l1_pen":False
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)
