@@ -1,3 +1,5 @@
+from comet_ml import Experiment
+
 import os
 import torch
 import torch.nn.functional as F 
@@ -5,10 +7,12 @@ import torch.optim as optim
 from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
 from a2c_agent_crowd_nav import A2CAgent
 import datetime
 import random
+
+
+experiment = Experiment('9mxH2vYX20hn9laEr0KtHLjAa',project_name="PRD",disabled=False)
 
 
 class MAA2C:
@@ -16,6 +20,9 @@ class MAA2C:
 	def __init__(self,env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
+		experiment.log_parameters(dictionary)
+		experiment.log_parameter('n_agents',env.n)
+		experiment.log_parameter('col_pen',env.world.col_pen)
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save = dictionary["save"]

@@ -53,7 +53,7 @@ if __name__ == '__main__':
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.0, #0.008,
-			"l1_pen":0.0,#0.1, 
+			"l1_pen":0.01, 
 			"gamma": 0.99,
 			"trace_decay": .98,
 			"select_above_threshold": 0.1,
@@ -63,8 +63,9 @@ if __name__ == '__main__':
 			"save": True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
-			"critic_version":5,
-			"obs_act_output_dim":64
+			"critic_version":3,
+			"obs_act_output_dim":64,
+			"anneal_l1_pen":True,
 
 		}
 

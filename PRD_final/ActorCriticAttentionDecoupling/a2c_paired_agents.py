@@ -116,12 +116,9 @@ class ScalarDotProductCriticNetwork(nn.Module):
 
 	def forward(self, states, policies, actions):
 
-		print('states.shape: ', states.shape)
-		print('actions.shape: ', actions.shape)
 
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
-		print('obs_actions.shape: ', obs_actions.shape)
 		# print("OBSERVATIONS ACTIONS")
 		# print(obs_actions)
 
@@ -146,7 +143,6 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		# obs_aciton N x D
 		# make it N x N x D
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
-		print('obs_actions.shape after repeat: ', obs_actions.shape)
 
 
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
@@ -206,7 +202,6 @@ class ScalarDotProductCriticNetworkV7(nn.Module):
 		obs_dim = obs_act_input_dim - num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
-		print('obs_dim: ',obs_dim)
 		self.key_layer = nn.Linear(obs_dim, obs_act_output_dim, bias=True)
 
 		self.query_layer = nn.Linear(obs_dim, obs_act_output_dim, bias=True)
@@ -270,12 +265,11 @@ class ScalarDotProductCriticNetworkV7(nn.Module):
 
 	def forward(self, states, policies, actions):
 
-		print('states.shape: ', states.shape)
-		print('actions.shape: ', actions.shape)
+		
 
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
-		print('obs_actions.shape: ', obs_actions.shape)
+		
 		# print("OBSERVATIONS ACTIONS")
 		# print(obs_actions)
 
@@ -298,8 +292,7 @@ class ScalarDotProductCriticNetworkV7(nn.Module):
 		ret_weight = weight
 		
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
-		print('obs_actions.shape after repeat: ', obs_actions.shape)
-
+		
 
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
 
@@ -415,12 +408,10 @@ class ScalarDotProductCriticNetworkV6(nn.Module):
 
 	def forward(self, states, policies, actions):
 
-		print('states.shape: ', states.shape)
-		print('actions.shape: ', actions.shape)
-
+		
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
-		print('obs_actions.shape: ', obs_actions.shape)
+		
 		# print("OBSERVATIONS ACTIONS")
 		# print(obs_actions)
 
@@ -443,7 +434,7 @@ class ScalarDotProductCriticNetworkV6(nn.Module):
 		ret_weight = weight
 		
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
-		print('obs_actions.shape after repeat: ', obs_actions.shape)
+		
 
 
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
@@ -558,12 +549,10 @@ class ScalarDotProductCriticNetworkV5(nn.Module):
 
 	def forward(self, states, policies, actions):
 
-		print('states.shape: ', states.shape)
-		print('actions.shape: ', actions.shape)
 
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
-		print('obs_actions.shape: ', obs_actions.shape)
+		
 		# print("OBSERVATIONS ACTIONS")
 		# print(obs_actions)
 
@@ -587,7 +576,7 @@ class ScalarDotProductCriticNetworkV5(nn.Module):
 		ret_weight = weight
 		
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
-		print('obs_actions.shape after repeat: ', obs_actions.shape)
+		
 
 
 		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
@@ -702,12 +691,11 @@ class ScalarDotProductCriticNetworkV4(nn.Module):
 
 	def forward(self, states, policies, actions):
 
-		print('states.shape: ', states.shape)
-		print('actions.shape: ', actions.shape)
+		
 
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
-		print('obs_actions.shape: ', obs_actions.shape)
+		
 		# print("OBSERVATIONS ACTIONS")
 		# print(obs_actions)
 
@@ -772,6 +760,9 @@ class ScalarDotProductCriticNetworkV4(nn.Module):
 		return Value, ret_weight
 
 class ScalarDotProductCriticNetworkV3(nn.Module):
+	'''
+	key and query linear funciton of state only
+	'''
 	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
 		super(ScalarDotProductCriticNetworkV3, self).__init__()
 		
@@ -780,7 +771,7 @@ class ScalarDotProductCriticNetworkV3(nn.Module):
 		obs_dim = obs_act_input_dim - num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
-		print('obs_dim: ',obs_dim)
+		
 		self.key_layer = nn.Linear(obs_dim, obs_act_output_dim, bias=False)
 
 		self.query_layer = nn.Linear(obs_dim, obs_act_output_dim, bias=False)
@@ -844,13 +835,11 @@ class ScalarDotProductCriticNetworkV3(nn.Module):
 
 	def forward(self, states, policies, actions):
 
-		print('states.shape: ', states.shape)
-		print('actions.shape: ', actions.shape)
+		
 
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
-		print('obs_actions.shape: ', obs_actions.shape)
-		# print("OBSERVATIONS ACTIONS")
+	
 		# print(obs_actions)
 
 		# For calculating the right advantages
@@ -915,6 +904,9 @@ class ScalarDotProductCriticNetworkV3(nn.Module):
 
 
 class ScalarDotProductCriticNetworkV2(nn.Module):
+	'''
+	Nonlinear key, query, value network
+	'''
 	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
 		super(ScalarDotProductCriticNetworkV2, self).__init__()
 		
@@ -1399,7 +1391,6 @@ class DualAttentionCriticNetworkV2(nn.Module):
 
 		# NODE FEATURES
 		node_features = torch.cat([weighted_final_observations,weighted_attention_values], dim=-1)
-		print('node_features.shape: ', node_features.shape)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)

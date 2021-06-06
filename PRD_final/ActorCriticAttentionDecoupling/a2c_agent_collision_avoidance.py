@@ -6,7 +6,7 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c_collision_avoidance import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
-from a2c_paired_agents import ScalarDotProductCriticNetworkV5
+from a2c_paired_agents import ScalarDotProductCriticNetworkV5,ScalarDotProductCriticNetworkV3
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -62,6 +62,10 @@ class A2CAgent:
 		self.final_output_dim = 1
 		if dictionary["critic_version"] == 1:
 			self.critic_network =   ScalarDotProductCriticNetwork(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["critic_version"] == 3:
+			print("USING CRITIC VERSION 3!!!!!!!!!!")
+			self.critic_network = ScalarDotProductCriticNetworkV3(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
 		elif dictionary["critic_version"] == 5:
 			print("USING CRITIC VERSION 5!!!!!!!!!!")
 			self.critic_network = ScalarDotProductCriticNetworkV5(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)

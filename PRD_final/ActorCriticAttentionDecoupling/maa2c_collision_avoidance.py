@@ -256,9 +256,10 @@ class MAA2C:
 					if all(dones) or step == self.max_time_steps:
 
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
-						print("*"*100)
-						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
-						print("*"*100)
+						if episode % 100 == 0:
+							print("*"*100)
+							print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
+							print("*"*100)
 
 						if not(self.gif) and self.save:
 							# self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
