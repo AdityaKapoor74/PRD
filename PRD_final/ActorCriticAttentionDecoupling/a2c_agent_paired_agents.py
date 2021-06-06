@@ -47,8 +47,9 @@ class A2CAgent:
 			self.greedy_policy[i][i] = 1
 
 		print(self.experiment_type, self.top_k)
-		
 
+		# TD lambda
+		self.lambda_ = 0.8
 
 
 		# SCALAR DOT PRODUCT CRITIC NETWORK
@@ -143,6 +144,28 @@ class A2CAgent:
 		return advantages
 
 
+	def calculate_deltas(self, values, rewards, dones):
+		deltas = []
+		next_value = 0
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
+		masks = 1-dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			next_value = values.data[t]
+			deltas.insert(0,td_error)
+		deltas = torch.stack(deltas)
+
+		return deltas
+
+
+	def nstep_returns(self,values, rewards, dones):
+		deltas = self.calculate_deltas(values, rewards, dones)
+		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+		target_Vs = advs+values
+		return target_Vs
+
+
 	def calculate_returns(self,rewards, discount_factor, normalize = False):
 	
 		returns = []
@@ -200,6 +223,10 @@ class A2CAgent:
 
 		# MONTE CARLO LOSS
 		value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+
+		# TD lambda 
+		Value_target = self.nstep_returns(V_values, rewards, dones)
+		value_loss = F.smooth_l1_loss(V_values, discounted_rewards)
 
 		# REGRESSING ON IMMEDIATE REWARD
 		# value_loss = F.smooth_l1_loss(V_values,torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2))

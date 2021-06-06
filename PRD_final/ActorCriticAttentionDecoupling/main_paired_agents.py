@@ -39,7 +39,7 @@ if __name__ == '__main__':
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.008, 
 			"gamma": 0.99,
-			"trace_decay": None,
+			"trace_decay": 0.98,
 			"select_above_threshold": 0.1,
 			"softmax_cut_threshold": 0.1,
 			"top_k": 2,

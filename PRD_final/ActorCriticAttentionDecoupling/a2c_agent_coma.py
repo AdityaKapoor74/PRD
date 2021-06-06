@@ -7,6 +7,7 @@ from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c_coma import ScalarDotProductCriticNetwork_V1, ScalarDotProductCriticNetwork_V2, ScalarDotProductPolicyNetwork
 import torch.nn.functional as F
+import math
 
 class A2CAgent:
 
@@ -16,6 +17,7 @@ class A2CAgent:
 		dictionary
 		):
 		self.coma_version = dictionary["version"]
+		self.nstep = dictionary["nstep"]
 		self.env = env
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
@@ -30,6 +32,16 @@ class A2CAgent:
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
+
+		# DECAYING ENTROPY PEN 
+		self.steps_done = 0
+		self.entropy_pen_start = dictionary["entropy_pen"]
+		self.entropy_pen_end = 0.0
+		self.entropy_pen_decay = 0.0
+		# self.entropy_pen = self.entropy_pen_end + (self.entropy_pen_start-self.entropy_pen_end)*math.exp(-1*self.steps_done / self.entropy_pen_decay)
+
+		# TD lambda
+		self.lambda_ = 0.8
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
@@ -160,6 +172,42 @@ class A2CAgent:
 		
 		return advantages
 
+	def calculate_deltas(self, values, rewards, dones):
+		if self.coma_version == 1:
+			deltas = []
+			next_value = 0
+			rewards = rewards
+			dones = dones
+			masks = 1-dones
+			for t in reversed(range(0, len(rewards))):
+				td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+				next_value = values.data[t]
+				deltas.insert(0,td_error)
+			deltas = torch.stack(deltas)
+
+			return deltas
+
+
+		deltas = []
+		next_value = 0
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
+		masks = 1-dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			next_value = values.data[t]
+			deltas.insert(0,td_error)
+		deltas = torch.stack(deltas)
+
+		return deltas
+
+
+	def nstep_returns(self,values, rewards, dones):
+		deltas = self.calculate_deltas(values, rewards, dones)
+		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+		target_Vs = advs+values
+		return target_Vs
+
 
 	def calculate_returns(self,rewards, discount_factor, normalize = False):
 	
@@ -190,11 +238,11 @@ class A2CAgent:
 
 
 		if self.coma_version == 1:
-			Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			Q_values, weights_V = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 			V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
 		elif self.coma_version == 2:
-			Q_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			Q_values, weights_V = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents,self.num_agents, self.num_actions) * one_hot_actions.unsqueeze(-2), dim=-1)
 			V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents,self.num_agents, self.num_actions) * probs.detach().unsqueeze(-2), dim=-1)
 		elif self.coma_version == 3:
@@ -216,13 +264,22 @@ class A2CAgent:
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 
-		if self.coma_version == 1 or self.coma_version == 2:
-			value_loss = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
-		elif self.coma_version == 3:
-			value_loss_Q = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
-			value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
+		if not(self.nstep):
+			if self.coma_version == 1 or self.coma_version == 2:
+				value_loss_V = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
+			elif self.coma_version == 3:
+				value_loss_Q = F.smooth_l1_loss(Q_values_act_chosen,discounted_rewards)
+				value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
+			else:
+				value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
 		else:
-			value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
+			if self.coma_version in [1,2,3]:
+				Value_targets = self.nstep_returns(V_values_baseline, rewards, dones)
+				value_loss_V = F.smooth_l1_loss(Q_values_act_chosen, Value_targets.detach())
+			elif self.coma_version in [4,5,6]:
+				Value_targets = self.nstep_returns(V_values_baseline, rewards, dones)
+				value_loss_V = F.smooth_l1_loss(V_values_baseline, Value_targets.detach())
+			
 		
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
@@ -252,8 +309,8 @@ class A2CAgent:
 	# **********************************
 		if self.coma_version == 1 or self.coma_version == 2:
 			self.critic_optimizer.zero_grad()
-			value_loss.backward(retain_graph=False)
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+			value_loss_V.backward(retain_graph=False)
+			grad_norm_value_V = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 			self.critic_optimizer.step()
 		elif self.coma_version == 3:
 			self.critic_optimizer_Q.zero_grad()
@@ -277,9 +334,11 @@ class A2CAgent:
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		self.policy_optimizer.step()
 
-		if self.coma_version == 1 or self.coma_version == 2:
-			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
-		elif self.coma_version == 3:
+		# DECAY ENTROPY PEN
+		# self.steps_done += 1
+		# self.entropy_pen = self.entropy_pen_end + (self.entropy_pen_start-self.entropy_pen_end)*math.exp(-1*self.steps_done / self.entropy_pen_decay)
+
+		if self.coma_version == 3:
 			return value_loss_Q, value_loss_V, policy_loss, entropy, grad_norm_value_Q, grad_norm_value_V, grad_norm_policy, weights_Q, weights_V, weight_policy
 		else:
 			return value_loss_V, policy_loss, entropy, grad_norm_value_V, grad_norm_policy, weights_V, weight_policy

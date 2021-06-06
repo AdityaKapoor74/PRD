@@ -31,16 +31,41 @@ def run_file(dictionary):
 if __name__ == '__main__':
 
 	# VERSION 1
+	dictionary = {
+			"version": 1,
+			"nstep": True,
+			"critic_dir": '../../../paired_agents_4_Agents_coma_v1/models/critic_networks/',
+			"actor_dir": '../../../paired_agents_4_Agents_coma_v1/models/actor_networks/',
+			"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v1/runs/',
+			"gif_dir": '../../../paired_agents_4_Agents_coma_v1/gifs/',
+			"env": "paired_by_sharing_goals", 
+			"experiment_type":"coma_v1",
+			"value_lr": 1e-2,
+			"policy_lr": 5e-4,
+			"entropy_pen": 1.0, 
+			"gamma": 0.99,
+			"trace_decay": 0.98,
+			"select_above_threshold": 0.1,
+			"softmax_cut_threshold": 0.1,
+			"top_k": 0,
+			"gif": False,
+			"save": True,
+			"max_episodes": 100000,
+			"max_time_steps": 100,
+		}
+
+	# VERSION 2
 	# dictionary = {
-	# 		"version": 1,
-	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v1/models/critic_networks/',
-	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v1/models/actor_networks/',
-	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v1/runs/',
-	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v1/gifs/',
+	# 		"version": 2,
+	# 		"nstep": True,
+	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v2/models/critic_networks/',
+	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v2/models/actor_networks/',
+	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v2/runs/',
+	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v2/gifs/',
 	# 		"env": "paired_by_sharing_goals", 
-	# 		"experiment_type":"coma_v1",
+	# 		"experiment_type":"coma_v2",
 	# 		"value_lr": 1e-2,
-	# 		"policy_lr": 7.5e-5,
+	# 		"policy_lr": 9e-4, 
 	# 		"entropy_pen": 0.008, 
 	# 		"gamma": 0.99,
 	# 		"trace_decay": 0.98,
@@ -53,32 +78,10 @@ if __name__ == '__main__':
 	# 		"max_time_steps": 100,
 	# 	}
 
-	# VERSION 2
-	dictionary = {
-			"version": 2,
-			"critic_dir": '../../../paired_agents_4_Agents_coma_v2/models/critic_networks/',
-			"actor_dir": '../../../paired_agents_4_Agents_coma_v2/models/actor_networks/',
-			"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v2/runs/',
-			"gif_dir": '../../../paired_agents_4_Agents_coma_v2/gifs/',
-			"env": "paired_by_sharing_goals", 
-			"experiment_type":"coma_v2",
-			"value_lr": 1e-2,
-			"policy_lr": 9e-4, 
-			"entropy_pen": 0.008, 
-			"gamma": 0.99,
-			"trace_decay": 0.98,
-			"select_above_threshold": 0.1,
-			"softmax_cut_threshold": 0.1,
-			"top_k": 0,
-			"gif": False,
-			"save": True,
-			"max_episodes": 100000,
-			"max_time_steps": 100,
-		}
-
 	# VERSION 3
 	# dictionary = {
 	# 		"version": 3,
+	# 		"nstep": True,
 	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v3/models/critic_networks/',
 	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v3/models/actor_networks/',
 	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v3/runs/',
@@ -102,6 +105,7 @@ if __name__ == '__main__':
 	# VERSION 4
 	# dictionary = {
 	# 		"version": 4,
+	# 		"nstep": True,
 	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v4/models/critic_networks/',
 	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v4/models/actor_networks/',
 	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v4/runs/',
@@ -109,7 +113,7 @@ if __name__ == '__main__':
 	# 		"env": "paired_by_sharing_goals", 
 	# 		"experiment_type":"coma_v4",
 	# 		"value_lr": 1e-2,
-	# 		"policy_lr": 1e-4, 
+	# 		"policy_lr": 1e-3, 
 	# 		"entropy_pen": 0.008, 
 	# 		"gamma": 0.99,
 	# 		"trace_decay": 0.98,
@@ -117,7 +121,7 @@ if __name__ == '__main__':
 	# 		"softmax_cut_threshold": 0.1,
 	# 		"top_k": 0,
 	# 		"gif": False,
-	# 		"save": False,
+	# 		"save": True,
 	# 		"max_episodes": 100000,
 	# 		"max_time_steps": 100,
 	# 	}
@@ -125,14 +129,15 @@ if __name__ == '__main__':
 	# VERSION 5
 	# dictionary = {
 	# 		"version": 5,
-	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v5/models/critic_networks/',
-	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v5/models/actor_networks/',
-	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v5/runs/',
-	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v5/gifs/',
+	# 		"nstep": True,
+	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v5_nstep/models/critic_networks/',
+	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v5_nstep/models/actor_networks/',
+	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v5_nstep/runs/',
+	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v5_nstep/gifs/',
 	# 		"env": "paired_by_sharing_goals", 
 	# 		"experiment_type":"coma_v5",
 	# 		"value_lr": 1e-2,
-	# 		"policy_lr": 1e-4, 
+	# 		"policy_lr": 1e-3, 
 	# 		"entropy_pen": 0.008, 
 	# 		"gamma": 0.99,
 	# 		"trace_decay": 0.98,
@@ -140,7 +145,7 @@ if __name__ == '__main__':
 	# 		"softmax_cut_threshold": 0.1,
 	# 		"top_k": 0,
 	# 		"gif": False,
-	# 		"save": False,
+	# 		"save": True,
 	# 		"max_episodes": 100000,
 	# 		"max_time_steps": 100,
 	# 	}
@@ -148,14 +153,15 @@ if __name__ == '__main__':
 	# VERSION 6
 	# dictionary = {
 	# 		"version": 6,
-	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v6/models/critic_networks/',
-	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v6/models/actor_networks/',
-	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v6/runs/',
-	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v6/gifs/',
+	# 		"nstep": True,
+	# 		"critic_dir": '../../../paired_agents_4_Agents_coma_v6_n_step_return/models/critic_networks/',
+	# 		"actor_dir": '../../../paired_agents_4_Agents_coma_v6_n_step_return/models/actor_networks/',
+	# 		"tensorboard_dir":'../../../paired_agents_4_Agents_coma_v6_n_step_return/runs/',
+	# 		"gif_dir": '../../../paired_agents_4_Agents_coma_v6_n_step_return/gifs/',
 	# 		"env": "paired_by_sharing_goals", 
 	# 		"experiment_type":"coma_v6",
 	# 		"value_lr": 1e-2,
-	# 		"policy_lr": 1e-4, 
+	# 		"policy_lr": 1e-3, 
 	# 		"entropy_pen": 0.008, 
 	# 		"gamma": 0.99,
 	# 		"trace_decay": 0.98,
@@ -163,7 +169,7 @@ if __name__ == '__main__':
 	# 		"softmax_cut_threshold": 0.1,
 	# 		"top_k": 0,
 	# 		"gif": False,
-	# 		"save": False,
+	# 		"save": True,
 	# 		"max_episodes": 100000,
 	# 		"max_time_steps": 100,
 	# 	}
