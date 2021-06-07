@@ -40,6 +40,9 @@ class MAA2C:
 		if self.env_name == "crowd_nav":
 			self.num_agents = dictionary["num_agents"]
 			self.num_people = dictionary["num_people"]
+		elif self.env_name == "predator_prey":
+			self.num_predator = 1
+			self.num_prey = 1
 
 
 		self.agents = A2CAgent(self.env, dictionary)
@@ -196,6 +199,14 @@ class MAA2C:
 			for i in range(self.num_people):
 				states_critic.append(states[i][0])
 				states_actor.append(states[i][1])
+		elif for_who == "predator":
+			for i in range(self.num_predator):
+				states_critic.append(states[i][0])
+				states_actor.append(states[i][1])
+		elif for_who == "prey":
+			for i in range(self.num_prey):
+				states_critic.append(states[i][0])
+				states_actor.append(states[i][1])
 
 		states_critic = np.asarray(states_critic)
 		states_actor = np.asarray(states_actor)
@@ -236,6 +247,72 @@ class MAA2C:
 		clip.write_gif(fname, fps=fps)
 
 
+	def get_prey_actions(self, states_prey, states_predator, random = False):
+		dt = 0.1 #simulation timestep
+		prey_actions = []
+
+		left = [-1,0]
+		right = [1,0]
+		up = [0,1]
+		down = [0,-1]
+
+		no_act = 0
+		left_act = 1
+		right_act = 2
+		down_act = 3
+		up_act = 4
+
+		for prey_x_y, prey_vx_vy in zip(states_prey[:,0:2],states_prey[:,2:]):
+			dist_from_predator = [np.sqrt(np.sum(np.square(prey_x_y) - np.square(predator_x_y))) for predator_x_y in states_predator[:,0:2]]
+			min_dist_predator = min(dist_from_predator)
+			min_dist_predator_index = np.argmin(dist_from_predator)
+
+			if random:
+				valid_action = [no_act]
+
+				# taking left
+				if prey_x_y + prey_vx_vy*left*dt >= [-1,0] or prey_x_y + prey_vx_vy*left*dt <= [1,0] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*left*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(1)
+				# taking right
+				if prey_x_y + prey_vx_vy*right*dt >= [-1,0] or prey_x_y + prey_vx_vy*right*dt <= [1,0] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*right*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(2)
+				# taking up
+				if prey_x_y + prey_vx_vy*up*dt >= [0,-1] or prey_x_y + prey_vx_vy*up*dt <= [0,1] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*up*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(2)
+				# taking down
+				if prey_x_y + prey_vx_vy*down*dt >= [0,-1] or prey_x_y + prey_vx_vy*down*dt <= [0,1] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*down*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(2)
+
+				prey_actions.append(random.choice(valid_action))
+
+			else:
+				valid_action = [no_act]
+				distance_metric = [min_dist_predator]
+				if prey_x_y + prey_vx_vy*left*dt >= [-1,0] or prey_x_y + prey_vx_vy*left*dt <= [1,0] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*left*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(left_act)
+					distance_metric.append(np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*left*dt) - np.square(states_predator[min_dist_predator_index,0:2]))))
+				# taking right
+				if prey_x_y + prey_vx_vy*right*dt >= [-1,0] or prey_x_y + prey_vx_vy*right*dt <= [1,0] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*right*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(right_act)
+					distance_metric.append(np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*right*dt) - np.square(states_predator[min_dist_predator_index,0:2]))))
+				# taking up
+				if prey_x_y + prey_vx_vy*up*dt >= [0,-1] or prey_x_y + prey_vx_vy*up*dt <= [0,1] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*up*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(up_act)
+					distance_metric.append(np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*up*dt) - np.square(states_predator[min_dist_predator_index,0:2]))))
+				# taking down
+				if prey_x_y + prey_vx_vy*down*dt >= [0,-1] or prey_x_y + prey_vx_vy*down*dt <= [0,1] and np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*down*dt) - np.square(states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(down_act)
+					distance_metric.append(np.sqrt(np.sum(np.square(prey_x_y + prey_vx_vy*down*dt) - np.square(states_predator[min_dist_predator_index,0:2]))))
+
+
+				longest_dist_ind = np.argmax(distance_metric)
+
+				prey_actions.append(valid_action[longest_dist_ind])
+
+
+		return prey_actions
+
+
 
 
 	def run(self):  
@@ -255,6 +332,11 @@ class MAA2C:
 				states_people = states[self.num_agents:]
 				states_critic,states_actor = self.split_states(states_agents, "agents")
 				states_critic_people, states_actor_people = self.split_states(states_people, "people")
+			elif self.env_name in ["predator_prey"]:
+				states_agents = states[:self.num_predators]
+				states_people = states[self.num_predators:]
+				states_critic,states_actor = self.split_states(states_agents, "predator")
+				states_critic_prey, states_actor_prey = self.split_states(states_people, "prey")
 			else:
 				states_critic,states_actor = self.split_states(states, "agents")
 
@@ -336,6 +418,32 @@ class MAA2C:
 					rewards = rewards[:self.num_agents]
 					dones = dones[:self.num_agents]
 
+				elif self.env_name in ["predator_prey"]:
+					actions_prey = self.get_prey_actions(states_critic_prey, states_critic)
+
+					one_hot_actions_prey = np.zeros((self.num_prey,self.num_actions))
+					for i,act in enumerate(actions_prey):
+						one_hot_actions_prey[i][act] = 1
+
+					next_states,rewards,dones,info = self.env.step(actions+actions_prey)
+					next_states_agents = next_states[:self.num_predators]
+					next_states_prey = next_states[self.predators:]
+					next_states_critic,next_states_actor = self.split_states(next_states_agents, "predators")
+					next_states_critic_prey,next_states_actor_prey = self.split_states(next_states_prey, "prey")
+
+
+					next_actions = self.get_actions(next_states_actor, next_states_actor_prey)
+					one_hot_next_actions = np.zeros((self.num_predators,self.num_actions))
+					for i,act in enumerate(next_actions):
+						one_hot_next_actions[i][act] = 1
+
+					next_actions_prey = self.get_prey_actions(next_states_critic_prey, next_states_critic)
+					one_hot_next_actions_prey = np.zeros((self.num_prey,self.num_actions))
+					for i,act in enumerate(next_actions_prey):
+						one_hot_next_actions_prey[i][act] = 1
+
+					rewards = rewards[:self.num_predators]
+					dones = dones[:self.predators]
 				
 
 				episode_reward += np.sum(rewards)

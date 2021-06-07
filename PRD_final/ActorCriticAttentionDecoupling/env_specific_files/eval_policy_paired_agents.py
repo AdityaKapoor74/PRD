@@ -154,7 +154,7 @@ def run(env, max_episodes, max_steps):
 
 					print("*"*50)
 					print("RUN NUMBER", run, "EXPERIMENT", experiment, "MODEL EPISODE", episode_num, "EPISODE REWARD", total_rewards, "FINAL TIMESTEP", final_time_step)
-					print("ACTUAL EPISODE", episode, "ACTUAL TIMESTEP", step)
+					print("ACTUAL EPISODE", episode)
 					print("*"*50)
 
 					rewards_list.append(total_rewards)
