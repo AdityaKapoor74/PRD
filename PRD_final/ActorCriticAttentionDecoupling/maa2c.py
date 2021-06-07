@@ -37,6 +37,10 @@ class MAA2C:
 				self.weight_dictionary[agent_name][agent_name_] = 0
 
 
+		if self.env_name == "crowd_nav":
+			self.num_agents = dictionary["num_agents"]
+			self.num_people = dictionary["num_people"]
+
 
 		self.agents = A2CAgent(self.env, dictionary)
 

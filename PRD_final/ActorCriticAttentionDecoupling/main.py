@@ -61,14 +61,20 @@ if __name__ == '__main__':
 	parser.add_argument("--anneal_entropy_pen", default= False, type=bool)
 	parser.add_argument("--entropy_pen_end", default= 0.0, type=float)
 	parser.add_argument("--entropy_pen_decay", default= 0.0, type=float)
+	parser.add_argument("--num_agents", default= 0, type=int)
+	parser.add_argument("--num_people", default= 0, type=int)
 	
 
 	arguments = parser.parse_args()
 
-	if arguments.environment in ["paired_by_sharing_goals", "collision_avoidance"] :
-		extender = "/16_Agents"
+	if arguments.environment == "paired_by_sharing_goals":
+		extender = "/10_Agents"
 	elif arguments.environment == "multi_circular":
 		extender = "/4_Agents_2_Circles_2_Agents_Per_Circle"
+	elif arguments.environment == "collision_avoidance":
+		extender = "/8_Agents"
+	elif arguments.environment == "crowd_nav":
+		extender = "/4_Humans_4_Agents"
 
 	dictionary = {
 		"critic_dir": arguments.store_model+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/critic_networks/',
@@ -104,6 +110,8 @@ if __name__ == '__main__':
 		"entropy_pen_end": arguments.entropy_pen_end,
 		"entropy_pen_decay": arguments.entropy_pen_decay,
 		"critic_update_interval": arguments.critic_update_interval
+		"num_people": arguments.num_people,
+		"num_agents": arguments.num_agents,
 	}
 
 	
