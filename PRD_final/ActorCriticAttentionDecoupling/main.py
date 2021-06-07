@@ -50,6 +50,7 @@ if __name__ == '__main__':
 	parser.add_argument("--td_lambda", default= 0.8, type=float)
 	parser.add_argument("--critic_loss_type", default= "td_lambda", type=str) # monte_carlo, td_lambda, td_1
 	parser.add_argument("--critic_update_type", default= "soft", type=str) # soft, hard
+	parser.add_argument("--critic_update_interval", default= 100, type=int)
 	parser.add_argument("--gae", default= True, type=bool)
 	parser.add_argument("--norm_adv", default= False, type=bool)
 	parser.add_argument("--norm_rew", default= False, type=bool)
@@ -102,6 +103,7 @@ if __name__ == '__main__':
 		"anneal_entropy_pen": arguments.anneal_entropy_pen,
 		"entropy_pen_end": arguments.entropy_pen_end,
 		"entropy_pen_decay": arguments.entropy_pen_decay,
+		"critic_update_interval": arguments.critic_update_interval
 	}
 
 	

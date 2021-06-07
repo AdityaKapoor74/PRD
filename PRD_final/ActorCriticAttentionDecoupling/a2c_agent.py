@@ -7,6 +7,7 @@ from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork, ScalarDotProductCriticNetworkDualAttention, ScalarDotProductPolicyNetworkDualAttention
 import torch.nn.functional as F
+import copy
 
 class A2CAgent:
 
@@ -73,15 +74,15 @@ class A2CAgent:
 		# SCALAR DOT PRODUCT
 		if self.env_name in ["collision_avoidance", "multi_circular"]:
 			self.obs_input_dim = 2*3
-			self.obs_output_dim = 16
+			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
-			self.obs_act_output_dim = 16
-			self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
+			self.obs_act_output_dim = 64
+			self.final_input_dim = self.obs_act_output_dim
 			self.final_output_dim = 1
 			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 			self.obs_input_dim = 2*3
-			self.obs_output_dim = 16
+			self.obs_output_dim = 64
 			self.final_input_dim = self.obs_output_dim
 			self.final_output_dim = self.num_actions
 			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
@@ -96,7 +97,7 @@ class A2CAgent:
 			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 			self.obs_input_dim = 2*3
-			self.obs_output_dim = 16
+			self.obs_output_dim = 64
 			self.final_input_dim = self.obs_output_dim
 			self.final_output_dim = self.num_actions
 			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
@@ -124,10 +125,12 @@ class A2CAgent:
 
 		
 		if self.critic_loss_type == "td_1":
-			self.critic_network_target = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network_target = copy.deepcopy(self.critic_network)
 			self.critic_network_target.load_state_dict(self.critic_network.state_dict())
 			self.tau = dictionary["tau"]
 			self.critic_update_type = dictionary["critic_update_type"]
+			self.update_counter = 0
+			self.update_interval = dictionary["critic_update_interval"]
 		
 		
 
@@ -159,7 +162,7 @@ class A2CAgent:
 
 
 	def hard_update(self,local_model, target_model):
-		target_model.load_state_dict(local_model.state_dict())
+		target_model = copy.deepcopy(local_model)
 
 
 
@@ -218,7 +221,7 @@ class A2CAgent:
 		dones = dones.unsqueeze(-1)
 		masks = 1-dones
 		for t in reversed(range(0, len(rewards))):
-			value_target = rewards[t] + (self.gamma * next_value * masks[t])
+			value_target = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
 			next_value = values.data[t]
 			target_values.insert(0,value_target)
 		target_values = torch.stack(target_values)
@@ -228,7 +231,7 @@ class A2CAgent:
 
 	def nstep_returns(self,values, rewards, dones):
 		target_values = self.calculate_deltas(values, rewards, dones)
-		target_Vs = self.calculate_returns(target_values, self.gamma*self.lambda_)
+		target_Vs = self.calculate_returns(target_values, self.gamma*self.lambda_) + values.data
 		return target_Vs
 
 
@@ -255,7 +258,7 @@ class A2CAgent:
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 		if self.critic_loss_type == "monte_carlo":
 			value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
-			
+
 		elif self.critic_loss_type == "td_1":
 			if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
 				next_probs, _ = self.policy_network.forward(next_states_actor)
@@ -270,8 +273,10 @@ class A2CAgent:
 
 			if self.critic_update_type == "soft":
 				self.soft_update(self.critic_network, self.critic_network_target)
-			elif self.critic_update_type == "hard":
+			elif self.critic_update_type == "hard" and self.update_counter == self.update_interval:
+				self.update_counter=0
 				self.hard_update(self.critic_network, self.critic_network_target)
+			self.update_counter += 1
 
 		elif self.critic_loss_type == "td_lambda":
 			V_values_target = self.nstep_returns(V_values, rewards, dones)
