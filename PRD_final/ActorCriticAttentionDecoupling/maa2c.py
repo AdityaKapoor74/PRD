@@ -77,8 +77,11 @@ class MAA2C:
 
 
 
-	def get_actions(self,states):
-		actions = self.agents.get_action(states)
+	def get_actions(self,states, states_poeple=None):
+		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+			actions = self.agents.get_action(states)
+		elif self.env_name in ["crowd_nav"]:
+			actions = self.agents.get_action(states, states_people)
 		return actions
 
 
@@ -127,9 +130,19 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
+		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		elif self.env_name in ["crowd_nav"]:
+			states_critic_people = torch.FloatTensor([sars[9] for sars in trajectory]).to(self.device)
+			next_states_critic_people = torch.FloatTensor([sars[10] for sars in trajectory]).to(self.device)
 
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+			one_hot_actions_people = torch.FloatTensor([sars[11] for sars in trajectory]).to(self.device)
+			one_hot_next_actions_people = torch.FloatTensor([sars[12] for sars in trajectory]).to(self.device)
 
+			states_actor_people = torch.FloatTensor([sars[13] for sars in trajectory]).to(self.device)
+			next_states_actor_people = torch.FloatTensor([sars[14] for sars in trajectory]).to(self.device)
+
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_people, weight_policy_people = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people,next_states_critic_people,one_hot_actions_people,one_hot_next_actions_people,states_actor_people,next_states_actor_people)
 
 
 
@@ -158,14 +171,27 @@ class MAA2C:
 			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
+			if self.env_name in ["crowd_nav"]:
+				entropy_weights = -torch.mean(torch.sum(weights_people * torch.log(torch.clamp(weights_people, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights/Entropy_People', entropy_weights.item(), episode)
 
-	def split_states(self,states):
+				entropy_weights = -torch.mean(torch.sum(weight_policy_people * torch.log(torch.clamp(weight_policy_people, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Policy/Entropy_People', entropy_weights.item(), episode)
+
+
+	def split_states(self,states,for_who):
 
 		states_critic = []
 		states_actor = []
-		for i in range(self.num_agents):
-			states_critic.append(states[i][0])
-			states_actor.append(states[i][1])
+
+		if for_who == "agents":
+			for i in range(self.num_agents):
+				states_critic.append(states[i][0])
+				states_actor.append(states[i][1])
+		elif for_who == "people":
+			for i in range(self.num_people):
+				states_critic.append(states[i][0])
+				states_actor.append(states[i][1])
 
 		states_critic = np.asarray(states_critic)
 		states_actor = np.asarray(states_actor)
@@ -220,9 +246,17 @@ class MAA2C:
 
 			states = self.env.reset()
 
+			if self.env_name in ["crowd_nav"]:
+				states_agents = states[:self.num_agents]
+				states_people = states[self.num_agents:]
+				states_critic,states_actor = self.split_states(states_agents, "agents")
+				states_critic_people, states_actor_people = self.split_states(states_people, "people")
+			else:
+				states_critic,states_actor = self.split_states(states, "agents")
+
 			images = []
 
-			states_critic,states_actor = self.split_states(states)
+			
 
 			gif_checkpoint = 1
 
@@ -243,23 +277,67 @@ class MAA2C:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				next_states,rewards,dones,info = self.env.step(actions)
-				next_states_critic,next_states_actor = self.split_states(next_states)
 
-				# next actions
-				next_actions = self.get_actions(next_states_actor)
+				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+					next_states,rewards,dones,info = self.env.step(actions)
+					next_states_critic,next_states_actor = self.split_states(next_states, "agents")
+					# next actions
+					next_actions = self.get_actions(next_states_actor)
+
+					one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
+					for i,act in enumerate(next_actions):
+						one_hot_next_actions[i][act] = 1
+
+				elif self.env_name in ["crowd_nav"]:
+					actions_people = []
+					for i in range(self.num_people):
+						if i%4 == 0:
+							actions_people.append(2)
+						elif i%4 == 1:
+							actions_people.append(4)
+						elif i%4 == 2:
+							actions_people.append(1)
+						elif i%4 == 3:
+							actions_people.append(3)
+					one_hot_actions_people = np.zeros((self.num_people,self.num_actions))
+					for i,act in enumerate(actions_people):
+						one_hot_actions_people[i][act] = 1
+
+					next_states,rewards,dones,info = self.env.step(actions+actions_people)
+					next_states_agents = next_states[:self.num_agents]
+					next_states_people = next_states[self.num_agents:]
+					next_states_critic,next_states_actor = self.split_states(next_states_agents, "agents")
+					next_states_critic_people,next_states_actor_people = self.split_states(next_states_people, "people")
 
 
-				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
-				for i,act in enumerate(next_actions):
-					one_hot_next_actions[i][act] = 1
+					next_actions = self.get_actions(next_states_actor, next_states_actor_people)
+					one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
+					for i,act in enumerate(next_actions):
+						one_hot_next_actions[i][act] = 1
+
+					next_actions_people = []
+					for i in range(self.num_people):
+						if i%4 == 0:
+							next_actions_people.append(2)
+						elif i%4 == 1:
+							next_actions_people.append(4)
+						elif i%4 == 2:
+							next_actions_people.append(1)
+						elif i%4 == 3:
+							next_actions_people.append(3)
+					one_hot_next_actions_people = np.zeros((self.num_people,self.num_actions))
+					for i,act in enumerate(next_actions_people):
+						one_hot_next_actions[i][act] = 1
+
+					rewards = rewards[:self.num_agents]
+					dones = dones[:self.num_agents]
+
+				
 
 				episode_reward += np.sum(rewards)
 
 				if not(self.gif):
 					if all(dones) or step == self.max_time_steps:
-
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
@@ -269,14 +347,15 @@ class MAA2C:
 							self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
 
 						break
-					else:
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
-						states_critic,states_actor = next_states_critic,next_states_actor
-						states = next_states
 
-				else:
-					states_critic,states_actor = next_states_critic,next_states_actor
-					states = next_states
+					if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
+					elif self.env_name in ["crowd_nav"]:
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people,next_states_critic_people,one_hot_actions_people,one_hot_next_actions_people,states_actor_people,next_states_actor_people])
+
+
+				states_critic,states_actor = next_states_critic,next_states_actor
+				states = next_states
 
 
 			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:

@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
+from a2c import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork, ScalarDotProductCriticNetworkDualAttention, ScalarDotProductPolicyNetworkDualAttention
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -15,7 +15,7 @@ class A2CAgent:
 		env, 
 		dictionary
 		):
-
+		self.env_name = dictionary["env"]
 		self.env = env
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
@@ -33,6 +33,12 @@ class A2CAgent:
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
+
+		# CROWD NAV
+		if self.env_name == "crowd_nav":
+			self.num_agents = dictionary["num_agents"]
+			self.num_people = dictionary["num_people"]
+
 		self.gif = dictionary["gif"]
 		self.gae = dictionary["gae"]
 		self.norm_adv = dictionary["norm_adv"]
@@ -65,23 +71,58 @@ class A2CAgent:
 
 
 		# SCALAR DOT PRODUCT
-		if dictionary["env"] in ["collision_avoidance", "multi_circular"]:
+		if self.env_name in ["collision_avoidance", "multi_circular"]:
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 16
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 			self.obs_act_output_dim = 16
 			self.final_input_dim = self.obs_act_output_dim #+ self.obs_input_dim #self.obs_z_output_dim + self.weight_input_dim
 			self.final_output_dim = 1
-		elif dictionary["env"] == "paired_by_sharing_goals":
+			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
+			self.obs_input_dim = 2*3
+			self.obs_output_dim = 16
+			self.final_input_dim = self.obs_output_dim
+			self.final_output_dim = self.num_actions
+			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
+		elif self.env_name == "paired_by_sharing_goals":
 			self.obs_input_dim = 2*4
 			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 			self.obs_act_output_dim = 64
 			self.final_input_dim = self.obs_act_output_dim
 			self.final_output_dim = 1
-		
-		self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
+			self.obs_input_dim = 2*3
+			self.obs_output_dim = 16
+			self.final_input_dim = self.obs_output_dim
+			self.final_output_dim = self.num_actions
+			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
+		elif self.env_name == "crowd_nav":
+			self.obs_agent_input_dim = 2*3
+			self.obs_agent_output_dim = 64
+			self.obs_act_agent_input_dim = self.obs_agent_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_agent_output_dim = 64
+			self.obs_people_input_dim = 2*2
+			self.obs_people_output_dim = 64
+			self.obs_act_people_input_dim = self.obs_people_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_people_output_dim = 64
+			self.final_input_dim = self.obs_act_agent_output_dim + self.obs_act_people_output_dim
+			self.final_output_dim = 1
+			self.critic_network = ScalarDotProductCriticNetworkDualAttention(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_act_agent_input_dim, self.obs_act_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.obs_act_people_input_dim, self.obs_act_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_people, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			
+			self.obs_agent_input_dim = 2*3
+			self.obs_agent_output_dim = 64
+			self.obs_people_input_dim = 2*2 # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_people_output_dim = 64
+			self.final_input_dim = self.obs_agent_output_dim + self.obs_people_output_dim
+			self.final_output_dim = self.num_actions
+			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_people, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
+		
 		if self.critic_loss_type == "td_1":
 			self.critic_network_target = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 			self.critic_network_target.load_state_dict(self.critic_network.state_dict())
@@ -89,13 +130,6 @@ class A2CAgent:
 			self.critic_update_type = dictionary["critic_update_type"]
 		
 		
-		# SCALAR DOT PRODUCT POLICY NETWORK
-		self.obs_input_dim = 2*3
-		self.obs_output_dim = 16
-		self.final_input_dim = self.obs_output_dim
-		self.final_output_dim = self.num_actions
-		self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
-
 
 		# Loading models
 		if dictionary["load_models"]:
@@ -200,18 +234,18 @@ class A2CAgent:
 
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
+	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people=None,next_states_critic_people=None,one_hot_actions_people=None,one_hot_next_actions_people=None,states_actor_people=None,next_states_actor_people=None):
 
-		'''
-		Getting the probability mass function over the action space for each agent
-		'''
-		probs, weight_policy = self.policy_network.forward(states_actor)
+		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+			probs, weight_policy = self.policy_network.forward(states_actor)
 
-		'''
-		Calculate V values
-		'''
-		V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+		elif self.env_name in ["crowd_nav"]:
+			probs, weight_policy, weight_policy_people = self.policy_network.forward(states_actor,states_actor_people)
+
+			V_values, weights, weights_people = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions, states_critic_people, one_hot_actions_people)
+			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
 		
 	# # ***********************************************************************************
@@ -221,9 +255,15 @@ class A2CAgent:
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 		if self.critic_loss_type == "monte_carlo":
 			value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+			
 		elif self.critic_loss_type == "td_1":
-			next_probs, _ = self.policy_network.forward(next_states_actor)
-			V_values_next, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+				next_probs, _ = self.policy_network.forward(next_states_actor)
+				V_values_next, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			elif self.env_name in ["crowd_nav"]:
+				next_probs, _, _ = self.policy_network.forward(next_states_actor, next_states_actor_people)
+				V_values_next, _, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions, next_states_critic_people, one_hot_actions_people)
+
 			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 			V_values_target = rewards.unsqueeze(-1) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 			value_loss = F.smooth_l1_loss(V_values,V_values_target.detach())
@@ -232,6 +272,7 @@ class A2CAgent:
 				self.soft_update(self.critic_network, self.critic_network_target)
 			elif self.critic_update_type == "hard":
 				self.hard_update(self.critic_network, self.critic_network_target)
+
 		elif self.critic_loss_type == "td_lambda":
 			V_values_target = self.nstep_returns(V_values, rewards, dones)
 			value_loss = F.smooth_l1_loss(V_values,V_values_target.detach())
@@ -286,4 +327,7 @@ class A2CAgent:
 			self.entropy_pen = self.entropy_pen_end + (self.entropy_pen_start-self.entropy_pen_end)*math.exp(-1*self.steps_done / self.entropy_pen_decay)
 
 		# V values
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
+		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
+		elif self.env_name in ["crowd_nav"]:
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_people, weight_policy_people
