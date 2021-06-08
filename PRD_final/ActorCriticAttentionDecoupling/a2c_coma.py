@@ -447,7 +447,7 @@ class ScalarDotProductCriticNetwork_V1(nn.Module):
 
 class ScalarDotProductCriticNetwork_V2(nn.Module):
 	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
-		super(ScalarDotProductCriticNetwork, self).__init__()
+		super(ScalarDotProductCriticNetwork_V2, self).__init__()
 		
 		self.num_agents = num_agents
 		self.num_actions = num_actions
@@ -550,9 +550,8 @@ class ScalarDotProductCriticNetwork_V2(nn.Module):
 		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 
 		# embedding the observation_actions_policies
-		obs_action_policies_embed = self.obs_act_emb(obs_actions_policies)
 
-		attention_values = torch.tanh(self.attention_value_layer(obs_action_policies_embed))
+		attention_values = torch.tanh(self.attention_value_layer(obs_actions_policies))
 
 		current_node_states = states.unsqueeze(-2).repeat(1,1,self.num_agents,1)
 
