@@ -41,8 +41,8 @@ class MAA2C:
 			self.num_agents = dictionary["num_agents"]
 			self.num_people = dictionary["num_people"]
 		elif self.env_name == "predator_prey":
-			self.num_predator = 1
-			self.num_prey = 1
+			self.num_predators = 1
+			self.num_preys = 1
 
 
 		self.agents = A2CAgent(self.env, dictionary)
@@ -84,11 +84,11 @@ class MAA2C:
 
 
 
-	def get_actions(self,states, states_poeple=None):
+	def get_actions(self,states, states_other=None):
 		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
 			actions = self.agents.get_action(states)
-		elif self.env_name in ["crowd_nav"]:
-			actions = self.agents.get_action(states, states_people)
+		elif self.env_name in ["crowd_nav", "predator_prey"]:
+			actions = self.agents.get_action(states, states_other)
 		return actions
 
 
@@ -200,11 +200,11 @@ class MAA2C:
 				states_critic.append(states[i][0])
 				states_actor.append(states[i][1])
 		elif for_who == "predator":
-			for i in range(self.num_predator):
+			for i in range(self.num_predators):
 				states_critic.append(states[i][0])
 				states_actor.append(states[i][1])
 		elif for_who == "prey":
-			for i in range(self.num_prey):
+			for i in range(self.num_preys):
 				states_critic.append(states[i][0])
 				states_actor.append(states[i][1])
 
@@ -355,9 +355,19 @@ class MAA2C:
 					images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.get_actions(states_actor)
+						if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+							actions = self.get_actions(states_actor)
+						elif self.env_name in ["crowd_nav"]:
+							actions = self.get_actions(states_actor, states_actor_people)
+						elif self.env_name in ["predator_prey"]:
+							actions = self.get_actions(states_actor, states_actor_prey)
 				else:
-					actions = self.get_actions(states_actor)
+					if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+						actions = self.get_actions(states_actor)
+					elif self.env_name in ["crowd_nav"]:
+						actions = self.get_actions(states_actor, states_actor_people)
+					elif self.env_name in ["predator_prey"]:
+						actions = self.get_actions(states_actor, states_actor_prey)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):

@@ -15,9 +15,9 @@ def make_env(scenario_name, benchmark=False):
 	world = scenario.make_world()
 	# create multiagent environment
 	if benchmark:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward_paired_agents, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward_paired_agents, scenario.observation, None, scenario.isFinished)
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
 	return env
 
 
@@ -29,7 +29,7 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--environment", default="paired_by_sharing_goals", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular
+	parser.add_argument("--environment", default="predator_prey", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey
 	parser.add_argument("--experiment_type", default="with_prd_soft_adv", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
 	parser.add_argument("--save", default=False , type=bool)
 	parser.add_argument("--max_episodes", default=100000, type=int)
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 	parser.add_argument("--select_above_threshold", default=0.1, type=float)
 	parser.add_argument("--softmax_cut_threshold", default=0.1, type=float)
 	parser.add_argument("--top_k", default=0 , type=int)
-	parser.add_argument("--gif", default=False , type=bool)
+	parser.add_argument("--gif", default=True , type=bool)
 	parser.add_argument("--store_model", default= "../../../models/", type=str)
 	parser.add_argument("--save_runs", default= "../../../runs/", type=str)
 	parser.add_argument("--save_gifs", default= "../../../gifs/", type=str)
@@ -75,6 +75,8 @@ if __name__ == '__main__':
 		extender = "/8_Agents"
 	elif arguments.environment == "crowd_nav":
 		extender = "/4_Humans_4_Agents"
+	elif arguments.environment == "predator_prey":
+		extender = "/4_Predators_2_Preys"
 
 	dictionary = {
 		"critic_dir": arguments.store_model+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/critic_networks/',
@@ -109,7 +111,7 @@ if __name__ == '__main__':
 		"anneal_entropy_pen": arguments.anneal_entropy_pen,
 		"entropy_pen_end": arguments.entropy_pen_end,
 		"entropy_pen_decay": arguments.entropy_pen_decay,
-		"critic_update_interval": arguments.critic_update_interval
+		"critic_update_interval": arguments.critic_update_interval,
 		"num_people": arguments.num_people,
 		"num_agents": arguments.num_agents,
 	}

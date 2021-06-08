@@ -39,6 +39,9 @@ class A2CAgent:
 		if self.env_name == "crowd_nav":
 			self.num_agents = dictionary["num_agents"]
 			self.num_people = dictionary["num_people"]
+		elif self.env_name == "predator_prey":
+			self.num_predators = 1
+			self.num_preys = 1
 
 		self.gif = dictionary["gif"]
 		self.gae = dictionary["gae"]
@@ -123,6 +126,27 @@ class A2CAgent:
 			self.final_output_dim = self.num_actions
 			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_people, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
+		elif self.env_name == "predator_prey":
+			self.obs_predator_input_dim = 2*2
+			self.obs_predator_output_dim = 64
+			self.obs_act_predator_input_dim = self.obs_predator_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_predator_output_dim = 64
+			self.obs_prey_input_dim = 2*2
+			self.obs_prey_output_dim = 64
+			self.obs_act_prey_input_dim = self.obs_prey_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_act_prey_output_dim = 64
+			self.final_input_dim = self.obs_act_predator_output_dim + self.obs_act_prey_output_dim
+			self.final_output_dim = 1
+			self.critic_network = ScalarDotProductCriticNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_act_predator_input_dim, self.obs_act_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.obs_act_prey_input_dim, self.obs_act_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_predators, self.num_preys, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			
+			self.obs_predator_input_dim = 2*2
+			self.obs_predator_output_dim = 64
+			self.obs_prey_input_dim = 2*2 # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			self.obs_prey_output_dim = 64
+			self.final_input_dim = self.obs_predator_output_dim + self.obs_prey_output_dim
+			self.final_output_dim = self.num_actions
+			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_predators, self.num_preys, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
 		
 		if self.critic_loss_type == "td_1":
 			self.critic_network_target = copy.deepcopy(self.critic_network)
@@ -149,9 +173,14 @@ class A2CAgent:
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
-	def get_action(self,state):
-		state = torch.FloatTensor([state]).to(self.device)
-		dists, _ = self.policy_network.forward(state)
+	def get_action(self,state,state_other=None):
+		if state_other is None:
+			state = torch.FloatTensor([state]).to(self.device)
+			dists, _ = self.policy_network.forward(state)
+		else:
+			state = torch.FloatTensor([state]).to(self.device)
+			state_other = torch.FloatTensor([state_other]).to(self.device)
+			dists, _, _ = self.policy_network.forward(state, state_other)
 		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
 		return index
 
@@ -276,7 +305,8 @@ class A2CAgent:
 			elif self.critic_update_type == "hard" and self.update_counter == self.update_interval:
 				self.update_counter=0
 				self.hard_update(self.critic_network, self.critic_network_target)
-			self.update_counter += 1
+			elif self.critic_update_type == "hard":
+				self.update_counter += 1
 
 		elif self.critic_loss_type == "td_lambda":
 			V_values_target = self.nstep_returns(V_values, rewards, dones)
