@@ -273,9 +273,13 @@ class A2CAgent:
 			else:
 				value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
 		else:
-			if self.coma_version in [1,2,3]:
+			if self.coma_version in [1,2]:
 				Value_targets = self.nstep_returns(V_values_baseline, rewards, dones)
 				value_loss_V = F.smooth_l1_loss(Q_values_act_chosen, Value_targets.detach())
+			elif self.coma_version == 3:
+				Value_targets = self.nstep_returns(V_values_baseline, rewards, dones)
+				value_loss_V = F.smooth_l1_loss(V_values_baseline, Value_targets.detach())
+				value_loss_Q = F.smooth_l1_loss(Q_values_act_chosen,Value_targets.detach())
 			elif self.coma_version in [4,5,6]:
 				Value_targets = self.nstep_returns(V_values_baseline, rewards, dones)
 				value_loss_V = F.smooth_l1_loss(V_values_baseline, Value_targets.detach())
