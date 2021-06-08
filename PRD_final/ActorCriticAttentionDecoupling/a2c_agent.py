@@ -40,8 +40,14 @@ class A2CAgent:
 			self.num_agents = dictionary["num_agents"]
 			self.num_people = dictionary["num_people"]
 		elif self.env_name == "predator_prey":
-			self.num_predators = 1
-			self.num_preys = 1
+			self.num_predators = dictionary["num_predators"]
+			self.num_preys = dictionary["num_preys"]
+
+		if dictionary["one_policy_per_agent"]:
+			if self.env_name in ["predator_prey"]:
+				self.num_policy_net = self.num_predators
+			else:
+				self.num_policy_net = self.num_agents
 
 		self.gif = dictionary["gif"]
 		self.gae = dictionary["gae"]
@@ -68,7 +74,7 @@ class A2CAgent:
 		print(self.experiment_type)
 
 		# TD LAMBDA
-		self.lambda_ = dictionary["td_lambda"]
+		self.td_lambda = dictionary["td_lambda"]
 
 		# Loss type
 		self.critic_loss_type = dictionary["critic_loss_type"]
@@ -151,10 +157,10 @@ class A2CAgent:
 		if self.critic_loss_type == "td_1":
 			self.critic_network_target = copy.deepcopy(self.critic_network)
 			self.critic_network_target.load_state_dict(self.critic_network.state_dict())
-			self.tau = dictionary["tau"]
-			self.critic_update_type = dictionary["critic_update_type"]
 			self.update_counter = 0
 			self.update_interval = dictionary["critic_update_interval"]
+		self.tau = dictionary["tau"]
+		self.critic_update_type = dictionary["critic_update_type"]
 		
 		
 
@@ -260,7 +266,7 @@ class A2CAgent:
 
 	def nstep_returns(self,values, rewards, dones):
 		target_values = self.calculate_deltas(values, rewards, dones)
-		target_Vs = self.calculate_returns(target_values, self.gamma*self.lambda_) + values.data
+		target_Vs = self.calculate_returns(target_values, self.gamma*self.td_lambda) + values.data
 		return target_Vs
 
 
@@ -312,10 +318,9 @@ class A2CAgent:
 			V_values_target = self.nstep_returns(V_values, rewards, dones)
 			value_loss = F.smooth_l1_loss(V_values,V_values_target.detach())
 
-		if "prd" in self.experiment_type:
-			weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
-			l1_weights = torch.mean(weights_off_diagonal)
-			value_loss += self.l1_pen*l1_weights
+		weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
+		l1_weights = torch.mean(weights_off_diagonal)
+		value_loss += self.l1_pen*l1_weights
 		
 		# # ***********************************************************************************
 	# 	#update actor (policy net)
