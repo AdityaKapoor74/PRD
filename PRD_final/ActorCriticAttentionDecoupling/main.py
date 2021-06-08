@@ -30,7 +30,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--environment", default="collision_avoidance", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey
-	parser.add_argument("--experiment_type", default="greedy_policy", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
+	parser.add_argument("--experiment_type", default="with_prd_soft_adv", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
 	parser.add_argument("--save", default=True , type=bool)
 	parser.add_argument("--learn", default=True , type=bool)
 	parser.add_argument("--max_episodes", default=60000, type=int)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 	parser.add_argument("--load_models", default= False, type=bool)
 	parser.add_argument("--critic_saved_path", default= "", type=str)
 	parser.add_argument("--actor_saved_path", default= "", type=str)
-	parser.add_argument("--l1_pen", default= 0.0, type=float)
+	parser.add_argument("--l1_pen", default= 0.01, type=float)
 	parser.add_argument("--anneal_entropy_pen", default= False, type=bool)
 	parser.add_argument("--entropy_pen_end", default= 0.0, type=float)
 	parser.add_argument("--entropy_pen_decay", default= 0.0, type=float)
