@@ -65,7 +65,7 @@ if __name__ == '__main__':
 			"env": "paired_by_sharing_goals", 
 			"experiment_type":"coma_v2",
 			"value_lr": 1e-2,
-			"policy_lr": 5e-4, 
+			"policy_lr": 9e-4, 
 			"entropy_pen": 8e-4, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
