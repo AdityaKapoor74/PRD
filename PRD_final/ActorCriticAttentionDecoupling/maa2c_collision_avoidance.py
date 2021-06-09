@@ -10,7 +10,7 @@ import numpy as np
 from a2c_agent_collision_avoidance import A2CAgent
 import datetime
 
-experiment = Experiment('9mxH2vYX20hn9laEr0KtHLjAa',project_name="PRD",disabled=False)
+experiment = Experiment('9mxH2vYX20hn9laEr0KtHLjAa',project_name="PRD2",disabled=False)
 
 
 class MAA2C:
@@ -130,7 +130,7 @@ class MAA2C:
 
 
 
-		if not(self.gif) and self.save:
+		if self.save:
 			# self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 			# self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
 			# self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
