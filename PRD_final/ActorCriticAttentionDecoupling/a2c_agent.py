@@ -43,11 +43,6 @@ class A2CAgent:
 			self.num_predators = dictionary["num_predators"]
 			self.num_preys = dictionary["num_preys"]
 
-		if dictionary["one_policy_per_agent"]:
-			if self.env_name in ["predator_prey"]:
-				self.num_policy_net = self.num_predators
-			else:
-				self.num_policy_net = self.num_agents
 
 		self.gif = dictionary["gif"]
 		self.gae = dictionary["gae"]
@@ -81,7 +76,7 @@ class A2CAgent:
 
 
 		# SCALAR DOT PRODUCT
-		if self.env_name in ["collision_avoidance", "multi_circular"]:
+		if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
@@ -153,7 +148,6 @@ class A2CAgent:
 			self.final_output_dim = self.num_actions
 			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_predators, self.num_preys, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
-		
 		if self.critic_loss_type == "td_1":
 			self.critic_network_target = copy.deepcopy(self.critic_network)
 			self.critic_network_target.load_state_dict(self.critic_network.state_dict())
@@ -180,6 +174,7 @@ class A2CAgent:
 
 
 	def get_action(self,state,state_other=None):
+
 		if state_other is None:
 			state = torch.FloatTensor([state]).to(self.device)
 			dists, _ = self.policy_network.forward(state)
@@ -274,8 +269,12 @@ class A2CAgent:
 
 	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people=None,next_states_critic_people=None,one_hot_actions_people=None,one_hot_next_actions_people=None,states_actor_people=None,next_states_actor_people=None):
 
-		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
+			
 			probs, weight_policy = self.policy_network.forward(states_actor)
+
+			print(probs.shape)
+
 
 			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
@@ -284,7 +283,6 @@ class A2CAgent:
 
 			V_values, weights, weights_people = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions, states_critic_people, one_hot_actions_people)
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-
 		
 	# # ***********************************************************************************
 	# 	#update critic (value_net)
@@ -295,7 +293,7 @@ class A2CAgent:
 			value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 		elif self.critic_loss_type == "td_1":
-			if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+			if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 				next_probs, _ = self.policy_network.forward(next_states_actor)
 				V_values_next, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 			elif self.env_name in ["crowd_nav"]:
@@ -356,7 +354,6 @@ class A2CAgent:
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 		self.critic_optimizer.step()
 
-
 		self.policy_optimizer.zero_grad()
 		policy_loss.backward(retain_graph=False)
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
@@ -367,7 +364,7 @@ class A2CAgent:
 			self.entropy_pen = self.entropy_pen_end + (self.entropy_pen_start-self.entropy_pen_end)*math.exp(-1*self.steps_done / self.entropy_pen_decay)
 
 		# V values
-		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
 		elif self.env_name in ["crowd_nav"]:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_people, weight_policy_people

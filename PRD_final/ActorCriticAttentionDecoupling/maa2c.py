@@ -27,6 +27,7 @@ class MAA2C:
 
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
+		self.gif_checkpoint = dictionary["gif_checkpoint"]
 
 		self.weight_dictionary = {}
 
@@ -52,12 +53,6 @@ class MAA2C:
 		elif self.env_name == "predator_prey":
 			self.num_predators = dictionary["num_predators"]
 			self.num_preys = dictionary["num_preys"]
-
-		if dictionary["one_policy_per_agent"]:
-			if self.env_name in ["predator_prey"]:
-				self.num_policy_net = self.num_predators
-			else:
-				self.num_policy_net = self.num_agents
 
 
 		self.agents = A2CAgent(self.env, dictionary)
@@ -107,13 +102,13 @@ class MAA2C:
 
 	def get_actions(self,states, states_other=None):
 		if self.learn:
-			if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+			if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 				actions = self.agents.get_action(states)
 			elif self.env_name in ["crowd_nav", "predator_prey"]:
 				actions = self.agents.get_action(states, states_other)
 		else:
 			with torch.no_grad():
-				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 					actions = self.agents.get_action(states)
 				elif self.env_name in ["crowd_nav", "predator_prey"]:
 					actions = self.agents.get_action(states, states_other)
@@ -165,7 +160,7 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 		elif self.env_name in ["crowd_nav"]:
 			states_critic_people = torch.FloatTensor([sars[9] for sars in trajectory]).to(self.device)
@@ -188,7 +183,7 @@ class MAA2C:
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
-			# if self.env_name in ["collision_avoidance", "multi_circular"]:
+			# if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 				# # INDIVIDUAL WEIGHTS
 				# self.calculate_indiv_weights(weights)
 				# for i in range(self.num_agents):
@@ -377,30 +372,30 @@ class MAA2C:
 
 			if self.gif:
 				images = []
-				gif_checkpoint = 10
 
 			trajectory = []
 			episode_reward = 0
 			episode_collision_rate = 0
 			for step in range(1,self.max_time_steps+1):
 
-				if self.gif and not(episode%gif_checkpoint):
+				if self.gif and not(episode%self.gif_checkpoint):
 					# At each step, append an image to list
 					images.append(np.squeeze(self.env.render(mode='rgb_array')))
 
-				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 					actions = self.get_actions(states_actor)
 				elif self.env_name in ["crowd_nav"]:
 					actions = self.get_actions(states_actor, states_actor_people)
 				elif self.env_name in ["predator_prey"]:
 					actions = self.get_actions(states_actor, states_actor_prey)
 
+				actions = [0 for i in range(self.num_agents)]
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
 
-				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 					next_states,rewards,dones,info = self.env.step(actions)
 					next_states_critic,next_states_actor = self.split_states(next_states, "agents")
 					# next actions
@@ -481,7 +476,7 @@ class MAA2C:
 					rewards = rewards[:self.num_predators]
 					dones = dones[:self.predators]
 				
-				if self.env_name in ["collision_avoidance", "multi_circular"]:
+				if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
 				episode_reward += np.sum(rewards)
@@ -496,14 +491,14 @@ class MAA2C:
 					if self.save:
 						self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
 						self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
-						if self.env_name in ["collision_avoidance", "multi_circular"]:
+						if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 							self.writer.add_scalar('Reward Incurred/Collison Rate',episode_collision_rate,episode)
 
 					break
 
 
 				if self.learn:
-					if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular"]:
+					if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 					elif self.env_name in ["crowd_nav"]:
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people,next_states_critic_people,one_hot_actions_people,one_hot_next_actions_people,states_actor_people,next_states_actor_people])
@@ -519,7 +514,7 @@ class MAA2C:
 			if episode > 1000 and episode%1000:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-1000:episode])/1000)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-1000:episode])/1000)
-				if self.env_name in ["collision_avoidance", "multi_circular"]:
+				if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-1000:episode])/1000)
 
 			if not(episode%1000) and self.save:
@@ -528,7 +523,7 @@ class MAA2C:
 
 			if self.learn:
 				self.update(trajectory,episode) 
-			if self.gif and not(episode%gif_checkpoint):
+			if self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path+"_episode"+str(episode)+'.gif')
 
@@ -536,6 +531,6 @@ class MAA2C:
 		np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 		np.save(os.path.join(self.policy_eval_dir,self.env_name+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 		np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-		if self.env_name in ["collision_avoidance", "multi_circular"]:
+		if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 			np.save(os.path.join(self.policy_eval_dir,self.env_name+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
