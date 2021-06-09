@@ -1604,3 +1604,81 @@ class ScalarDotProductPolicyNetwork(nn.Module):
 		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
 
 		return Policy, weight
+
+
+
+class ScalarDotProductPolicyNetworkV2(nn.Module):
+	def __init__(self, obs_input_dim, obs_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
+		super(ScalarDotProductPolicyNetworkV2, self).__init__()
+		
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+		self.obs_emb     = nn.Sequential(nn.Linear(obs_input_dim,64),nn.ReLU())
+
+		self.key_layer = nn.Linear(64, obs_output_dim)
+
+		self.query_layer = nn.Linear(64, obs_output_dim)
+
+		self.attention_value_layer = nn.Linear(64, obs_output_dim)
+
+		# dimesion of key
+		self.d_k_obs = obs_output_dim
+
+		# NOISE
+		# self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		# self.noise_uniform = torch.rand
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_policy_layer_1 = nn.Linear(final_input_dim, 64, bias=False)
+		self.final_policy_layer_2 = nn.Linear(64, final_output_dim, bias=False)
+		# ********************************************************************************************************	
+
+		self.threshold = threshold
+		# ********************************************************************************************************* 
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.key_layer.weight)
+		nn.init.xavier_uniform_(self.query_layer.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer.weight)
+
+
+		nn.init.xavier_uniform_(self.final_policy_layer_1.weight, gain=gain)
+		nn.init.xavier_uniform_(self.final_policy_layer_2.weight, gain=gain)
+
+
+
+	def forward(self, states):
+
+		# KEYS
+		states_emb = self.obs_emb(states)
+		key_obs = self.key_layer(states_emb)
+		# QUERIES
+		query_obs = self.query_layer(states_emb)
+		# SCORE CALCULATION
+		score_obs = torch.bmm(query_obs,key_obs.transpose(1,2)).transpose(1,2).reshape(-1,1)
+		score_obs = score_obs.reshape(-1,self.num_agents,1)
+		# WEIGHT
+		weight = F.softmax(score_obs/math.sqrt(self.d_k_obs), dim=-2)
+		weight = weight.reshape(weight.shape[0]//self.num_agents,self.num_agents,-1)
+		# ATTENTION VALUES
+		attention_values = torch.tanh(self.attention_value_layer(states_emb))
+		# print(attention_values)
+		attention_values = attention_values.repeat(1,self.num_agents,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,-1)
+		# SOFTMAX
+		weighted_attention_values = attention_values*weight.unsqueeze(-1)
+		
+		node_features = torch.sum(weighted_attention_values, dim=-2)
+
+		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
+		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
+
+		return Policy, weight

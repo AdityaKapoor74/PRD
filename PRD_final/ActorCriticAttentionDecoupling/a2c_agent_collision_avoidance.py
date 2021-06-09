@@ -6,7 +6,7 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c_collision_avoidance import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
-from a2c_paired_agents import ScalarDotProductCriticNetworkV5,ScalarDotProductCriticNetworkV3
+from a2c_paired_agents import ScalarDotProductCriticNetworkV5,ScalarDotProductCriticNetworkV3,ScalarDotProductPolicyNetworkV2
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -27,6 +27,8 @@ class A2CAgent:
 		self.l1_pen = dictionary["l1_pen"]
 		self.anneal_l1_pen = dictionary["anneal_l1_pen"]
 		if self.anneal_l1_pen:
+			print("WHY?!?!?!?!")
+			print('self.anneal_l1_pen: ', self.anneal_l1_pen)
 			self.anneal_rate = dictionary["anneal_rate"]
 		self.max_episodes = dictionary["max_episodes"]
 		# Used for masking advantages above a threshold
@@ -76,10 +78,15 @@ class A2CAgent:
 
 		# SCALAR DOT PRODUCT POLICY NETWORK
 		self.obs_input_dim = 2*3
-		self.obs_output_dim = 16
+		self.obs_output_dim = dictionary["obs_act_output_dim"]
 		self.final_input_dim = self.obs_output_dim
 		self.final_output_dim = self.num_actions
-		self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
+		if dictionary["policy_version"] == 1:
+			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["policy_version"] == 2:
+			print('USING POLICY VERSION 2!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1')
+			self.policy_network = ScalarDotProductPolicyNetworkV2(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 
 		# MLP POLICY

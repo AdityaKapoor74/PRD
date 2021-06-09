@@ -26,12 +26,12 @@ def make_env(scenario_name, benchmark=False):
 
 if __name__ == '__main__':
 
-	# experiment_type = "greedy_policy"
+	experiment_type = "greedy_policy"
 	# experiment_type = "top"
 	# experiment_type = "without_prd"
 	# experiment_type = "without_prd_mean"
 	# experiment_type = "with_prd_soft_adv_scaled"
-	experiment_type = "with_prd_soft_adv"
+	# experiment_type = "with_prd_soft_adv"
 
 
 	# env = make_env(scenario_name="multi_circular",benchmark=False)
@@ -39,10 +39,10 @@ if __name__ == '__main__':
 	# ma_controller.run(1000000,100)
 
 	dictionary = {
-			"critic_dir": '../../../models/Scalar_dot_product/collision_avoidance_no_width/8_Agents/SingleAttentionMechanism/'+experiment_type+'/critic_networks/',
-			"actor_dir": '../../../models/Scalar_dot_product/collision_avoidance_no_width/8_Agents/SingleAttentionMechanism/'+experiment_type+'/actor_networks/',
-			"tensorboard_dir":'../../../runs/Scalar_dot_product/collision_avoidance_no_width/8_Agents/SingleAttentionMechanism/'+experiment_type+'/',
-			"gif_dir": '../../../gifs/Scalar_dot_product/collision_avoidance_no_width/8_Agents/SingleAttentionMechanism/'+experiment_type+'/',
+			"critic_dir": 'models/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/critic_networks/',
+			"actor_dir": 'models/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
+			"gif_dir": 'gifs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
 			"env": "multi_circular", 
 			"experiment_type":experiment_type,
 			# "experiment_type":"greedy_policy",
@@ -53,19 +53,20 @@ if __name__ == '__main__':
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.0, #0.008,
-			"l1_pen":0.01, 
+			"l1_pen":0.0, 
 			"gamma": 0.99,
 			"trace_decay": .98,
 			"select_above_threshold": 0.1,
 			"softmax_cut_threshold": 0.1,
 			"top_k": 2,
-			"gif": False,
+			"gif": True,
 			"save": True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
 			"critic_version":3,
+			"policy_version":2,
 			"obs_act_output_dim":64,
-			"anneal_l1_pen":True,
+			"anneal_l1_pen":False
 
 		}
 

@@ -217,7 +217,7 @@ class MAA2C:
 
 			states_critic,states_actor = self.split_states(states)
 
-			gif_checkpoint = 5000
+			gif_checkpoint = 10000
 
 			trajectory = []
 			episode_reward = 0
