@@ -21,6 +21,7 @@ class MAA2C:
 		experiment.log_parameters(dictionary)
 		experiment.log_parameter('n_agents',env.n)
 		experiment.log_parameter('col_pen',env.world.col_pen)
+		experiment.log_parameter('agent_size',env.world.agent_size)
 		experiment.add_tag('corrected critic version')
 		self.env = env
 		self.gif = dictionary["gif"]
@@ -70,13 +71,12 @@ class MAA2C:
 			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)
 			
 		elif self.gif:
-			gif_dir = dictionary["gif_dir"]
+			self.gif_dir = dictionary["gif_dir"]
 			try: 
-				os.makedirs(gif_dir, exist_ok = True) 
+				os.makedirs(self.gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"softmax_cut_threshold"+str(self.agents.softmax_cut_threshold)+'.gif'
 
 		# if not(self.gif) and self.save:
 			# self.writer = SummaryWriter(self.tensorboard_path)
@@ -217,21 +217,20 @@ class MAA2C:
 
 			states_critic,states_actor = self.split_states(states)
 
-			gif_checkpoint = 1
+			gif_checkpoint = 5000
 
 			trajectory = []
 			episode_reward = 0
 			discounted_reward = 0 
 			for step in range(1,self.max_time_steps+1):
 
-				if self.gif:
+				if self.gif and episode % gif_checkpoint == 0:
+
 					# At each step, append an image to list
 					images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
-					with torch.no_grad():
-						actions = self.get_actions(states_actor)
-				else:
-					actions = self.get_actions(states_actor)
+					
+				actions = self.get_actions(states_actor)
 
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
@@ -252,7 +251,7 @@ class MAA2C:
 				episode_reward += np.sum(rewards)
 				discounted_reward +=  self.gamma**step * np.sum(rewards)
 
-				if not(self.gif):
+				if True:
 					if all(dones) or step == self.max_time_steps:
 
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
@@ -261,7 +260,7 @@ class MAA2C:
 							print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 							print("*"*100)
 
-						if not(self.gif) and self.save:
+						if self.save:
 							# self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
 							# self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
 							experiment.log_metric('episode_length',step,episode)
@@ -279,12 +278,15 @@ class MAA2C:
 					states = next_states
 
 
-			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:
-				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
-
-			if not(self.gif):
-				self.update(trajectory,episode) 
-			elif self.gif and not(episode%gif_checkpoint):
+			if not(episode%1000) and episode!=0  and self.save:
+				# torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
+				# torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+				pass
+			
+			self.update(trajectory,episode) 
+			
+			if self.gif and episode % gif_checkpoint == 0:
 				print("GENERATING GIF")
-				self.make_gif(np.array(images),self.gif_path)
+				gif_path = self.gif_dir+str(episode)+'.gif'
+
+				self.make_gif(np.array(images),gif_path)
