@@ -30,6 +30,8 @@ class A2CAgent:
 			print("WHY?!?!?!?!")
 			print('self.anneal_l1_pen: ', self.anneal_l1_pen)
 			self.anneal_rate = dictionary["anneal_rate"]
+		self.td_lambda = dictionary["td_lambda"]
+		self.critic_loss_type = dictionary["critic_loss_type"]
 		self.max_episodes = dictionary["max_episodes"]
 		# Used for masking advantages above a threshold
 		self.select_above_threshold = dictionary["select_above_threshold"]
@@ -175,8 +177,26 @@ class A2CAgent:
 		return returns_tensor
 		
 		
+		
 
+	def calculate_deltas(self, values, rewards, dones):
+		target_values = []
+		next_value = 0
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
+		masks = 1-dones
+		for t in reversed(range(0, len(rewards))):
+			value_target = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			next_value = values.data[t]
+			target_values.insert(0,value_target)
+		target_values = torch.stack(target_values)
 
+		return target_values
+
+	def nstep_returns(self,values, rewards, dones):
+		target_values = self.calculate_deltas(values, rewards, dones)
+		target_Vs = self.calculate_returns(target_values, self.gamma*self.td_lambda) + values.data
+		return target_Vs
 
 
 
@@ -218,7 +238,13 @@ class A2CAgent:
 		# print('weights_off_diagonal: ', weights_off_diagonal)
 		l1_weights = torch.mean(weights_off_diagonal)
 		if not self.anneal_l1_pen:
-			value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.l1_pen*l1_weights
+			if self.critic_loss_type == 'monte_carlo':
+				value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.l1_pen*l1_weights
+			elif self.critic_loss_type == 'td_lambda':
+				V_values_target = self.nstep_returns(V_values, rewards, dones)
+				value_loss = F.smooth_l1_loss(V_values,V_values_target.detach())
+			else:
+				assert False
 		else:
 			assert episode is not None
 			l1_pen = self.l1_pen * np.exp(-self.anneal_rate*episode)

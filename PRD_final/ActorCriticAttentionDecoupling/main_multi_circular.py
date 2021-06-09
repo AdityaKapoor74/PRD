@@ -26,12 +26,12 @@ def make_env(scenario_name, benchmark=False):
 
 if __name__ == '__main__':
 
-	experiment_type = "greedy_policy"
+	# experiment_type = "greedy_policy"
 	# experiment_type = "top"
 	# experiment_type = "without_prd"
 	# experiment_type = "without_prd_mean"
 	# experiment_type = "with_prd_soft_adv_scaled"
-	# experiment_type = "with_prd_soft_adv"
+	experiment_type = "with_prd_soft_adv"
 
 
 	# env = make_env(scenario_name="multi_circular",benchmark=False)
@@ -51,9 +51,9 @@ if __name__ == '__main__':
 			# "experiment_type":"with_prd_soft_adv_scaled",
 			# "experiment_type":"greedy_and_top",
 			"value_lr": 1e-2, #1e-2 for single head
-			"policy_lr": 1e-3, # 2e-4 for single head
+			"policy_lr": 5e-4, # 2e-4 for single head
 			"entropy_pen": 0.0, #0.008,
-			"l1_pen":0.0, 
+			"l1_pen":0.001, 
 			"gamma": 0.99,
 			"trace_decay": .98,
 			"select_above_threshold": 0.1,
@@ -66,7 +66,9 @@ if __name__ == '__main__':
 			"critic_version":3,
 			"policy_version":2,
 			"obs_act_output_dim":64,
-			"anneal_l1_pen":False
+			"anneal_l1_pen":False,
+			"critic_loss_type":"td_lambda",
+			"td_lambda":0.8
 
 		}
 
