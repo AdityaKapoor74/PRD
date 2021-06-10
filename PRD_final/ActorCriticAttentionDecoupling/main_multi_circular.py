@@ -43,7 +43,8 @@ if __name__ == '__main__':
 			"actor_dir": 'models/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/actor_networks/',
 			"tensorboard_dir":'../../../runs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
 			"gif_dir": 'gifs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
-			"env": "multi_circular", 
+			# "env": "multi_circular",
+			"env":"multi_circular_old", 
 			"experiment_type":experiment_type,
 			# "experiment_type":"greedy_policy",
 			# "experiment_type":"top",
@@ -51,9 +52,9 @@ if __name__ == '__main__':
 			# "experiment_type":"with_prd_soft_adv_scaled",
 			# "experiment_type":"greedy_and_top",
 			"value_lr": 1e-2, #1e-2 for single head
-			"policy_lr": 5e-4, # 2e-4 for single head
+			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 0.0, #0.008,
-			"l1_pen":0.001, 
+			"l1_pen":0.1, 
 			"gamma": 0.99,
 			"trace_decay": .98,
 			"select_above_threshold": 0.1,
@@ -67,7 +68,8 @@ if __name__ == '__main__':
 			"policy_version":2,
 			"obs_act_output_dim":64,
 			"anneal_l1_pen":False,
-			"critic_loss_type":"td_lambda",
+			# "critic_loss_type":"td_lambda",
+			"critic_loss_type":"monte_carlo",
 			"td_lambda":0.8
 
 		}
