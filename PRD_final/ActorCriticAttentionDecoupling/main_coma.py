@@ -66,7 +66,7 @@ if __name__ == '__main__':
 			"experiment_type":"coma_v2",
 			"value_lr": 1e-2,
 			"policy_lr": 7e-4, 
-			"entropy_pen": 1e-4, 
+			"entropy_pen": 5e-4, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
 			"select_above_threshold": 0.1,
