@@ -30,10 +30,11 @@ def run_file(dictionary):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--environment", default="crossing", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
-	parser.add_argument("--experiment_type", default="with_prd_soft_adv", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
+	parser.add_argument("--experiment_type", default="greedy_policy", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
 	parser.add_argument("--save", default=False , type=bool)
 	parser.add_argument("--learn", default=False , type=bool)
 	parser.add_argument("--gif", default=True , type=bool)
+	parser.add_argument("--gif_checkpoint", default= 1, type=int)
 	parser.add_argument("--max_episodes", default=60000, type=int)
 	parser.add_argument("--max_time_steps", default=100, type=int)
 	parser.add_argument("--value_lr", default=1e-2, type=float)
@@ -47,7 +48,7 @@ if __name__ == '__main__':
 	parser.add_argument("--top_k", default=0 , type=int)
 	parser.add_argument("--store_model", default= "../../../models/", type=str)
 	parser.add_argument("--save_runs", default= "../../../runs/", type=str)
-	parser.add_argument("--save_gifs", default= "../../../gifs", type=str)
+	parser.add_argument("--save_gifs", default= "../../../gifs/", type=str)
 	parser.add_argument("--policy_eval_dir", default= "../../../policy_eval/", type=str)
 	parser.add_argument("--td_lambda", default= 0.8, type=float)
 	parser.add_argument("--critic_loss_type", default= "td_lambda", type=str) # monte_carlo, td_lambda, td_1
@@ -56,9 +57,9 @@ if __name__ == '__main__':
 	parser.add_argument("--gae", default= True, type=bool)
 	parser.add_argument("--norm_adv", default= False, type=bool)
 	parser.add_argument("--norm_rew", default= False, type=bool)
-	parser.add_argument("--load_models", default= False, type=bool)
-	parser.add_argument("--critic_saved_path", default= "", type=str)
-	parser.add_argument("--actor_saved_path", default= "", type=str)
+	parser.add_argument("--load_models", default= True, type=bool)
+	parser.add_argument("--critic_saved_path", default= "../../../models/0/crossing/greedy_policy/8_Agents/critic_networks/10-06-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_epsiode51000.pt", type=str)
+	parser.add_argument("--actor_saved_path", default= "../../../models/0/crossing/greedy_policy/8_Agents/actor_networks/10-06-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_epsiode51000.pt", type=str)
 	parser.add_argument("--l1_pen", default= 0.01, type=float)
 	parser.add_argument("--anneal_entropy_pen", default= False, type=bool)
 	parser.add_argument("--entropy_pen_end", default= 0.0, type=float)
@@ -67,7 +68,7 @@ if __name__ == '__main__':
 	parser.add_argument("--num_people", default= 0, type=int)
 	parser.add_argument("--num_predators", default= 4, type=int)
 	parser.add_argument("--num_preys", default= 2, type=int)
-	parser.add_argument("--gif_checkpoint", default= 1, type=int)
+	
 	
 
 	arguments = parser.parse_args()
@@ -83,9 +84,9 @@ if __name__ == '__main__':
 	elif arguments.environment == "predator_prey":
 		extender = "/4_Predators_2_Preys"
 	elif arguments.environment == "crossing":
-		extender = "/4_Agents"
+		extender = "/8_Agents"
 
-	for run in range(5):
+	for run in range(1):
 		dictionary = {
 			"critic_dir": arguments.store_model+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/critic_networks/',
 			"actor_dir": arguments.store_model+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/actor_networks/',

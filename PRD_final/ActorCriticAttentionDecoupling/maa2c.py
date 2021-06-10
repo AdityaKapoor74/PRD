@@ -389,7 +389,6 @@ class MAA2C:
 				elif self.env_name in ["predator_prey"]:
 					actions = self.get_actions(states_actor, states_actor_prey)
 
-				actions = [0 for i in range(self.num_agents)]
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1

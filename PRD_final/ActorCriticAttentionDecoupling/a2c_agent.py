@@ -160,13 +160,13 @@ class A2CAgent:
 
 		# Loading models
 		if dictionary["load_models"]:
-			if "cpu" in self.device:
-				self.critic_network.load_state_dict(torch.load(dicitionary["critic_saved_path"],map_location=torch.device('cpu')))
-				self.policy_network.load_state_dict(torch.load(dicitionary["actor_saved_path"],map_location=torch.device('cpu')))
-			else:
+			if torch.cuda.is_available():
 				# For GPU
-				self.critic_network.load_state_dict(torch.load(dicitionary["critic_saved_path"]))
-				self.policy_network.load_state_dict(torch.load(dicitionary["actor_saved_path"]))
+				self.critic_network.load_state_dict(torch.load(dictionary["critic_saved_path"]))
+				self.policy_network.load_state_dict(torch.load(dictionary["actor_saved_path"]))
+			else:
+				self.critic_network.load_state_dict(torch.load(dictionary["critic_saved_path"],map_location=torch.device('cpu')))
+				self.policy_network.load_state_dict(torch.load(dictionary["actor_saved_path"],map_location=torch.device('cpu')))
 
 
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
@@ -272,8 +272,6 @@ class A2CAgent:
 		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 			
 			probs, weight_policy = self.policy_network.forward(states_actor)
-
-			print(probs.shape)
 
 
 			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
