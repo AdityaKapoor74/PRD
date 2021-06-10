@@ -31,9 +31,9 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--environment", default="crossing", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
 	parser.add_argument("--experiment_type", default="with_prd_soft_adv", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
-	parser.add_argument("--save", default=False , type=bool)
-	parser.add_argument("--learn", default=False , type=bool)
-	parser.add_argument("--gif", default=True , type=bool)
+	parser.add_argument("--save", default=True , type=bool)
+	parser.add_argument("--learn", default=True , type=bool)
+	parser.add_argument("--gif", default=False , type=bool)
 	parser.add_argument("--gif_checkpoint", default= 1, type=int)
 	parser.add_argument("--max_episodes", default=60000, type=int)
 	parser.add_argument("--max_time_steps", default=100, type=int)
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 	parser.add_argument("--gae", default= True, type=bool)
 	parser.add_argument("--norm_adv", default= False, type=bool)
 	parser.add_argument("--norm_rew", default= False, type=bool)
-	parser.add_argument("--load_models", default= True, type=bool)
+	parser.add_argument("--load_models", default= False, type=bool)
 	parser.add_argument("--critic_saved_path", default= "../../../models/0/crossing/greedy_policy/8_Agents/critic_networks/10-06-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_epsiode51000.pt", type=str)
 	parser.add_argument("--actor_saved_path", default= "../../../models/0/crossing/greedy_policy/8_Agents/actor_networks/10-06-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_epsiode51000.pt", type=str)
 	parser.add_argument("--l1_pen", default= 0.01, type=float)
