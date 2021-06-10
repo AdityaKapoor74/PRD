@@ -133,7 +133,7 @@ class ScalarDotProductCriticNetwork(nn.Module):
 		# scaling_weight = scaling_weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		# weighted_attention_values = attention_values*scaling_weight
 
-		node_features = torch.mean(weighted_attention_values, dim=-2)
+		node_features = torch.sum(weighted_attention_values, dim=-2)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
@@ -219,7 +219,7 @@ class ScalarDotProductPolicyNetwork(nn.Module):
 		# scaling_weight = scaling_weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		# weighted_attention_values = attention_values*scaling_weight
 		# print(weighted_attention_values)
-		node_features = torch.mean(weighted_attention_values, dim=-2)
+		node_features = torch.sum(weighted_attention_values, dim=-2)
 
 		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
 		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
@@ -323,7 +323,7 @@ class ScalarDotProductCriticNetworkDualAttention(nn.Module):
 
 		# SOFTMAX
 		weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
-		weighted_attention_values = torch.mean(attention_values*weight, dim=-2)
+		weighted_attention_values = torch.sum(attention_values*weight, dim=-2)
 
 		# SOFTMAX WITH NOISE
 		# weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
@@ -351,7 +351,7 @@ class ScalarDotProductCriticNetworkDualAttention(nn.Module):
 		# WEIGHT
 		weight_people = F.softmax(score_obs_people/math.sqrt(self.d_k_obs_people), dim=-2).unsqueeze(-1)
 		# WEIGHTED ATTENTION VALUES
-		weighted_attention_values_people = torch.mean(attention_values_people*weight_people, dim=-2).unsqueeze(-2).repeat(1,1,self.num_agents,1)
+		weighted_attention_values_people = torch.sum(attention_values_people*weight_people, dim=-2).unsqueeze(-2).repeat(1,1,self.num_agents,1)
 
 
 		node_features = torch.cat([weighted_attention_values,weighted_attention_values_people], dim=-1)
@@ -434,7 +434,7 @@ class ScalarDotProductPolicyNetworkDualAttention(nn.Module):
 		# print(attention_values)
 		attention_values = attention_values.repeat(1,self.num_agents,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,-1)
 		# SOFTMAX
-		weighted_attention_values = torch.mean(attention_values*weight.unsqueeze(-1),dim=-2)
+		weighted_attention_values = torch.sum(attention_values*weight.unsqueeze(-1),dim=-2)
 		# SOFTMAX WITH NOISE
 		# weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		# uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
@@ -459,7 +459,7 @@ class ScalarDotProductPolicyNetworkDualAttention(nn.Module):
 		attention_values_people = torch.tanh(self.attention_value_people_layer(states_people))
 		attention_values_people = attention_values_people.repeat(1,self.num_agents,1).reshape(attention_values_people.shape[0],self.num_agents,self.num_people,-1)
 		# SOFTMAX
-		weighted_attention_values_people = torch.mean(attention_values_people*weight_people,dim=-2)
+		weighted_attention_values_people = torch.sum(attention_values_people*weight_people,dim=-2)
 
 		node_features = torch.cat([weighted_attention_values,weighted_attention_values_people], dim=-1)
 
@@ -567,7 +567,7 @@ class ScalarDotProductCriticNetworkRevised(nn.Module):
 		score_obs_proc = score_obs_proc.reshape(-1,self.num_agents,1)
 		weight_1 = F.softmax(score_obs_proc/math.sqrt(self.d_k_obs_proc), dim=-2)
 		weight_1 = weight_1.reshape(weight_1.shape[0]//self.num_agents,self.num_agents,self.num_agents,1)
-		weighted_attention_value_proc = torch.mean(weight_1*attention_values_proc, dim=-2)
+		weighted_attention_value_proc = torch.sum(weight_1*attention_values_proc, dim=-2)
 
 		# KEYS
 		keys_obs_embed = self.key_layer(weighted_attention_value_proc)
@@ -609,7 +609,7 @@ class ScalarDotProductCriticNetworkRevised(nn.Module):
 		# scaling_weight = scaling_weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		# weighted_attention_values = attention_values*scaling_weight
 
-		node_features = torch.mean(weighted_attention_values, dim=-2)
+		node_features = torch.sum(weighted_attention_values, dim=-2)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
@@ -690,7 +690,7 @@ class ScalarDotProductPolicyNetworkRevised(nn.Module):
 		score_obs_proc = score_obs_proc.reshape(-1,self.num_agents,1)
 		weight_1 = F.softmax(score_obs_proc/math.sqrt(self.d_k_obs_proc), dim=-2)
 		weight_1 = weight_1.reshape(weight_1.shape[0]//self.num_agents,self.num_agents,self.num_agents,1)
-		weighted_attention_value_proc = torch.mean(weight_1*attention_values_proc, dim=-2)
+		weighted_attention_value_proc = torch.sum(weight_1*attention_values_proc, dim=-2)
 
 		# KEYS
 		key_obs = self.key_layer(weighted_attention_value_proc)
@@ -718,7 +718,7 @@ class ScalarDotProductPolicyNetworkRevised(nn.Module):
 		# ret_weight = scaling_weight
 		# scaling_weight = scaling_weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		# weighted_attention_values = attention_values*scaling_weight
-		node_features = torch.mean(weighted_attention_values, dim=-2)
+		node_features = torch.sum(weighted_attention_values, dim=-2)
 
 		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
 		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)

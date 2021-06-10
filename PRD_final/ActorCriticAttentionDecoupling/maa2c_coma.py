@@ -37,6 +37,13 @@ class MAA2C:
 				self.weight_dictionary[agent_name][agent_name_] = 0
 
 
+		# SAVE REWARDS 
+		self.rewards = []
+		self.rewards_mean_per_1000_eps = []
+		self.timesteps = []
+		self.timesteps_mean_per_1000_eps = []
+
+
 
 		self.agents = A2CAgent(self.env, dictionary)
 
@@ -56,6 +63,13 @@ class MAA2C:
 				print("Actor Directory can not be created")  
 			
 			tensorboard_dir = dictionary["tensorboard_dir"]
+
+			self.policy_eval_dir = dictionary["policy_eval_dir"]
+			try: 
+				os.makedirs(self.policy_eval_dir, exist_ok = True) 
+				print("Policy Eval Directory created successfully") 
+			except OSError as error: 
+				print("Policy Eval Directory can not be created") 
 
 
 			# paths for models, tensorboard and gifs
@@ -228,6 +242,7 @@ class MAA2C:
 			states = self.env.reset()
 
 			images = []
+			final_timestep = self.max_time_steps
 
 			states_critic,states_actor = self.split_states(states)
 
@@ -270,6 +285,7 @@ class MAA2C:
 
 				if not(self.gif):
 					if all(dones) or step == self.max_time_steps:
+						final_timestep = step
 
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
@@ -290,6 +306,11 @@ class MAA2C:
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
+			self.rewards.append(episode_reward)
+			self.timesteps.append(final_timestep)
+			if episode > 1000 and episode%1000:
+				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-1000:episode])/1000)
+				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-1000:episode])/1000)
 
 			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:
 				if self.coma_version == 1 or self.coma_version == 2:
@@ -308,3 +329,9 @@ class MAA2C:
 			elif self.gif and not(episode%gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
+
+
+		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
