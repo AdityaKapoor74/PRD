@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"gif": False,
 				"save": True,
-				"max_episodes": 10,
+				"max_episodes": 60000,
 				"max_time_steps": 100,
 			}
 
