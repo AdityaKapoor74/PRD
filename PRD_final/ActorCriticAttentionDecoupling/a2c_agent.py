@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork, ScalarDotProductCriticNetworkDualAttention, ScalarDotProductPolicyNetworkDualAttention
+from a2c import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork, ScalarDotProductCriticNetworkDualAttention, ScalarDotProductPolicyNetworkDualAttention, ScalarDotProductCriticNetworkRevised, ScalarDotProductPolicyNetworkRevised
 import torch.nn.functional as F
 import copy
 
@@ -81,30 +81,30 @@ class A2CAgent:
 			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 			self.obs_act_output_dim = 64
-			self.final_input_dim = self.obs_act_output_dim
+			self.final_input_dim = 128#self.obs_act_output_dim
 			self.final_output_dim = 1
-			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network = ScalarDotProductCriticNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 64
-			self.final_input_dim = self.obs_output_dim
+			self.final_input_dim = 128#self.obs_output_dim
 			self.final_output_dim = self.num_actions
-			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.policy_network = ScalarDotProductPolicyNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 		elif self.env_name == "paired_by_sharing_goals":
 			self.obs_input_dim = 2*4
 			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 			self.obs_act_output_dim = 64
-			self.final_input_dim = self.obs_act_output_dim
+			self.final_input_dim = 128#self.obs_act_output_dim
 			self.final_output_dim = 1
-			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network = ScalarDotProductCriticNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 64
-			self.final_input_dim = self.obs_output_dim
+			self.final_input_dim = 128#self.obs_output_dim
 			self.final_output_dim = self.num_actions
-			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.policy_network = ScalarDotProductPolicyNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 		elif self.env_name == "crowd_nav":
 			self.obs_agent_input_dim = 2*3

@@ -478,8 +478,10 @@ class MAA2C:
 				if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
+					
 				episode_reward += np.sum(rewards)
-				episode_collision_rate += np.sum(collision_rate)
+				
 
 				if all(dones) or step == self.max_time_steps:
 					print("*"*100)
@@ -517,8 +519,8 @@ class MAA2C:
 					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-1000:episode])/1000)
 
 			if not(episode%1000) and self.save:
-				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_episode'+str(episode)+'.pt')
+				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_episode'+str(episode)+'.pt')  
 
 			if self.learn:
 				self.update(trajectory,episode) 
