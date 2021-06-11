@@ -28,10 +28,10 @@ if __name__ == '__main__':
 
 	# experiment_type = "greedy_policy"
 	# experiment_type = "top"
-	# experiment_type = "without_prd"
+	experiment_type = "without_prd"
 	# experiment_type = "without_prd_mean"
 	# experiment_type = "with_prd_soft_adv_scaled"
-	experiment_type = "with_prd_soft_adv"
+	# experiment_type = "with_prd_soft_adv"
 
 
 	# env = make_env(scenario_name="multi_circular",benchmark=False)
@@ -43,18 +43,18 @@ if __name__ == '__main__':
 			"actor_dir": 'models/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/actor_networks/',
 			"tensorboard_dir":'../../../runs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
 			"gif_dir": 'gifs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
-			# "env": "multi_circular",
-			"env":"multi_circular_old", 
+			"env": "multi_circular",
+			# "env":"multi_circular_old", 
 			"experiment_type":experiment_type,
 			# "experiment_type":"greedy_policy",
 			# "experiment_type":"top",
 			# "experiment_type":"with_prd_soft_adv",
 			# "experiment_type":"with_prd_soft_adv_scaled",
 			# "experiment_type":"greedy_and_top",
-			"value_lr": 1e-2, #1e-2 for single head
-			"policy_lr": 1e-3, # 2e-4 for single head
-			"entropy_pen": 0.0, #0.008,
-			"l1_pen":0.1, 
+			"value_lr": 1e-3, #1e-2 for single head
+			"policy_lr": 5e-4, # 2e-4 for single head
+			"entropy_pen": 0.008, #0.008,
+			"l1_pen":0.0, 
 			"gamma": 0.99,
 			"trace_decay": .98,
 			"select_above_threshold": 0.1,
@@ -64,12 +64,14 @@ if __name__ == '__main__':
 			"save": True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
-			"critic_version":3,
+			# "critic_version":10,
+			# "critic_version":3,
+			"critic_version":'mlp',
 			"policy_version":2,
 			"obs_act_output_dim":64,
 			"anneal_l1_pen":False,
-			# "critic_loss_type":"td_lambda",
-			"critic_loss_type":"monte_carlo",
+			"critic_loss_type":"td_lambda",
+			# "critic_loss_type":"monte_carlo",
 			"td_lambda":0.8
 
 		}
