@@ -38,10 +38,10 @@ class MAA2C:
 
 
 		# SAVE REWARDS 
-		self.rewards = []
-		self.rewards_mean_per_1000_eps = []
-		self.timesteps = []
-		self.timesteps_mean_per_1000_eps = []
+		# self.rewards = []
+		# self.rewards_mean_per_1000_eps = []
+		# self.timesteps = []
+		# self.timesteps_mean_per_1000_eps = []
 
 
 
@@ -64,12 +64,12 @@ class MAA2C:
 			
 			tensorboard_dir = dictionary["tensorboard_dir"]
 
-			self.policy_eval_dir = dictionary["policy_eval_dir"]
-			try: 
-				os.makedirs(self.policy_eval_dir, exist_ok = True) 
-				print("Policy Eval Directory created successfully") 
-			except OSError as error: 
-				print("Policy Eval Directory can not be created") 
+			# self.policy_eval_dir = dictionary["policy_eval_dir"]
+			# try: 
+			# 	os.makedirs(self.policy_eval_dir, exist_ok = True) 
+			# 	print("Policy Eval Directory created successfully") 
+			# except OSError as error: 
+			# 	print("Policy Eval Directory can not be created") 
 
 
 			# paths for models, tensorboard and gifs
@@ -306,13 +306,13 @@ class MAA2C:
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
-			self.rewards.append(episode_reward)
-			self.timesteps.append(final_timestep)
-			if episode > 1000 and episode%1000:
-				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-1000:episode])/1000)
-				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-1000:episode])/1000)
+			# self.rewards.append(episode_reward)
+			# self.timesteps.append(final_timestep)
+			# if episode > 1000 and episode%1000:
+			# 	self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-1000:episode])/1000)
+			# 	self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-1000:episode])/1000)
 
-			if not(episode%1000) and episode!=0 and not(self.gif) and self.save:
+			if not(episode%1000) and not(self.gif) and self.save:
 				if self.coma_version == 1 or self.coma_version == 2:
 					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
 					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')
@@ -331,7 +331,7 @@ class MAA2C:
 				self.make_gif(np.array(images),self.gif_path)
 
 
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		# np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
+		# np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		# np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
+		# np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
