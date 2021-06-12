@@ -191,7 +191,7 @@ class ScalarDotProductPolicyNetwork(nn.Module):
 
 
 	def forward(self, states):
-
+		
 		# KEYS
 		key_obs = self.key_layer(states)
 		# QUERIES
@@ -230,11 +230,11 @@ class ScalarDotProductPolicyNetwork(nn.Module):
 
 
 class ScalarDotProductCriticNetworkDualAttention(nn.Module):
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, obs_input_dim_people, obs_output_dim_people, obs_act_input_dim_people, obs_act_output_dim_people, final_input_dim, final_output_dim, num_agents, num_people, num_actions, threshold=0.1):
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, obs_input_dim_other, obs_output_dim_other, obs_act_input_dim_other, obs_act_output_dim_other, final_input_dim, final_output_dim, num_agents, num_other, num_actions, threshold=0.1):
 		super(ScalarDotProductCriticNetworkDualAttention, self).__init__()
 		
 		self.num_agents = num_agents
-		self.num_people = num_people
+		self.num_other = num_other
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
@@ -245,11 +245,11 @@ class ScalarDotProductCriticNetworkDualAttention(nn.Module):
 		# dimesion of key
 		self.d_k_obs = obs_output_dim
 
-		self.key_people_layer = nn.Linear(obs_input_dim_people, obs_output_dim_people, bias=False)
-		self.query_people_layer = nn.Linear(obs_input_dim_people, obs_output_dim, bias=False)
-		self.attention_value_people_layer = nn.Linear(obs_act_input_dim_people, obs_act_output_dim_people, bias=False)
+		self.key_other_layer = nn.Linear(obs_input_dim_other, obs_output_dim_other, bias=False)
+		self.query_other_layer = nn.Linear(obs_input_dim_other, obs_output_dim, bias=False)
+		self.attention_value_other_layer = nn.Linear(obs_act_input_dim_other, obs_act_output_dim_other, bias=False)
 		# dimesion of key
-		self.d_k_obs_people = obs_output_dim_people
+		self.d_k_obs_other = obs_output_dim_other
 
 
 
@@ -285,9 +285,9 @@ class ScalarDotProductCriticNetworkDualAttention(nn.Module):
 		nn.init.xavier_uniform_(self.key_layer.weight)
 		nn.init.xavier_uniform_(self.query_layer.weight)
 		nn.init.xavier_uniform_(self.attention_value_layer.weight)
-		nn.init.xavier_uniform_(self.key_people_layer.weight)
-		nn.init.xavier_uniform_(self.query_people_layer.weight)
-		nn.init.xavier_uniform_(self.attention_value_people_layer.weight)
+		nn.init.xavier_uniform_(self.key_other_layer.weight)
+		nn.init.xavier_uniform_(self.query_other_layer.weight)
+		nn.init.xavier_uniform_(self.attention_value_other_layer.weight)
 
 
 		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain_leaky)
@@ -295,7 +295,7 @@ class ScalarDotProductCriticNetworkDualAttention(nn.Module):
 
 
 
-	def forward(self, states, policies, actions, states_people, actions_people):
+	def forward(self, states, policies, actions, states_other, actions_other):
 
 		# input to KEY, QUERY and ATTENTION VALUE NETWORK
 		obs_actions = torch.cat([states,actions],dim=-1)
@@ -338,37 +338,37 @@ class ScalarDotProductCriticNetworkDualAttention(nn.Module):
 		# weighted_attention_values = attention_values*scaling_weight
 
 		# Input to Key and Attention Value Network
-		obs_actions_people = torch.cat([states_people,actions_people], dim=-1)
+		obs_actions_other = torch.cat([states_other,actions_other], dim=-1)
 		# KEY
-		keys_obs_people = self.key_people_layer(states_people)
+		keys_obs_other = self.key_other_layer(states_other)
 		# QUERY
-		query_obs_agent = self.query_people_layer(states)
+		query_obs_agent = self.query_other_layer(states)
 		# ATTENTION VALUE
-		attention_values_people = torch.tanh(self.attention_value_people_layer(obs_actions_people))
-		attention_values_people = attention_values_people.repeat(1,self.num_agents,1).reshape(attention_values_people.shape[0],self.num_agents,self.num_people,-1)
+		attention_values_other = torch.tanh(self.attention_value_other_layer(obs_actions_other))
+		attention_values_other = attention_values_other.repeat(1,self.num_agents,1).reshape(attention_values_other.shape[0],self.num_agents,self.num_other,-1)
 		# SCORE
-		score_obs_people = torch.bmm(query_obs_agent,keys_obs_people.transpose(1,2))
+		score_obs_other = torch.bmm(query_obs_agent,keys_obs_other.transpose(1,2))
 		# WEIGHT
-		weight_people = F.softmax(score_obs_people/math.sqrt(self.d_k_obs_people), dim=-2).unsqueeze(-1)
+		weight_other = F.softmax(score_obs_other/math.sqrt(self.d_k_obs_other), dim=-2).unsqueeze(-1)
 		# WEIGHTED ATTENTION VALUES
-		weighted_attention_values_people = torch.sum(attention_values_people*weight_people, dim=-2).unsqueeze(-2).repeat(1,1,self.num_agents,1)
+		weighted_attention_values_other = torch.sum(attention_values_other*weight_other, dim=-2).unsqueeze(-2).repeat(1,1,self.num_agents,1)
 
 
-		node_features = torch.cat([weighted_attention_values,weighted_attention_values_people], dim=-1)
+		node_features = torch.cat([weighted_attention_values,weighted_attention_values_other], dim=-1)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
 
-		return Value, ret_weight, weight_people
+		return Value, ret_weight, weight_other
 
 
 
 class ScalarDotProductPolicyNetworkDualAttention(nn.Module):
-	def __init__(self, obs_input_dim, obs_output_dim, obs_input_dim_people, obs_output_dim_people, final_input_dim, final_output_dim, num_agents, num_people, num_actions, threshold=0.1):
+	def __init__(self, obs_input_dim, obs_output_dim, obs_input_dim_other, obs_output_dim_other, final_input_dim, final_output_dim, num_agents, num_other, num_actions, threshold=0.1):
 		super(ScalarDotProductPolicyNetworkDualAttention, self).__init__()
 		
 		self.num_agents = num_agents
-		self.num_people = num_people
+		self.num_other = num_other
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
@@ -379,11 +379,11 @@ class ScalarDotProductPolicyNetworkDualAttention(nn.Module):
 		# dimesion of key
 		self.d_k_obs = obs_output_dim
 
-		self.key_people_layer = nn.Linear(obs_input_dim_people, obs_output_dim_people, bias=False)
-		self.query_people_layer = nn.Linear(obs_input_dim, obs_output_dim, bias=False)
-		self.attention_value_people_layer = nn.Linear(obs_input_dim_people, obs_output_dim_people, bias=False)
+		self.key_other_layer = nn.Linear(obs_input_dim_other, obs_output_dim_other, bias=False)
+		self.query_other_layer = nn.Linear(obs_input_dim, obs_output_dim, bias=False)
+		self.attention_value_other_layer = nn.Linear(obs_input_dim_other, obs_output_dim_other, bias=False)
 		# dimesion of key
-		self.d_k_obs_people = obs_output_dim_people
+		self.d_k_obs_other = obs_output_dim_other
 
 		# NOISE
 		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
@@ -408,16 +408,16 @@ class ScalarDotProductPolicyNetworkDualAttention(nn.Module):
 		nn.init.xavier_uniform_(self.key_layer.weight)
 		nn.init.xavier_uniform_(self.query_layer.weight)
 		nn.init.xavier_uniform_(self.attention_value_layer.weight)
-		nn.init.xavier_uniform_(self.key_people_layer.weight)
-		nn.init.xavier_uniform_(self.query_people_layer.weight)
-		nn.init.xavier_uniform_(self.attention_value_people_layer.weight)
+		nn.init.xavier_uniform_(self.key_other_layer.weight)
+		nn.init.xavier_uniform_(self.query_other_layer.weight)
+		nn.init.xavier_uniform_(self.attention_value_other_layer.weight)
 
 
 		nn.init.xavier_uniform_(self.final_policy_layer_1.weight, gain=gain_leaky)
 		nn.init.xavier_uniform_(self.final_policy_layer_2.weight, gain=gain_leaky)
 
 
-	def forward(self, states, states_people):
+	def forward(self, states, states_other):
 
 		# KEYS
 		key_obs = self.key_layer(states)
@@ -448,25 +448,25 @@ class ScalarDotProductPolicyNetworkDualAttention(nn.Module):
 		# print(weighted_attention_values)
 
 		# KEYS
-		key_obs_people = self.key_people_layer(states_people)
+		key_obs_other = self.key_other_layer(states_other)
 		# QUERIES
-		query_obs_people = self.query_people_layer(states)
+		query_obs_other = self.query_other_layer(states)
 		# SCORE CALCULATION
-		score_obs_people = torch.bmm(query_obs_people,key_obs_people.transpose(1,2))
+		score_obs_other = torch.bmm(query_obs_other,key_obs_other.transpose(1,2))
 		# WEIGHT
-		weight_people = F.softmax(score_obs_people/math.sqrt(self.d_k_obs_people), dim=-2).unsqueeze(-1)
+		weight_other = F.softmax(score_obs_other/math.sqrt(self.d_k_obs_other), dim=-2).unsqueeze(-1)
 		# ATTENTION VALUES
-		attention_values_people = torch.tanh(self.attention_value_people_layer(states_people))
-		attention_values_people = attention_values_people.repeat(1,self.num_agents,1).reshape(attention_values_people.shape[0],self.num_agents,self.num_people,-1)
+		attention_values_other = torch.tanh(self.attention_value_other_layer(states_other))
+		attention_values_other = attention_values_other.repeat(1,self.num_agents,1).reshape(attention_values_other.shape[0],self.num_agents,self.num_other,-1)
 		# SOFTMAX
-		weighted_attention_values_people = torch.sum(attention_values_people*weight_people,dim=-2)
+		weighted_attention_values_other = torch.sum(attention_values_other*weight_other,dim=-2)
 
-		node_features = torch.cat([weighted_attention_values,weighted_attention_values_people], dim=-1)
+		node_features = torch.cat([weighted_attention_values,weighted_attention_values_other], dim=-1)
 
 		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
 		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
 
-		return Policy, weight, weight_people
+		return Policy, weight, weight_other
 
 
 
@@ -557,28 +557,44 @@ class ScalarDotProductCriticNetworkRevised(nn.Module):
 
 		# KEYS
 		key_obs_proc = self.key_proc_layer(states)
+		print("key_obs_proc")
+		print(key_obs_proc)
 		# QUERIES
 		query_obs_proc = self.query_proc_layer(states)
+		print("query_obs_proc")
+		print(query_obs_proc)
 		# ATTENTION VALUES
 		attention_values_proc = self.attention_value_proc_layer(states)
+		print("attention_values_proc")
+		print(attention_values_proc)
 		attention_values_proc = attention_values_proc.repeat(1,self.num_agents,1).reshape(attention_values_proc.shape[0],self.num_agents,self.num_agents,-1)
 		# WEIGHTS
 		score_obs_proc = torch.bmm(query_obs_proc,key_obs_proc.transpose(1,2)).reshape(-1,1)
 		score_obs_proc = score_obs_proc.reshape(-1,self.num_agents,1)
 		weight_1 = F.softmax(score_obs_proc/math.sqrt(self.d_k_obs_proc), dim=-2)
+		print("weight_1")
+		print(weight_1)
 		weight_1 = weight_1.reshape(weight_1.shape[0]//self.num_agents,self.num_agents,self.num_agents,1)
 		weighted_attention_value_proc = torch.sum(weight_1*attention_values_proc, dim=-2)
+		print("weighted_attention_value_proc")
+		print(weighted_attention_value_proc)
 
 		# KEYS
 		keys_obs_embed = self.key_layer(weighted_attention_value_proc)
+		print("keys_obs_embed")
+		print(keys_obs_embed)
 		# QUERIES
 		query_obs_embed = self.query_layer(weighted_attention_value_proc)
+		print("query_obs_embed")
+		print(keys_obs_embed)
 		# WEIGHTS
 		score_obs_embed = torch.bmm(query_obs_embed,keys_obs_embed.transpose(1,2)).reshape(-1,1)
 		score_obs_embed = score_obs_embed.reshape(-1,self.num_agents,1)
 		weight_2 = F.softmax(score_obs_embed/math.sqrt(self.d_k_obs), dim=-2)
 		weight_2 = weight_2.reshape(weight_2.shape[0]//self.num_agents,self.num_agents,-1)
 		ret_weight = weight_2
+		print("weight_2")
+		print(weight_2)
 		
 		obs_actions = torch.cat([states,actions],dim=-1)
 		obs_policy = torch.cat([states,policies], dim=-1)
@@ -590,7 +606,11 @@ class ScalarDotProductCriticNetworkRevised(nn.Module):
 
 		# embedding the observation_actions_policies
 		obs_actions_policies_embed = self.embed_obs_act_pol(obs_actions_policies)
+		print("obs_actions_policies_embed")
+		print(obs_actions_policies_embed)
 		attention_values = self.attention_value_layer(obs_actions_policies_embed)
+		print("attention_values")
+		print(attention_values)
 		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 
 		# SOFTMAX
@@ -610,11 +630,15 @@ class ScalarDotProductCriticNetworkRevised(nn.Module):
 		# weighted_attention_values = attention_values*scaling_weight
 
 		node_features = torch.sum(weighted_attention_values, dim=-2)
+		print("node_features")
+		print(node_features)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
+		print("Value")
+		print(Value)
 
-		return Value, ret_weight
+		return Value, weight_1, ret_weight
 		
 
 
@@ -723,4 +747,4 @@ class ScalarDotProductPolicyNetworkRevised(nn.Module):
 		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
 		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
 
-		return Policy, weight
+		return Policy, weight_1, weight

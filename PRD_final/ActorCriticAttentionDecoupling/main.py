@@ -29,18 +29,18 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--environment", default="paired_by_sharing_goals", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
+	parser.add_argument("--environment", default="crossing", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
 	parser.add_argument("--experiment_type", default="without_prd", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
-	parser.add_argument("--save", default=True , type=bool)
+	parser.add_argument("--save", default=False , type=bool)
 	parser.add_argument("--learn", default=True , type=bool)
 	parser.add_argument("--gif", default=False , type=bool)
 	parser.add_argument("--gif_checkpoint", default= 1, type=int)
 	parser.add_argument("--max_episodes", default=50000, type=int)
-	parser.add_argument("--max_time_steps", default=100, type=int)
+	parser.add_argument("--max_time_steps", default=2, type=int)
 	parser.add_argument("--value_lr", default=1e-2, type=float)
 	parser.add_argument("--tau", default=1e-3, type=float)
 	parser.add_argument("--policy_lr", default=1e-3, type=float)
-	parser.add_argument("--entropy_pen", default=8e-4, type=float)
+	parser.add_argument("--entropy_pen", default=1e-3, type=float)
 	parser.add_argument("--trace_decay", default=0.98, type=float)
 	parser.add_argument("--gamma", default=0.99, type=float)
 	parser.add_argument("--select_above_threshold", default=0.1, type=float)
@@ -58,16 +58,15 @@ if __name__ == '__main__':
 	parser.add_argument("--norm_adv", default= False, type=bool)
 	parser.add_argument("--norm_rew", default= False, type=bool)
 	parser.add_argument("--load_models", default= False, type=bool)
-	parser.add_argument("--critic_saved_path", default= "../../../models/0/crossing/with_prd_soft_adv/8_Agents/critic_networks/10-06-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.01softtd_lambda_epsiode8000.pt", type=str)
-	parser.add_argument("--actor_saved_path", default= "../../../models/0/crossing/with_prd_soft_adv/8_Agents/actor_networks/10-06-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.01softtd_lambda_epsiode8000.pt", type=str)
+	parser.add_argument("--critic_saved_path", default= "../../../models/DualCriticSimplePolicy/0/crossing/without_prd/8_Agents/critic_networks/11-06-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_episode3000.pt", type=str)
+	parser.add_argument("--actor_saved_path", default= "../../../models/DualCriticSimplePolicy/0/crossing/without_prd/8_Agents/actor_networks/11-06-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_episode3000.pt", type=str)
 	parser.add_argument("--l1_pen", default= 0.0, type=float)
 	parser.add_argument("--anneal_entropy_pen", default= False, type=bool)
 	parser.add_argument("--entropy_pen_end", default= 0.0, type=float)
 	parser.add_argument("--entropy_pen_decay", default= 0.0, type=float)
-	parser.add_argument("--num_agents", default= 0, type=int)
-	parser.add_argument("--num_people", default= 0, type=int)
-	parser.add_argument("--num_predators", default= 4, type=int)
-	parser.add_argument("--num_preys", default= 2, type=int)
+	parser.add_argument("--num_agents", default= 4, type=int)
+	parser.add_argument("--num_others", default= 5, type=int)
+	parser.add_argument("--action_type", default = 0, type=int)
 	
 	
 
@@ -82,7 +81,7 @@ if __name__ == '__main__':
 	elif arguments.environment == "crowd_nav":
 		extender = "/4_Humans_4_Agents"
 	elif arguments.environment == "predator_prey":
-		extender = "/4_Predators_2_Preys"
+		extender = "/2_Predators_1_Preys"
 	elif arguments.environment == "crossing":
 		extender = "/8_Agents"
 
@@ -121,13 +120,12 @@ if __name__ == '__main__':
 			"entropy_pen_end": arguments.entropy_pen_end,
 			"entropy_pen_decay": arguments.entropy_pen_decay,
 			"critic_update_interval": arguments.critic_update_interval,
-			"num_people": arguments.num_people,
+			"num_others": arguments.num_others,
 			"num_agents": arguments.num_agents,
-			"num_predator": arguments.num_predators,
-			"num_prey": arguments.num_preys,
 			"learn": arguments.learn,
 			"policy_eval_dir": arguments.policy_eval_dir+str(run),
 			"gif_checkpoint": arguments.gif_checkpoint,
+			"action_type": arguments.action_type,
 		}
 
 		

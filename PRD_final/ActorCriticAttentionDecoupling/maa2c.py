@@ -8,7 +8,7 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from a2c_agent import A2CAgent
 import datetime
-
+import random
 
 
 class MAA2C:
@@ -28,6 +28,7 @@ class MAA2C:
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
+		self.action_type = dictionary["action_type"]
 
 		self.weight_dictionary = {}
 
@@ -47,12 +48,9 @@ class MAA2C:
 				self.weight_dictionary[agent_name][agent_name_] = 0
 
 
-		if self.env_name == "crowd_nav":
+		if self.env_name in ["crowd_nav", "predator_prey"]:
 			self.num_agents = dictionary["num_agents"]
-			self.num_people = dictionary["num_people"]
-		elif self.env_name == "predator_prey":
-			self.num_predators = dictionary["num_predators"]
-			self.num_preys = dictionary["num_preys"]
+			self.num_others = dictionary["num_others"]
 
 
 		self.agents = A2CAgent(self.env, dictionary)
@@ -161,18 +159,18 @@ class MAA2C:
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
 		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
-			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-		elif self.env_name in ["crowd_nav"]:
-			states_critic_people = torch.FloatTensor([sars[9] for sars in trajectory]).to(self.device)
-			next_states_critic_people = torch.FloatTensor([sars[10] for sars in trajectory]).to(self.device)
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, weight_proc_V = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		elif self.env_name in ["crowd_nav", "predator_prey"]:
+			states_critic_other = torch.FloatTensor([sars[9] for sars in trajectory]).to(self.device)
+			next_states_critic_other = torch.FloatTensor([sars[10] for sars in trajectory]).to(self.device)
 
-			one_hot_actions_people = torch.FloatTensor([sars[11] for sars in trajectory]).to(self.device)
-			one_hot_next_actions_people = torch.FloatTensor([sars[12] for sars in trajectory]).to(self.device)
+			one_hot_actions_other = torch.FloatTensor([sars[11] for sars in trajectory]).to(self.device)
+			one_hot_next_actions_other = torch.FloatTensor([sars[12] for sars in trajectory]).to(self.device)
 
-			states_actor_people = torch.FloatTensor([sars[13] for sars in trajectory]).to(self.device)
-			next_states_actor_people = torch.FloatTensor([sars[14] for sars in trajectory]).to(self.device)
+			states_actor_other = torch.FloatTensor([sars[13] for sars in trajectory]).to(self.device)
+			next_states_actor_other = torch.FloatTensor([sars[14] for sars in trajectory]).to(self.device)
 
-			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_people, weight_policy_people = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people,next_states_critic_people,one_hot_actions_people,one_hot_next_actions_people,states_actor_people,next_states_actor_people)
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_other, weight_policy_other = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_other,next_states_critic_other,one_hot_actions_other,one_hot_next_actions_other,states_actor_other,next_states_actor_other)
 
 
 
@@ -184,29 +182,55 @@ class MAA2C:
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
 			# if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
-				# # INDIVIDUAL WEIGHTS
-				# self.calculate_indiv_weights(weights)
-				# for i in range(self.num_agents):
-				# 	agent_name = 'agent %d' % i
-				# 	self.writer.add_scalars('Weights/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+			# 	# INDIVIDUAL WEIGHTS
+			# 	self.calculate_indiv_weights(weights)
+			# 	for i in range(self.num_agents):
+			# 		agent_name = 'agent %d' % i
+			# 		self.writer.add_scalars('Weights/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 			# elif self.env_name == "paired_by_sharing_goals":
-				# # PAIRED AGENT WEIGHTS
-				# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
-				# self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+			# 	# PAIRED AGENT WEIGHTS
+			# 	# paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
+			# 	# self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+
+			# self.calculate_indiv_weights(weights)
+			# for i in range(self.num_agents):
+			# 	agent_name = 'agent %d' % i
+			# 	self.writer.add_scalars('Weights_V/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+
+			# self.calculate_indiv_weights(weight_proc_V)
+			# for i in range(self.num_agents):
+			# 	agent_name = 'agent %d' % i
+			# 	self.writer.add_scalars('Weights_V/Average_Weights_Proc/'+agent_name,self.weight_dictionary[agent_name],episode)
+
+			# self.calculate_indiv_weights(weight_policy)
+			# for i in range(self.num_agents):
+			# 	agent_name = 'agent %d' % i
+			# 	self.writer.add_scalars('Weights_P/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+
+			# self.calculate_indiv_weights(weight_proc_P)
+			# for i in range(self.num_agents):
+			# 	agent_name = 'agent %d' % i
+			# 	self.writer.add_scalars('Weights_P/Average_Weights_Proc/'+agent_name,self.weight_dictionary[agent_name],episode)
 
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
 
+			# entropy_weights = -torch.mean(torch.sum(weight_proc_V * torch.log(torch.clamp(weight_proc_V, 1e-10,1.0)), dim=2))
+			# self.writer.add_scalar('Weights/Entropy_Proc', entropy_weights.item(), episode)
+
 			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
 			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
-			if self.env_name in ["crowd_nav"]:
-				entropy_weights = -torch.mean(torch.sum(weights_people * torch.log(torch.clamp(weights_people, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights/Entropy_People', entropy_weights.item(), episode)
+			# entropy_weights = -torch.mean(torch.sum(weight_proc_P * torch.log(torch.clamp(weight_proc_P, 1e-10,1.0)), dim=2))
+			# self.writer.add_scalar('Weights_Policy/Entropy_Proc', entropy_weights.item(), episode)
 
-				entropy_weights = -torch.mean(torch.sum(weight_policy_people * torch.log(torch.clamp(weight_policy_people, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Policy/Entropy_People', entropy_weights.item(), episode)
+			if self.env_name in ["crowd_nav", "predator_prey"]:
+				entropy_weights = -torch.mean(torch.sum(weights_other * torch.log(torch.clamp(weights_other, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights/Entropy_Other', entropy_weights.item(), episode)
+
+				entropy_weights = -torch.mean(torch.sum(weight_policy_other * torch.log(torch.clamp(weight_policy_other, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Policy/Entropy_Other', entropy_weights.item(), episode)
 
 
 	def split_states(self,states,for_who):
@@ -218,16 +242,8 @@ class MAA2C:
 			for i in range(self.num_agents):
 				states_critic.append(states[i][0])
 				states_actor.append(states[i][1])
-		elif for_who == "people":
-			for i in range(self.num_people):
-				states_critic.append(states[i][0])
-				states_actor.append(states[i][1])
-		elif for_who == "predator":
-			for i in range(self.num_predators):
-				states_critic.append(states[i][0])
-				states_actor.append(states[i][1])
-		elif for_who == "prey":
-			for i in range(self.num_preys):
+		elif for_who == "others":
+			for i in range(self.num_others):
 				states_critic.append(states[i][0])
 				states_actor.append(states[i][1])
 
@@ -270,7 +286,14 @@ class MAA2C:
 		clip.write_gif(fname, fps=fps)
 
 
-	def get_prey_actions(self, states_prey, states_predator, random = False):
+	def get_prey_actions(self, states_prey, states_predator):
+		'''
+		# action_type
+		0 stay
+		1 total random
+		2 valid random
+		3 always away from the closest predator
+		'''
 		prey_speed = 1.3
 		dt = 0.1
 		prey_actions = []
@@ -291,25 +314,46 @@ class MAA2C:
 			min_dist_predator = min(dist_from_predator)
 			min_dist_predator_index = np.argmin(dist_from_predator)
 
-			if random:
+
+			if self.action_type == 0:
+				prey_actions.append(no_act)
+			elif action_type == 1:
 				valid_action = [no_act]
 
 				# taking left
-				if prey_x_y[0] - prey_speed*dt >= -1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+				if prey_x_y[0] - prey_speed*dt > -1:
 					valid_action.append(left_act)
 				# taking right
-				if prey_x_y[0] + prey_speed*dt <= 1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+				if prey_x_y[0] + prey_speed*dt < 1:
 					valid_action.append(right_act)
 				# taking up
-				if prey_x_y[1] + prey_speed*dt <= 1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+				if prey_x_y[1] + prey_speed*dt < 1:
 					valid_action.append(up_act)
 				# taking down
-				if prey_x_y[1] - prey_speed*dt >= -1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+				if prey_x_y[1] - prey_speed*dt > -1:
 					valid_action.append(down_act)
 
 				prey_actions.append(random.choice(valid_action))
 
-			else:
+			elif self.action_type == 2:
+				valid_action = [no_act]
+
+				# taking left
+				if prey_x_y[0] - prey_speed*dt > -1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(left_act)
+				# taking right
+				if prey_x_y[0] + prey_speed*dt < 1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(right_act)
+				# taking up
+				if prey_x_y[1] + prey_speed*dt < 1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(up_act)
+				# taking down
+				if prey_x_y[1] - prey_speed*dt > -1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
+					valid_action.append(down_act)
+
+				prey_actions.append(random.choice(valid_action))
+
+			elif self.action_type == 3:
 				valid_action = [no_act]
 				distance_metric = [min_dist_predator]
 				if prey_x_y[0] - prey_speed*dt >= -1 and np.sqrt(np.sum(np.square(prey_x_y + prey_speed*left*dt - states_predator[min_dist_predator_index,0:2]))) > min_dist_predator:
@@ -357,16 +401,11 @@ class MAA2C:
 
 			states = self.env.reset()
 
-			if self.env_name in ["crowd_nav"]:
+			if self.env_name in ["crowd_nav", "predator_prey"]:
 				states_agents = states[:self.num_agents]
-				states_people = states[self.num_agents:]
+				states_others = states[self.num_agents:]
 				states_critic,states_actor = self.split_states(states_agents, "agents")
-				states_critic_people, states_actor_people = self.split_states(states_people, "people")
-			elif self.env_name in ["predator_prey"]:
-				states_predator = states[:self.num_predators]
-				states_prey = states[self.num_predators:]
-				states_critic,states_actor = self.split_states(states_predator, "predator")
-				states_critic_prey, states_actor_prey = self.split_states(states_prey, "prey")
+				states_critic_others, states_actor_others = self.split_states(states_others, "others")
 			else:
 				states_critic,states_actor = self.split_states(states, "agents")
 
@@ -384,10 +423,8 @@ class MAA2C:
 
 				if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 					actions = self.get_actions(states_actor)
-				elif self.env_name in ["crowd_nav"]:
-					actions = self.get_actions(states_actor, states_actor_people)
-				elif self.env_name in ["predator_prey"]:
-					actions = self.get_actions(states_actor, states_actor_prey)
+				elif self.env_name in ["crowd_nav", "predator_prey"]:
+					actions = self.get_actions(states_actor, states_actor_others)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
@@ -405,75 +442,75 @@ class MAA2C:
 						one_hot_next_actions[i][act] = 1
 
 				elif self.env_name in ["crowd_nav"]:
-					actions_people = []
-					for i in range(self.num_people):
+					actions_others = []
+					for i in range(self.num_others):
 						if i%4 == 0:
-							actions_people.append(2)
+							actions_others.append(2)
 						elif i%4 == 1:
-							actions_people.append(4)
+							actions_others.append(4)
 						elif i%4 == 2:
-							actions_people.append(1)
+							actions_others.append(1)
 						elif i%4 == 3:
-							actions_people.append(3)
-					one_hot_actions_people = np.zeros((self.num_people,self.num_actions))
-					for i,act in enumerate(actions_people):
-						one_hot_actions_people[i][act] = 1
+							actions_others.append(3)
+					one_hot_actions_others = np.zeros((self.num_others,self.num_actions))
+					for i,act in enumerate(actions_others):
+						one_hot_actions_others[i][act] = 1
 
-					next_states,rewards,dones,info = self.env.step(actions+actions_people)
+					next_states,rewards,dones,info = self.env.step(actions+actions_others)
 					next_states_agents = next_states[:self.num_agents]
-					next_states_people = next_states[self.num_agents:]
+					next_states_others = next_states[self.num_agents:]
 					next_states_critic,next_states_actor = self.split_states(next_states_agents, "agents")
-					next_states_critic_people,next_states_actor_people = self.split_states(next_states_people, "people")
+					next_states_critic_others,next_states_actor_others = self.split_states(next_states_others, "others")
 
 
-					next_actions = self.get_actions(next_states_actor, next_states_actor_people)
+					next_actions = self.get_actions(next_states_actor, next_states_actor_others)
 					one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(next_actions):
 						one_hot_next_actions[i][act] = 1
 
-					next_actions_people = []
-					for i in range(self.num_people):
+					next_actions_others = []
+					for i in range(self.num_others):
 						if i%4 == 0:
-							next_actions_people.append(2)
+							next_actions_others.append(2)
 						elif i%4 == 1:
-							next_actions_people.append(4)
+							next_actions_others.append(4)
 						elif i%4 == 2:
-							next_actions_people.append(1)
+							next_actions_others.append(1)
 						elif i%4 == 3:
-							next_actions_people.append(3)
-					one_hot_next_actions_people = np.zeros((self.num_people,self.num_actions))
-					for i,act in enumerate(next_actions_people):
+							next_actions_others.append(3)
+					one_hot_next_actions_others = np.zeros((self.num_others,self.num_actions))
+					for i,act in enumerate(next_actions_others):
 						one_hot_next_actions[i][act] = 1
 
 					rewards = rewards[:self.num_agents]
 					dones = dones[:self.num_agents]
 
 				elif self.env_name in ["predator_prey"]:
-					actions_prey = self.get_prey_actions(states_critic_prey, states_critic)
+					actions_others = self.get_prey_actions(states_critic_others, states_critic)
 
-					one_hot_actions_prey = np.zeros((self.num_preys,self.num_actions))
-					for i,act in enumerate(actions_prey):
-						one_hot_actions_prey[i][act] = 1
+					one_hot_actions_others = np.zeros((self.num_others,self.num_actions))
+					for i,act in enumerate(actions_others):
+						one_hot_actions_others[i][act] = 1
 
-					next_states,rewards,dones,info = self.env.step(actions+actions_prey)
-					next_states_agents = next_states[:self.num_predators]
-					next_states_prey = next_states[self.num_predators:]
-					next_states_critic,next_states_actor = self.split_states(next_states_agents, "predators")
-					next_states_critic_prey,next_states_actor_prey = self.split_states(next_states_prey, "prey")
+					next_states,rewards,dones,info = self.env.step(actions+actions_others)
+					next_states_agents = next_states[:self.num_agents]
+					next_states_others = next_states[self.num_agents:]
+					next_states_critic,next_states_actor = self.split_states(next_states_agents, "agents")
+					next_states_critic_others,next_states_actor_others = self.split_states(next_states_others, "others")
 
 
-					next_actions = self.get_actions(next_states_actor, next_states_actor_prey)
-					one_hot_next_actions = np.zeros((self.num_predators,self.num_actions))
+					next_actions = self.get_actions(next_states_actor, next_states_actor_others)
+					one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(next_actions):
 						one_hot_next_actions[i][act] = 1
 
-					next_actions_prey = self.get_prey_actions(next_states_critic_prey, next_states_critic)
-					one_hot_next_actions_prey = np.zeros((self.num_preys,self.num_actions))
-					for i,act in enumerate(next_actions_prey):
-						one_hot_next_actions_prey[i][act] = 1
+					next_actions_others = self.get_prey_actions(next_states_critic_others, next_states_critic)
+					one_hot_next_actions_others = np.zeros((self.num_others,self.num_actions))
+					for i,act in enumerate(next_actions_others):
+						one_hot_next_actions_others[i][act] = 1
 
-					rewards = rewards[:self.num_predators]
-					dones = dones[:self.predators]
+					rewards = rewards[:self.num_agents]
+					dones = dones[:self.num_agents]
 				
 				if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
 					collision_rate = [value[1] for value in rewards]
@@ -501,10 +538,9 @@ class MAA2C:
 				if self.learn:
 					if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
-					elif self.env_name in ["crowd_nav"]:
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people,next_states_critic_people,one_hot_actions_people,one_hot_next_actions_people,states_actor_people,next_states_actor_people])
-
-
+					elif self.env_name in ["crowd_nav", "predator_prey"]:
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_others,next_states_critic_others,one_hot_actions_others,one_hot_next_actions_others,states_actor_others,next_states_actor_others])
+					
 				states_critic,states_actor = next_states_critic,next_states_actor
 				states = next_states
 

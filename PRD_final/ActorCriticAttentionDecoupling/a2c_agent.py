@@ -35,13 +35,10 @@ class A2CAgent:
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
 
-		# CROWD NAV
-		if self.env_name == "crowd_nav":
+		# CROWD NAV OR PREDATOR PREY
+		if self.env_name in ["crowd_nav", "predator_prey"]:
 			self.num_agents = dictionary["num_agents"]
-			self.num_people = dictionary["num_people"]
-		elif self.env_name == "predator_prey":
-			self.num_predators = dictionary["num_predators"]
-			self.num_preys = dictionary["num_preys"]
+			self.num_others = dictionary["num_others"]
 
 
 		self.gif = dictionary["gif"]
@@ -87,24 +84,24 @@ class A2CAgent:
 
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 64
-			self.final_input_dim = 128#self.obs_output_dim
+			self.final_input_dim = self.obs_output_dim
 			self.final_output_dim = self.num_actions
-			self.policy_network = ScalarDotProductPolicyNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 		elif self.env_name == "paired_by_sharing_goals":
 			self.obs_input_dim = 2*4
 			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 			self.obs_act_output_dim = 64
-			self.final_input_dim = 128#self.obs_act_output_dim
+			self.final_input_dim = self.obs_act_output_dim
 			self.final_output_dim = 1
 			self.critic_network = ScalarDotProductCriticNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 64
-			self.final_input_dim = 128#self.obs_output_dim
+			self.final_input_dim = self.obs_output_dim
 			self.final_output_dim = self.num_actions
-			self.policy_network = ScalarDotProductPolicyNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.policy_network = ScalarDotProductPolicyNetwork(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 		elif self.env_name == "crowd_nav":
 			self.obs_agent_input_dim = 2*3
@@ -117,7 +114,7 @@ class A2CAgent:
 			self.obs_act_people_output_dim = 64
 			self.final_input_dim = self.obs_act_agent_output_dim + self.obs_act_people_output_dim
 			self.final_output_dim = 1
-			self.critic_network = ScalarDotProductCriticNetworkDualAttention(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_act_agent_input_dim, self.obs_act_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.obs_act_people_input_dim, self.obs_act_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_people, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network = ScalarDotProductCriticNetworkDualAttention(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_act_agent_input_dim, self.obs_act_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.obs_act_people_input_dim, self.obs_act_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_others, self.num_actions, self.softmax_cut_threshold).to(self.device)
 			
 			self.obs_agent_input_dim = 2*3
 			self.obs_agent_output_dim = 64
@@ -125,7 +122,7 @@ class A2CAgent:
 			self.obs_people_output_dim = 64
 			self.final_input_dim = self.obs_agent_output_dim + self.obs_people_output_dim
 			self.final_output_dim = self.num_actions
-			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_people, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_agent_input_dim, self.obs_agent_output_dim, self.obs_people_input_dim, self.obs_people_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_others, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 		elif self.env_name == "predator_prey":
 			self.obs_predator_input_dim = 2*2
@@ -138,7 +135,7 @@ class A2CAgent:
 			self.obs_act_prey_output_dim = 64
 			self.final_input_dim = self.obs_act_predator_output_dim + self.obs_act_prey_output_dim
 			self.final_output_dim = 1
-			self.critic_network = ScalarDotProductCriticNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_act_predator_input_dim, self.obs_act_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.obs_act_prey_input_dim, self.obs_act_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_predators, self.num_preys, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network = ScalarDotProductCriticNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_act_predator_input_dim, self.obs_act_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.obs_act_prey_input_dim, self.obs_act_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_others, self.num_actions, self.softmax_cut_threshold).to(self.device)
 			
 			self.obs_predator_input_dim = 2*2
 			self.obs_predator_output_dim = 64
@@ -146,7 +143,7 @@ class A2CAgent:
 			self.obs_prey_output_dim = 64
 			self.final_input_dim = self.obs_predator_output_dim + self.obs_prey_output_dim
 			self.final_output_dim = self.num_actions
-			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_predators, self.num_preys, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_others, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 		if self.critic_loss_type == "td_1":
 			self.critic_network_target = copy.deepcopy(self.critic_network)
@@ -267,19 +264,19 @@ class A2CAgent:
 
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_people=None,next_states_critic_people=None,one_hot_actions_people=None,one_hot_next_actions_people=None,states_actor_people=None,next_states_actor_people=None):
+	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,states_critic_other=None,next_states_critic_other=None,one_hot_actions_other=None,one_hot_next_actions_other=None,states_actor_other=None,next_states_actor_other=None):
 
 		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
 			
 			probs, weight_policy = self.policy_network.forward(states_actor)
 
 
-			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			V_values, weight_proc_V, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-		elif self.env_name in ["crowd_nav"]:
-			probs, weight_policy, weight_policy_people = self.policy_network.forward(states_actor,states_actor_people)
+		elif self.env_name in ["crowd_nav", "predator_prey"]:
+			probs, weight_policy, weight_policy_other = self.policy_network.forward(states_actor,states_actor_other)
 
-			V_values, weights, weights_people = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions, states_critic_people, one_hot_actions_people)
+			V_values, weights, weights_other = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions, states_critic_other, one_hot_actions_other)
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		
 	# # ***********************************************************************************
@@ -292,11 +289,11 @@ class A2CAgent:
 
 		elif self.critic_loss_type == "td_1":
 			if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
-				next_probs, _ = self.policy_network.forward(next_states_actor)
-				V_values_next, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-			elif self.env_name in ["crowd_nav"]:
-				next_probs, _, _ = self.policy_network.forward(next_states_actor, next_states_actor_people)
-				V_values_next, _, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions, next_states_critic_people, one_hot_actions_people)
+				next_probs, _, _ = self.policy_network.forward(next_states_actor)
+				V_values_next, _, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			elif self.env_name in ["crowd_nav", "predator_prey"]:
+				next_probs, _, _ = self.policy_network.forward(next_states_actor, next_states_actor_other)
+				V_values_next, _, _ = self.critic_network_target.forward(next_states_critic, next_probs.detach(), one_hot_next_actions, next_states_critic_other, one_hot_actions_other)
 
 			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 			V_values_target = rewards.unsqueeze(-1) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
@@ -363,6 +360,6 @@ class A2CAgent:
 
 		# V values
 		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
-			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
-		elif self.env_name in ["crowd_nav"]:
-			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_people, weight_policy_people
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weight_proc_V
+		elif self.env_name in ["crowd_nav", "predator_prey"]:
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_other, weight_policy_other
