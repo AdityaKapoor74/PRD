@@ -28,10 +28,10 @@ if __name__ == '__main__':
 
 	# experiment_type = "greedy_policy"
 	# experiment_type = "top"
-	experiment_type = "without_prd"
+	# experiment_type = "without_prd"
 	# experiment_type = "without_prd_mean"
 	# experiment_type = "with_prd_soft_adv_scaled"
-	# experiment_type = "with_prd_soft_adv"
+	experiment_type = "with_prd_soft_adv"
 
 
 	# env = make_env(scenario_name="multi_circular",benchmark=False)
@@ -54,25 +54,27 @@ if __name__ == '__main__':
 			"value_lr": 1e-3, #1e-2 for single head
 			"policy_lr": 5e-4, # 2e-4 for single head
 			"entropy_pen": 0.008, #0.008,
-			"l1_pen":0.0, 
+			"l1_pen":0.01, 
 			"gamma": 0.99,
 			"trace_decay": .98,
 			"select_above_threshold": 0.1,
 			"softmax_cut_threshold": 0.1,
 			"top_k": 2,
-			"gif": True,
+			"gif": False,
 			"save": True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
 			# "critic_version":10,
 			# "critic_version":3,
 			"critic_version":'mlp',
-			"policy_version":2,
+			"policy_version":'mlp',
 			"obs_act_output_dim":64,
 			"anneal_l1_pen":False,
+			# "anneal_rate":.0001,
 			"critic_loss_type":"td_lambda",
 			# "critic_loss_type":"monte_carlo",
-			"td_lambda":0.8
+			"td_lambda":0.8,
+			"critic_ent_pen":0.0
 
 		}
 

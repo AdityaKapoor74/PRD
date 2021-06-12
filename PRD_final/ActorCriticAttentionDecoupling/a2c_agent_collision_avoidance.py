@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c_collision_avoidance import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
 from a2c_paired_agents import ScalarDotProductCriticNetworkV5,ScalarDotProductCriticNetworkV9,ScalarDotProductCriticNetworkV10,ScalarDotProductCriticNetworkV3,ScalarDotProductPolicyNetworkV2
-from a2c_paired_agents import MLPCriticNetwork
+from a2c_paired_agents import MLPCriticNetwork,MLPPolicyNetwork
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -26,6 +26,7 @@ class A2CAgent:
 		self.trace_decay = dictionary["trace_decay"]
 		self.top_k = dictionary["top_k"]
 		self.l1_pen = dictionary["l1_pen"]
+		self.critic_ent_pen = dictionary["critic_ent_pen"]
 		self.anneal_l1_pen = dictionary["anneal_l1_pen"]
 		if self.anneal_l1_pen:
 			print("WHY?!?!?!?!")
@@ -104,6 +105,9 @@ class A2CAgent:
 		elif dictionary["policy_version"] == 2:
 			print('USING POLICY VERSION 2!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1')
 			self.policy_network = ScalarDotProductPolicyNetworkV2(self.obs_input_dim, self.obs_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+		elif dictionary["policy_version"] == 'mlp':
+			print('USING MLP POLICY!')
+			self.policy_network = MLPPolicyNetwork(self.obs_input_dim,self.num_agents,self.num_actions).to(self.device)
 
 
 		# MLP POLICY
@@ -252,13 +256,15 @@ class A2CAgent:
 		weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
 		# print('weights_off_diagonal: ', weights_off_diagonal)
 		l1_weights = torch.mean(weights_off_diagonal)
+
+		weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 		
 		if not self.anneal_l1_pen:
 			if self.critic_loss_type == 'monte_carlo':
-				value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.l1_pen*l1_weights
+				value_loss = F.smooth_l1_loss(V_values,discounted_rewards) + self.l1_pen*l1_weights + self.critic_ent_pen*weight_entropy
 			elif self.critic_loss_type == 'td_lambda':
 				V_values_target = self.nstep_returns(V_values, rewards, dones)
-				value_loss = F.smooth_l1_loss(V_values,V_values_target.detach()) + self.l1_pen*l1_weights
+				value_loss = F.smooth_l1_loss(V_values,V_values_target.detach()) + self.l1_pen*l1_weights + self.critic_ent_pen*weight_entropy
 			else:
 				assert False
 		else:

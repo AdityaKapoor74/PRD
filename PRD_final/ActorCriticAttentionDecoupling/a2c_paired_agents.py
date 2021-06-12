@@ -227,6 +227,40 @@ class MLPCriticNetwork(nn.Module):
 
 		return V, 1/self.num_agents*torch.ones((T,self.num_agents,self.num_agents),device=self.device)
 
+class MLPPolicyNetwork(nn.Module):
+	def __init__(self,state_dim,num_agents,action_dim):
+		super(MLPPolicyNetwork,self).__init__()
+
+		self.state_dim = state_dim
+		self.num_agents = num_agents		
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+		self.fc1 = nn.Linear(state_dim*num_agents,128)
+		self.fc2 = nn.Linear(128,128)
+		self.fc3 = nn.Linear(128,action_dim)
+
+	def forward(self, states):
+
+		# T x num_agents x state_dim
+		T = states.shape[0]
+		
+		states_aug = [torch.roll(states,i,1) for i in range(self.num_agents)]
+
+		states_aug = torch.cat(states_aug,dim=2)
+
+		x = self.fc1(states_aug)
+		x = nn.ReLU()(x)
+		x = self.fc2(x)
+		x = nn.ReLU()(x)
+		x = self.fc3(x)
+
+		Policy = F.softmax(x, dim=-1)
+
+		return Policy, 1/self.num_agents*torch.ones((T,self.num_agents,self.num_agents),device=self.device)
+
+		
+
 
 
 
