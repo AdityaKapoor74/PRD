@@ -151,13 +151,9 @@ class MAA2C:
 
 			# ENTROPY OF WEIGHTS
 			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			# self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
-
-			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
-
 			experiment.log_metric('weigth_entropy',entropy_weights.item(),episode)
-			experiment.log_metric('weigths_policy_entropy',entropy_weights.item(),episode)
+			entropy_weights_policy = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+			experiment.log_metric('weigths_policy_entropy',entropy_weights_policy.item(),episode)
 
 
 	def split_states(self,states):
