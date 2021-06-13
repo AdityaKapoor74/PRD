@@ -40,7 +40,7 @@ if __name__ == '__main__':
 	parser.add_argument("--value_lr", default=1e-2, type=float)
 	parser.add_argument("--tau", default=1e-3, type=float)
 	parser.add_argument("--policy_lr", default=1e-3, type=float)
-	parser.add_argument("--entropy_pen", default=8e-3, type=float)
+	parser.add_argument("--entropy_pen", default=0.0, type=float)
 	parser.add_argument("--trace_decay", default=0.98, type=float)
 	parser.add_argument("--gamma", default=0.99, type=float)
 	parser.add_argument("--select_above_threshold", default=0.1, type=float)
