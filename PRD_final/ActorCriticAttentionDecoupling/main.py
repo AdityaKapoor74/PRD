@@ -29,17 +29,17 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--environment", default="crossing", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
+	parser.add_argument("--environment", default="predator_prey", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
 	parser.add_argument("--experiment_type", default="without_prd", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
-	parser.add_argument("--save", default=False , type=bool)
+	parser.add_argument("--save", default=True , type=bool)
 	parser.add_argument("--learn", default=True , type=bool)
 	parser.add_argument("--gif", default=False , type=bool)
 	parser.add_argument("--gif_checkpoint", default= 1, type=int)
 	parser.add_argument("--max_episodes", default=50000, type=int)
-	parser.add_argument("--max_time_steps", default=2, type=int)
+	parser.add_argument("--max_time_steps", default=100, type=int)
 	parser.add_argument("--value_lr", default=1e-2, type=float)
 	parser.add_argument("--tau", default=1e-3, type=float)
-	parser.add_argument("--policy_lr", default=1e-3, type=float)
+	parser.add_argument("--policy_lr", default=5e-4, type=float)
 	parser.add_argument("--entropy_pen", default=1e-3, type=float)
 	parser.add_argument("--trace_decay", default=0.98, type=float)
 	parser.add_argument("--gamma", default=0.99, type=float)
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 	parser.add_argument("--entropy_pen_end", default= 0.0, type=float)
 	parser.add_argument("--entropy_pen_decay", default= 0.0, type=float)
 	parser.add_argument("--num_agents", default= 4, type=int)
-	parser.add_argument("--num_others", default= 5, type=int)
+	parser.add_argument("--num_others", default= 3, type=int)
 	parser.add_argument("--action_type", default = 0, type=int)
 	
 	
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 	elif arguments.environment == "crowd_nav":
 		extender = "/4_Humans_4_Agents"
 	elif arguments.environment == "predator_prey":
-		extender = "/2_Predators_1_Preys"
+		extender = "/4_Predators_3_Preys"
 	elif arguments.environment == "crossing":
 		extender = "/8_Agents"
 
