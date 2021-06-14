@@ -30,7 +30,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--environment", default="predator_prey", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
-	parser.add_argument("--experiment_type", default="with_prd_soft_adv", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
+	parser.add_argument("--experiment_type", default="without_prd", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
 	parser.add_argument("--save", default=True , type=bool)
 	parser.add_argument("--learn", default=True , type=bool)
 	parser.add_argument("--gif", default=False , type=bool)
