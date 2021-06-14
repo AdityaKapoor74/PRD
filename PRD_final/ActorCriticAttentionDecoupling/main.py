@@ -30,7 +30,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--environment", default="predator_prey", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
-	parser.add_argument("--experiment_type", default="with_prd_soft_adv", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
+	parser.add_argument("--experiment_type", default="greedy_policy", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
 	parser.add_argument("--save", default=True , type=bool)
 	parser.add_argument("--learn", default=True , type=bool)
 	parser.add_argument("--gif", default=False , type=bool)
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 	parser.add_argument("--value_lr", default=1e-2, type=float)
 	parser.add_argument("--tau", default=1e-3, type=float)
 	parser.add_argument("--policy_lr", default=1e-3, type=float)
-	parser.add_argument("--entropy_pen", default=1e-5, type=float)
+	parser.add_argument("--entropy_pen", default=1e-3, type=float)
 	parser.add_argument("--trace_decay", default=0.98, type=float)
 	parser.add_argument("--gamma", default=0.99, type=float)
 	parser.add_argument("--select_above_threshold", default=0.1, type=float)
@@ -81,16 +81,63 @@ if __name__ == '__main__':
 	elif arguments.environment == "crowd_nav":
 		extender = "/4_Humans_4_Agents"
 	elif arguments.environment == "predator_prey":
-		extender = "/4_Predators_3_Preys"
+		extender = "/4_Predators_3_Preys_MLP_Policy"
 	elif arguments.environment == "crossing":
 		extender = "/8_Agents"
 
-	for run in range(1):
-		dictionary = {
-			"critic_dir": arguments.store_model+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/critic_networks/',
-			"actor_dir": arguments.store_model+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/actor_networks/',
-			"tensorboard_dir": arguments.save_runs+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/',
-			"gif_dir": arguments.save_gifs+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/',
+	# for run in range(1):
+		# dictionary = {
+		# 	"critic_dir": arguments.store_model+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/critic_networks/',
+		# 	"actor_dir": arguments.store_model+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/actor_networks/',
+		# 	"tensorboard_dir": arguments.save_runs+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/',
+		# 	"gif_dir": arguments.save_gifs+str(run)+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/',
+		# 	"env": arguments.environment, 
+		# 	"value_lr": arguments.value_lr,
+		# 	"tau": arguments.tau,
+		# 	"policy_lr": arguments.policy_lr,
+		# 	"entropy_pen": arguments.entropy_pen, 
+		# 	"gamma": arguments.gamma,
+		# 	"trace_decay": arguments.trace_decay,
+		# 	"select_above_threshold": arguments.select_above_threshold,
+		# 	"softmax_cut_threshold": arguments.softmax_cut_threshold,
+		# 	"top_k": arguments.top_k,
+		# 	"gif": arguments.gif,
+		# 	"save": arguments.save,
+		# 	"max_episodes": arguments.max_episodes,
+		# 	"max_time_steps": arguments.max_time_steps,
+		# 	"experiment_type": arguments.experiment_type,
+		# 	"td_lambda": arguments.td_lambda,
+		# 	"critic_loss_type": arguments.critic_loss_type,
+		# 	"critic_update_type": arguments.critic_update_type,
+		# 	"gae": arguments.gae,
+		# 	"norm_adv": arguments.norm_adv,
+		# 	"norm_rew": arguments.norm_rew,
+		# 	"load_models": arguments.load_models,
+		# 	"critic_saved_path": arguments.critic_saved_path,
+		# 	"actor_saved_path": arguments.actor_saved_path,
+		# 	"l1_pen": arguments.l1_pen, 
+		# 	"anneal_entropy_pen": arguments.anneal_entropy_pen,
+		# 	"entropy_pen_end": arguments.entropy_pen_end,
+		# 	"entropy_pen_decay": arguments.entropy_pen_decay,
+		# 	"critic_update_interval": arguments.critic_update_interval,
+		# 	"num_others": arguments.num_others,
+		# 	"num_agents": arguments.num_agents,
+		# 	"learn": arguments.learn,
+		# 	"policy_eval_dir": arguments.policy_eval_dir+str(run),
+		# 	"gif_checkpoint": arguments.gif_checkpoint,
+		# 	"action_type": arguments.action_type,
+		# }
+
+		
+		# env = make_env(scenario_name=dictionary["env"],benchmark=False)
+		# ma_controller = MAA2C(env,dictionary)
+		# ma_controller.run()
+
+	dictionary = {
+			"critic_dir": arguments.store_model+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/critic_networks/',
+			"actor_dir": arguments.store_model+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/actor_networks/',
+			"tensorboard_dir": arguments.save_runs+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/',
+			"gif_dir": arguments.save_gifs+'/'+arguments.environment+'/'+arguments.experiment_type+extender+'/',
 			"env": arguments.environment, 
 			"value_lr": arguments.value_lr,
 			"tau": arguments.tau,
@@ -129,6 +176,6 @@ if __name__ == '__main__':
 		}
 
 		
-		env = make_env(scenario_name=dictionary["env"],benchmark=False)
-		ma_controller = MAA2C(env,dictionary)
-		ma_controller.run()
+	env = make_env(scenario_name=dictionary["env"],benchmark=False)
+	ma_controller = MAA2C(env,dictionary)
+	ma_controller.run()

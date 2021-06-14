@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
-from a2c import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork, ScalarDotProductCriticNetworkDualAttention, ScalarDotProductPolicyNetworkDualAttention, ScalarDotProductCriticNetworkRevised, ScalarDotProductPolicyNetworkRevised
+from a2c import ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork, ScalarDotProductCriticNetworkDualAttention, ScalarDotProductPolicyNetworkDualAttention, ScalarDotProductCriticNetworkRevised, ScalarDotProductPolicyNetworkRevised, MLPPolicyNetwork
 import torch.nn.functional as F
 import copy
 
@@ -137,13 +137,17 @@ class A2CAgent:
 			self.final_output_dim = 1
 			self.critic_network = ScalarDotProductCriticNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_act_predator_input_dim, self.obs_act_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.obs_act_prey_input_dim, self.obs_act_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_others, self.num_actions, self.softmax_cut_threshold).to(self.device)
 			
-			self.obs_predator_input_dim = 2*2
-			self.obs_predator_output_dim = 64
-			self.obs_prey_input_dim = 2*2 # (pose,vel,goal pose, paired agent goal pose) --> observations 
-			self.obs_prey_output_dim = 64
-			self.final_input_dim = self.obs_predator_output_dim + self.obs_prey_output_dim
-			self.final_output_dim = self.num_actions
-			self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_others, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			# self.obs_predator_input_dim = 2*2
+			# self.obs_predator_output_dim = 64
+			# self.obs_prey_input_dim = 2*2 # (pose,vel,goal pose, paired agent goal pose) --> observations 
+			# self.obs_prey_output_dim = 64
+			# self.final_input_dim = self.obs_predator_output_dim + self.obs_prey_output_dim
+			# self.final_output_dim = self.num_actions
+			# self.policy_network = ScalarDotProductPolicyNetworkDualAttention(self.obs_predator_input_dim, self.obs_predator_output_dim, self.obs_prey_input_dim, self.obs_prey_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_others, self.num_actions, self.softmax_cut_threshold).to(self.device)
+
+			# MLP POLICY
+			self.obs_dim = 2*2
+			self.policy_network = MLPPolicyNetwork(self.obs_dim, self.num_agents, self.num_others, self.num_actions).to(self.device)
 
 		if self.critic_loss_type == "td_1":
 			self.critic_network_target = copy.deepcopy(self.critic_network)

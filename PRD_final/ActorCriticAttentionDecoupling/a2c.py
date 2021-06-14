@@ -191,7 +191,7 @@ class ScalarDotProductPolicyNetwork(nn.Module):
 
 
 	def forward(self, states):
-		
+
 		# KEYS
 		key_obs = self.key_layer(states)
 		# QUERIES
@@ -360,6 +360,43 @@ class ScalarDotProductCriticNetworkDualAttention(nn.Module):
 		Value = self.final_value_layer_2(Value)
 
 		return Value, ret_weight, weight_other
+
+
+
+class MLPPolicyNetwork(nn.Module):
+	def __init__(self,state_dim,num_agents,num_others,action_dim):
+		super(MLPPolicyNetwork,self).__init__()
+
+		self.state_dim = state_dim
+		self.num_agents = num_agents	
+		self.num_others = num_others	
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+		self.fc1 = nn.Linear(state_dim*(num_agents+num_others),128)
+		self.fc2 = nn.Linear(128,128)
+		self.fc3 = nn.Linear(128,action_dim)
+
+	def forward(self, states, states_other):
+
+		# T x num_agents x state_dim
+		T = states.shape[0]
+		
+		states_aug = [torch.roll(states,i,1) for i in range(self.num_agents)]
+
+		states_aug = torch.cat(states_aug,dim=2)
+		states_prey = states_other.reshape(states_other.shape[0],-1).unsqueeze(-2).repeat(1,states_aug.shape[1],1)
+		states_predator_prey = torch.cat([states_aug,states_prey], dim=-1)
+
+		x = self.fc1(states_predator_prey)
+		x = nn.ReLU()(x)
+		x = self.fc2(x)
+		x = nn.ReLU()(x)
+		x = self.fc3(x)
+
+		Policy = F.softmax(x, dim=-1)
+
+		return Policy, 1/self.num_agents*torch.ones((T,self.num_agents,self.num_agents),device=self.device), 1/self.num_agents*torch.ones((T,self.num_agents,self.num_agents),device=self.device)
 
 
 
