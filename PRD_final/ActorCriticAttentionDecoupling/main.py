@@ -30,7 +30,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--environment", default="predator_prey", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
-	parser.add_argument("--experiment_type", default="with_prd_soft_adv", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
+	parser.add_argument("--experiment_type", default="without_prd", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
 	parser.add_argument("--save", default=True , type=bool)
 	parser.add_argument("--learn", default=True , type=bool)
 	parser.add_argument("--gif", default=False , type=bool)
@@ -55,8 +55,8 @@ if __name__ == '__main__':
 	parser.add_argument("--critic_update_type", default= "soft", type=str) # soft, hard
 	parser.add_argument("--critic_update_interval", default= 100, type=int)
 	parser.add_argument("--gae", default= True, type=bool)
-	parser.add_argument("--norm_adv", default= True, type=bool)
-	parser.add_argument("--norm_rew", default= False, type=bool)
+	parser.add_argument("--norm_adv", default= False, type=bool)
+	parser.add_argument("--norm_rew", default= True, type=bool)
 	parser.add_argument("--load_models", default= False, type=bool)
 	parser.add_argument("--critic_saved_path", default= "../../../models/0/predator_prey/without_prd/2_Predators_3_Preys/critic_networks/13-06-2021VN_ATN_FCN_lr0.01_PN_ATN_FCN_lr0.001_GradNorm0.5_Entropy0.001_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_episode50000.pt", type=str)
 	parser.add_argument("--actor_saved_path", default= "../../../models/0/predator_prey/without_prd/2_Predators_3_Preys/actor_networks/13-06-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.001_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_tau0.001_select_above_threshold0.1_tdlambda0.8_l1pen0.0softtd_lambda_episode50000.pt", type=str)
