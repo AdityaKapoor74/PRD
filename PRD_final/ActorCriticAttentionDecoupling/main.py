@@ -170,7 +170,7 @@ if __name__ == '__main__':
 			"num_others": arguments.num_others,
 			"num_agents": arguments.num_agents,
 			"learn": arguments.learn,
-			"policy_eval_dir": arguments.policy_eval_dir+str(run),
+			"policy_eval_dir": arguments.policy_eval_dir,
 			"gif_checkpoint": arguments.gif_checkpoint,
 			"action_type": arguments.action_type,
 		}
