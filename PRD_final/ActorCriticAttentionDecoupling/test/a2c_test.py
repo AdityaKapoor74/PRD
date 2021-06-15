@@ -157,7 +157,6 @@ class StateOnlyGATCritic(nn.Module):
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
-		print(Value.shape)
 
 		Value = torch.stack(self.num_agents*[Value],2)
 
@@ -193,9 +192,7 @@ class StateOnlyMLPCritic(nn.Module):
 		x = nn.ReLU()(x)
 		V = self.fc3(x)
 
-		print(V.shape)
 		V = torch.stack(self.num_agents*[V],2)
-		print(V.shape)
 
 		return V, 1/self.num_agents*torch.ones((T,self.num_agents,self.num_agents),device=self.device)
 

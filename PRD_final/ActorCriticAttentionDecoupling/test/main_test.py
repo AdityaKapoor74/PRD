@@ -30,10 +30,10 @@ extension = "MLP_CRITIC_STATE" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_
 test_num = "test1"
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
-			"actor_dir": '../../../tests/'+test_num+'/models/'+extension+'/actor_networks/',
-			"tensorboard_dir":'../../../tests/'+test_num+'/runs/'+extension+'/',
-			"gif_dir": '../../../tests/'+test_num+'/gifs/'+extension+'/',
+			"critic_dir": '../../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
+			"actor_dir": '../../../../tests/'+test_num+'/models/'+extension+'/actor_networks/',
+			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+extension+'/',
+			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+extension+'/',
 			"env": "paired_by_sharing_goals", 
 			"value_lr": 1e-2, #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
