@@ -429,6 +429,161 @@ class ScalarDotProductCriticNetworkV10(nn.Module):
 
 		return Value, ret_weight
 
+
+class ScalarDotProductCriticNetworkV11(nn.Module):
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
+		super(ScalarDotProductCriticNetworkV11, self).__init__()
+		
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+		obs_dim = obs_act_input_dim - num_actions
+
+		self.obs_emb     = nn.Sequential(nn.Linear(obs_dim,obs_act_output_dim),nn.LeakyReLU())
+		self.key_proc_layer = nn.Linear(obs_act_output_dim, obs_output_dim)
+		self.query_proc_layer = nn.Linear(obs_act_output_dim, obs_output_dim)
+		self.attention_value_proc_layer = nn.Linear(obs_act_output_dim, obs_output_dim)
+		# dimesion of key
+		self.d_k_obs_proc = obs_output_dim
+
+
+		self.key_layer = nn.Linear(obs_output_dim, final_input_dim)
+		self.query_layer = nn.Linear(obs_output_dim, final_input_dim)
+		self.obs_act_emb = nn.Sequential(nn.Linear(obs_act_input_dim, obs_act_output_dim),nn.LeakyReLU())
+		self.attention_value_layer = nn.Linear(obs_act_output_dim, final_input_dim)
+
+		# dimesion of key
+		self.d_k_obs = final_input_dim
+
+		
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layer_1 = nn.Linear(2*final_input_dim, 256)
+		self.final_value_layer_2 = nn.Linear(256, final_output_dim)
+		# ********************************************************************************************************	
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+		self.obs_act_input_dim = obs_act_input_dim
+		# ********************************************************************************************************* 
+
+		# self.reset_parameters()
+
+
+	def mixing_actions_policies(self):
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(self.obs_act_input_dim)
+		zero_hots = torch.zeros(self.obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.key_proc_layer.weight)
+		nn.init.xavier_uniform_(self.query_proc_layer.weight)
+		nn.init.xavier_uniform_(self.attention_value_proc_layer.weight)
+
+		nn.init.xavier_uniform_(self.key_layer.weight)
+		nn.init.xavier_uniform_(self.query_layer.weight)
+		nn.init.xavier_uniform_(self.embed_obs_act_pol.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer.weight)
+
+
+		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain_leaky)
+
+
+
+	def forward(self, states, policies, actions):
+
+		# embed states
+		states_emb = self.obs_emb(states)
+		# KEYS
+		key_obs_proc = self.key_proc_layer(states_emb)
+		# QUERIES
+		query_obs_proc = self.query_proc_layer(states_emb)
+		# ATTENTION VALUES
+		attention_values_proc = self.attention_value_proc_layer(states_emb)
+		
+
+		attention_values_proc = attention_values_proc.repeat(1,self.num_agents,1).reshape(attention_values_proc.shape[0],self.num_agents,self.num_agents,-1)
+		# WEIGHTS
+		score_obs_proc = torch.bmm(query_obs_proc,key_obs_proc.transpose(1,2)).reshape(-1,1)
+		score_obs_proc = score_obs_proc.reshape(-1,self.num_agents,1)
+		weight_1 = F.softmax(score_obs_proc/math.sqrt(self.d_k_obs_proc), dim=-2)
+		weight_1 = weight_1.reshape(weight_1.shape[0]//self.num_agents,self.num_agents,self.num_agents,1)
+		nfv = torch.sum(weight_1*attention_values_proc, dim=-2)
+
+		# KEYS
+		keys_obs_embed = self.key_layer(nfv)
+		# QUERIES
+		query_obs_embed = self.query_layer(nfv)
+		# WEIGHTS
+		score_obs_embed = torch.bmm(query_obs_embed,keys_obs_embed.transpose(1,2)).reshape(-1,1)
+		score_obs_embed = score_obs_embed.reshape(-1,self.num_agents,1)
+		weight_2 = F.softmax(score_obs_embed/math.sqrt(self.d_k_obs), dim=-2)
+		weight_2 = weight_2.reshape(weight_2.shape[0]//self.num_agents,self.num_agents,-1)
+		ret_weight = weight_2
+		
+
+		# obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+
+
+		# obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+
+		# # RANDOMIZING NUMBER OF AGENTS
+		# # self.mixing_actions_policies()
+
+		# obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+
+		# get obs action_policies
+		obs_actions = torch.cat([states,actions],dim=-1)
+		obs_policy = torch.cat([states,policies], dim=-1)
+		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+
+
+		# embed obs_actions_policies
+		obs_actions_emb = self.obs_act_emb(obs_actions_policies)
+
+		# get attention values
+		attention_values = self.attention_value_layer(obs_actions_emb)
+		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		weight_2 = weight_2.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+		weighted_attention_values = attention_values*weight_2
+		#aggregate them with attention
+		weighted_attention_values = attention_values*weight_2
+		nfv2 = torch.sum(weighted_attention_values, dim=-2)
+
+		# concat with nfv
+		# nfv: 
+		# T x N x d
+		# T x 1 x N x d
+		# T x N x N x d
+		nfv = nfv.unsqueeze(1).repeat(1,self.num_agents,1,1)
+		nfv = torch.cat([nfv,nfv2],dim=-1)
+		
+		# pass thru final layers of attention
+		Value = F.leaky_relu(self.final_value_layer_1(nfv))
+		Value = self.final_value_layer_2(Value)
+
+
+		return Value, ret_weight
+
 class ScalarDotProductCriticNetworkV9(nn.Module):
 	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
 		super(ScalarDotProductCriticNetworkV9, self).__init__()

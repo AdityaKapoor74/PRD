@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from torch.distributions import Categorical
 from a2c_collision_avoidance import PolicyNetwork, ScalarDotProductCriticNetwork, ScalarDotProductPolicyNetwork
 from a2c_paired_agents import ScalarDotProductCriticNetworkV5,ScalarDotProductCriticNetworkV9,ScalarDotProductCriticNetworkV10,ScalarDotProductCriticNetworkV3,ScalarDotProductPolicyNetworkV2
-from a2c_paired_agents import MLPCriticNetwork,MLPPolicyNetwork,ScalarDotProductCriticNetworkBen
+from a2c_paired_agents import MLPCriticNetwork,MLPPolicyNetwork,ScalarDotProductCriticNetworkBen, ScalarDotProductCriticNetworkV11
 import torch.nn.functional as F
 
 class A2CAgent:
@@ -98,6 +98,8 @@ class A2CAgent:
 		elif dictionary["critic_version"] == "ben":
 																      # obs_act_input_dim,      obs_act_output_dim,      final_input_dim,      final_output_dim,            num_agents, num_actions
 			self.critic_network = ScalarDotProductCriticNetworkBen(self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
+		elif dictionary["critic_version"] == 11:
+			self.critic_network = ScalarDotProductCriticNetworkV11(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions).to(self.device)
 
 
 		# SCALAR DOT PRODUCT POLICY NETWORK
