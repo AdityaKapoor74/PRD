@@ -245,6 +245,8 @@ class MLPPolicyNetwork(nn.Module):
 		# T x num_agents x state_dim
 		T = states.shape[0]
 		
+		# [s0;s1;s2;s3]  -> [s0 s1 s2 s3; s1 s2 s3 s0; s2 s3 s1 s0 ....]
+
 		states_aug = [torch.roll(states,i,1) for i in range(self.num_agents)]
 
 		states_aug = torch.cat(states_aug,dim=2)
@@ -999,6 +1001,7 @@ class ScalarDotProductCriticNetworkV5(nn.Module):
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
 
+
 		return Value, ret_weight
 
 
@@ -1434,6 +1437,83 @@ class ScalarDotProductCriticNetworkV2(nn.Module):
 		Value = self.final_value_layer_2(Value)
 
 		return Value, ret_weight
+
+class ScalarDotProductCriticNetworkBen(nn.Module):
+	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
+		super(ScalarDotProductCriticNetworkBen, self).__init__()
+
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		obs_dim = obs_act_input_dim - num_actions
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+		self.obs_policy_emb     = nn.Sequential(nn.Linear(obs_act_input_dim,obs_act_output_dim),nn.LeakyReLU())
+		self.obs_act_emb = nn.Sequential(nn.Linear(obs_act_input_dim,obs_act_output_dim),nn.LeakyReLU())
+		self.key_layer = nn.Linear(obs_act_output_dim, obs_act_output_dim, bias=False)
+
+		self.query_layer = nn.Linear(obs_act_output_dim, obs_act_output_dim, bias=False)
+
+		self.value_layer = nn.Linear(obs_act_output_dim, obs_act_output_dim, bias=False)
+
+		self.final_value_layer_1 = nn.Linear(final_input_dim, obs_act_output_dim)
+		self.final_value_layer_2 = nn.Linear(obs_act_output_dim, final_output_dim)
+
+		# dimesion of key
+		self.d_k_obs_act = obs_act_output_dim
+
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		for j in range(self.num_agents):
+			self.place_policies[j,j,:] = one_hots
+			self.place_actions[j,j,:] = zero_hots
+
+	def forward(self, states, policies, actions):
+
+
+		# embed states and policies
+		states_policies = torch.cat([states,policies],dim=-1)
+		states_policies_emb = self.obs_policy_emb(states_policies)
+
+		# get attention weights
+		keys = self.key_layer(states_policies_emb)
+		queries = self.query_layer(states_policies_emb)
+		scores = 1/np.sqrt(self.d_k_obs_act)*torch.matmul(queries,keys.transpose(-1,-2))
+		weights = F.softmax(scores,dim=-1)
+
+		ret_weights = weights
+		# print('ret_weights.shape: ', ret_weights.shape)
+		# T x N x N
+		# T x 1 x N x N
+		# T x N x N x N
+		weights = weights.unsqueeze(1).repeat(1,self.num_agents,1,1)
+
+		obs_policy = states_policies
+		obs_actions = torch.cat([states,actions],dim=-1)
+		# T x N x d
+		# T x 1 x N x d
+		# T x N x N x d
+		obs_actions = obs_actions.unsqueeze(1).repeat(1,self.num_agents,1,1)
+		obs_policy  =  obs_policy.unsqueeze(1).repeat(1,self.num_agents,1,1)
+		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+		obs_actions_emb = self.obs_act_emb(obs_actions_policies)
+		attention_values = self.value_layer(obs_actions_emb)
+
+		agg_values = torch.matmul(weights,attention_values)  # T x N x N x d?
+		agg_values = nn.LeakyReLU()(agg_values)
+		agg_values = F.leaky_relu(self.final_value_layer_1(agg_values))
+		Values = self.final_value_layer_2(agg_values)
+
+		return Values, ret_weights
+
+
+
+		
+
+
+
+
 
 
 
