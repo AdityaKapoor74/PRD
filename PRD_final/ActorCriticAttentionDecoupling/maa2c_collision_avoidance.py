@@ -10,7 +10,7 @@ import numpy as np
 from a2c_agent_collision_avoidance import A2CAgent
 import datetime
 
-experiment = Experiment('9mxH2vYX20hn9laEr0KtHLjAa',project_name="PRD2",disabled=False)
+experiment = Experiment('9mxH2vYX20hn9laEr0KtHLjAa',project_name="PRD3",disabled=False)
 
 
 class MAA2C:
