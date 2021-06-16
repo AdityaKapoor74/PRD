@@ -1,0 +1,84 @@
+# from maa2c import MAA2C
+# from maa2c_multi_circular import MAA2C
+from maa2c_collision_avoidance import MAA2C
+
+
+from multiagent.environment import MultiAgentEnv
+# from multiagent.scenarios.simple_spread import Scenario
+import multiagent.scenarios as scenarios
+import torch 
+import numpy as np
+
+def make_env(scenario_name, benchmark=False):
+	# load scenario from script
+	scenario = scenarios.load(scenario_name + ".py").Scenario()
+	# scenario = Scenario()
+	# create world
+	world = scenario.make_world()
+	# create multiagent environment
+	if benchmark:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+	else:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
+	return env
+
+
+
+if __name__ == '__main__':
+
+	# experiment_type = "greedy_policy"
+	# experiment_type = "top"
+	# experiment_type = "without_prd"
+	# experiment_type = "without_prd_mean"
+	# experiment_type = "with_prd_soft_adv_scaled"
+	experiment_type = "with_prd_soft_adv"
+
+
+	# env = make_env(scenario_name="multi_circular",benchmark=False)
+	# ma_controller = MAA2C(env,gif=False,save=True)
+	# ma_controller.run(1000000,100)
+
+	dictionary = {
+			"critic_dir": 'models/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/critic_networks/',
+			"actor_dir": 'models/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/actor_networks/',
+			"tensorboard_dir":'../../../runs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
+			"gif_dir": 'gifs/Scalar_dot_product/multi_circular/6_Agents/SingleAttentionMechanism/'+experiment_type+'/',
+			# "env": "multi_circular",
+			"env":"crossing",
+			# "env":"multi_circular_old", 
+			"experiment_type":experiment_type,
+			# "experiment_type":"greedy_policy",
+			# "experiment_type":"top",
+			# "experiment_type":"with_prd_soft_adv",
+			# "experiment_type":"with_prd_soft_adv_scaled",
+			# "experiment_type":"greedy_and_top",
+			"value_lr": 1e-3, #1e-2 for single head
+			"policy_lr": 2e-4, # 2e-4 for single head
+			"entropy_pen": 0.008, #0.008,
+			"l1_pen":0.0, 
+			"gamma": 0.99,
+			"trace_decay": .98,
+			"select_above_threshold": 0.1,
+			"softmax_cut_threshold": 0.1,
+			"top_k": 2,
+			"gif": False,
+			"save": True,
+			"max_episodes": 100000,
+			"max_time_steps": 100,
+			# "critic_version":10,
+			# "critic_version":3,
+			"critic_version":11,
+			"policy_version":'mlp',
+			"obs_act_output_dim":64,
+			"anneal_l1_pen":False,
+			# "anneal_rate":.0001,
+			"critic_loss_type":"td_lambda",
+			# "critic_loss_type":"monte_carlo",
+			"td_lambda":0.8,
+			"critic_ent_pen":0.0
+
+		}
+
+	env = make_env(scenario_name=dictionary["env"],benchmark=False)
+	ma_controller = MAA2C(env,dictionary)
+	ma_controller.run()
