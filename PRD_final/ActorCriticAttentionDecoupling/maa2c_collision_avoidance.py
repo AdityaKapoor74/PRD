@@ -22,7 +22,7 @@ class MAA2C:
 		experiment.log_parameter('n_agents',env.n)
 		experiment.log_parameter('col_pen',env.world.col_pen)
 		experiment.log_parameter('agent_size',env.world.agent_size)
-		experiment.add_tag('corrected PRD')
+		# experiment.add_tag('corrected PRD')
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save = dictionary["save"]
