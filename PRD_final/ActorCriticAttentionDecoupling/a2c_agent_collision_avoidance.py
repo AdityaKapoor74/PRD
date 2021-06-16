@@ -252,6 +252,9 @@ class A2CAgent:
 		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 
+		# print('discounted_rewards[0,0,:]: ', discounted_rewards[0,0,:])
+		# print('discounted_rewards[0,1,:]: ', discounted_rewards[0,1,:])
+
 		
 
 
@@ -301,7 +304,21 @@ class A2CAgent:
 			masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * masking_advantage,dim=-2)
 		elif self.experiment_type == "with_prd_soft_adv" or self.experiment_type == "with_prd_soft_adv_scaled":
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights.transpose(-1,-2) ,dim=-2)
+			
+			# advantage[t,i,j] = discounted reward for agent i -value est of agent i not cond on agent j's action
+			# weights[t,i,j]   = attention paid to agent j's action to compute agent i's value 
+			# weights[t,j,i]   = attention paid to agent i's action to compute agent j's value 
+			# weights[t,j,i]   = 0 means i's action does not impact j's reward
+			# if weights[t,i,j] = 0 it means that agent j's action doesn't impact agent i
+			# weights.T[t,i,j] = attention paid to agent i's action to compute agent j's value 
+
+			# print('weights.shape: ', weights.shape)
+			# print('weights.transpose(-1,-2): ', weights.transpose(-1,-2))
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * weights ,dim=-2)
+			
+			# A[t,j] = sum_over_i A[t,i,j] * w[t,j,i]
+			#                                ^ this should be zero when agent j's action does NOT impact agent i's reward
+
 		elif self.experiment_type == "greedy_policy":
 			
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones, True, False) * self.greedy_policy ,dim=-2)
