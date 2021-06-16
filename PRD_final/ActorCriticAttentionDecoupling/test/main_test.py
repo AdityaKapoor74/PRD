@@ -26,8 +26,8 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-extension = "GNN_CRITIC_STATE_ACTION" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION
-test_num = "test1"
+extension = "ALL" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL
+test_num = "test2"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
 			"gif": False,
-			"save": True,
+			"save": False,
 			"learn":True,
 			"max_episodes": 50000,
 			"max_time_steps": 100,

@@ -18,6 +18,7 @@ class MAA2C:
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save = dictionary["save"]
+		self.critic_type = dictionary["critic_type"]
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.num_agents = env.n
@@ -125,31 +126,41 @@ class MAA2C:
 		
 		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
-
-
 		if self.save:
-			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			if self.critic_type == "ALL":
+				self.writer.add_scalar('Loss/Value Loss (MLP_CRITIC_STATE)',value_loss[0].item(),episode)
+				self.writer.add_scalar('Loss/Value Loss (MLP_CRITIC_STATE_ACTION)',value_loss[1].item(),episode)
+				self.writer.add_scalar('Loss/Value Loss (GNN_CRITIC_STATE)',value_loss[2].item(),episode)
+				self.writer.add_scalar('Loss/Value Loss (GNN_CRITIC_STATE_ACTION)',value_loss[3].item(),episode)
 
-			self.calculate_indiv_weights(weights)
-			for i in range(self.num_agents):
-				agent_name = 'agent %d' % i
-				self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value (MLP_CRITIC_STATE)',grad_norm_value[0],episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value (MLP_CRITIC_STATE_ACTION)',grad_norm_value[1],episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value (GNN_CRITIC_STATE)',grad_norm_value[2],episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value (GNN_CRITIC_STATE_ACTION)',grad_norm_value[3],episode)
 
-			self.calculate_indiv_weights(weight_policy)
-			for i in range(self.num_agents):
-				agent_name = 'agent %d' % i
-				self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-			
-			# ENTROPY OF WEIGHTS
-			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
+			else:
+				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
-			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+				self.calculate_indiv_weights(weights)
+				for i in range(self.num_agents):
+					agent_name = 'agent %d' % i
+					self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+
+				self.calculate_indiv_weights(weight_policy)
+				for i in range(self.num_agents):
+					agent_name = 'agent %d' % i
+					self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+				
+				# ENTROPY OF WEIGHTS
+				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
+
+				entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
 
 	def split_states(self,states):
@@ -264,9 +275,9 @@ class MAA2C:
 					states = next_states
 
 
-			# if not(episode%1000) and episode!=0 and self.save:
-			# 	torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
-			# 	torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+			if not(episode%1000) and episode!=0 and self.save:
+				# torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if self.learn:
 				self.update(trajectory,episode) 
