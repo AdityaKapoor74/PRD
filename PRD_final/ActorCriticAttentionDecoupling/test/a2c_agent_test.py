@@ -235,22 +235,22 @@ class A2CAgent:
 				if i == 1:
 					self.critic_optimizer_1.zero_grad()
 					value_loss_.backward(retain_graph=False)
-					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_1.parameters(),0.5)
+					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_1.parameters(),100.0)
 					self.critic_optimizer_1.step()
 				elif i == 2:
 					self.critic_optimizer_2.zero_grad()
 					value_loss_.backward(retain_graph=False)
-					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_2.parameters(),0.5)
+					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_2.parameters(),100.0)
 					self.critic_optimizer_2.step()
 				elif i == 3:
 					self.critic_optimizer_3.zero_grad()
 					value_loss_.backward(retain_graph=False)
-					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_3.parameters(),0.5)
+					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_3.parameters(),100.0)
 					self.critic_optimizer_3.step()
 				elif i == 4:
 					self.critic_optimizer_4.zero_grad()
 					value_loss_.backward(retain_graph=False)
-					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_4.parameters(),0.5)
+					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_4.parameters(),100.0)
 					self.critic_optimizer_4.step()
 
 				value_loss.append(value_loss_)
