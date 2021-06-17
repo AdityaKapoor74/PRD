@@ -78,9 +78,9 @@ class A2CAgent:
 			self.obs_output_dim = 64
 			self.obs_act_input_dim = self.obs_input_dim + self.num_actions # (pose,vel,goal pose, paired agent goal pose) --> observations 
 			self.obs_act_output_dim = 64
-			self.final_input_dim = 128#self.obs_act_output_dim
+			self.final_input_dim = self.obs_act_output_dim #128
 			self.final_output_dim = 1
-			self.critic_network = ScalarDotProductCriticNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 64
@@ -95,7 +95,7 @@ class A2CAgent:
 			self.obs_act_output_dim = 64
 			self.final_input_dim = self.obs_act_output_dim
 			self.final_output_dim = 1
-			self.critic_network = ScalarDotProductCriticNetworkRevised(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
+			self.critic_network = ScalarDotProductCriticNetwork(self.obs_input_dim, self.obs_output_dim, self.obs_act_input_dim, self.obs_act_output_dim, self.final_input_dim, self.final_output_dim, self.num_agents, self.num_actions, self.softmax_cut_threshold).to(self.device)
 
 			self.obs_input_dim = 2*3
 			self.obs_output_dim = 64
@@ -275,7 +275,7 @@ class A2CAgent:
 			probs, weight_policy = self.policy_network.forward(states_actor)
 
 
-			V_values, weight_proc_V, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		elif self.env_name in ["crowd_nav", "predator_prey"]:
 			probs, weight_policy, weight_policy_other = self.policy_network.forward(states_actor,states_actor_other)
@@ -337,7 +337,7 @@ class A2CAgent:
 			masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif self.experiment_type == "with_prd_soft_adv":
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights.transpose(-1,-2) ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights, dim=-2)
 		elif self.experiment_type == "greedy_policy":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 
@@ -364,6 +364,6 @@ class A2CAgent:
 
 		# V values
 		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
-			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weight_proc_V
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy
 		elif self.env_name in ["crowd_nav", "predator_prey"]:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights, weight_policy, weights_other, weight_policy_other

@@ -29,6 +29,7 @@ class MAA2C:
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.action_type = dictionary["action_type"]
+		self.eval_policy = dictionary["eval_policy"]
 
 		self.weight_dictionary = {}
 
@@ -72,12 +73,13 @@ class MAA2C:
 			
 			tensorboard_dir = dictionary["tensorboard_dir"]
 
-			self.policy_eval_dir = dictionary["policy_eval_dir"]
-			try: 
-				os.makedirs(self.policy_eval_dir, exist_ok = True) 
-				print("Policy Eval Directory created successfully") 
-			except OSError as error: 
-				print("Policy Eval Directory can not be created")
+			if self.eval_policy:
+				self.policy_eval_dir = dictionary["policy_eval_dir"]
+				try: 
+					os.makedirs(self.policy_eval_dir, exist_ok = True) 
+					print("Policy Eval Directory created successfully") 
+				except OSError as error: 
+					print("Policy Eval Directory can not be created")
 
 
 			# paths for models, tensorboard and gifs
@@ -159,7 +161,7 @@ class MAA2C:
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
 		if self.env_name in ["paired_by_sharing_goals", "collision_avoidance", "multi_circular", "crossing"]:
-			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, weight_proc_V = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 		elif self.env_name in ["crowd_nav", "predator_prey"]:
 			states_critic_other = torch.FloatTensor([sars[9] for sars in trajectory]).to(self.device)
 			next_states_critic_other = torch.FloatTensor([sars[10] for sars in trajectory]).to(self.device)
@@ -219,8 +221,8 @@ class MAA2C:
 			# entropy_weights = -torch.mean(torch.sum(weight_proc_V * torch.log(torch.clamp(weight_proc_V, 1e-10,1.0)), dim=2))
 			# self.writer.add_scalar('Weights/Entropy_Proc', entropy_weights.item(), episode)
 
-			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+			# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
 			# entropy_weights = -torch.mean(torch.sum(weight_proc_P * torch.log(torch.clamp(weight_proc_P, 1e-10,1.0)), dim=2))
 			# self.writer.add_scalar('Weights_Policy/Entropy_Proc', entropy_weights.item(), episode)
@@ -229,8 +231,8 @@ class MAA2C:
 				entropy_weights = -torch.mean(torch.sum(weights_other * torch.log(torch.clamp(weights_other, 1e-10,1.0)), dim=2))
 				self.writer.add_scalar('Weights/Entropy_Other', entropy_weights.item(), episode)
 
-				entropy_weights = -torch.mean(torch.sum(weight_policy_other * torch.log(torch.clamp(weight_policy_other, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Policy/Entropy_Other', entropy_weights.item(), episode)
+				# entropy_weights = -torch.mean(torch.sum(weight_policy_other * torch.log(torch.clamp(weight_policy_other, 1e-10,1.0)), dim=2))
+				# self.writer.add_scalar('Weights_Policy/Entropy_Other', entropy_weights.item(), episode)
 
 
 	def split_states(self,states,for_who):
@@ -384,12 +386,13 @@ class MAA2C:
 
 
 	def run(self):  
-		self.rewards = []
-		self.rewards_mean_per_1000_eps = []
-		self.timesteps = []
-		self.timesteps_mean_per_1000_eps = []
-		self.collision_rates = []
-		self.collison_rate_mean_per_1000_eps = []
+		self.eval_policy:
+			self.rewards = []
+			self.rewards_mean_per_1000_eps = []
+			self.timesteps = []
+			self.timesteps_mean_per_1000_eps = []
+			self.collision_rates = []
+			self.collison_rate_mean_per_1000_eps = []
 		for episode in range(1,self.max_episodes+1):
 
 			# RANDOMIZING NUMBER OF AGENTS
@@ -544,15 +547,16 @@ class MAA2C:
 				states_critic,states_actor = next_states_critic,next_states_actor
 				states = next_states
 
-
-			self.rewards.append(episode_reward)
-			self.timesteps.append(final_timestep)
-			self.collision_rates.append(episode_collision_rate)
+			if self.eval_policy:
+				self.rewards.append(episode_reward)
+				self.timesteps.append(final_timestep)
+				self.collision_rates.append(episode_collision_rate)
 			if episode > 1000 and episode%1000:
-				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-1000:episode])/1000)
-				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-1000:episode])/1000)
-				if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
-					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-1000:episode])/1000)
+				if self.eval_policy:
+					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-1000:episode])/1000)
+					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-1000:episode])/1000)
+					if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
+						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-1000:episode])/1000)
 
 			if not(episode%1000) and self.save:
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_episode'+str(episode)+'.pt')

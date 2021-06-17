@@ -29,14 +29,14 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--environment", default="predator_prey", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
-	parser.add_argument("--experiment_type", default="greedy_policy", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
-	parser.add_argument("--save", default=True , type=bool)
+	parser.add_argument("--environment", default="collision_avoidance", type=str) # paired_by_sharing_goals, collision_avoidance, multi_circular, predator_prey, crossing
+	parser.add_argument("--experiment_type", default="without_prd", type=str) # greedy_policy, without_prd, with_prd_topK (k=1,num_agents), with_prd_soft_adv
+	parser.add_argument("--save", default=False , type=bool)
 	parser.add_argument("--learn", default=True , type=bool)
 	parser.add_argument("--gif", default=False , type=bool)
 	parser.add_argument("--gif_checkpoint", default= 1, type=int)
 	parser.add_argument("--max_episodes", default=100000, type=int)
-	parser.add_argument("--max_time_steps", default=100, type=int)
+	parser.add_argument("--max_time_steps", default=4, type=int)
 	parser.add_argument("--value_lr", default=1e-2, type=float)
 	parser.add_argument("--tau", default=1e-3, type=float)
 	parser.add_argument("--policy_lr", default=1e-3, type=float)
@@ -67,6 +67,7 @@ if __name__ == '__main__':
 	parser.add_argument("--num_agents", default= 4, type=int)
 	parser.add_argument("--num_others", default= 3, type=int)
 	parser.add_argument("--action_type", default = 0, type=int)
+	parser.add_argument("--eval_policy", default = False, type=bool)
 	
 	
 
@@ -173,6 +174,7 @@ if __name__ == '__main__':
 			"policy_eval_dir": arguments.policy_eval_dir,
 			"gif_checkpoint": arguments.gif_checkpoint,
 			"action_type": arguments.action_type,
+			"eval_policy": arguments.eval_policy,
 		}
 
 		
