@@ -161,17 +161,17 @@ class MAA2C:
 					agent_name = 'agent %d' % i
 					self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 
-				self.calculate_indiv_weights(weight_policy)
-				for i in range(self.num_agents):
-					agent_name = 'agent %d' % i
-					self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+				# self.calculate_indiv_weights(weight_policy)
+				# for i in range(self.num_agents):
+				# 	agent_name = 'agent %d' % i
+				# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 				
 				# ENTROPY OF WEIGHTS
 				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 				self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
 
-				entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+				# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+				# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
 
 	def split_states(self,states):

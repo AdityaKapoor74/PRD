@@ -26,7 +26,7 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-extension = "ALL_W_POL" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL
+extension = "NonResV1" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx
 test_num = "test5"
 if __name__ == '__main__':
 	dictionary = {
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
 			"gif": False,
-			"save": True,
+			"save": False,
 			"learn":True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
