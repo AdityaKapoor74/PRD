@@ -40,6 +40,7 @@ class MAA2C:
 				self.weight_dictionary[agent_name][agent_name_] = 0
 
 		self.value_loss = {"MLP_CRITIC_STATE":None, "MLP_CRITIC_STATE_ACTION":None, "GNN_CRITIC_STATE":None, "GNN_CRITIC_STATE_ACTION":None}
+		self.critic_weights_entropy = {"MLP_CRITIC_STATE":None, "MLP_CRITIC_STATE_ACTION":None, "GNN_CRITIC_STATE":None, "GNN_CRITIC_STATE_ACTION":None}
 		self.grad_norm_value = {"MLP_CRITIC_STATE":None, "MLP_CRITIC_STATE_ACTION":None, "GNN_CRITIC_STATE":None, "GNN_CRITIC_STATE_ACTION":None}
 		self.critic = ["MLP_CRITIC_STATE", "MLP_CRITIC_STATE_ACTION", "GNN_CRITIC_STATE", "GNN_CRITIC_STATE_ACTION"]
 
@@ -134,19 +135,20 @@ class MAA2C:
 				for i,name in enumerate(self.critic):
 					self.value_loss[name] = value_loss[i].item()
 					self.grad_norm_value[name] = grad_norm_value[i]
-
-				# self.writer.add_scalar('Loss/Value Loss (MLP_CRITIC_STATE)',value_loss[0].item(),episode)
-				# self.writer.add_scalar('Loss/Value Loss (MLP_CRITIC_STATE_ACTION)',value_loss[1].item(),episode)
-				# self.writer.add_scalar('Loss/Value Loss (GNN_CRITIC_STATE)',value_loss[2].item(),episode)
-				# self.writer.add_scalar('Loss/Value Loss (GNN_CRITIC_STATE_ACTION)',value_loss[3].item(),episode)
 				self.writer.add_scalars('Loss/Value Loss',self.value_loss,episode)
 				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value,episode)
 
-				# self.writer.add_scalar('Gradient Normalization/Grad Norm Value (MLP_CRITIC_STATE)',grad_norm_value[0],episode)
-				# self.writer.add_scalar('Gradient Normalization/Grad Norm Value (MLP_CRITIC_STATE_ACTION)',grad_norm_value[1],episode)
-				# self.writer.add_scalar('Gradient Normalization/Grad Norm Value (GNN_CRITIC_STATE)',grad_norm_value[2],episode)
-				# self.writer.add_scalar('Gradient Normalization/Grad Norm Value (GNN_CRITIC_STATE_ACTION)',grad_norm_value[3],episode)
-
+			elif self.critic_type == "ALL_W_POL":
+				for i,name in enumerate(self.critic):
+					self.value_loss[name] = value_loss[i].item()
+					self.grad_norm_value[name] = grad_norm_value[i]
+					self.critic_weights_entropy[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
+				self.writer.add_scalars('Loss/Value Loss',self.value_loss,episode)
+				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value,episode)
+				self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
+				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 			else:
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
@@ -290,6 +292,12 @@ class MAA2C:
 					torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE_ACTION.pt')
 					torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE.pt')
 					torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE_ACTION.pt')
+				elif self.critic_type == "ALL_W_POL":
+					torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE.pt')
+					torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE_ACTION.pt')
+					torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE.pt')
+					torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE_ACTION.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
 				else:	
 					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
 					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  
