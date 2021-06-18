@@ -456,7 +456,7 @@ class StateActionGATCriticWResConnV1(nn.Module):
 		
 		weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 		weighted_attention_values = attention_values*weight
-		node_features = torch.sum(weighted_attention_values, dim=-2) + state_embed
+		node_features = torch.sum(weighted_attention_values, dim=-2) + states_embed.repeat(1,self.num_agents,1).reshape(states_embed.shape[0],self.num_agents,self.num_agents,-1)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
