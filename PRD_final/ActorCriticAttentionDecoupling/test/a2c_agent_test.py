@@ -69,6 +69,13 @@ class A2CAgent:
 			self.critic_network = StateActionGATCriticWoResConnV1(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "ResV1":
 			self.critic_network = StateActionGATCriticWResConnV1(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "NonResV2":
+			self.critic_network = StateActionGATCriticWoResConnV2(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "ResV2":
+			self.critic_network = StateActionGATCriticWResConnV2(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+
+
+
 
 		# MLP POLICY
 		self.policy_network = MLPPolicyNetwork(2*3, self.num_agents, self.num_actions).to(self.device)

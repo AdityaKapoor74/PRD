@@ -26,8 +26,8 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-extension = "ALL_W_POL" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx
-test_num = "test7"
+extension = "NonResV2" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx
+test_num = "test8"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+extension+'/',
 			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+extension+'/',
 			"env": "paired_by_sharing_goals", 
-			"value_lr": [1e-2, 1e-2, 5e-2, 5e-2], #1e-2 for single head
+			"value_lr": 1e-2, #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
 			"gif": False,
-			"save": True,
+			"save": False,
 			"learn":True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
