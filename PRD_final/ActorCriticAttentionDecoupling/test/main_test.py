@@ -26,8 +26,8 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-extension = "ResV1" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx
-test_num = "test6"
+extension = "ALL_W_POL" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx
+test_num = "test5"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+extension+'/',
 			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+extension+'/',
 			"env": "paired_by_sharing_goals", 
-			"value_lr": 1e-2, #1e-2 for single head
+			"value_lr": [1e-2, 1e-2, 1e-2, 1e-2], #1e-2 for single head
 			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,

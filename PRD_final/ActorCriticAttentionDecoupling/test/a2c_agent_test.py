@@ -85,15 +85,15 @@ class A2CAgent:
 		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 		if self.critic_type == "ALL":
-			self.critic_optimizer_1 = optim.Adam(self.critic_network_1.parameters(),lr=self.value_lr)
-			self.critic_optimizer_2 = optim.Adam(self.critic_network_2.parameters(),lr=self.value_lr)
-			self.critic_optimizer_3 = optim.Adam(self.critic_network_3.parameters(),lr=self.value_lr)
-			self.critic_optimizer_4 = optim.Adam(self.critic_network_4.parameters(),lr=self.value_lr)
+			self.critic_optimizer_1 = optim.Adam(self.critic_network_1.parameters(),lr=self.value_lr[0])
+			self.critic_optimizer_2 = optim.Adam(self.critic_network_2.parameters(),lr=self.value_lr[1])
+			self.critic_optimizer_3 = optim.Adam(self.critic_network_3.parameters(),lr=self.value_lr[2])
+			self.critic_optimizer_4 = optim.Adam(self.critic_network_4.parameters(),lr=self.value_lr[3])
 		elif self.critic_type == "ALL_W_POL":
-			self.critic_optimizer_1 = optim.Adam(self.critic_network_1.parameters(),lr=self.value_lr)
-			self.critic_optimizer_2 = optim.Adam(self.critic_network_2.parameters(),lr=self.value_lr)
-			self.critic_optimizer_3 = optim.Adam(self.critic_network_3.parameters(),lr=self.value_lr)
-			self.critic_optimizer_4 = optim.Adam(self.critic_network_4.parameters(),lr=self.value_lr)
+			self.critic_optimizer_1 = optim.Adam(self.critic_network_1.parameters(),lr=self.value_lr[0])
+			self.critic_optimizer_2 = optim.Adam(self.critic_network_2.parameters(),lr=self.value_lr[1])
+			self.critic_optimizer_3 = optim.Adam(self.critic_network_3.parameters(),lr=self.value_lr[2])
+			self.critic_optimizer_4 = optim.Adam(self.critic_network_4.parameters(),lr=self.value_lr[3])
 			self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		else:
 			self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
@@ -226,7 +226,7 @@ class A2CAgent:
 				# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 				# TD lambda 
-				Value_target_ = self.nstep_returns(V_values, rewards, dones)
+				Value_target_ = self.nstep_returns(V_values, rewards, dones).detach()
 				value_loss_ = F.smooth_l1_loss(V_values, Value_target_)
 
 				if i == 1:
@@ -297,7 +297,7 @@ class A2CAgent:
 				# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 				# TD lambda 
-				Value_target_ = self.nstep_returns(V_values, rewards, dones)
+				Value_target_ = self.nstep_returns(V_values, rewards, dones).detach()
 				value_loss_ = F.smooth_l1_loss(V_values, Value_target_)
 
 				if i == 1:
@@ -359,6 +359,7 @@ class A2CAgent:
 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 			self.policy_optimizer.step()
 
+
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
 
 		else:
@@ -382,7 +383,7 @@ class A2CAgent:
 			# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 			# TD lambda 
-			Value_target = self.nstep_returns(V_values, rewards, dones)
+			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
 			value_loss = F.smooth_l1_loss(V_values, discounted_rewards)
 		
 			# # ***********************************************************************************

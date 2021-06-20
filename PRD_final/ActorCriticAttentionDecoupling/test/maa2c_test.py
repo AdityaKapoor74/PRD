@@ -142,10 +142,10 @@ class MAA2C:
 				for i,name in enumerate(self.critic):
 					self.value_loss[name] = value_loss[i].item()
 					self.grad_norm_value[name] = grad_norm_value[i]
-					self.critic_weights_entropy[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
+					# self.critic_weights_entropy[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
 				self.writer.add_scalars('Loss/Value Loss',self.value_loss,episode)
 				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value,episode)
-				self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
+				# self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
@@ -156,10 +156,10 @@ class MAA2C:
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
-				self.calculate_indiv_weights(weights)
-				for i in range(self.num_agents):
-					agent_name = 'agent %d' % i
-					self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+				# self.calculate_indiv_weights(weights)
+				# for i in range(self.num_agents):
+				# 	agent_name = 'agent %d' % i
+				# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 
 				# self.calculate_indiv_weights(weight_policy)
 				# for i in range(self.num_agents):
