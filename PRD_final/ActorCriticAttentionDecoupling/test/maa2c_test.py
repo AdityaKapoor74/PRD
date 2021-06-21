@@ -23,6 +23,7 @@ class MAA2C:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
+		self.attention_heads = dictionary["attention_heads"]
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 
 		self.max_episodes = dictionary["max_episodes"]
@@ -38,6 +39,11 @@ class MAA2C:
 			for j in range(self.num_agents):
 				agent_name_ = 'agent %d' % j
 				self.weight_dictionary[agent_name][agent_name_] = 0
+
+		self.weight_ent_per_head = {}
+		for i in range(self.attention_heads):
+			head_name = 'head %d' % i
+			self.weight_ent_per_head[head_name] = 0
 
 		self.value_loss = {"MLP_CRITIC_STATE":None, "MLP_CRITIC_STATE_ACTION":None, "GNN_CRITIC_STATE":None, "GNN_CRITIC_STATE_ACTION":None}
 		self.critic_weights_entropy = {"MLP_CRITIC_STATE":None, "MLP_CRITIC_STATE_ACTION":None, "GNN_CRITIC_STATE":None, "GNN_CRITIC_STATE_ACTION":None}
@@ -149,6 +155,17 @@ class MAA2C:
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			elif "AttentionCritic" in self.critic_type:
+				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+
+				for i in range(self.attention_heads):
+					head_name = 'head %d' % i
+					self.weight_ent_per_head[head_name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
+				self.writer.add_scalars('Weights_Critic/Entropy', self.weight_ent_per_head, episode)
 			else:
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)

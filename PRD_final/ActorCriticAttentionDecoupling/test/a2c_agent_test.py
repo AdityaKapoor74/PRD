@@ -31,6 +31,7 @@ class A2CAgent:
 		self.select_above_threshold = dictionary["select_above_threshold"]
 		# cut the tail of softmax --> Used in softmax with normalization
 		self.softmax_cut_threshold = dictionary["softmax_cut_threshold"]
+		self.attention_heads = dictionary["attention_heads"]
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
@@ -65,6 +66,8 @@ class A2CAgent:
 			self.critic_network_2 = StateActionMLPCritic(2*4, self.num_actions, self.num_agents).to(self.device)
 			self.critic_network_3 = StateOnlyGATCritic(2*4, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_4 = StateActionGATCritic(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "AttentionCriticV1":
+			self.critic_network = AttentionCriticV1(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, attend_heads=self.attention_heads).to(self.device)
 		elif self.critic_type == "NonResV1":
 			self.critic_network = StateActionGATCriticWoResConnV1(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "ResV1":
