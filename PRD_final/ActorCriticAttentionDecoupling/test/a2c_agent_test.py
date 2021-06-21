@@ -73,6 +73,10 @@ class A2CAgent:
 			self.critic_network = StateActionGATCriticWoResConnV2(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "ResV2":
 			self.critic_network = StateActionGATCriticWResConnV2(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "NonResV3":
+			self.critic_network = StateActionGATCriticWoResConnV3(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "ResV3":
+			self.critic_network = StateActionGATCriticWResConnV3(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 
 
