@@ -27,7 +27,7 @@ def run_file(dictionary):
 	ma_controller.run()
 
 extension = "AttentionCriticV1" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
-test_num = "test9"
+test_num = "test10"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
