@@ -568,10 +568,11 @@ class MAA2C:
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path+"_episode"+str(episode)+'.gif')
 
-		np.save(os.path.join(self.policy_eval_dir,self.env_name+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,self.env_name+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-		if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
-			np.save(os.path.join(self.policy_eval_dir,self.env_name+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
-			np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		if self.eval_policy:
+			np.save(os.path.join(self.policy_eval_dir,self.env_name+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.env_name+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			if self.env_name in ["collision_avoidance", "multi_circular", "crossing"]:
+				np.save(os.path.join(self.policy_eval_dir,self.env_name+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.env_name+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)

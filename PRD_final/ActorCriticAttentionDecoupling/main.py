@@ -1,7 +1,6 @@
 from maa2c import MAA2C
 
 from multiagent.environment import MultiAgentEnv
-# from multiagent.scenarios.simple_spread import Scenario
 import multiagent.scenarios as scenarios
 import torch 
 import numpy as np
@@ -10,7 +9,6 @@ import argparse
 def make_env(scenario_name, benchmark=False):
 	# load scenario from script
 	scenario = scenarios.load(scenario_name + ".py").Scenario()
-	# scenario = Scenario()
 	# create world
 	world = scenario.make_world()
 	# create multiagent environment
