@@ -431,6 +431,8 @@ class A2CAgent:
 			# **********************************
 			self.critic_optimizer.zero_grad()
 			value_loss.backward(retain_graph=False)
+			if "AttentionCritic" in self.critic_type:
+				self.critic_network.scale_shared_grads()
 			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 			self.critic_optimizer.step()
 
