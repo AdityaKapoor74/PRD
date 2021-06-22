@@ -802,6 +802,8 @@ class StateActionGATCriticWoResConnV2(nn.Module):
 		self.obs_act_input_dim = obs_act_input_dim
 		# ********************************************************************************************************* 
 
+		self.shared_modules = [self.state_embed[0], self.key_layer, self.query_layer, self.state_act_pol_embed[0], self.attention_value_layer, self.final_value_layer_1, self.final_value_layer_2]
+
 		self.reset_parameters()
 
 
@@ -819,6 +821,21 @@ class StateActionGATCriticWoResConnV2(nn.Module):
 
 		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain_leaky)
 		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain_leaky)
+
+
+	def shared_parameters(self):
+		"""
+		Parameters shared across agents and reward heads
+		"""
+		return chain(*[m.parameters() for m in self.shared_modules])
+
+	def scale_shared_grads(self):
+		"""
+		Scale gradients for parameters that are shared since they accumulate
+		gradients from the critic loss function multiple times
+		"""
+		for p in self.shared_parameters():
+			p.grad.data.mul_(1. / self.num_agents)
 
 
 
