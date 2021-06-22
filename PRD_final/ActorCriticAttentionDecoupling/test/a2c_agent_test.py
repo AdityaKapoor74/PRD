@@ -73,6 +73,9 @@ class A2CAgent:
 			self.critic_network_2 = StateActionMLPCritic(obs_dim, self.num_actions, self.num_agents).to(self.device)
 			self.critic_network_3 = StateOnlyGATCritic(obs_dim, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_4 = StateActionGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "MultiHead":
+			num_heads = 4
+			self.critic_network = StateActionGATCriticMultiHead(obs_dim, 128, obs_dim+self.num_actions, 128//num_heads, 128, 1, self.num_agents, self.num_actions, attention_heads=num_heads).to(self.device)
 		elif self.critic_type == "AttentionCriticV1":
 			self.critic_network = AttentionCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, attend_heads=self.attention_heads).to(self.device)
 		elif self.critic_type == "NonResV1":
@@ -442,7 +445,7 @@ class A2CAgent:
 			if "AttentionCritic" in self.critic_type:
 				self.critic_network.scale_shared_grads()
 			# SCALE GRADS
-			self.critic_network.scale_shared_grads()
+			# self.critic_network.scale_shared_grads()
 			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),10*self.num_agents)
 			self.critic_optimizer.step()
 
