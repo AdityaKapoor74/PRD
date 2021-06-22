@@ -166,6 +166,17 @@ class MAA2C:
 					head_name = 'head %d' % i
 					self.weight_ent_per_head[head_name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
 				self.writer.add_scalars('Weights_Critic/Entropy', self.weight_ent_per_head, episode)
+			elif self.critic_type == "MultiHead":
+				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+
+				for i in range(self.attention_heads):
+					head_name = 'head %d' % i
+					self.weight_ent_per_head[head_name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
+				self.writer.add_scalars('Weights_Critic/Entropy', self.weight_ent_per_head, episode)
 			else:
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)

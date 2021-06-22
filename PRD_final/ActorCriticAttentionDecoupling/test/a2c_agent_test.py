@@ -74,8 +74,7 @@ class A2CAgent:
 			self.critic_network_3 = StateOnlyGATCritic(obs_dim, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_4 = StateActionGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "MultiHead":
-			num_heads = 4
-			self.critic_network = StateActionGATCriticMultiHead(obs_dim, 128, obs_dim+self.num_actions, 128//num_heads, 128, 1, self.num_agents, self.num_actions, attention_heads=num_heads).to(self.device)
+			self.critic_network = StateActionGATCriticMultiHead(obs_dim, 128, obs_dim+self.num_actions, 128//self.attention_heads, 128, 1, self.num_agents, self.num_actions, attention_heads=self.attention_heads).to(self.device)
 		elif self.critic_type == "AttentionCriticV1":
 			self.critic_network = AttentionCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, attend_heads=self.attention_heads).to(self.device)
 		elif self.critic_type == "NonResV1":
@@ -446,13 +445,13 @@ class A2CAgent:
 				self.critic_network.scale_shared_grads()
 			# SCALE GRADS
 			# self.critic_network.scale_shared_grads()
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),10*self.num_agents)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
 			self.critic_optimizer.step()
 
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward(retain_graph=False)
-			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),10*self.num_agents)
+			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 			self.policy_optimizer.step()
 
 			# V values
