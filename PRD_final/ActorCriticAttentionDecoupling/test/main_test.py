@@ -27,7 +27,7 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "NonResV2"
-extension = "SharedRewSlowAgent" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
+extension = "GreedyRewSlowAgent" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
 test_num = "test11"
 if __name__ == '__main__':
 	dictionary = {
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 			"learn":True,
 			"max_episodes": 50000,
 			"max_time_steps": 100,
-			"experiment_type": "without_prd",
+			"experiment_type": "greedy_policy",
 			"critic_type": critic_type,
 			"gif_checkpoint":10,
 			"gae": True,
