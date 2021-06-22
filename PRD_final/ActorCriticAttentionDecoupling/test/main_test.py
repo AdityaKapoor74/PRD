@@ -27,7 +27,7 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "NonResV2"
-extension = "MCLoss" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
+extension = "TD0Loss" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
 test_num = "test13"
 if __name__ == '__main__':
 	dictionary = {
