@@ -47,7 +47,7 @@ if __name__ == '__main__':
 			"gif": False,
 			"save": True,
 			"learn":True,
-			"max_episodes": 50000,
+			"max_episodes": 100000,
 			"max_time_steps": 100,
 			"experiment_type": "without_prd",
 			"critic_type": critic_type,
