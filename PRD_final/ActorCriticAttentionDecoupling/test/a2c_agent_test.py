@@ -17,6 +17,7 @@ class A2CAgent:
 		):
 
 		self.env = env
+		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
 		self.gamma = dictionary["gamma"]
@@ -52,34 +53,40 @@ class A2CAgent:
 		# TD lambda
 		self.lambda_ = 0.8
 
+		# PAIRED AGENT
+		if self.env_name == "paired_by_sharing_goals":
+			obs_dim = 2*4
+		elif self.env_name in ["multi_circular", "collision_avoidance"]:
+			obs_dim = 2*3
+
 		# MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION
 		if self.critic_type == "MLP_CRITIC_STATE":
-			self.critic_network = StateOnlyMLPCritic(2*4, self.num_agents).to(self.device)
+			self.critic_network = StateOnlyMLPCritic(obs_dim, self.num_agents).to(self.device)
 		elif self.critic_type == "MLP_CRITIC_STATE_ACTION":
-			self.critic_network = StateActionMLPCritic(2*4, self.num_actions, self.num_agents).to(self.device)
+			self.critic_network = StateActionMLPCritic(obs_dim, self.num_actions, self.num_agents).to(self.device)
 		elif self.critic_type == "GNN_CRITIC_STATE":
-			self.critic_network = StateOnlyGATCritic(2*4, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateOnlyGATCritic(obs_dim, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "GNN_CRITIC_STATE_ACTION":
-			self.critic_network = StateActionGATCritic(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateActionGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "ALL" or self.critic_type == "ALL_W_POL":
-			self.critic_network_1 = StateOnlyMLPCritic(2*4, self.num_agents).to(self.device)
-			self.critic_network_2 = StateActionMLPCritic(2*4, self.num_actions, self.num_agents).to(self.device)
-			self.critic_network_3 = StateOnlyGATCritic(2*4, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-			self.critic_network_4 = StateActionGATCritic(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network_1 = StateOnlyMLPCritic(obs_dim, self.num_agents).to(self.device)
+			self.critic_network_2 = StateActionMLPCritic(obs_dim, self.num_actions, self.num_agents).to(self.device)
+			self.critic_network_3 = StateOnlyGATCritic(obs_dim, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network_4 = StateActionGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "AttentionCriticV1":
-			self.critic_network = AttentionCriticV1(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, attend_heads=self.attention_heads).to(self.device)
+			self.critic_network = AttentionCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, attend_heads=self.attention_heads).to(self.device)
 		elif self.critic_type == "NonResV1":
-			self.critic_network = StateActionGATCriticWoResConnV1(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateActionGATCriticWoResConnV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "ResV1":
-			self.critic_network = StateActionGATCriticWResConnV1(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateActionGATCriticWResConnV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "NonResV2":
-			self.critic_network = StateActionGATCriticWoResConnV2(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateActionGATCriticWoResConnV2(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "ResV2":
-			self.critic_network = StateActionGATCriticWResConnV2(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateActionGATCriticWResConnV2(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "NonResV3":
-			self.critic_network = StateActionGATCriticWoResConnV3(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateActionGATCriticWoResConnV3(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "ResV3":
-			self.critic_network = StateActionGATCriticWResConnV3(2*4, 128, 2*4+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = StateActionGATCriticWResConnV3(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 
 
@@ -359,7 +366,7 @@ class A2CAgent:
 				masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 			elif self.experiment_type == "with_prd_soft_adv":
-				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights.transpose(-1,-2) ,dim=-2)
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights ,dim=-2)
 			elif self.experiment_type == "greedy_policy":
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 
