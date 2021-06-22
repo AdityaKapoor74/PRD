@@ -441,13 +441,13 @@ class A2CAgent:
 			value_loss.backward(retain_graph=False)
 			if "AttentionCritic" in self.critic_type:
 				self.critic_network.scale_shared_grads()
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),10*self.num_agents)
 			self.critic_optimizer.step()
 
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward(retain_graph=False)
-			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),10*self.num_agents)
 			self.policy_optimizer.step()
 
 			# V values
