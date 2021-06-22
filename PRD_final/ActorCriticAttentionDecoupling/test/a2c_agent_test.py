@@ -385,10 +385,10 @@ class A2CAgent:
 
 		else:
 			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-			next_probs, _ = self.policy_network.forward(next_states_actor)
-			V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			# next_probs, _ = self.policy_network.forward(next_states_actor)
+			# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+			# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 
 		
 			# # ***********************************************************************************
@@ -398,15 +398,15 @@ class A2CAgent:
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 
 			# BOOTSTRAP LOSS
-			target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-			value_loss = F.smooth_l1_loss(V_values,target_values)
+			# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+			# value_loss = F.smooth_l1_loss(V_values,target_values)
 
 			# MONTE CARLO LOSS
 			# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 			# TD lambda 
-			# Value_target = self.nstep_returns(V_values, rewards, dones).detach()
-			# value_loss = F.smooth_l1_loss(V_values, discounted_rewards)
+			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
+			value_loss = F.smooth_l1_loss(V_values, discounted_rewards)
 		
 			# # ***********************************************************************************
 			# update actor (policy net)
