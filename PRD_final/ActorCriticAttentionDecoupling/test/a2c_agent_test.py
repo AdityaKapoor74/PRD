@@ -401,11 +401,11 @@ class A2CAgent:
 			# value_loss = F.smooth_l1_loss(V_values,target_values)
 
 			# MONTE CARLO LOSS
-			# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+			value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
 
 			# TD lambda 
-			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
-			value_loss = F.smooth_l1_loss(V_values, discounted_rewards)
+			# Value_target = self.nstep_returns(V_values, rewards, dones).detach()
+			# value_loss = F.smooth_l1_loss(V_values, discounted_rewards)
 		
 			# # ***********************************************************************************
 			# update actor (policy net)
