@@ -27,7 +27,7 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "NonResV2"
-extension = "NoNormAdv" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
+extension = "NormAdv" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
 test_num = "test12"
 if __name__ == '__main__':
 	dictionary = {
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 			"critic_type": critic_type,
 			"gif_checkpoint":10,
 			"gae": True,
-			"norm_adv": False,
+			"norm_adv": True,
 			"norm_rew": False,
 			"attention_heads": 4,
 		}
