@@ -27,7 +27,7 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "NonResV2"
-extension = "FastAgentsSharedRew" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
+extension = "FastAgentsGreedyRew" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticVx
 test_num = "test11"
 if __name__ == '__main__':
 	dictionary = {
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+extension+'/',
 			"env": "multi_circular", #paired_by_sharing_goals, multi_circular
 			"value_lr": 1e-2, #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
-			"policy_lr": 5e-4, # 2e-4 for single head
+			"policy_lr": 1e-3, # 2e-4 for single head
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 			"learn":True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
-			"experiment_type": "without_prd",
+			"experiment_type": "greedy_policy",
 			"critic_type": critic_type,
 			"gif_checkpoint":10,
 			"gae": True,
