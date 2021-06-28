@@ -28,7 +28,7 @@ def run_file(dictionary):
 
 critic_type = "MLPToGNN"
 extension = "MLPToGNN" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "test19"
+test_num = "test18"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 			"norm_adv": True,
 			"norm_rew": False,
 			"attention_heads": 4,
-			"freeze_policy": 25000,
+			"freeze_policy": 100000,
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)
