@@ -50,6 +50,13 @@ class MAA2C:
 		self.grad_norm_value = {"MLP_CRITIC_STATE":None, "MLP_CRITIC_STATE_ACTION":None, "GNN_CRITIC_STATE":None, "GNN_CRITIC_STATE_ACTION":None}
 		self.critic = ["MLP_CRITIC_STATE", "MLP_CRITIC_STATE_ACTION", "GNN_CRITIC_STATE", "GNN_CRITIC_STATE_ACTION"]
 
+		# MLP TO GNN
+		self.value_loss_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None}
+		self.critic_weights_entropy_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None}
+		self.grad_norm_value_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None}
+		self.critic_ = ["MLPToGNNV1", "MLPToGNNV2", "MLPToGNNV3", "MLPToGNNV4", "MLPToGNNV5"]
+
+
 		if self.save:
 			critic_dir = dictionary["critic_dir"]
 			try: 
@@ -151,6 +158,17 @@ class MAA2C:
 					# self.critic_weights_entropy[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
 				self.writer.add_scalars('Loss/Value Loss',self.value_loss,episode)
 				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value,episode)
+				# self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
+				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			elif self.critic_type == "MLPToGNN":
+				for i,name in enumerate(self.critic_):
+					self.value_loss_[name] = value_loss[i].item()
+					self.grad_norm_value_[name] = grad_norm_value[i]
+					# self.critic_weights_entropy[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
+				self.writer.add_scalars('Loss/Value Loss',self.value_loss_,episode)
+				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value_,episode)
 				# self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
