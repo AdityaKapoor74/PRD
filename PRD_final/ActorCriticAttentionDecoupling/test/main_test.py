@@ -26,16 +26,18 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-critic_type = "MLPToGNNV5"
-extension = "MLPToGNNV5" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "test21"
+critic_type = "GNNTanhRelU"
+extension = "GNNTanhRelU" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+test_num = "test23"
+env_name = "multi_circular"
+experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../../tests/'+test_num+'/models/'+extension+'/critic_networks/',
-			"actor_dir": '../../../../tests/'+test_num+'/models/'+extension+'/actor_networks/',
-			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+extension+'/',
-			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+extension+'/',
-			"env": "multi_circular", #paired_by_sharing_goals, multi_circular
+			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
+			"actor_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
+			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+			"env": env_name, #paired_by_sharing_goals, multi_circular
 			"value_lr": 1e-2, #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
 			"policy_lr": 5e-4, # 2e-4 for single head
 			"entropy_pen": 8e-3, 
@@ -45,11 +47,11 @@ if __name__ == '__main__':
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
 			"gif": False,
-			"save": True,
+			"save": False,
 			"learn":True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
-			"experiment_type": "with_prd_soft_adv",
+			"experiment_type": experiment_type,
 			"critic_type": critic_type,
 			"gif_checkpoint":10,
 			"gae": True,
