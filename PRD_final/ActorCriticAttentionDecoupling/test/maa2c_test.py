@@ -56,6 +56,11 @@ class MAA2C:
 		self.grad_norm_value_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None, "MLPToGNNV6":None}
 		self.critic_ = ["MLPToGNNV1", "MLPToGNNV2", "MLPToGNNV3", "MLPToGNNV4", "MLPToGNNV5", "MLPToGNNV6"]
 
+		# DUAL
+		self.value_loss_ = {"Critic1":None, "Critic2":None}
+		self.critic_weights_entropy_ = {"Critic1":None, "Critic2":None}
+		self.grad_norm_value_ = {"Critic1":None, "Critic2":None}
+		self.critic_ = ["Critic1", "Critic2"]
 
 		if self.save:
 			critic_dir = dictionary["critic_dir"]
@@ -352,6 +357,10 @@ class MAA2C:
 					torch.save(self.agents.critic_network_5.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV5.pt')
 					torch.save(self.agents.critic_network_6.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV6.pt')
 					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
+				elif "Dual" in self.critic_type:
+					torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+self.critic_type+'_.pt')
+					torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+self.critic_type+'_.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  
 				else:	
 					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
 					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  
