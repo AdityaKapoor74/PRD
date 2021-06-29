@@ -332,29 +332,29 @@ class MAA2C:
 					states = next_states
 
 
-			# if not(episode%1000) and episode!=0 and self.save:
-			# 	if self.critic_type == "ALL":
-			# 		torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE.pt')
-			# 		torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE_ACTION.pt')
-			# 		torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE.pt')
-			# 		torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE_ACTION.pt')
-			# 	elif self.critic_type == "ALL_W_POL":
-			# 		torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE.pt')
-			# 		torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE_ACTION.pt')
-			# 		torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE.pt')
-			# 		torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE_ACTION.pt')
-			# 		torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
-			# 	elif self.critic_type == "MLPToGNN":
-			# 		torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV1.pt')
-			# 		torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV2.pt')
-			# 		torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV3.pt')
-			# 		torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV4.pt')
-			# 		torch.save(self.agents.critic_network_5.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV5.pt')
-			# 		torch.save(self.agents.critic_network_6.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV6.pt')
-			# 		torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
-			# 	else:	
-			# 		torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
-			# 		torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  
+			if not(episode%1000) and episode!=0 and self.save:
+				if self.critic_type == "ALL":
+					torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE.pt')
+					torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE_ACTION.pt')
+					torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE.pt')
+					torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE_ACTION.pt')
+				elif self.critic_type == "ALL_W_POL":
+					torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE.pt')
+					torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_MLP_CRITIC_STATE_ACTION.pt')
+					torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE.pt')
+					torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNN_CRITIC_STATE_ACTION.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
+				elif self.critic_type == "MLPToGNN":
+					torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV1.pt')
+					torch.save(self.agents.critic_network_2.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV2.pt')
+					torch.save(self.agents.critic_network_3.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV3.pt')
+					torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV4.pt')
+					torch.save(self.agents.critic_network_5.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV5.pt')
+					torch.save(self.agents.critic_network_6.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV6.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
+				else:	
+					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  
 
 			if self.learn:
 				self.update(trajectory,episode) 
