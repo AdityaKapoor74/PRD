@@ -27,8 +27,8 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "MLPToGNN"
-extension = "MLPToGNNV1_without_adv_norm" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "test24"
+extension = "MLPToGNNV6_without_adv_norm" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+test_num = "test25"
 env_name = "paired_by_sharing_goals"
 experiment_type = "without_prd"
 if __name__ == '__main__':

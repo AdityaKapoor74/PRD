@@ -501,9 +501,9 @@ class A2CAgent:
 				# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 				advantage = None
 				# V1
-				V_values, weights_ = self.critic_network_1.forward(states_critic, probs.detach(), one_hot_actions)
+				# V_values, weights_ = self.critic_network_1.forward(states_critic, probs.detach(), one_hot_actions)
 				# V6
-				# V_values, weights_ = self.critic_network_6.forward(states_critic, probs.detach(), one_hot_actions)
+				V_values, weights_ = self.critic_network_6.forward(states_critic, probs.detach(), one_hot_actions)
 				V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 				if self.experiment_type == "without_prd":
 					advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
