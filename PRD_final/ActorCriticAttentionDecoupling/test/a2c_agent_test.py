@@ -98,6 +98,8 @@ class A2CAgent:
 			self.critic_network_4 = MLPToGNNV4(obs_dim,self.num_actions,self.num_agents).to(self.device)
 			self.critic_network_5 = MLPToGNNV5(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_6 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "MLPToGNNV5":
+			self.critic_network = MLPToGNNV5(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 
 		# MLP POLICY
