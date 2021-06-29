@@ -38,7 +38,7 @@ if __name__ == '__main__':
 			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"env": env_name, #paired_by_sharing_goals, multi_circular
-			"value_lr": [1e-2, 1e-2, 1e-2, 1e-2, 1e-2], #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
+			"value_lr": [1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2], #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
 			"policy_lr": 5e-4, # 2e-4 for single head
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,
