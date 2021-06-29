@@ -26,11 +26,11 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-critic_type = "MLPToGNNV5"
-extension = "MLPToGNNV5" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+critic_type = "MLPToGNN"
+extension = "MLPToGNN_without_adv_norm" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "test23"
-env_name = "multi_circular"
-experiment_type = "with_prd_soft_adv"
+env_name = "paired_by_sharing_goals"
+experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"env": env_name, #paired_by_sharing_goals, multi_circular
-			"value_lr": 1e-2, #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
+			"value_lr": [1e-2, 1e-2, 1e-2, 1e-2, 1e-2], #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
 			"policy_lr": 5e-4, # 2e-4 for single head
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,

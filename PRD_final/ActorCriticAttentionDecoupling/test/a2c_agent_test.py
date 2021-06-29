@@ -500,19 +500,22 @@ class A2CAgent:
 				# summing across each agent j to get the advantage
 				# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 				advantage = None
+				# V1
 				V_values, weights_ = self.critic_network_1.forward(states_critic, probs.detach(), one_hot_actions)
+				# V6
+				# V_values, weights_ = self.critic_network_6.forward(states_critic, probs.detach(), one_hot_actions)
 				V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 				if self.experiment_type == "without_prd":
 					advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 				elif "top" in self.experiment_type:
-					values, indices = torch.topk(weights,k=self.top_k,dim=-1)
+					values, indices = torch.topk(weights_,k=self.top_k,dim=-1)
 					masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
 					advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 				elif self.experiment_type in "above_threshold":
-					masking_advantage = torch.transpose((weights>self.select_above_threshold).int(),-1,-2)
+					masking_advantage = torch.transpose((weights_>self.select_above_threshold).int(),-1,-2)
 					advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 				elif self.experiment_type == "with_prd_soft_adv":
-					advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights ,dim=-2)
+					advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights_ ,dim=-2)
 				elif self.experiment_type == "greedy_policy":
 					advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 
