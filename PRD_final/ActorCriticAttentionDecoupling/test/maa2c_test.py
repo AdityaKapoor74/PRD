@@ -201,7 +201,7 @@ class MAA2C:
 					self.weight_ent_per_head[head_name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
 				self.writer.add_scalars('Weights_Critic/Entropy', self.weight_ent_per_head, episode)
 			elif "Dual" in self.critic_type:
-				for i,name in enumerate(self.critic_):
+				for i,name in enumerate(self.critic_dual):
 					self.value_loss_dual[name] = value_loss[i].item()
 					self.grad_norm_value_dual[name] = grad_norm_value[i]
 					self.critic_weights_entropy_dual[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
