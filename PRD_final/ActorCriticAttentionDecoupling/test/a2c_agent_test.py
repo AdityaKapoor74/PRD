@@ -97,6 +97,7 @@ class A2CAgent:
 			self.critic_network_3 = MLPToGNNV3(obs_dim,self.num_agents).to(self.device)
 			self.critic_network_4 = MLPToGNNV4(obs_dim,self.num_actions,self.num_agents).to(self.device)
 			self.critic_network_5 = MLPToGNNV5(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network_6 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 
 		# MLP POLICY
@@ -130,6 +131,7 @@ class A2CAgent:
 			self.critic_optimizer_3 = optim.Adam(self.critic_network_3.parameters(),lr=self.value_lr[2])
 			self.critic_optimizer_4 = optim.Adam(self.critic_network_4.parameters(),lr=self.value_lr[3])
 			self.critic_optimizer_5 = optim.Adam(self.critic_network_5.parameters(),lr=self.value_lr[4])
+			self.critic_optimizer_6 = optim.Adam(self.critic_network_6.parameters(),lr=self.value_lr[5])
 			self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		else:
 			self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
@@ -403,7 +405,7 @@ class A2CAgent:
 			value_loss = []
 			grad_norm_value = []
 			weights = []
-			for i in range(1,6):
+			for i in range(1,7):
 				if i == 1:
 					V_values, weights_ = self.critic_network_1.forward(states_critic, probs.detach(), one_hot_actions)
 					# V_values_next, _ = self.critic_network_1.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
@@ -418,6 +420,9 @@ class A2CAgent:
 					# V_values_next, _ = self.critic_network_4.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 				elif i == 5:
 					V_values, weights_ = self.critic_network_5.forward(states_critic, probs.detach(), one_hot_actions)
+					# V_values_next, _ = self.critic_network_4.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+				elif i == 6:
+					V_values, weights_ = self.critic_network_6.forward(states_critic, probs.detach(), one_hot_actions)
 					# V_values_next, _ = self.critic_network_4.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 				
 
@@ -471,6 +476,11 @@ class A2CAgent:
 					value_loss_.backward(retain_graph=False)
 					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_5.parameters(),0.5)
 					self.critic_optimizer_5.step()
+				elif i == 6:
+					self.critic_optimizer_6.zero_grad()
+					value_loss_.backward(retain_graph=False)
+					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_6.parameters(),0.5)
+					self.critic_optimizer_6.step()
 
 				value_loss.append(value_loss_)
 				grad_norm_value.append(grad_norm_value_)
