@@ -27,8 +27,8 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "MLPToGNN"
-extension = "MLPToGNN_without_adv_norm" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "test23"
+extension = "MLPToGNNV1_without_adv_norm" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+test_num = "test24"
 env_name = "paired_by_sharing_goals"
 experiment_type = "without_prd"
 if __name__ == '__main__':
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 			"critic_type": critic_type,
 			"gif_checkpoint":10,
 			"gae": True,
-			"norm_adv": True,
+			"norm_adv": False,
 			"norm_rew": False,
 			"attention_heads": 4,
 			"freeze_policy": 100000,
