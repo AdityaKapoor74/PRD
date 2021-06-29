@@ -1606,7 +1606,7 @@ class MLPToGNNV6(nn.Module):
 	V6: same as V5, but without LayerNorm
 	'''
 	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
-		super(MLPToGNNV5, self).__init__()
+		super(MLPToGNNV6, self).__init__()
 		
 		self.num_agents = num_agents
 		self.num_actions = num_actions
