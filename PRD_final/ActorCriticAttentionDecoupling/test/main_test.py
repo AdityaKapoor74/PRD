@@ -49,7 +49,7 @@ if __name__ == '__main__':
 			"learn":True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
-			"experiment_type": "without_prd",
+			"experiment_type": "greedy_policy",
 			"critic_type": critic_type,
 			"gif_checkpoint":10,
 			"gae": True,
