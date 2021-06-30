@@ -105,9 +105,6 @@ class A2CAgent:
 		elif self.critic_type == "DualMLPGATCritic_MLPTrain":
 			self.critic_network_1 = MLPToGNNV1(obs_dim,self.num_agents).to(self.device)
 			self.critic_network_2 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.critic_type == "DualMLPGATCritic_GATTrain":
-			self.critic_network_1 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-			self.critic_network_2 = MLPToGNNV1(obs_dim,self.num_agents).to(self.device)
 		elif self.critic_type == "DualGATGATCritic":
 			self.critic_network_1 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_2 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
