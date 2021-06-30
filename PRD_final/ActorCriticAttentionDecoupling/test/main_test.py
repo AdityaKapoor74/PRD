@@ -30,7 +30,7 @@ critic_type = "DualGATGATCritic"
 extension = "DualGATGATCritic_no_adv_norm" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "test28"
 env_name = "multi_circular"
-experiment_type = "greedy_policy"
+experiment_type = "with_prd_soft_adv"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
