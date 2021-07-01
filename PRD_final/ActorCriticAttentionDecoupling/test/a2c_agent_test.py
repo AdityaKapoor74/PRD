@@ -58,7 +58,7 @@ class A2CAgent:
 		# PAIRED AGENT
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
-		elif self.env_name in ["multi_circular", "collision_avoidance", "collision_avoidance_no_width"]:
+		elif self.env_name in ["multi_circular", "collision_avoidance", "collision_avoidance_no_width", "reach_landmark_social_dilemma"]:
 			obs_dim = 2*3
 
 		# MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION
@@ -112,6 +112,14 @@ class A2CAgent:
 		elif self.critic_type == "DualGATGATCritic":
 			self.critic_network_1 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_2 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "GATPushBall":
+			obs_agent_input_dim = obs_ball_input_dim = 2*2
+			obs_act_input_dim = obs_agent_input_dim + self.num_actions
+			obs_agent_output_dim = obs_ball_output_dim = obs_act_output_dim = 128
+			final_input_dim = obs_ball_output_dim + obs_act_output_dim
+			final_output_dim = 1
+			self.critic_network = GATPushBall(obs_agent_input_dim, obs_agent_output_dim, obs_ball_input_dim, obs_ball_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, threshold=0.1).to(self.device)
+
 
 
 
@@ -160,6 +168,12 @@ class A2CAgent:
 
 
 	def get_action(self,state):
+		state = torch.FloatTensor([state]).to(self.device)
+		dists, _ = self.policy_network.forward(state)
+		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
+		return index
+
+	def get_action_push_ball(self,state_agent, state_ball):
 		state = torch.FloatTensor([state]).to(self.device)
 		dists, _ = self.policy_network.forward(state)
 		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]

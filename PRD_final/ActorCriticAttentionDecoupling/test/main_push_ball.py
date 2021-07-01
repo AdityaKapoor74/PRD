@@ -1,5 +1,5 @@
 # from maa2c import MAA2C
-from maa2c_test import MAA2C
+from maa2c_push_ball import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario
@@ -26,10 +26,10 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-critic_type = "MLPToGNNV6"
-extension = "MLPToGNNV6_withMLPPol" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "reach_landmark_social_dilemma"
-env_name = "reach_landmark_social_dilemma"
+critic_type = "GATPushBall"
+extension = "GATPushBall_1Ball_2Agents" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+test_num = "push_ball"
+env_name = "cooperative_push_ball"
 experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
@@ -46,9 +46,9 @@ if __name__ == '__main__':
 			"select_above_threshold": 1e-1,
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
-			"gif": False,
-			"save": True,
-			"learn":True,
+			"gif": True,
+			"save": False,
+			"learn":False,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
 			"experiment_type": experiment_type,

@@ -1965,3 +1965,199 @@ class MLPToGNNV8(nn.Module):
 		Value = self.final_value_layer_2(Value)
 
 		return Value, weight_1, ret_weight
+
+
+
+
+'''
+PUSH BALL CRITIC
+Linear Embeddings for states (agent and ball)
+Linear Embeddings for states actions policies
+'''
+class GATPushBall(nn.Module):
+
+	def __init__(self, obs_agent_input_dim, obs_agent_output_dim, obs_ball_input_dim, obs_ball_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, threshold=0.1):
+		super(GATPushBall, self).__init__()
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+
+		assert obs_agent_output_dim == obs_ball_output_dim
+		assert obs_ball_output_dim + obs_act_output_dim == final_input_dim
+		assert final_output_dim == 1
+
+		self.state_embed_agent = nn.Linear(obs_agent_input_dim, 64)
+		self.state_embed_ball = nn.Linear(obs_ball_input_dim, 64)
+
+		self.key_ball = nn.Linear(64, obs_ball_output_dim, bias=False)
+		self.query_ball = nn.Linear(64, obs_agent_output_dim, bias=False)
+		self.attention_value_ball = nn.Linear(64, obs_ball_output_dim, bias=False)
+		# dimesion of key
+		self.d_k_obs_ball = obs_ball_output_dim
+
+
+		self.state_act_pol_embed = nn.Linear(obs_act_input_dim, 64, bias=False)
+		self.key_agent = nn.Linear(64, obs_agent_output_dim, bias=False)
+		self.query_agent = nn.Linear(64, obs_agent_output_dim, bias=False)
+		self.attention_value_agent = nn.Linear(64, obs_act_output_dim, bias=False)
+
+		# dimesion of key
+		self.d_k_obs_agent = obs_agent_output_dim
+
+		# NOISE
+		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		self.noise_uniform = torch.rand
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layer_1 = nn.Linear(final_input_dim, 256, bias=False)
+		self.final_value_layer_2 = nn.Linear(256, final_output_dim, bias=False)
+		# ********************************************************************************************************	
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+		self.threshold = threshold
+		self.obs_act_input_dim = obs_act_input_dim
+		# ********************************************************************************************************* 
+
+		self.reset_parameters()
+
+
+	def mixing_actions_policies(self):
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,self.obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(self.obs_act_input_dim)
+		zero_hots = torch.zeros(self.obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.state_embed_agent.weight)
+		nn.init.xavier_uniform_(self.state_embed_ball.weight)
+		nn.init.xavier_uniform_(self.state_act_pol_embed.weight)
+
+		nn.init.xavier_uniform_(self.key_ball.weight)
+		nn.init.xavier_uniform_(self.query_ball.weight)
+		nn.init.xavier_uniform_(self.attention_value_ball.weight)
+
+		nn.init.xavier_uniform_(self.key_agent.weight)
+		nn.init.xavier_uniform_(self.query_agent.weight)
+		nn.init.xavier_uniform_(self.attention_value_agent.weight)
+
+
+		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_value_layer_2.weight, gain=gain_leaky)
+
+
+
+	def forward(self, states, states_ball, policies, actions):
+		states_ball_embed = self.state_embed_ball(states_ball)
+		states_agent_embed = self.state_embed_agent(states)
+
+		# KEYS
+		key_obs_proc = self.key_proc_layer(states_ball_embed)
+		# QUERIES
+		query_obs_proc = self.query_proc_layer(states_agent_embed)
+		# ATTENTION VALUES
+		attention_values_proc = self.attention_value_proc_layer(states_ball_embed)
+		# WEIGHTS
+		weight_agent_ball = F.softmax(torch.matmul(query_obs_proc,key_obs_proc.transpose(1,2))/math.sqrt(self.d_k_obs_ball),dim=-1)
+		weighted_attention_value_agent_ball = torch.matmul(weight_agent_ball,attention_values_proc)
+
+		# KEYS
+		keys_obs_embed = self.key_layer(states_agent_embed)
+		# QUERIES
+		query_obs_embed = self.query_layer(states_agent_embed)
+		# WEIGHTS
+		weight_agent_agent = F.softmax(torch.matmul(query_obs_embed,keys_obs_embed.transpose(1,2))/math.sqrt(self.d_k_obs_agent),dim=-1)
+		ret_weight_agent_agent = weight_agent_agent
+		
+		obs_actions = torch.cat([states,actions],dim=-1)
+		obs_policy = torch.cat([states,policies], dim=-1)
+		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+		# RANDOMIZING NUMBER OF AGENTS
+		# self.mixing_actions_policies()
+		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+
+		# embedding the observation_actions_policies
+		obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
+		attention_values = self.attention_value_layer(obs_actions_policies_embed)
+		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+
+		# SOFTMAX
+		weight_agent_agent = weight_agent_agent.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+		weighted_attention_values_agent_agent = torch.sum(attention_values*weight_agent_agent, dim=-2)
+
+		# SOFTMAX WITH NOISE
+		# weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+		# uniform_noise = (self.noise_uniform((attention_values.view(-1).size())).reshape(attention_values.size()) - 0.5) * 0.1 #SCALING NOISE AND MAKING IT ZERO CENTRIC
+		# weighted_attention_values = attention_values*weight + uniform_noise
+
+		# SOFTMAX WITH NORMALIZATION
+		# scaling_weight = F.relu(weight - self.threshold)
+		# scaling_weight = torch.div(scaling_weight,torch.sum(scaling_weight,dim =-1).unsqueeze(-1))
+		# ret_weight = scaling_weight
+		# scaling_weight = scaling_weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+		# weighted_attention_values = attention_values*scaling_weight
+
+		node_features = torch.cat([weighted_attention_values_agent_agent, weighted_attention_value_agent_ball], dim=-1)
+
+		Value = F.leaky_relu(self.final_value_layer_1(node_features))
+		Value = self.final_value_layer_2(Value)
+
+		return Value, weight_agent_ball, ret_weight_agent_agent
+
+
+class MLPPolicyNetworkPushBall(nn.Module):
+	def __init__(self,state_agent_dim,num_agents,state_ball_dim,num_balls,action_dim):
+		super(MLPPolicyNetworkPushBall,self).__init__()
+
+		self.state_agent_dim = state_agent_dim
+		self.num_agents = num_agents	
+		self.state_ball_dim = state_ball_dim
+		self.num_balls = num_balls	
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+		self.fc1 = nn.Linear(state_agent_dim*num_agents+state_ball_dim*num_balls,128)
+		self.fc2 = nn.Linear(128,128)
+		self.fc3 = nn.Linear(128,action_dim)
+
+	def forward(self, states_agent, states_ball):
+
+		# T x num_agents x state_dim
+		T = states.shape[0]
+		
+		# [s0;s1;s2;s3]  -> [s0 s1 s2 s3; s1 s2 s3 s0; s2 s3 s1 s0 ....]
+
+		states_agent_aug = [torch.roll(states,i,1) for i in range(self.num_agents)]
+
+		states_agent_aug = torch.cat(states_agent_aug,dim=2)
+		states_ball_aug = torch.cat(states_ball,dim=2).unsqueeze(-1).repeat(1,self.num_agents,1)
+		states_aug = torch.cat([states_agent_aug,states_ball_aug], dim=-1)
+
+		x = self.fc1(states_aug)
+		x = nn.ReLU()(x)
+		x = self.fc2(x)
+		x = nn.ReLU()(x)
+		x = self.fc3(x)
+
+		Policy = F.softmax(x, dim=-1)
+
+		return Policy

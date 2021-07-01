@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from a2c_agent_test import A2CAgent
+from a2c_agent_push_ball import A2CAgent
 import datetime
 
 
@@ -133,122 +133,57 @@ class MAA2C:
 
 	def update(self,trajectory,episode):
 
-		states_critic = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		next_states_critic = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+		states_agent = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
+		next_states_agent = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
 
 		one_hot_actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
 		one_hot_next_actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
 		actions = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
 
-		states_actor = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
-		next_states_actor = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
+		states_ball = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
+		next_states_ball = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
 
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_agent,next_states_agent,one_hot_actions,one_hot_next_actions,actions,states_ball,next_states_ball,rewards,dones)
 
 		if self.save:
-			if self.critic_type == "ALL":
-				for i,name in enumerate(self.critic):
-					self.value_loss[name] = value_loss[i].item()
-					self.grad_norm_value[name] = grad_norm_value[i]
-				self.writer.add_scalars('Loss/Value Loss',self.value_loss,episode)
-				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value,episode)
+			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
-			elif self.critic_type == "ALL_W_POL":
-				for i,name in enumerate(self.critic):
-					self.value_loss[name] = value_loss[i].item()
-					self.grad_norm_value[name] = grad_norm_value[i]
-					# self.critic_weights_entropy[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
-				self.writer.add_scalars('Loss/Value Loss',self.value_loss,episode)
-				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value,episode)
-				# self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
-				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-			elif self.critic_type == "MLPToGNN":
-				for i,name in enumerate(self.critic_):
-					self.critic_weights_entropy_[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
-					if name == "MLPToGNNV8_preproc":
-						continue
-					self.value_loss_[name] = value_loss[i].item()
-					self.grad_norm_value_[name] = grad_norm_value[i]
-				self.writer.add_scalars('Loss/Value Loss',self.value_loss_,episode)
-				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value_,episode)
-				self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy_, episode)
-				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-			elif "AttentionCritic" in self.critic_type:
-				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			# self.calculate_indiv_weights(weights)
+			# for i in range(self.num_agents):
+			# 	agent_name = 'agent %d' % i
+			# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 
-				for i in range(self.attention_heads):
-					head_name = 'head %d' % i
-					self.weight_ent_per_head[head_name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
-				self.writer.add_scalars('Weights_Critic/Entropy', self.weight_ent_per_head, episode)
-			elif self.critic_type == "MultiHead":
-				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			# self.calculate_indiv_weights(weight_policy)
+			# for i in range(self.num_agents):
+			# 	agent_name = 'agent %d' % i
+			# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+			
+			# ENTROPY OF WEIGHTS
+			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+			self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
 
-				for i in range(self.attention_heads):
-					head_name = 'head %d' % i
-					self.weight_ent_per_head[head_name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
-				self.writer.add_scalars('Weights_Critic/Entropy', self.weight_ent_per_head, episode)
-			elif "Dual" in self.critic_type:
-				for i,name in enumerate(self.critic_dual):
-					self.value_loss_dual[name] = value_loss[i].item()
-					self.grad_norm_value_dual[name] = grad_norm_value[i]
-					self.critic_weights_entropy_dual[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
-				self.writer.add_scalars('Loss/Value Loss',self.value_loss_dual,episode)
-				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value_dual,episode)
-				# self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
-				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-			else:
-				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-
-				# self.calculate_indiv_weights(weights)
-				# for i in range(self.num_agents):
-				# 	agent_name = 'agent %d' % i
-				# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-
-				# self.calculate_indiv_weights(weight_policy)
-				# for i in range(self.num_agents):
-				# 	agent_name = 'agent %d' % i
-				# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-				
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
-
-				# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-				# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+			# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
 
 	def split_states(self,states):
-		states_critic = []
-		states_actor = []
+		states_agent = []
+		states_ball = []
 		for i in range(self.num_agents):
-			states_critic.append(states[i][0])
-			states_actor.append(states[i][1])
+			states_agent.append(states[i][0])
+			states_ball.append(states[i][1])
 
-		states_critic = np.asarray(states_critic)
-		states_actor = np.asarray(states_actor)
+		states_agent = np.asarray(states_agent)
+		states_ball = np.asarray(states_ball)
 
-		return states_critic,states_actor
+		return states_agent,states_ball
 
 
 
@@ -293,7 +228,8 @@ class MAA2C:
 
 			images = []
 
-			states_critic,states_actor = self.split_states(states)
+			states_agent,states_ball = self.split_states(states)
+			states_ball = states_ball[0]
 
 			trajectory = []
 			episode_reward = 0
@@ -304,8 +240,9 @@ class MAA2C:
 					if not(episode%self.gif_checkpoint):
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
-					with torch.no_grad():
-						actions = self.get_actions(states_actor)
+					# with torch.no_grad():
+					# 	actions = self.get_actions(states_agent, states_ball)
+					actions = [1 for i in range(self.num_agents)]
 				else:
 					actions = self.get_actions(states_actor)
 
@@ -314,10 +251,12 @@ class MAA2C:
 					one_hot_actions[i][act] = 1
 
 				next_states,rewards,dones,info = self.env.step(actions)
-				next_states_critic,next_states_actor = self.split_states(next_states)
+				next_states_agent,next_states_ball = self.split_states(next_states)
+				next_states_ball = next_states_ball[0]
 
 				# next actions
-				next_actions = self.get_actions(next_states_actor)
+				# next_actions = self.get_actions(next_states_agent, next_states_ball)
+				next_actions = [1 for i in range(self.num_agents)]
 
 
 				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
@@ -328,8 +267,6 @@ class MAA2C:
 
 				if self.learn:
 					if all(dones) or step == self.max_time_steps:
-
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
@@ -340,12 +277,13 @@ class MAA2C:
 
 						break
 					else:
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
-						states_critic,states_actor = next_states_critic,next_states_actor
+						states_agent,states_ball = next_states_agent,next_states_ball
 						states = next_states
 
+					trajectory.append([states_agent,next_states_agent,one_hot_actions,one_hot_next_actions,actions,states_ball,next_states_ball,rewards,dones])
+
 				else:
-					states_critic,states_actor = next_states_critic,next_states_actor
+					states_agent,states_ball = next_states_agent,next_states_ball
 					states = next_states
 
 
