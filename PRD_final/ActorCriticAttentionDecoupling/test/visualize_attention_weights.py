@@ -1,7 +1,7 @@
 import pygame
 import sys
 import random
-from a2c_test import StateActionGATCritic, StateOnlyGATCritic, StateOnlyMLPCritic, StateActionMLPCritic, MLPPolicyNetwork
+from a2c_test import *
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario
 import multiagent.scenarios as scenarios
@@ -9,9 +9,9 @@ import torch
 from torch.distributions import Categorical
 import numpy as np
 
-critic_type = "GNN_CRITIC_STATE_ACTION"
+critic_type = "MLPToGNNV6"
 num_actions = 5
-num_agents = 8
+num_agents = 4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ENVIRONMENT = "PAIRED AGENTS"
 SCREEN_SIZE = WIDTH, HEIGHT = (800, 800)
@@ -24,23 +24,25 @@ LANDMARK_RADIUS = 800/40
 
 # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION
 if critic_type == "GNN_CRITIC_STATE":
-	critic_network = StateOnlyGATCritic(2*4, 128, 128, 1, num_agents, num_actions).to(device)
+	critic_network = StateOnlyGATCritic(2*3, 128, 128, 1, num_agents, num_actions).to(device)
 elif critic_type == "GNN_CRITIC_STATE_ACTION":
-	critic_network = StateActionGATCritic(2*4, 128, 2*4+num_actions, 128, 128, 1, num_agents, num_actions).to(device)
+	critic_network = StateActionGATCritic(2*3, 128, 2*3+num_actions, 128, 128, 1, num_agents, num_actions).to(device)
+elif critic_type == "MLPToGNNV6":
+	critic_network = MLPToGNNV6(2*3, 128, 2*3+num_actions, 128, 128, 1, num_agents, num_actions).to(device)
 
 # MLP POLICY
 policy_network = MLPPolicyNetwork(2*3, num_agents, num_actions).to(device)
 
 
 # Loading models
-# model_path_value = "../../../models/Experiment37/critic_networks/11-04-2021VN_SAT_SAT_FCN_lr0.0002_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda0.0tanh_epsiode6000.pt"
-# model_path_policy = "../../../models/Experiment29/actor_networks/09-04-2021_PN_FCN_lr0.0002VN_SAT_SAT_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda1e-05tanh_epsiode24000.pt"
+model_path_value = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/critic_networks/29-06-2021VN_ATN_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain_.pt"
+model_path_policy = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/actor_networks/29-06-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain.pt"
 # For CPU
 # critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 # policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 # # For GPU
-# critic_network.load_state_dict(torch.load(model_path_value))
-# policy_network.load_state_dict(torch.load(model_path_policy))
+critic_network.load_state_dict(torch.load(model_path_value))
+policy_network.load_state_dict(torch.load(model_path_policy))
 
 # Initialization
 pygame.init()
@@ -97,8 +99,9 @@ def render(states_critic, weights):
 	for i in range(num_agents):
 		pygame.draw.circle(screen, agent_color[i], agent_position[i], AGENT_RADIUS, 0)
 		pygame.draw.circle(screen, agent_color[i], landmark_position[i], LANDMARK_RADIUS, 0)
-		for j in range(num_agents):
-			pygame.draw.line(screen, WHITE, agent_position[i], agent_position[j], map_weight_to_width(weights[i][j].item()))
+		if i == 0:
+			for j in range(num_agents):
+				pygame.draw.line(screen, agent_color[i], agent_position[i], agent_position[j], map_weight_to_width(weights[i][j].item()))
 
 	pygame.display.update()
 	fps.tick(60)
@@ -184,5 +187,5 @@ def run(env, max_steps):
 
 
 if __name__ == '__main__':
-	env = make_env(scenario_name="paired_by_sharing_goals",benchmark=False)
-	run(env,1000)
+	env = make_env(scenario_name="multi_circular",benchmark=False)
+	run(env,100000)

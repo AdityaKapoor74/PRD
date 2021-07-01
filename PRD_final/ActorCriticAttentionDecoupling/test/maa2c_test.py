@@ -51,10 +51,10 @@ class MAA2C:
 		self.critic = ["MLP_CRITIC_STATE", "MLP_CRITIC_STATE_ACTION", "GNN_CRITIC_STATE", "GNN_CRITIC_STATE_ACTION"]
 
 		# MLP TO GNN
-		self.value_loss_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None, "MLPToGNNV6":None}
-		self.critic_weights_entropy_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None, "MLPToGNNV6":None}
-		self.grad_norm_value_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None, "MLPToGNNV6":None}
-		self.critic_ = ["MLPToGNNV1", "MLPToGNNV2", "MLPToGNNV3", "MLPToGNNV4", "MLPToGNNV5", "MLPToGNNV6"]
+		self.value_loss_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None, "MLPToGNNV6":None, "MLPToGNNV7":None, "MLPToGNNV8":None}
+		self.critic_weights_entropy_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None, "MLPToGNNV6":None, "MLPToGNNV7":None, "MLPToGNNV8_preproc":None, "MLPToGNNV8":None}
+		self.grad_norm_value_ = {"MLPToGNNV1":None, "MLPToGNNV2":None, "MLPToGNNV3":None, "MLPToGNNV4":None, "MLPToGNNV5":None, "MLPToGNNV6":None, "MLPToGNNV7":None, "MLPToGNNV8":None}
+		self.critic_ = ["MLPToGNNV1", "MLPToGNNV2", "MLPToGNNV3", "MLPToGNNV4", "MLPToGNNV5", "MLPToGNNV6", "MLPToGNNV7", "MLPToGNNV8_preproc", "MLPToGNNV8"]
 
 		# DUAL
 		self.value_loss_dual = {"Critic1":None, "Critic2":None}
@@ -169,12 +169,14 @@ class MAA2C:
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 			elif self.critic_type == "MLPToGNN":
 				for i,name in enumerate(self.critic_):
+					self.critic_weights_entropy_[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
+					if name == "MLPToGNNV8_preproc":
+						continue
 					self.value_loss_[name] = value_loss[i].item()
 					self.grad_norm_value_[name] = grad_norm_value[i]
-					# self.critic_weights_entropy[name] = -torch.mean(torch.sum(weights[i] * torch.log(torch.clamp(weights[i], 1e-10,1.0)), dim=2)).item()
 				self.writer.add_scalars('Loss/Value Loss',self.value_loss_,episode)
 				self.writer.add_scalars('Gradient Normalization/Grad Norm Value',self.grad_norm_value_,episode)
-				# self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy, episode)
+				self.writer.add_scalars('Weights_Critic/Entropy', self.critic_weights_entropy_, episode)
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
@@ -367,6 +369,8 @@ class MAA2C:
 					torch.save(self.agents.critic_network_4.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV4.pt')
 					torch.save(self.agents.critic_network_5.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV5.pt')
 					torch.save(self.agents.critic_network_6.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV6.pt')
+					torch.save(self.agents.critic_network_7.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV7.pt')
+					torch.save(self.agents.critic_network_8.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_GNNToMLPV8.pt')
 					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
 				elif "Dual" in self.critic_type:
 					torch.save(self.agents.critic_network_1.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+self.critic_type+'_.pt')

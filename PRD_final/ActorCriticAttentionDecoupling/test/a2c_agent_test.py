@@ -98,8 +98,12 @@ class A2CAgent:
 			self.critic_network_4 = MLPToGNNV4(obs_dim,self.num_actions,self.num_agents).to(self.device)
 			self.critic_network_5 = MLPToGNNV5(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_6 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network_7 = MLPToGNNV7(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network_8 = MLPToGNNV8(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "MLPToGNNV5":
 			self.critic_network = MLPToGNNV5(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "MLPToGNNV6":
+			self.critic_network = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "GNNTanhRelU":
 			self.critic_network = GNNTanhRelU(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "DualMLPGATCritic_MLPTrain":
@@ -116,8 +120,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../../models/Experiment37/critic_networks/11-04-2021VN_SAT_SAT_FCN_lr0.0002_PN_FCN_lr0.0002_GradNorm0.5_Entropy0.008_trace_decay0.98_lambda0.0tanh_epsiode6000.pt"
-		# model_path_policy = "./test2/16-06-2021_PN_ATN_FCN_lr0.001VN_SAT_FCN_lr0.01_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode15000.pt"
+		# model_path_value = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/critic_networks/29-06-2021VN_ATN_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain_.pt"
+		# model_path_policy = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/actor_networks/29-06-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -143,6 +147,8 @@ class A2CAgent:
 			self.critic_optimizer_4 = optim.Adam(self.critic_network_4.parameters(),lr=self.value_lr[3])
 			self.critic_optimizer_5 = optim.Adam(self.critic_network_5.parameters(),lr=self.value_lr[4])
 			self.critic_optimizer_6 = optim.Adam(self.critic_network_6.parameters(),lr=self.value_lr[5])
+			self.critic_optimizer_7 = optim.Adam(self.critic_network_7.parameters(),lr=self.value_lr[6])
+			self.critic_optimizer_8 = optim.Adam(self.critic_network_8.parameters(),lr=self.value_lr[7])
 			self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 		elif "Dual" in self.critic_type:
 			self.critic_optimizer_1 = optim.Adam(self.critic_network_1.parameters(),lr=self.value_lr[0])
@@ -420,7 +426,7 @@ class A2CAgent:
 			value_loss = []
 			grad_norm_value = []
 			weights = []
-			for i in range(1,7):
+			for i in range(1,9):
 				if i == 1:
 					V_values, weights_ = self.critic_network_1.forward(states_critic, probs.detach(), one_hot_actions)
 					# V_values_next, _ = self.critic_network_1.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
@@ -438,6 +444,12 @@ class A2CAgent:
 					# V_values_next, _ = self.critic_network_4.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 				elif i == 6:
 					V_values, weights_ = self.critic_network_6.forward(states_critic, probs.detach(), one_hot_actions)
+					# V_values_next, _ = self.critic_network_4.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+				elif i == 7:
+					V_values, weights_ = self.critic_network_7.forward(states_critic, probs.detach(), one_hot_actions)
+					# V_values_next, _ = self.critic_network_4.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+				elif i == 8:
+					V_values, _weights_, weights_ = self.critic_network_8.forward(states_critic, probs.detach(), one_hot_actions)
 					# V_values_next, _ = self.critic_network_4.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 				
 
@@ -496,6 +508,19 @@ class A2CAgent:
 					value_loss_.backward(retain_graph=False)
 					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_6.parameters(),0.5)
 					self.critic_optimizer_6.step()
+				elif i == 7:
+					self.critic_optimizer_7.zero_grad()
+					value_loss_.backward(retain_graph=False)
+					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_7.parameters(),0.5)
+					self.critic_optimizer_7.step()
+				elif i == 8:
+					self.critic_optimizer_8.zero_grad()
+					value_loss_.backward(retain_graph=False)
+					grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_8.parameters(),0.5)
+					self.critic_optimizer_8.step()
+					value_loss.append(None)
+					grad_norm_value.append(None)
+					weights.append(_weights_)
 
 				value_loss.append(value_loss_)
 				grad_norm_value.append(grad_norm_value_)
@@ -653,7 +678,7 @@ class A2CAgent:
 
 			# TD lambda 
 			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
-			value_loss = F.smooth_l1_loss(V_values, discounted_rewards)
+			value_loss = F.smooth_l1_loss(V_values, Value_target)
 		
 			# # ***********************************************************************************
 			# update actor (policy net)
