@@ -28,7 +28,7 @@ def run_file(dictionary):
 
 critic_type = "MLPToGNNV6"
 extension = "MLPToGNNV6_withMLPPol" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "reach_landmark_social_dilemma_exist_pen"
+test_num = "reach_landmark_social_dilemma_exist_pen_fast_slow_agent"
 env_name = "reach_landmark_social_dilemma"
 experiment_type = "with_prd_soft_adv"
 if __name__ == '__main__':
