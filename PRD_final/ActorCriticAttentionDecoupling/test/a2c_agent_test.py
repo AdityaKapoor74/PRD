@@ -58,7 +58,7 @@ class A2CAgent:
 		# PAIRED AGENT
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
-		elif self.env_name in ["multi_circular", "collision_avoidance"]:
+		elif self.env_name in ["multi_circular", "collision_avoidance", "collision_avoidance_no_width"]:
 			obs_dim = 2*3
 
 		# MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION

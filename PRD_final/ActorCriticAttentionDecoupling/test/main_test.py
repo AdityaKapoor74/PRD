@@ -28,8 +28,8 @@ def run_file(dictionary):
 
 critic_type = "MLPToGNN"
 extension = "MLPToGNN_CriticLossComparison" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "test30"
-env_name = "multi_circular"
+test_num = "test31"
+env_name = "collision_avoidance_no_width"
 experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 			"actor_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-			"env": env_name, #paired_by_sharing_goals, multi_circular
+			"env": env_name, #paired_by_sharing_goals, multi_circular, collision_avoidance_no_width
 			"value_lr": [1e-3]*8, #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]
 			"policy_lr": 5e-4, # 2e-4 for single head
 			"entropy_pen": 8e-3, 
