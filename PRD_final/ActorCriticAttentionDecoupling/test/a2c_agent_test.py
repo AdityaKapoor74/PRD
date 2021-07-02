@@ -35,6 +35,7 @@ class A2CAgent:
 		self.attention_heads = dictionary["attention_heads"]
 		self.freeze_policy = dictionary["freeze_policy"]
 		self.episode_counter = 0
+		self.l1_pen = dictionary["l1_pen"]
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
@@ -699,6 +700,10 @@ class A2CAgent:
 			# TD lambda 
 			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
 			value_loss = F.smooth_l1_loss(V_values, Value_target)
+
+			weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
+			l1_weights = torch.mean(weights_off_diagonal)
+			value_loss += self.l1_pen*l1_weights
 		
 			# # ***********************************************************************************
 			# update actor (policy net)

@@ -59,6 +59,7 @@ if __name__ == '__main__':
 			"norm_rew": False,
 			"attention_heads": 4,
 			"freeze_policy": 100000,
+			"l1_pen": 1e-2,
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)
