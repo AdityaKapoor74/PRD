@@ -30,7 +30,7 @@ critic_type = "MLPToGNNV6"
 extension = "MLPToGNNV6_withMLPPol_with_l1_pen" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "color_social_dilemma"
 env_name = "color_social_dilemma"
-experiment_type = "without_prd"
+experiment_type = "greedy_policy"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 			"norm_rew": False,
 			"attention_heads": 4,
 			"freeze_policy": 100000,
-			"l1_pen": 1e-2,
+			"l1_pen": 0.0,
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)
