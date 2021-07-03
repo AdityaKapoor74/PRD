@@ -29,7 +29,7 @@ critic_type = "GATSocialDilemma"
 extension = "GATSocialDilemma_4Agents_4Teams" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "color_social_dilemma_DualGAT_try2"
 env_name = "color_social_dilemma"
-experiment_type = "without_prd"
+experiment_type = "greedy_policy"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
