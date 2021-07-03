@@ -1,0 +1,239 @@
+import numpy as np
+import torch 
+import torch.nn as nn
+import torch.optim as optim
+import torch.autograd as autograd
+from torch.autograd import Variable
+from torch.distributions import Categorical
+from a2c_test import *
+import torch.nn.functional as F
+
+class A2CAgent:
+
+	def __init__(
+		self, 
+		env, 
+		dictionary
+		):
+
+		self.env = env
+		self.env_name = dictionary["env"]
+		self.value_lr = dictionary["value_lr"]
+		self.policy_lr = dictionary["policy_lr"]
+		self.gamma = dictionary["gamma"]
+		self.entropy_pen = dictionary["entropy_pen"]
+		self.trace_decay = dictionary["trace_decay"]
+		self.top_k = dictionary["top_k"]
+		self.critic_type = dictionary["critic_type"]
+		self.gae = dictionary["gae"]
+		self.norm_adv = dictionary["norm_adv"]
+		self.norm_rew = dictionary["norm_rew"]
+		# Used for masking advantages above a threshold
+		self.select_above_threshold = dictionary["select_above_threshold"]
+		# cut the tail of softmax --> Used in softmax with normalization
+		self.softmax_cut_threshold = dictionary["softmax_cut_threshold"]
+		self.attention_heads = dictionary["attention_heads"]
+		self.freeze_policy = dictionary["freeze_policy"]
+		self.episode_counter = 0
+		self.l1_pen = dictionary["l1_pen"]
+
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+		
+		self.num_agents = self.env.n
+		self.num_actions = self.env.action_space[0].n
+		self.gif = dictionary["gif"]
+
+		self.experiment_type = dictionary["experiment_type"]
+
+		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
+		for i in range(self.num_agents):
+			self.greedy_policy[i][i] = 1
+
+		print("CRITIC TYPE", self.critic_type)
+		print("EXPERIMENT TYPE", self.experiment_type)
+
+		# TD lambda
+		self.lambda_ = 0.8
+
+		obs_agent_input_dim = 2*2+1
+		obs_goal_input_dim = 2+1
+		obs_act_input_dim = obs_agent_input_dim + self.num_actions
+		obs_agent_output_dim = obs_goal_output_dim = obs_act_output_dim = 128
+		final_input_dim = obs_goal_output_dim + obs_act_output_dim
+		final_output_dim = 1
+		self.critic_network = GATSocialDilemma(obs_agent_input_dim, obs_agent_output_dim, obs_goal_input_dim, obs_goal_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_agents, self.num_actions, threshold=0.1).to(self.device)
+
+
+
+
+		# MLP POLICY
+		self.policy_network = MLPPolicyNetworkSocialDilemma(2*2+1, self.num_agents, 2+1, self.num_agents, self.num_actions).to(self.device)
+
+
+		# Loading models
+		# model_path_value = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/critic_networks/29-06-2021VN_ATN_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain_.pt"
+		# model_path_policy = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/actor_networks/29-06-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain.pt"
+		# For CPU
+		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+		# # For GPU
+		# self.critic_network.load_state_dict(torch.load(model_path_value))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy))
+
+		
+		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+
+
+	def get_action(self,state_agent, state_goal):
+		state_agent = torch.FloatTensor([state_agent]).to(self.device)
+		state_goal = torch.FloatTensor([state_goal]).to(self.device)
+		dists = self.policy_network.forward(state_agent, state_goal)
+		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
+		return index
+
+
+
+	def calculate_advantages(self,returns, values, rewards, dones):
+		
+		advantages = None
+
+		if self.gae:
+			advantages = []
+			next_value = 0
+			advantage = 0
+			rewards = rewards.unsqueeze(-1)
+			dones = dones.unsqueeze(-1)
+			masks = 1 - dones
+			for t in reversed(range(0, len(rewards))):
+				td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+				next_value = values.data[t]
+				
+				advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
+				advantages.insert(0, advantage)
+
+			advantages = torch.stack(advantages)	
+		else:
+			advantages = returns - values
+		
+		if self.norm_adv:
+			
+			advantages = (advantages - advantages.mean()) / advantages.std()
+		
+		return advantages
+
+
+	def calculate_deltas(self, values, rewards, dones):
+		deltas = []
+		next_value = 0
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
+		masks = 1-dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			next_value = values.data[t]
+			deltas.insert(0,td_error)
+		deltas = torch.stack(deltas)
+
+		return deltas
+
+
+	def nstep_returns(self,values, rewards, dones):
+		deltas = self.calculate_deltas(values, rewards, dones)
+		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+		target_Vs = advs+values
+		return target_Vs
+
+
+	def calculate_returns(self,rewards, discount_factor):
+		returns = []
+		R = 0
+		
+		for r in reversed(rewards):
+			R = r + R * discount_factor
+			returns.insert(0, R)
+		
+		returns_tensor = torch.stack(returns).to(self.device)
+		
+		if self.norm_rew:
+			
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			
+		return returns_tensor
+		
+		
+
+
+	def update(self,states_agent,next_states_agent,one_hot_actions,one_hot_next_actions,actions,states_goal,next_states_goal,rewards,dones):
+		probs = self.policy_network.forward(states_agent, states_goal)
+
+		V_values, weights_agent_goal, weights_agent_agent = self.critic_network.forward(states_agent, states_goal, probs.detach(), one_hot_actions)
+		# next_probs, _ = self.policy_network.forward(next_states_actor)
+		# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+		# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+
+	
+		# # ***********************************************************************************
+		# update critic (value_net)
+		# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
+		discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+		discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
+
+		# BOOTSTRAP LOSS
+		# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+		# value_loss = F.smooth_l1_loss(V_values,target_values)
+
+		# MONTE CARLO LOSS
+		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+
+		# TD lambda 
+		Value_target = self.nstep_returns(V_values, rewards, dones).detach()
+		value_loss = F.smooth_l1_loss(V_values, Value_target)
+
+		weights_off_diagonal = weights_agent_agent * (1 - torch.eye(self.num_agents,device=self.device))
+		l1_weights = torch.mean(weights_off_diagonal)
+		value_loss += self.l1_pen*l1_weights
+	
+		# # ***********************************************************************************
+		# update actor (policy net)
+		# # ***********************************************************************************
+		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+
+		# summing across each agent j to get the advantage
+		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		advantage = None
+		if self.experiment_type == "without_prd":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+		elif "top" in self.experiment_type:
+			values, indices = torch.topk(weights_agent_agent,k=self.top_k,dim=-1)
+			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+		elif self.experiment_type in "above_threshold":
+			masking_advantage = torch.transpose((weights_agent_agent>self.select_above_threshold).int(),-1,-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+		elif self.experiment_type == "with_prd_soft_adv":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights_agent_agent ,dim=-2)
+		elif self.experiment_type == "greedy_policy":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+
+	
+		probs = Categorical(probs)
+		policy_loss = -probs.log_prob(actions) * advantage.detach()
+		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+		# # ***********************************************************************************
+			
+		# **********************************
+		self.critic_optimizer.zero_grad()
+		value_loss.backward(retain_graph=False)
+		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+		self.critic_optimizer.step()
+
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward(retain_graph=False)
+		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		self.policy_optimizer.step()
+
+		# V values
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights_agent_goal,weights_agent_agent

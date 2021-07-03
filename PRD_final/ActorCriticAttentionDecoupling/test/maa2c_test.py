@@ -220,10 +220,10 @@ class MAA2C:
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
-				# self.calculate_indiv_weights(weights)
-				# for i in range(self.num_agents):
-				# 	agent_name = 'agent %d' % i
-				# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+				self.calculate_indiv_weights(weights)
+				for i in range(self.num_agents):
+					agent_name = 'agent %d' % i
+					self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 
 				# self.calculate_indiv_weights(weight_policy)
 				# for i in range(self.num_agents):

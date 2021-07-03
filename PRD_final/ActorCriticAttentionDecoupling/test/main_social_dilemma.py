@@ -1,5 +1,4 @@
-# from maa2c import MAA2C
-from maa2c_test import MAA2C
+from maa2c_social_dilemma import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 # from multiagent.scenarios.simple_spread import Scenario
@@ -26,11 +25,11 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
-critic_type = "MLPToGNNV6"
-extension = "MLPToGNNV6_color_social_dilemma_vis_weights_greedy" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "MLPToGNNV6_color_social_dilemma_vis_weights"
+critic_type = "GATSocialDilemma"
+extension = "GATSocialDilemma_4Agents_4Teams" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+test_num = "color_social_dilemma_DualGAT"
 env_name = "color_social_dilemma"
-experiment_type = "greedy_policy"
+experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -59,7 +58,7 @@ if __name__ == '__main__':
 			"norm_rew": False,
 			"attention_heads": 4,
 			"freeze_policy": 100000,
-			"l1_pen": 0.0,
+			"l1_pen":0.0,
 		}
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
 	ma_controller = MAA2C(env,dictionary)

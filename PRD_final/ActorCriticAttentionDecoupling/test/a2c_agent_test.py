@@ -135,14 +135,14 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/critic_networks/29-06-2021VN_ATN_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain_.pt"
-		# model_path_policy = "../../../../tests/test26/models/multi_circular_with_prd_soft_adv_DualMLPGATCritic_MLPTrain_no_adv_norm/actor_networks/29-06-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode99000_DualMLPGATCritic_MLPTrain.pt"
+		model_path_value = "../../../../tests/color_social_dilemma/models/color_social_dilemma_greedy_policy_MLPToGNNV6_withMLPPol_with_l1_pen/critic_networks/02-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode100000_MLPToGNNV6.pt"
+		model_path_policy = "../../../../tests/color_social_dilemma/models/color_social_dilemma_greedy_policy_MLPToGNNV6_withMLPPol_with_l1_pen/actor_networks/02-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode100000_MLPToGNNV6.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 		# # For GPU
-		# self.critic_network.load_state_dict(torch.load(model_path_value))
-		# self.policy_network.load_state_dict(torch.load(model_path_policy))
+		self.critic_network.load_state_dict(torch.load(model_path_value))
+		self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 		if self.critic_type == "ALL":
 			self.critic_optimizer_1 = optim.Adam(self.critic_network_1.parameters(),lr=self.value_lr[0])
