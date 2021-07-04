@@ -118,14 +118,14 @@ def run(env, max_steps):
 	policy_network = MLPPolicyNetworkSocialDilemma(2*2+1, num_agents, 2+1, num_agents, num_actions).to(device)
 
 	# Loading models
-	model_path_value = "../../../../tests/color_social_dilemma_DualGAT_try2/models/color_social_dilemma_with_prd_soft_adv_GATSocialDilemma_4Agents_4Teams/critic_networks/03-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode5000_GATSocialDilemma.pt"
-	model_path_policy = "../../../../tests/color_social_dilemma_DualGAT_try2/models/color_social_dilemma_with_prd_soft_adv_GATSocialDilemma_4Agents_4Teams/actor_networks/03-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode5000_GATSocialDilemma.pt"
+	# model_path_value = "../../../../tests/color_social_dilemma_DualGAT_try2/models/color_social_dilemma_with_prd_soft_adv_GATSocialDilemma_4Agents_4Teams/critic_networks/03-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode5000_GATSocialDilemma.pt"
+	# model_path_policy = "../../../../tests/color_social_dilemma_DualGAT_try2/models/color_social_dilemma_with_prd_soft_adv_GATSocialDilemma_4Agents_4Teams/actor_networks/03-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode5000_GATSocialDilemma.pt"
 	# For CPU
 	# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 	# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 	# For GPU
-	critic_network.load_state_dict(torch.load(model_path_value))
-	policy_network.load_state_dict(torch.load(model_path_policy))
+	# critic_network.load_state_dict(torch.load(model_path_value))
+	# policy_network.load_state_dict(torch.load(model_path_policy))
 
 	tensorboard_dir = '../../../../tests/vis_weights_gifs_per_eps_social_dilemma_try2/runs/with_prd_soft_adv_5000/'
 	writer = SummaryWriter(tensorboard_dir)
