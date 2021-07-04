@@ -27,7 +27,7 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "MLPToGNNV6"
-extension = "MLPToGNNV6_color_social_dilemma_vis_weights_greedy" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+extension = "MLPToGNNV6_color_social_dilemma_vis_weights_greedy_2" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "MLPToGNNV6_color_social_dilemma_vis_weights"
 env_name = "color_social_dilemma"
 experiment_type = "greedy_policy"

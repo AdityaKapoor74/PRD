@@ -27,14 +27,14 @@ def run_file(dictionary):
 
 critic_type = "GATSocialDilemma"
 extension = "GATSocialDilemma_4Agents_4Teams" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "color_social_dilemma_DualGAT_try2"
+test_num = "color_social_dilemma_DualGAT_try3"
 env_name = "color_social_dilemma"
-experiment_type = "with_prd_soft_adv"
+experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
-			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
-			"actor_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
-			"tensorboard_dir":'../../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+			"critic_dir": '../../../../tests/'+test_num+'/models_'+experiment_type+'_'+env_name+'_'+extension+'/critic_networks/',
+			"actor_dir": '../../../../tests/'+test_num+'/models_'+experiment_type+'_'+env_name+'_'+extension+'/actor_networks/',
+			"tensorboard_dir":'../../../../tests/'+test_num+'/runs_'+experiment_type+'_'+env_name+'_'+extension+'/',
 			"gif_dir": '../../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"env": env_name, #paired_by_sharing_goals, multi_circular, collision_avoidance_no_width, cooperative_push_ball
 			"value_lr": 1e-3, #1e-2 for single head [1e-2, 1e-2, 5e-2, 5e-2]

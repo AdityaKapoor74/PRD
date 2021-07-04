@@ -160,7 +160,7 @@ class MAA2C:
 				agent_name = 'agent %d' % i
 				self.writer.add_scalars('Weights_Critic/Average_Weights_Agent_Agent/'+agent_name,self.weight_agent_agent_dictionary[agent_name],episode)
 
-			self.calculate_indiv_weights_agent_goal(weights_agent_agent)
+			self.calculate_indiv_weights_agent_goal(weights_agent_goal)
 			for i in range(self.num_agents):
 				agent_name = 'agent %d' % i
 				self.writer.add_scalars('Weights_Critic/Average_Weights_Agent_Goal/'+agent_name,self.weight_agent_goal_dictionary[agent_name],episode)
