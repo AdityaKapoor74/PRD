@@ -56,7 +56,7 @@ class A2CAgent:
 		# TD lambda
 		self.lambda_ = 0.8
 
-		obs_agent_input_dim = 2*2+1
+		obs_agent_input_dim = 2*2+1+1
 		obs_goal_input_dim = 2+1
 		obs_act_input_dim = obs_agent_input_dim + self.num_actions
 		obs_agent_output_dim = obs_goal_output_dim = obs_act_output_dim = 128
@@ -68,7 +68,7 @@ class A2CAgent:
 
 
 		# MLP POLICY
-		self.policy_network = MLPPolicyNetworkSocialDilemma(2*2+1, self.num_agents, 2+1, self.num_agents, self.num_actions).to(self.device)
+		self.policy_network = MLPPolicyNetworkSocialDilemma(2*2+1+1, self.num_agents, 2+1, self.num_agents, self.num_actions).to(self.device)
 
 
 		# Loading models
