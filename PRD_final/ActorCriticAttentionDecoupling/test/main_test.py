@@ -27,7 +27,7 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "MLPToGNNV6"
-extension = "MLPToGNNV6_multi_circle_try1" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+extension = "MLPToGNNV6_multi_circle_try2" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "multi_circle"
 env_name = "multi_circular"
 experiment_type = "with_prd_soft_adv"
@@ -46,8 +46,8 @@ if __name__ == '__main__':
 			"select_above_threshold": 1e-1,
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
-			"gif": False,
-			"save": True,
+			"gif": True,
+			"save": False,
 			"learn":True,
 			"max_episodes": 100000,
 			"max_time_steps": 100,
