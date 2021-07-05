@@ -25,7 +25,7 @@ class MAA2C:
 		self.num_actions = self.env.action_space[0].n
 		self.attention_heads = dictionary["attention_heads"]
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
-		self.env_name = dictionary["env_name"]
+		self.env_name = dictionary["env"]
 
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
