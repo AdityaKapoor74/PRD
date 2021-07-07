@@ -27,10 +27,10 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "MLPToGNNV6"
-extension = "MLPToGNNV6_multi_circle_try2" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+extension = "MLPToGNNV6_multi_circle_try3" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "multi_circle"
 env_name = "multi_circular"
-experiment_type = "with_prd_top_3"
+experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -45,9 +45,9 @@ if __name__ == '__main__':
 			"trace_decay": 0.98,
 			"select_above_threshold": 1e-1,
 			"softmax_cut_threshold": 1e-1,
-			"top_k": 3,
-			"gif": False,
-			"save": True,
+			"top_k": 0,
+			"gif": True,
+			"save": False,
 			"learn":True,
 			"max_episodes": 200000,
 			"max_time_steps": 100,
