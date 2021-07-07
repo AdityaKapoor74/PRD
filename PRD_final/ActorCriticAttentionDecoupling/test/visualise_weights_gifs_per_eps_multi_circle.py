@@ -109,7 +109,7 @@ def run(env, max_steps):
 
 
 	for exp_type in ["greedy_policy", "without_prd", "with_prd_soft_adv"]:
-		for eps in ["5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
+		for eps in =["1000", "3000", "5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
 			# Loading models
 			model_path_value = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try2/critic_networks/05-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
 			model_path_policy = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try2/actor_networks/05-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
@@ -186,6 +186,8 @@ def run(env, max_steps):
 				for i in range(num_agents):
 					agent_name = 'agent %d' % i
 					writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,weight_dictionary[agent_name],step)
+					# REWARDS PER AGENT
+					writer.add_scalar('Reward Incurred/Rewards_per_agent/'+agent_name,rewards[i],step)				
 
 				
 				# ENTROPY OF WEIGHTS
