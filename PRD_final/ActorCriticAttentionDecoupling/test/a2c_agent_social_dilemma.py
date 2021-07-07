@@ -56,7 +56,7 @@ class A2CAgent:
 		# TD lambda
 		self.lambda_ = 0.8
 
-		obs_agent_input_dim = 2*2+1+1
+		obs_agent_input_dim = 2*2+1
 		obs_goal_input_dim = 2+1
 		obs_act_input_dim = obs_agent_input_dim + self.num_actions
 		obs_agent_output_dim = obs_goal_output_dim = obs_act_output_dim = 128
@@ -68,7 +68,7 @@ class A2CAgent:
 
 
 		# MLP POLICY
-		self.policy_network = MLPPolicyNetworkSocialDilemma(2*2+1+1, self.num_agents, 2+1, self.num_agents, self.num_actions).to(self.device)
+		self.policy_network = MLPPolicyNetworkSocialDilemma(2*2+1, self.num_agents, 2+1, self.num_agents, self.num_actions).to(self.device)
 
 
 		# Loading models
@@ -208,7 +208,7 @@ class A2CAgent:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "top" in self.experiment_type:
 			values, indices = torch.topk(weights_agent_agent,k=self.top_k,dim=-1)
-			masking_advantage = torch.transpose(torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2),-1,-2)
+			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif self.experiment_type in "above_threshold":
 			masking_advantage = torch.transpose((weights_agent_agent>self.select_above_threshold).int(),-1,-2)
