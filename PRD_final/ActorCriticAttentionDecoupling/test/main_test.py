@@ -45,7 +45,7 @@ if __name__ == '__main__':
 			"trace_decay": 0.98,
 			"select_above_threshold": 1e-1,
 			"softmax_cut_threshold": 1e-1,
-			"top_k": 0,
+			"top_k": 2,
 			"gif": False,
 			"save": True,
 			"learn":True,
