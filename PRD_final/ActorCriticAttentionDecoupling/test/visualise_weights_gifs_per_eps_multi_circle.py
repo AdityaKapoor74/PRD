@@ -109,10 +109,10 @@ def run(env, max_steps):
 
 
 	for exp_type in ["greedy_policy", "without_prd", "with_prd_soft_adv"]:
-		for eps in =["1000", "3000", "5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
+		for eps in ["1000", "3000", "5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
 			# Loading models
-			model_path_value = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try2/critic_networks/05-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
-			model_path_policy = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try2/actor_networks/05-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
+			model_path_value = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try1/critic_networks/09-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
+			model_path_policy = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try1/actor_networks/09-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
 			# For CPU
 			# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 			# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -120,11 +120,11 @@ def run(env, max_steps):
 			critic_network.load_state_dict(torch.load(model_path_value))
 			policy_network.load_state_dict(torch.load(model_path_policy))
 
-			tensorboard_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try2/runs/'+exp_type+'_'+eps+'/'
+			tensorboard_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try1/runs/'+exp_type+'_'+eps+'/'
 			writer = SummaryWriter(tensorboard_dir)
 
 
-			gif_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try2/gifs/'+exp_type+'_'+eps+'/'
+			gif_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try1/gifs/'+exp_type+'_'+eps+'/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
