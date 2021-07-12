@@ -719,7 +719,7 @@ class A2CAgent:
 				values, indices = torch.topk(weights,k=self.top_k,dim=-1)
 				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
-			elif self.experiment_type in "above_threshold":
+			elif "above_threshold" in self.experiment_type:
 				masking_advantage = (weights>self.select_above_threshold).int()
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 			elif "with_prd_soft_adv" in self.experiment_type:
