@@ -108,11 +108,13 @@ def run(env, max_steps):
 	policy_network = MLPPolicyNetwork(obs_input_dim, num_agents, num_actions).to(device)
 
 
-	for exp_type in ["greedy_policy", "without_prd", "with_prd_soft_adv"]:
-		for eps in ["1000", "3000", "5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
+	# for exp_type in ["greedy_policy", "without_prd", "with_prd_soft_adv"]:
+	for exp_type in ["with_prd_soft_adv_scaled"]:#, "with_prd_top2", "with_prd_top3", "select_above_threshold_0.25"]
+		# for eps in ["1000", "3000", "5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
+		for eps in ["190000"]:
 			# Loading models
-			model_path_value = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try1/critic_networks/09-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
-			model_path_policy = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try1/actor_networks/09-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
+			model_path_value = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try1/critic_networks/12-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
+			model_path_policy = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try1/actor_networks/12-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
 			# For CPU
 			# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 			# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
