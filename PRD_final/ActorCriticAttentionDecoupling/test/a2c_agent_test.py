@@ -724,6 +724,9 @@ class A2CAgent:
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 			elif "with_prd_soft_adv" in self.experiment_type:
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights ,dim=-2)
+			elif "with_prd_averaged" in self.experiment_type:
+				avg_weights = torch.mean(weights,dim=0)
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * avg_weights ,dim=-2)
 			elif self.experiment_type == "greedy_policy":
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 
