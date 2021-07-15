@@ -115,6 +115,8 @@ class A2CAgent:
 		elif self.critic_type == "DualGATGATCritic":
 			self.critic_network_1 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 			self.critic_network_2 = MLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.critic_type == "DoubleMLPToGNNV6":
+			self.critic_network = DoubleMLPToGNNV6(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.critic_type == "GATPushBall":
 			obs_agent_input_dim = obs_ball_input_dim = 2*2
 			obs_act_input_dim = obs_agent_input_dim + self.num_actions
@@ -295,8 +297,11 @@ class A2CAgent:
 				# # ***********************************************************************************
 				# update critic (value_net)
 				# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
-				# discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
-				# discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
+				if not(self.gae):
+					discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+					discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
+				else:
+					discounted_rewards = None
 
 				# BOOTSTRAP LOSS
 				# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
@@ -675,6 +680,87 @@ class A2CAgent:
 
 			# V values
 			return [value_loss_1, value_loss_2],policy_loss,entropy,[grad_norm_value_1, grad_norm_value_2],grad_norm_policy,[weights_1, weights_2],weight_policy
+
+		elif "Double" in self.critic_type:
+
+			V_values, weights_obs, weights_obs_act = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			# next_probs, _ = self.policy_network.forward(next_states_actor)
+			# V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+			# V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+
+		
+			# # ***********************************************************************************
+			# update critic (value_net)
+			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
+			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
+
+			# BOOTSTRAP LOSS
+			# target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+			# value_loss = F.smooth_l1_loss(V_values,target_values)
+
+			# MONTE CARLO LOSS
+			# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+
+			# TD lambda 
+			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
+			value_loss = F.smooth_l1_loss(V_values, Value_target)
+
+			weights_off_diagonal = weights_obs_act * (1 - torch.eye(self.num_agents,device=self.device))
+			l1_weights = torch.mean(weights_off_diagonal)
+			value_loss += self.l1_pen*l1_weights
+		
+			# # ***********************************************************************************
+			# update actor (policy net)
+			# # ***********************************************************************************
+			entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+
+			# summing across each agent j to get the advantage
+			# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+			advantage = None
+			if self.experiment_type == "without_prd":
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+			elif "top" in self.experiment_type:
+				values, indices = torch.topk(weights_obs_act,k=self.top_k,dim=-1)
+				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+			elif "above_threshold" in self.experiment_type:
+				masking_advantage = (weights_obs_act>self.select_above_threshold).int()
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+			elif "with_prd_soft_adv" in self.experiment_type:
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights_obs_act ,dim=-2)
+			elif "with_prd_averaged" in self.experiment_type:
+				avg_weights = torch.mean(weights_obs_act,dim=0)
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * avg_weights ,dim=-2)
+			elif self.experiment_type == "greedy_policy":
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+
+			if "scaled" in self.experiment_type:
+				if "with_prd_soft_adv" in self.experiment_type:
+					advantage = advantage*self.num_agents
+				elif "top" in self.experiment_type:
+					advantage = advantage*(self.num_agents/self.top_k)
+		
+			probs = Categorical(probs)
+			policy_loss = -probs.log_prob(actions) * advantage.detach()
+			policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+			# # ***********************************************************************************
+				
+			# **********************************
+			self.critic_optimizer.zero_grad()
+			value_loss.backward(retain_graph=False)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+			self.critic_optimizer.step()
+
+
+			self.policy_optimizer.zero_grad()
+			policy_loss.backward(retain_graph=False)
+			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+			self.policy_optimizer.step()
+
+			# V values
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,(weights_obs, weights_obs_act),weight_policy
 
 		else:
 			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)

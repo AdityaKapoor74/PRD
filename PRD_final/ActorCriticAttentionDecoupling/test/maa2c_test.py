@@ -214,6 +214,16 @@ class MAA2C:
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
 				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+			elif "Double" in self.critic_type:
+				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+				self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+				self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+				entropy_weights = -torch.mean(torch.sum(weights[0] * torch.log(torch.clamp(weights[0], 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Critic/Weights_Obs_Entropy', entropy_weights.item(), episode)
+				entropy_weights = -torch.mean(torch.sum(weights[1] * torch.log(torch.clamp(weights[1], 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Critic/Weights_Obs_Act_Entropy', entropy_weights.item(), episode)
 			else:
 				self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
 				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
