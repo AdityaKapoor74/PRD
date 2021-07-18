@@ -27,10 +27,10 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "MLPToGNNV6"
-extension = "MLPToGNNV6_crossing_try1" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "crossing"
-env_name = "crossing"
-experiment_type = "without_prd"
+extension = "MLPToGNNV6_multi_circle_try6" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+test_num = "multi_circle"
+env_name = "multi_circle"
+experiment_type = "with_prd_above_threshold_0.05"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
-			"select_above_threshold": 0.0,
+			"select_above_threshold": 0.05,
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
 			"gif": False,

@@ -102,19 +102,21 @@ def run(env, max_steps):
 	obs_output_dim = obs_act_output_dim = 128
 	final_input_dim = obs_act_output_dim
 	final_output_dim = 1
-	critic_network = MLPToGNNV6(obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions).to(device)
+	# critic_network = MLPToGNNV6(obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions).to(device)
+	critic_network = DoubleMLPToGNNV6(obs_input_dim, 128, obs_input_dim+num_actions, 128, 128+128, 1, num_agents, num_actions).to(device)
 
 	# MLP POLICY
 	policy_network = MLPPolicyNetwork(obs_input_dim, num_agents, num_actions).to(device)
 
-	# for exp_type in ["greedy_policy", "without_prd"]:
-	for exp_type in ["with_prd_above_threshold_0.01"]:#, "with_prd_top2", "with_prd_top3", "select_above_threshold_0.25"]
+
+	for exp_type in ["greedy_policy", "without_prd", "with_prd_soft_adv"]:
+	# for exp_type in ["with_prd_above_threshold_0.01"]:#, "with_prd_top2", "with_prd_top3", "select_above_threshold_0.25"]
 		for eps in ["1000", "3000", "5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
 		# for eps in ["190000"]:
 			# Loading models
 
-			model_path_value = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try6/critic_networks/16-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
-			model_path_policy = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_MLPToGNNV6_multi_circle_try6/actor_networks/16-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode"+eps+"_MLPToGNNV6.pt"
+			model_path_value = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_DoubleMLPToGNNV6_multi_circle_try5/critic_networks/15-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode"+eps+"_DoubleMLPToGNNV6.pt"
+			model_path_policy = "../../../../tests/multi_circle/models/multi_circular_"+exp_type+"_DoubleMLPToGNNV6_multi_circle_try5/actor_networks/15-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode"+eps+"_DoubleMLPToGNNV6.pt"
 			# For CPU
 			# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 			# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -122,11 +124,11 @@ def run(env, max_steps):
 			critic_network.load_state_dict(torch.load(model_path_value))
 			policy_network.load_state_dict(torch.load(model_path_policy))
 
-			tensorboard_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try6/runs/'+exp_type+'_'+eps+'/'
+			tensorboard_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try5/runs/'+exp_type+'_'+eps+'/'
 			writer = SummaryWriter(tensorboard_dir)
 
 
-			gif_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try6/gifs/'+exp_type+'_'+eps+'/'
+			gif_dir = '../../../../tests/vis_weights_gifs_per_eps_multi_cirlce_try5/gifs/'+exp_type+'_'+eps+'/'
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
