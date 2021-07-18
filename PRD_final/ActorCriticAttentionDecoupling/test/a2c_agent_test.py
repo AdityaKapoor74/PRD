@@ -63,6 +63,8 @@ class A2CAgent:
 			obs_dim = 2*3
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + self.num_agents*3
+		elif self.env_name == "team_crossing":
+			obs_dim = 2*3+1
 
 		# MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION
 		if self.critic_type == "MLP_CRITIC_STATE":
@@ -133,6 +135,8 @@ class A2CAgent:
 			obs_dim = 2*3
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + self.num_agents*3
+		elif self.env_name == "team_crossing":
+			obs_dim = 2*3+1
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
 
 
