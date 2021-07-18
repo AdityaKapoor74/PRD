@@ -43,7 +43,7 @@ if __name__ == '__main__':
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
-			"select_above_threshold": 0.05,
+			"select_above_threshold": 0.1,
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
 			"gif": False,
