@@ -29,7 +29,7 @@ def run_file(dictionary):
 critic_type = "MLPToGNNV6"
 extension = "MLPToGNNV6_multi_circle_try6" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "multi_circle"
-env_name = "multi_circle"
+env_name = "multi_circular"
 experiment_type = "with_prd_above_threshold_0.05"
 if __name__ == '__main__':
 	dictionary = {
