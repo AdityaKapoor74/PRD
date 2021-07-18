@@ -30,7 +30,7 @@ critic_type = "MLPToGNNV6"
 extension = "MLPToGNNV6_multi_circle_try7" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
 test_num = "multi_circle"
 env_name = "multi_circular"
-experiment_type = "without_prd"
+experiment_type = "greedy_policy"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
