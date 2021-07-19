@@ -27,10 +27,10 @@ def run_file(dictionary):
 	ma_controller.run()
 
 critic_type = "MLPToGNNV6"
-extension = "MLPToGNNV6_team_crossing_try1" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
-test_num = "team_crossing"
-env_name = "team_crossing"
-experiment_type = "with_prd_above_threshold_0.01"
+extension = "MLPToGNNV6_color_social_dilemma_try1" # MLP_CRITIC_STATE, MLP_CRITIC_STATE_ACTION, GNN_CRITIC_STATE, GNN_CRITIC_STATE_ACTION, ALL, ALL_W_POL, NonResVx, ResVx, AttentionCriticV1, MLPToGNN
+test_num = "color_social_dilemma"
+env_name = "color_social_dilemma"
+experiment_type = "without_prd"
 if __name__ == '__main__':
 	dictionary = {
 			"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 			"entropy_pen": 8e-3, 
 			"gamma": 0.99,
 			"trace_decay": 0.98,
-			"select_above_threshold": 0.01,
+			"select_above_threshold": 0.0,
 			"softmax_cut_threshold": 1e-1,
 			"top_k": 0,
 			"gif": False,

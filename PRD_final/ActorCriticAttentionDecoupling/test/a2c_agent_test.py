@@ -62,7 +62,7 @@ class A2CAgent:
 		elif self.env_name in ["multi_circular", "collision_avoidance", "collision_avoidance_no_width", "reach_landmark_social_dilemma", "crossing"]:
 			obs_dim = 2*3
 		elif self.env_name == "color_social_dilemma":
-			obs_dim = 2*2 + 1 + self.num_agents*3
+			obs_dim = 2*2 + 1 + 2*3
 		elif self.env_name == "team_crossing":
 			obs_dim = 2*3+1
 
@@ -134,7 +134,7 @@ class A2CAgent:
 		if self.env_name in ["paired_by_sharing_goals","multi_circular", "collision_avoidance", "collision_avoidance_no_width", "reach_landmark_social_dilemma", "crossing"]:
 			obs_dim = 2*3
 		elif self.env_name == "color_social_dilemma":
-			obs_dim = 2*2 + 1 + self.num_agents*3
+			obs_dim = 2*2 + 1 + 2*3
 		elif self.env_name == "team_crossing":
 			obs_dim = 2*3+1
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
