@@ -287,7 +287,7 @@ class MAA2C:
 			if not(episode%1000) and episode!=0 and self.save:
 				if self.adversarial_training:
 					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'_adversarial.pt')
-					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'_adversarial.pt')  
+					torch.save(self.agents.policy_network_adv.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'_adversarial.pt')  
 				else:
 					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
 					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  

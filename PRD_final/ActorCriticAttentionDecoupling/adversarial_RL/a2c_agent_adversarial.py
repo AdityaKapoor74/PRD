@@ -51,6 +51,12 @@ class A2CAgent:
 		# MLP POLICY
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
 
+		if self.adversarial_training:
+			model_path_policy = "./try1_policy/20-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98_epsiode50000_GATCriticV1.pt"
+			self.policy_network.load_state_dict(torch.load(model_path_policy))
+
+			self.policy_network_adv = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
+
 		# Loading models
 		# model_path_value = "../../../../tests/color_social_dilemma/models/color_social_dilemma_greedy_policy_MLPToGNNV6_withMLPPol_with_l1_pen/critic_networks/02-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode100000_MLPToGNNV6.pt"
 		# model_path_policy = "../../../../tests/color_social_dilemma/models/color_social_dilemma_greedy_policy_MLPToGNNV6_withMLPPol_with_l1_pen/actor_networks/02-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode100000_MLPToGNNV6.pt"
@@ -70,6 +76,12 @@ class A2CAgent:
 		state = torch.FloatTensor([state]).to(self.device)
 		dists = self.policy_network.forward(state)
 		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
+
+		if self.adversarial_training:
+			dists = self.policy_network_adv.forward(state)
+			index_adv = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
+			index[0] = index_adv[0]
+
 		return index
 
 
@@ -146,11 +158,6 @@ class A2CAgent:
 
 	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
 		'''
-		Getting the probability mass function over the action space for each agent
-		'''
-		probs = self.policy_network.forward(states_actor)
-
-		'''
 		Calculate V values
 		'''
 		V_values, weights = self.critic_network.forward(states_critic)
@@ -159,11 +166,17 @@ class A2CAgent:
 
 		# ADVERSARIAL TRAINING
 		if self.adversarial_training:
+			probs = self.policy_network_adv(states_actor)
 			probs = probs[:,0,:]
 			V_values = V_values[:,0]
 			rewards = rewards[:,0]
 			dones = dones[:,0]
 			actions = actions[:,0]
+		else:
+			'''
+			Getting the probability mass function over the action space for each agent
+			'''
+			probs = self.policy_network.forward(states_actor)
 	
 		# # ***********************************************************************************
 		# update critic (value_net)
