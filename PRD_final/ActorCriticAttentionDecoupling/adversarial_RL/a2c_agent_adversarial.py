@@ -69,7 +69,10 @@ class A2CAgent:
 
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		if self.adversarial_training:
+			self.policy_optimizer = optim.Adam(self.policy_network_adv.parameters(),lr=self.policy_lr)
+		else:
+			self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
 	def get_action(self,state):
