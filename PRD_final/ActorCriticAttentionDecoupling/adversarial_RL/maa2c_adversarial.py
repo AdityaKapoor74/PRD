@@ -30,6 +30,8 @@ class MAA2C:
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 
+		self.adversarial_training = dictionary["adversarial_training"] # Agent 0 is the Adversary
+
 		self.agents = A2CAgent(self.env, dictionary)
 
 		self.weight_dictionary = {}
@@ -67,7 +69,10 @@ class MAA2C:
 			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)
 			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)
 			self.tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)
-	
+			
+			if self.adversarial_training:
+				self.tensorboard_path += "_adversarial"
+
 		elif self.gif:
 			gif_dir = dictionary["gif_dir"]
 			try: 
@@ -75,7 +80,11 @@ class MAA2C:
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'.gif'
+
+			if self.adversarial_training:
+				self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_adversarial.gif'
+			else:
+				self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'.gif'
 
 		if self.save:
 			self.writer = SummaryWriter(self.tensorboard_path)
@@ -243,10 +252,14 @@ class MAA2C:
 				for i,act in enumerate(next_actions):
 					one_hot_next_actions[i][act] = 1
 
-				episode_reward += np.sum(rewards)
 
 				# Every agent gets sum of all agents individual rewards
 				rewards = [np.sum(rewards)]*self.num_agents
+
+				if self.adversarial_training:
+					rewards[0] = -rewards[0]
+
+				episode_reward += np.sum(rewards)
 
 				if self.learn:
 					if all(dones) or step == self.max_time_steps:
@@ -272,8 +285,12 @@ class MAA2C:
 
 
 			if not(episode%1000) and episode!=0 and self.save:
-				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  
+				if self.adversarial_training:
+					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'_adversarial.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'_adversarial.pt')  
+				else:
+					torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'_'+str(self.critic_type)+'.pt')  
 
 			if self.learn:
 				self.update(trajectory,episode) 

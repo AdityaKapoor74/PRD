@@ -28,6 +28,7 @@ class A2CAgent:
 		self.norm_adv = dictionary["norm_adv"]
 		self.norm_rew = dictionary["norm_rew"]
 		self.attention_heads = dictionary["attention_heads"]
+		self.adversarial_training = dictionary["adversarial_training"] # Agent 0 is the Adversary
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
@@ -49,7 +50,6 @@ class A2CAgent:
 
 		# MLP POLICY
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
-
 
 		# Loading models
 		# model_path_value = "../../../../tests/color_social_dilemma/models/color_social_dilemma_greedy_policy_MLPToGNNV6_withMLPPol_with_l1_pen/critic_networks/02-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.1softmax_cut_threshold0.1_epsiode100000_MLPToGNNV6.pt"
@@ -157,6 +157,13 @@ class A2CAgent:
 		V_values = V_values.squeeze(-1)
 		# V_values_next, _ = self.critic_network.forward(next_states_critic)
 
+		# ADVERSARIAL TRAINING
+		if self.adversarial_training:
+			probs = probs[:,0,:]
+			V_values = V_values[:,0]
+			rewards = rewards[:,0]
+			dones = dones[:,0]
+			actions = actions[:,0]
 	
 		# # ***********************************************************************************
 		# update critic (value_net)
@@ -166,7 +173,7 @@ class A2CAgent:
 		# value_loss = F.smooth_l1_loss(V_values,target_values)
 
 		# MONTE CARLO LOSS
-		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+		# value_loss = F.smooth_l1_loss(V_values,discounted_rewards
 
 		# TD lambda 
 		Value_target = self.nstep_returns(V_values, rewards, dones).detach()
@@ -175,10 +182,9 @@ class A2CAgent:
 		# # ***********************************************************************************
 		# update actor (policy net)
 		# # ***********************************************************************************
-		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=-1))
 
-		advantage = advantage = self.calculate_advantages(discounted_rewards, V_values, rewards, dones)
-
+		advantage = self.calculate_advantages(discounted_rewards, V_values, rewards, dones)
 	
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()

@@ -43,6 +43,37 @@ class MLPPolicyNetwork(nn.Module):
 		return Policy
 
 
+class MLPPolicyNetwork_Adversary(nn.Module):
+	def __init__(self,state_dim,num_agents,action_dim):
+		super(MLPPolicyNetwork,self).__init__()
+
+		self.state_dim = state_dim
+		self.num_agents = num_agents		
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+		self.fc1 = nn.Linear(state_dim*num_agents,128)
+		self.fc2 = nn.Linear(128,128)
+		self.fc3 = nn.Linear(128,action_dim)
+
+	def forward(self, states):
+		
+		# [s0;s1;s2;s3]  -> [s0 s1 s2 s3; s1 s2 s3 s0; s2 s3 s1 s0 ....]
+		print(states)
+
+		states_aug = torch.cat(states,dim=2)
+
+		x = self.fc1(states_aug)
+		x = nn.ReLU()(x)
+		x = self.fc2(x)
+		x = nn.ReLU()(x)
+		x = self.fc3(x)
+
+		Policy = F.softmax(x, dim=-1)
+
+		return Policy
+
+
 class GATCriticV1(nn.Module):
 	def __init__(self, obs_input_dim, obs_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
 		super(GATCriticV1, self).__init__()
