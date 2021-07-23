@@ -67,14 +67,14 @@ class A2CAgent:
 
 
 		# Loading models
-		model_path_value = "../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/critic_networks/20-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
-		model_path_policy = "../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/actor_networks/20-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
+		# model_path_value = "../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/critic_networks/20-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
+		# model_path_policy = "../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/actor_networks/20-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 		# # For GPU
-		self.critic_network.load_state_dict(torch.load(model_path_value))
-		self.policy_network.load_state_dict(torch.load(model_path_policy))
+		# self.critic_network.load_state_dict(torch.load(model_path_value))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
