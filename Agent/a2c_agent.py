@@ -207,16 +207,16 @@ class A2CAgent:
 		elif "above_threshold" in self.experiment_type:
 			masking_advantage = (weights>self.select_above_threshold).int()
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
-		elif "with_prd_soft_adv" in self.experiment_type:
+		elif "prd_soft_adv" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights ,dim=-2)
-		elif "with_prd_averaged" in self.experiment_type:
+		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights,dim=0)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * avg_weights ,dim=-2)
 		elif self.experiment_type == "greedy":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 
 		if "scaled" in self.experiment_type:
-			if "with_prd_soft_adv" in self.experiment_type:
+			if "prd_soft_adv" in self.experiment_type:
 				advantage = advantage*self.num_agents
 			elif "top" in self.experiment_type:
 				advantage = advantage*(self.num_agents/self.top_k)
