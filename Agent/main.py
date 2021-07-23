@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "color_social_dilemma"
 		env_name = "color_social_dilemma" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "greedy"
+		experiment_type = "shared"
 
 		dictionary = {
 				"critic_dir": '../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
