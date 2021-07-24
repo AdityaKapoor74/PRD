@@ -44,6 +44,7 @@ if __name__ == '__main__':
 			"actor_dir": '../../tests/'+str(version)+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 			"tensorboard_dir":'../../tests/'+str(version)+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"gif_dir": '../../tests/'+str(version)+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+			"policy_eval_dir": '../../tests/'+str(version)+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"env": env_name, 
 			"version": version,
 			"value_lr": 1e-3, 
