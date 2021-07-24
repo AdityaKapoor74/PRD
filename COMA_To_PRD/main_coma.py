@@ -31,7 +31,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 	for i in range(1,2):
 		extension = "run"+str(i)
-		version = 1
+		version = 2
 		env_name = "paired_by_sharing_goals" # paired_by_sharing_goals, color_social_dilemma, crossing
 		experiment_type = "coma_v"+str(version)
 
