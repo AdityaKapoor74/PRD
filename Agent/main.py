@@ -39,7 +39,7 @@ if __name__ == '__main__':
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
-				"select_above_threshold": 0.05,
+				"select_above_threshold": 0.1,
 				"top_k": 0,
 				"gif": False,
 				"save_model": True,
