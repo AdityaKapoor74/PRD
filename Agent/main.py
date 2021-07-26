@@ -21,10 +21,10 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 
-	for i in range(1,6):
+	for i in range(1,4):
 		extension = "run"+str(i)
-		test_num = "paired_by_sharing_goals"
-		env_name = "paired_by_sharing_goals" # paired_by_sharing_goals, color_social_dilemma, crossing
+		test_num = "color_social_dilemma"
+		env_name = "color_social_dilemma" # paired_by_sharing_goals, color_social_dilemma, crossing
 		experiment_type = "prd_above_threshold"
 
 		dictionary = {
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
-				"select_above_threshold": 0.01,
+				"select_above_threshold": 0.02,
 				"top_k": 0,
 				"gif": False,
 				"save_model": True,
