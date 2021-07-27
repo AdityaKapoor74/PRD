@@ -22,10 +22,10 @@ def run_file(dictionary):
 if __name__ == '__main__':
 
 	for i in range(1,4):
-		extension = "run"+str(i)
-		test_num = "color_social_dilemma"
-		env_name = "color_social_dilemma" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "prd_above_threshold"
+		extension = "run_MC"+str(i)
+		test_num = "color_social_dilemma_pt2"
+		env_name = "color_social_dilemma_pt2" # paired_by_sharing_goals, color_social_dilemma, crossing
+		experiment_type = "shared"
 
 		dictionary = {
 				"critic_dir": '../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -34,19 +34,19 @@ if __name__ == '__main__':
 				"gif_dir": '../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"env": env_name, 
 				"value_lr": 1e-3, 
-				"policy_lr": 5e-4, 
+				"policy_lr": 1e-3,
 				"entropy_pen": 8e-3, 
-				"critic_loss_type": "TD_lambda",
+				"critic_loss_type": "MC",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
-				"select_above_threshold": 0.25,
+				"select_above_threshold": 0.0,
 				"top_k": 0,
 				"gif": False,
-				"save_model": True,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
 				"save_tensorboard_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 50000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gif_checkpoint":1,
@@ -57,3 +57,12 @@ if __name__ == '__main__':
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
 		ma_controller = MAA2C(env,dictionary)
 		ma_controller.run()
+
+# COLOR SOCIAL DILEMMA PT2
+'''
+Value Lr 1e-3, 1e-3, 1e-3
+Policy Lr 5e-4, 1e-4, 1e-4
+Entropy 1e-3, 1e-3, 8e-4
+Threshold 5e-3, 5e-3, 5e-3
+
+'''
