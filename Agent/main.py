@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "run_MC"+str(i)
 		test_num = "color_social_dilemma_pt2"
 		env_name = "color_social_dilemma_pt2" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "shared"
+		experiment_type = "prd_above_threshold"
 
 		dictionary = {
 				"critic_dir": '../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 				"critic_loss_type": "MC",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
-				"select_above_threshold": 0.0,
+				"select_above_threshold": 0.01,
 				"top_k": 0,
 				"gif": False,
 				"save_model": False,
