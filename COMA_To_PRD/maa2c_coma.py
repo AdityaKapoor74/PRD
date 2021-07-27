@@ -288,7 +288,10 @@ class MAA2C:
 				for i,act in enumerate(next_actions):
 					one_hot_next_actions[i][act] = 1
 
-				episode_reward += np.sum(rewards)
+				if self.coma_version == 1:
+					episode_reward += np.mean(rewards)
+				else:
+					episode_reward += np.sum(rewards)
 
 				if self.learn:
 					if all(dones) or step == self.max_time_steps:
