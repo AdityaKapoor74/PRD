@@ -27,6 +27,9 @@ class A2CAgent:
 		self.norm_rew = dictionary["norm_rew"]
 		# Used for masking advantages above a threshold
 		self.select_above_threshold = dictionary["select_above_threshold"]
+		self.threshold_min = dictionary["threshold_min"]
+		self.steps_to_take = dictionary["steps_to_take"]
+		self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
@@ -44,7 +47,7 @@ class A2CAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 
 		# TD lambda
-		self.lambda_ = 0.8
+		self.lambda_ = dictionary["lambda"]
 
 		# PAIRED AGENT
 		if self.env_name == "paired_by_sharing_goals":
@@ -67,8 +70,8 @@ class A2CAgent:
 
 
 		# Loading models
-		# model_path_value = "../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/critic_networks/20-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
-		# model_path_policy = "../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/actor_networks/20-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
+		# model_path_value = "../../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/critic_networks/20-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
+		# model_path_policy = "../../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/actor_networks/20-07-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -200,18 +203,27 @@ class A2CAgent:
 		advantage = None
 		if self.experiment_type == "shared":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
-		elif "top" in self.experiment_type:
-			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
-			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
-		elif "above_threshold" in self.experiment_type:
-			masking_advantage = (weights>self.select_above_threshold).int()
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights,dim=0)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * avg_weights ,dim=-2)
+		elif "prd_avg_top" in self.experiment_type:
+			avg_weights = torch.mean(weights,dim=0)
+			values, indices = torch.topk(avg_weights,k=self.top_k,dim=-1)
+			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+		elif "prd_avg_above_threshold" in self.experiment_type:
+			avg_weights = torch.mean(weights,dim=0)
+			masking_advantage = (avg_weights>self.select_above_threshold).int()
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+		elif "above_threshold" in self.experiment_type:
+			masking_advantage = (weights>self.select_above_threshold).int()
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+		elif "top" in self.experiment_type:
+			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
+			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif self.experiment_type == "greedy":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 
@@ -237,6 +249,10 @@ class A2CAgent:
 		policy_loss.backward(retain_graph=False)
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		self.policy_optimizer.step()
+
+
+		if self.select_above_threshold > self.threshold_min and "decay" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
 
 		# V values
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy

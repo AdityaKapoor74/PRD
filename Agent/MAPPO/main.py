@@ -1,0 +1,72 @@
+from mappo import MAPPO
+
+from multiagent.environment import MultiAgentEnv
+import multiagent.scenarios as scenarios
+
+def make_env(scenario_name, benchmark=False):
+	scenario = scenarios.load(scenario_name + ".py").Scenario()
+	world = scenario.make_world()
+	if benchmark:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+	else:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
+	return env
+
+
+def run_file(dictionary):
+	env = make_env(scenario_name=dictionary["env"],benchmark=False)
+	ma_controller = MAPPO(env,dictionary)
+	ma_controller.run()
+
+
+if __name__ == '__main__':
+
+	for i in range(1,4):
+		extension = "run_MAPPO_MC"+str(i)
+		test_num = "paired_by_sharing_goals"
+		env_name = "paired_by_sharing_goals" # paired_by_sharing_goals, color_social_dilemma, crossing
+		experiment_type = "shared"
+
+		dictionary = {
+				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
+				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
+				"tensorboard_dir":'../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+				"env": env_name, 
+				"value_lr": 1e-3, 
+				"policy_lr": 1e-4,
+				"entropy_pen": 0.0, 
+				"lambda": 0.8,
+				"policy_clip": 0.1,
+				"n_epochs": 10,
+				"update_ppo_agent": 1, # update ppo agent after every 4 episodes
+				"critic_loss_type": "MC",
+				"gamma": 0.99, 
+				"trace_decay": 0.98,
+				"select_above_threshold": 0.0001,
+				"top_k": 0,
+				"gif": False,
+				"save_model": False,
+				"save_model_checkpoint": 1000,
+				"save_tensorboard_plot": False,
+				"learn":True,
+				"max_episodes": 50000,
+				"max_time_steps": 100,
+				"experiment_type": experiment_type,
+				"gif_checkpoint":1,
+				"gae": True,
+				"norm_adv": False,
+				"norm_rew": False,
+			}
+		env = make_env(scenario_name=dictionary["env"],benchmark=False)
+		ma_controller = MAPPO(env,dictionary)
+		ma_controller.run()
+
+# COLOR SOCIAL DILEMMA PT2
+'''
+Value Lr 1e-3, 1e-3, 1e-3
+Policy Lr 5e-4, 1e-4, 1e-4
+Entropy 1e-3, 1e-3, 8e-4
+Threshold 5e-3, 5e-3, 5e-3
+
+'''
