@@ -23,10 +23,10 @@ if __name__ == '__main__':
 
 	# SOCIAL DILEMMA
 	for i in range(1,6):
-		extension = "run_MAA2C_MC_shared"+str(i)
+		extension = "run_MAA2C_MC_greedy"+str(i)
 		test_num = "color_social_dilemma_pt2"
 		env_name = "color_social_dilemma_pt2" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "greedy" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
