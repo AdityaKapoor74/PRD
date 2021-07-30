@@ -135,14 +135,14 @@ def run(env, max_steps):
 	policy_network = MLPPolicyNetwork(obs_dim, num_agents, num_actions).to(device)
 
 
-	for exp_type in ["prd_above_threshold_run_MAA2C_MC_prd_above_threshold1"]: #prd_above_threshold_run_MAA2C_MC_prd_above_threshold1, shared
+	for exp_type in ["prd_above_threshold"]: #prd_above_threshold_run_MAA2C_MC_prd_above_threshold1, shared
 	# for exp_type in ["with_prd_above_threshold_0.01"]:#, "with_prd_top2", "with_prd_top3", "select_above_threshold_0.25"]
 		# for eps in ["1000", "3000", "5000", "10000", "25000", "50000", "100000", "125000", "150000", "175000", "200000"]:
-		for eps in ["600"]:
+		for eps in ["2000"]:
 			# Loading models
 			
-			model_path_value = "../../../tests/color_social_dilemma_pt2_change_rew/models/color_social_dilemma_pt2_"+exp_type+"/critic_networks/30-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.0_trace_decay0.98topK_0select_above_threshold0.001_epsiode"+eps+".pt"
-			model_path_policy = "../../../tests/color_social_dilemma_pt2_change_rew/models/color_social_dilemma_pt2_"+exp_type+"/actor_networks/30-07-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.0_trace_decay0.98topK_0select_above_threshold0.001_epsiode"+eps+".pt"
+			model_path_value = "../../../tests/policy_eval/color_social_dilemma_pt2_8_Agents/models/color_social_dilemma_pt2_"+exp_type+"_run_MAA2C_MC_prd_above_threshold1/critic_networks/30-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.0_trace_decay0.98topK_0select_above_threshold0.01_epsiode"+eps+".pt"
+			model_path_policy = "../../../tests/policy_eval/color_social_dilemma_pt2_8_Agents/models/color_social_dilemma_pt2_"+exp_type+"_run_MAA2C_MC_prd_above_threshold1/actor_networks/30-07-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.0_trace_decay0.98topK_0select_above_threshold0.01_epsiode"+eps+".pt"
 			# For CPU
 			# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 			# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))

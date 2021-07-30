@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	# color_social_dilemma_pt2
 	for i in range(1,6):
 		extension = "run_MAA2C_MC_greedy"+str(i)
-		test_num = "color_social_dilemma_pt2_16_Agents"
+		test_num = "color_social_dilemma_pt2_8_Agents"
 		env_name = "color_social_dilemma_pt2" 
 		experiment_type = "greedy" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
 
@@ -41,14 +41,14 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.0, #0.8
-				"select_above_threshold": 0.0001,
+				"select_above_threshold": 0.01,
 				"threshold_min": 0.0, #0.0001
 				"threshold_max": 0.001,
 				"steps_to_take": 10000, #1000
 				"top_k": 0,
 				"gif": False,
 				"save_model": True,
-				"save_model_checkpoint": 100,
+				"save_model_checkpoint": 10,
 				"save_tensorboard_plot": True,
 				"learn":True,
 				"max_episodes": 2000,
