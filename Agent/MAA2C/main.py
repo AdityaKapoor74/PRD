@@ -23,10 +23,10 @@ if __name__ == '__main__':
 
 	# color_social_dilemma_pt2
 	for i in range(1,6):
-		extension = "run_MAA2C_MC_prd_above_threshold"+str(i)
+		extension = "run_MAA2C_MC_greedy"+str(i)
 		test_num = "color_social_dilemma_pt2_8_Agents"
 		env_name = "color_social_dilemma_pt2" 
-		experiment_type = "prd_above_threshold" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
+		experiment_type = "greedy" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
