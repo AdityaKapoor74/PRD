@@ -78,7 +78,7 @@ class MAA2C:
 		return actions
 
 
-	# FOR OTHER ENVIRONMENTS
+	# FOR PAIRED AGENT ENVIRONMENTS
 	def calculate_weights(self,weights):
 		paired_agents_weight = 0
 		paired_agents_weight_count = 0
@@ -98,7 +98,7 @@ class MAA2C:
 		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
 
 
-	# FOR PAIRED AGENT ENV
+	# FOR OTHER ENV
 	def calculate_indiv_weights(self,weights):
 		weights_per_agent = torch.sum(weights,dim=0) / weights.shape[0]
 
