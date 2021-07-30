@@ -25,29 +25,31 @@ class A2CAgent:
 		self.critic_loss_type = dictionary["critic_loss_type"]
 		self.norm_adv = dictionary["norm_adv"]
 		self.norm_rew = dictionary["norm_rew"]
+		self.gif = dictionary["gif"]
+		# TD lambda
+		self.lambda_ = dictionary["lambda"]
+		self.experiment_type = dictionary["experiment_type"]
 		# Used for masking advantages above a threshold
 		self.select_above_threshold = dictionary["select_above_threshold"]
 		self.threshold_min = dictionary["threshold_min"]
+		self.threshold_max = dictionary["threshold_max"]
 		self.steps_to_take = dictionary["steps_to_take"]
-		self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
+		if "decay" in self.experiment_type:
+			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
+		else:
+			self.threshold_delta = (self.threshold_max - self.select_above_threshold)/self.steps_to_take
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
-		self.gif = dictionary["gif"]
-
-		self.experiment_type = dictionary["experiment_type"]
 
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
 		for i in range(self.num_agents):
 			self.greedy_policy[i][i] = 1
 
 		print("EXPERIMENT TYPE", self.experiment_type)
-
-		# TD lambda
-		self.lambda_ = dictionary["lambda"]
 
 		# PAIRED AGENT
 		if self.env_name == "paired_by_sharing_goals":
@@ -253,6 +255,9 @@ class A2CAgent:
 
 		if self.select_above_threshold > self.threshold_min and "decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
+
+		if self.threshold_max >= self.select_above_threshold and "ascend" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
 
 		# V values
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
