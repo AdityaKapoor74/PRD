@@ -86,6 +86,7 @@ if __name__ == '__main__':
 				"lambda": 0.0, #0.8
 				"select_above_threshold": 0.01,
 				"threshold_min": 0.0, 
+				"threshold_max": 0.001,
 				"steps_to_take": 100000, 
 				"top_k": 0,
 				"gif": False,
