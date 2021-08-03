@@ -69,7 +69,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "crossing"
 		env_name = "crossing"
-		experiment_type = "prd_top6" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "greedy" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
-				"lambda": 0.0, #0.8
+				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.001,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.001,
