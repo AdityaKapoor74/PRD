@@ -69,7 +69,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "crossing"
 		env_name = "crossing"
-		experiment_type = "prd_above_threshold" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "prd_above_threshold_decay" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -84,11 +84,11 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.0001,
+				"select_above_threshold": 0.001,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.001,
-				"steps_to_take": 100000, 
-				"top_k": 4,
+				"threshold_max": 0.0,
+				"steps_to_take": 200000, 
+				"top_k": 0,
 				"gif": False,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
