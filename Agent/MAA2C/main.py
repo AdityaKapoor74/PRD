@@ -67,7 +67,7 @@ if __name__ == '__main__':
 	# crossing /  paired_by_sharing_goals
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "crossing_16_Agents"
+		test_num = "crossing_12_Agents"
 		env_name = "crossing"
 		experiment_type = "prd_above_threshold" # prd_above_threshold_decay_episodic, greedy, shared
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.01,
+				"select_above_threshold": 0.001,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 300000, 
