@@ -69,7 +69,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "crossing_12_Agents"
 		env_name = "crossing"
-		experiment_type = "greedy" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
