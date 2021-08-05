@@ -267,4 +267,4 @@ class A2CAgent:
 		if "threshold" in self.experiment_type:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
 
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
