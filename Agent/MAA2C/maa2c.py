@@ -26,6 +26,8 @@ class MAA2C:
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 
+		self.experiment_type = dictionary["experiment_type"]
+
 		self.agents = A2CAgent(self.env, dictionary)
 
 		self.weight_dictionary = {}
@@ -36,6 +38,11 @@ class MAA2C:
 			for j in range(self.num_agents):
 				agent_name_ = 'agent %d' % j
 				self.weight_dictionary[agent_name][agent_name_] = 0
+
+		self.agent_group = {}
+		for i in range(self.num_agents):
+			agent_name = 'agent'+str(i)
+			self.agent_group[agent_name] = 0
 
 		if self.save_tensorboard_plot:
 			tensorboard_dir = dictionary["tensorboard_dir"]
@@ -124,7 +131,10 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		if "threshold" in self.experiment_type:
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		else:
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 		if self.save_tensorboard_plot:
 			
@@ -151,6 +161,13 @@ class MAA2C:
 
 			# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
 			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+
+			if "threshold" in self.experiment_type:
+				for i in range(self.num_agents):
+					agent_name = "agent"+str(i)
+					self.agent_group[agent_name] = agent_groups_over_episode[i].item()
+				self.writer.add_scalars('Reward Incurred/Group Size', self.agent_group, episode)
+				self.writer.add_scalar('Reward Incurred/Avg Group Size', avg_agent_group_over_episode.item(), episode)
 
 
 	def split_states(self,states):

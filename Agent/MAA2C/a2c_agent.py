@@ -203,6 +203,7 @@ class A2CAgent:
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		advantage = None
+		masking_advantage = None
 		if self.experiment_type == "shared":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
@@ -228,6 +229,10 @@ class A2CAgent:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif self.experiment_type == "greedy":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+
+		if "threshold" in self.experiment_type:
+			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 
 		if "scaled" in self.experiment_type:
 			if "prd_soft_adv" in self.experiment_type:
@@ -259,5 +264,7 @@ class A2CAgent:
 		if self.threshold_max >= self.select_above_threshold and "ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
 
-		# V values
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
+		if "threshold" in self.experiment_type:
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
+
+		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent
