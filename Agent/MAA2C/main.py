@@ -68,7 +68,7 @@ if __name__ == '__main__':
 	# crossing /  paired_by_sharing_goals
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "crossing_8_Agents_other_agent_pose"
+		test_num = "crossing_8_Agents"
 		env_name = "crossing"
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
@@ -78,6 +78,7 @@ if __name__ == '__main__':
 				"run_dir":'../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"env": env_name, 
+				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, 
 				"policy_lr": 5e-4,

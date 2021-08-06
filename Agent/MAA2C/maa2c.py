@@ -52,7 +52,7 @@ class MAA2C:
 			self.writer = SummaryWriter(tensorboard_path)
 
 		if self.save_comet_ml_plot:
-			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["env"]+"_"+dictionary["experiment_type"]+"_"+dictionary["extension"])
+			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["test_num"])
 			self.comet_ml.log_parameters(dictionary)
 
 		if self.save_model:
