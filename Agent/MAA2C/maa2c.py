@@ -1,3 +1,4 @@
+from comet_ml import Experiment
 import os
 import torch
 import numpy as np
@@ -16,6 +17,7 @@ class MAA2C:
 		self.save_model = dictionary["save_model"]
 		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
 		self.save_tensorboard_plot = dictionary["save_tensorboard_plot"]
+		self.save_comet_ml_plot = dictionary["save_comet_ml_plot"]
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.num_agents = env.n
@@ -45,9 +47,13 @@ class MAA2C:
 			self.agent_group[agent_name] = 0
 
 		if self.save_tensorboard_plot:
-			tensorboard_dir = dictionary["tensorboard_dir"]
+			tensorboard_dir = dictionary["run_dir"]
 			tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)
 			self.writer = SummaryWriter(tensorboard_path)
+
+		if self.save_comet_ml_plot:
+			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["env"]+"_"+dictionary["experiment_type"]+"_"+dictionary["extension"])
+			self.comet_ml.log_parameters(dictionary)
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -170,6 +176,25 @@ class MAA2C:
 				self.writer.add_scalar('Reward Incurred/Avg Group Size', avg_agent_group_over_episode.item(), episode)
 
 
+		if self.save_comet_ml_plot:
+			self.comet_ml.log_metric('Entropy_Loss',entropy.item(),episode)
+			self.comet_ml.log_metric('Value_Loss',value_loss.item(),episode)
+			self.comet_ml.log_metric('Policy_Loss',policy_loss.item(),episode)
+			self.comet_ml.log_metric('Grad_Norm_Value',grad_norm_value,episode)
+			self.comet_ml.log_metric('Grad_Norm_Policy',grad_norm_policy,episode)
+
+			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
+
+			if "threshold" in self.experiment_type:
+				for i in range(self.num_agents):
+					agent_name = "agent"+str(i)
+					self.comet_ml.log_metric('Group_Size_'+agent_name, agent_groups_over_episode[i].item(), episode)
+
+				self.comet_ml.log_metric('Avg_Group_Size', avg_agent_group_over_episode.item(), episode)
+
+
+
 	def split_states(self,states):
 		states_critic = []
 		states_actor = []
@@ -269,6 +294,10 @@ class MAA2C:
 						if self.save_tensorboard_plot:
 							self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
 							self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+
+						if self.save_comet_ml_plot:
+							self.comet_ml.log_metric('Episode_Length', step, episode)
+							self.comet_ml.log_metric('Reward', episode_reward, episode)
 
 						break
 					else:
