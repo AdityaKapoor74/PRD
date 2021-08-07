@@ -273,6 +273,7 @@ class MAA2C:
 			trajectory = []
 			episode_reward = 0
 			episode_collision_rate = 0
+			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -315,6 +316,8 @@ class MAA2C:
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
+
+						final_timestep = step
 
 						if self.save_tensorboard_plot:
 							self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
