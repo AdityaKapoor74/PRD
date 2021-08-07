@@ -20,10 +20,12 @@ class MAA2C:
 		self.save_comet_ml_plot = dictionary["save_comet_ml_plot"]
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
+		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
+		self.test_num = dictionary["test_num"]
 
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
@@ -84,6 +86,14 @@ class MAA2C:
 				print("Gif Directory can not be created")
 			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+'.gif'
 
+
+		if self.eval_policy:
+			self.policy_eval_dir = dictionary["policy_eval_dir"]
+			try: 
+				os.makedirs(self.policy_eval_dir, exist_ok = True) 
+				print("Policy Eval Directory created successfully") 
+			except OSError as error: 
+				print("Policy Eval Directory can not be created")
 
 
 	def get_actions(self,states):
@@ -244,6 +254,14 @@ class MAA2C:
 
 
 	def run(self):  
+		if self.eval_policy:
+			self.rewards = []
+			self.rewards_mean_per_1000_eps = []
+			self.timesteps = []
+			self.timesteps_mean_per_1000_eps = []
+			self.collision_rates = []
+			self.collison_rate_mean_per_1000_eps = []
+
 		for episode in range(1,self.max_episodes+1):
 
 			states = self.env.reset()
@@ -254,6 +272,7 @@ class MAA2C:
 
 			trajectory = []
 			episode_reward = 0
+			episode_collision_rate = 0
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -280,6 +299,12 @@ class MAA2C:
 				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(next_actions):
 					one_hot_next_actions[i][act] = 1
+
+
+				if self.env_name in ["crossing"]:
+					collision_rate = [value[1] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
 
 				episode_reward += np.sum(rewards)
 
@@ -309,6 +334,18 @@ class MAA2C:
 					states_critic,states_actor = next_states_critic,next_states_actor
 					states = next_states
 
+			if self.eval_policy:
+				self.rewards.append(episode_reward)
+				self.timesteps.append(final_timestep)
+				self.collision_rates.append(episode_collision_rate)
+
+			if episode > self.save_model_checkpoint and episode%self.save_model_checkpoint:
+				if self.eval_policy:
+					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+					if self.env_name in ["crossing"]:
+						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
@@ -319,3 +356,13 @@ class MAA2C:
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
+
+
+		if self.eval_policy:
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			if self.env_name in ["crossing"]:
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)

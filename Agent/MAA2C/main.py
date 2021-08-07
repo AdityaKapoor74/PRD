@@ -22,16 +22,17 @@ def run_file(dictionary):
 if __name__ == '__main__':
 
 	# color_social_dilemma_pt2
-	for i in range(1,2):
+	for i in range(1,6):
 		extension = "run"+str(i)
-		test_num = "crossing_8_Agents_pen_collid_agents"
+		test_num = "crossing_8_Agents_pen_colliding_agents_policy_eval"
 		env_name = "crossing" 
-		experiment_type = "prd_above_threshold_decay" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
+		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"run_dir":'../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"env": env_name, 
 				"test_num":test_num,
@@ -48,7 +49,8 @@ if __name__ == '__main__':
 				"steps_to_take": 20000, #1000
 				"top_k": 4,
 				"gif": False,
-				"save_model": False,
+				"save_model": True,
+				"eval_policy": True,
 				"save_model_checkpoint": 100,
 				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,
