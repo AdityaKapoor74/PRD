@@ -24,8 +24,8 @@ if __name__ == '__main__':
 	# color_social_dilemma_pt2
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "color_social_dilemma_pt2_16_Agents"
-		env_name = "color_social_dilemma_pt2" 
+		test_num = "crossing_8_Agents_pen_collid_agents"
+		env_name = "crossing" 
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
 
 		dictionary = {

@@ -55,7 +55,7 @@ class A2CAgent:
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
 		elif self.env_name == "crossing":
-			obs_dim = 2*3 + 2*(self.num_agents-1)
+			obs_dim = 2*3 #+ 2*(self.num_agents-1)
 		elif self.env_name in ["color_social_dilemma", "color_social_dilemma_pt2"]:
 			obs_dim = 2*2 + 1 + 2*3
 
