@@ -57,7 +57,7 @@ class A2CAgent:
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
 		elif self.env_name == "crossing":
-			obs_dim = 2*3 + 2*(self.num_agents-1)
+			obs_dim = 2*3 #+ 2*(self.num_agents-1)
 		elif self.env_name in ["color_social_dilemma", "color_social_dilemma_pt2"]:
 			obs_dim = 2*2 + 1 + 2*3
 
@@ -75,13 +75,13 @@ class A2CAgent:
 
 		# Loading models
 		# model_path_value = "../../../tests/color_social_dilemma/models/color_social_dilemma_with_prd_above_threshold_0.01_MLPToGNNV6_color_social_dilemma_try2/critic_networks/20-07-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01softmax_cut_threshold0.1_epsiode200000_MLPToGNNV6.pt"
-		model_path_policy = "./crossing_pen_colliding_agents/07-08-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.0_trace_decay0.98topK_4select_above_threshold0.01_epsiode4200.pt"
+		# model_path_policy = "./crossing_pen_colliding_agents/07-08-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.0_trace_decay0.98topK_4select_above_threshold0.01_epsiode4200.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 		# # For GPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value))
-		self.policy_network.load_state_dict(torch.load(model_path_policy))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
@@ -251,9 +251,9 @@ class A2CAgent:
 			elif "top" in self.experiment_type:
 				advantage = advantage*(self.num_agents/self.top_k)
 	
-		# probs = Categorical(probs)
-		# policy_loss = -probs.log_prob(actions) * advantage.detach()
-		# policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+		probs = Categorical(probs)
+		policy_loss = -probs.log_prob(actions) * advantage.detach()
+		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
 		# # ***********************************************************************************
 			
 		# **********************************
@@ -263,10 +263,10 @@ class A2CAgent:
 		self.critic_optimizer.step()
 
 
-		# self.policy_optimizer.zero_grad()
-		# policy_loss.backward(retain_graph=False)
-		# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-		# self.policy_optimizer.step()
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward(retain_graph=False)
+		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		self.policy_optimizer.step()
 
 
 

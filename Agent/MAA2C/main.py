@@ -71,9 +71,9 @@ if __name__ == '__main__':
 
 
 	# crossing /  paired_by_sharing_goals
-	for i in range(1,2):
+	for i in range(1,6):
 		extension = "run"+str(i)
-		test_num = "PRD_crossing_8_Agents_l1_pen_pen_non_col_agents"
+		test_num = "crossing_8_agents_pen_colliding_agents_policy_eval"
 		env_name = "crossing"
 		experiment_type = "prd_above_threshold" # prd_above_threshold_decay_episodic, greedy, shared
 
@@ -88,7 +88,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, 
 				"policy_lr": 5e-4,
 				"entropy_pen": 8e-3, 
-				"l1_pen": 0.0,
+				"l1_pen": 1e-1,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
@@ -97,16 +97,16 @@ if __name__ == '__main__':
 				"select_above_threshold": 0.01,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
-				"steps_to_take": 100000, 
+				"steps_to_take": 20000, 
 				"top_k": 0,
 				"gif": False,
-				"eval_policy": False,
-				"save_model": False,
+				"eval_policy": True,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 100000,
+				"max_episodes": 20000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gif_checkpoint":1,
