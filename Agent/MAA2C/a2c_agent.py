@@ -276,9 +276,6 @@ class A2CAgent:
 		if self.threshold_max >= self.select_above_threshold and "ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
 
-		grad_norm_policy = torch.Tensor([-1])
-		policy_loss = torch.Tensor([-1])
-
 		if "threshold" in self.experiment_type:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
 
