@@ -39,13 +39,13 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, 
 				"policy_lr": 5e-4, #1e-4
 				"entropy_pen": 8e-3, 
-				"l1_pen": 0.0,
+				"l1_pen": 0.01,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda", #MC
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.001,
+				"select_above_threshold": 0.01,
 				"threshold_min": 0.0, #0.0001
 				"threshold_max": 0.001,
 				"steps_to_take": 20000, #1000
