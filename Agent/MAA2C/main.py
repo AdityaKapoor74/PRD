@@ -48,7 +48,7 @@ if __name__ == '__main__':
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, #0.0001
 				"threshold_max": 0.001,
-				"steps_to_take": 20000, #1000
+				"steps_to_take": 30000, #1000
 				"top_k": 0,
 				"gif": False,
 				"save_model": True,
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 30000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gif_checkpoint":100,
