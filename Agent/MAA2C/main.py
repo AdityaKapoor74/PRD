@@ -24,9 +24,9 @@ if __name__ == '__main__':
 	# color_social_dilemma_pt2
 	# for i in range(1,6):
 	# 	extension = "run"+str(i)
-	# 	test_num = "color_social_dilemma_8_Agents_policy_eval"
+	# 	test_num = "color_social_dilemma_8_Agents_longrun_policy_eval"
 	# 	env_name = "color_social_dilemma_pt2" 
-	# 	experiment_type = "prd_above_threshold" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
+	# 	experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared, prd_above_threshold_ascend_episodic
 
 	# 	dictionary = {
 	# 			"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -39,13 +39,13 @@ if __name__ == '__main__':
 	# 			"value_lr": 1e-3, 
 	# 			"policy_lr": 5e-4, #1e-4
 	# 			"entropy_pen": 8e-3, 
-	# 			"l1_pen": 0.005,
+	# 			"l1_pen": 0.0,
 	# 			"critic_entropy_pen": 0.0,
 	# 			"critic_loss_type": "TD_lambda", #MC
 	# 			"gamma": 0.99, 
 	# 			"trace_decay": 0.98,
 	# 			"lambda": 0.8, #0.8
-	# 			"select_above_threshold": 0.001,
+	# 			"select_above_threshold": 0.0,
 	# 			"threshold_min": 0.0, #0.0001
 	# 			"threshold_max": 0.001,
 	# 			"steps_to_take": 20000, #1000
@@ -73,7 +73,7 @@ if __name__ == '__main__':
 	# crossing /  paired_by_sharing_goals
 	for i in range(1,6):
 		extension = "run"+str(i)
-		test_num = "paired_by_switching_rewards_16_agents_policy_eval" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		test_num = "coma_to_prd_v6" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "paired_by_sharing_goals"
 		experiment_type = "prd_above_threshold" # prd_above_threshold_decay_episodic, greedy, shared
 
