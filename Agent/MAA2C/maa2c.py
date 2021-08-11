@@ -149,6 +149,8 @@ class MAA2C:
 		
 		if "threshold" in self.experiment_type:
 			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		elif "prd_top" in self.experiment_type:
+			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 		else:
 			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
@@ -185,6 +187,9 @@ class MAA2C:
 				self.writer.add_scalars('Reward Incurred/Group Size', self.agent_group, episode)
 				self.writer.add_scalar('Reward Incurred/Avg Group Size', avg_agent_group_over_episode.item(), episode)
 
+			if "prd_top" in self.experiment_type:
+				self.writer.add_scalar('Reward Incurred/Mean Smallest Weight', mean_min_weight_value.item(), episode)
+
 
 		if self.save_comet_ml_plot:
 			self.comet_ml.log_metric('Entropy_Loss',entropy.item(),episode)
@@ -202,6 +207,10 @@ class MAA2C:
 					self.comet_ml.log_metric('Group_Size_'+agent_name, agent_groups_over_episode[i].item(), episode)
 
 				self.comet_ml.log_metric('Avg_Group_Size', avg_agent_group_over_episode.item(), episode)
+
+
+			if "prd_top" in self.experiment_type:
+				self.comet_ml.log_metric('Mean_Smallest_Weight', mean_min_weight_value.item(), episode)
 
 
 

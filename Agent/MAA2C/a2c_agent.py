@@ -204,6 +204,7 @@ class A2CAgent:
 		weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 
 		value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
+
 		
 	
 		# # ***********************************************************************************
@@ -236,6 +237,8 @@ class A2CAgent:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif "top" in self.experiment_type:
 			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
+			min_weight_values, _ = torch.min(values, dim=-1)
+			mean_min_weight_value = torch.mean(min_weight_values)
 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif self.experiment_type == "greedy":
@@ -278,5 +281,6 @@ class A2CAgent:
 
 		if "threshold" in self.experiment_type:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
-
+		if "prd_top" in self.experiment_type:
+			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
