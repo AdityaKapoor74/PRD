@@ -18,6 +18,8 @@ class A2CAgent:
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
 		self.l1_pen = dictionary["l1_pen"]
+		self.l1_pen_min = dictionary["l1_pen_min"]
+		self.l1_pen_steps_to_take = dictionary["l1_pen_steps_to_take"]
 		self.critic_entropy_pen = dictionary["critic_entropy_pen"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
@@ -36,10 +38,13 @@ class A2CAgent:
 		self.threshold_min = dictionary["threshold_min"]
 		self.threshold_max = dictionary["threshold_max"]
 		self.steps_to_take = dictionary["steps_to_take"]
-		if "decay" in self.experiment_type:
+		if "prd_above_threshold_decay" in self.experiment_type:
 			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
-		else:
+		elif "prd_above_threshold_ascend" in self.experiment_type:
 			self.threshold_delta = (self.threshold_max - self.select_above_threshold)/self.steps_to_take
+
+		if "prd_above_threshold_l1_pen_decay" in self.experiment_type:
+			self.l1_pen_delta = (self.l1_pen - self.l1_pen_min)/self.l1_pen_steps_to_take
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
@@ -273,11 +278,15 @@ class A2CAgent:
 
 
 
-		if self.select_above_threshold > self.threshold_min and "decay" in self.experiment_type:
+		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
 
-		if self.threshold_max >= self.select_above_threshold and "ascend" in self.experiment_type:
+		if self.threshold_max >= self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
+
+		if self.l1_pen > self.l1_pen_min and "prd_above_threshold_l1_pen_decay" in self.experiment_type:
+			self.l1_pen = self.l1_pen - self.l1_pen_delta
+
 
 		if "threshold" in self.experiment_type:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
