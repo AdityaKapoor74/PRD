@@ -73,7 +73,7 @@ if __name__ == '__main__':
 	# crossing /  paired_by_sharing_goals
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "paired_by_switching_goals_16_Agents" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		test_num = "paired_by_switching_goals_30_Agents" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "paired_by_sharing_goals"
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
