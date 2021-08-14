@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 1000,
 				"top_k": 0,
-				"gif": True,
+				"gif": False,
 				"save_model": True,
 				"eval_policy": True,
 				"save_model_checkpoint": 100,
