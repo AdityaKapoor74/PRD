@@ -261,7 +261,7 @@ class A2CAgent:
 			min_weight_values, _ = torch.min(values, dim=-1)
 			mean_min_weight_value = torch.mean(min_weight_values)
 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif self.experiment_type == "greedy":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 		elif self.experiment_type == "relevant_set":
