@@ -85,6 +85,8 @@ class A2CAgent:
 					for j in range(0,self.num_agents//2):
 						self.relevant_set[i][j] = 1
 
+			self.relevant_set = torch.transpose(self.relevant_set,0,1)
+
 
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
 		for i in range(self.num_agents):
@@ -251,9 +253,9 @@ class A2CAgent:
 			avg_weights = torch.mean(weights,dim=0)
 			masking_advantage = (avg_weights>self.select_above_threshold).int()
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
-		elif "above_threshold" in self.experiment_type:
+		elif "prd_above_threshold" in self.experiment_type:
 			masking_advantage = (weights>self.select_above_threshold).int()
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "top" in self.experiment_type:
 			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
 			min_weight_values, _ = torch.min(values, dim=-1)
