@@ -52,10 +52,6 @@ class A2CAgent:
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
 
-		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
-		for i in range(self.num_agents):
-			self.greedy_policy[i][i] = 1
-
 		print("EXPERIMENT TYPE", self.experiment_type)
 
 		# PAIRED AGENT
@@ -76,6 +72,24 @@ class A2CAgent:
 
 		# MLP POLICY
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
+
+
+		if self.env_name == "color_social_dilemma_pt2":
+			self.relevant_set = torch.zeros(self.num_agents, self.num_agents).to(self.device)
+			for i in range(self.num_agents):
+				self.relevant_set[i][i] = 1
+				if i < self.num_agents//2:
+					for j in range(self.num_agents//2, self.num_agents):
+						self.relevant_set[i][j] = 1
+				else:
+					for j in range(0,self.num_agents//2):
+						self.relevant_set[i][j] = 1
+
+
+		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
+		for i in range(self.num_agents):
+			self.greedy_policy[i][i] = 1
+
 
 
 		# Loading models
@@ -248,6 +262,8 @@ class A2CAgent:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * masking_advantage,dim=-2)
 		elif self.experiment_type == "greedy":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+		elif self.experiment_type == "relevant_set":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.relevant_set ,dim=-2)
 
 		if "threshold" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
