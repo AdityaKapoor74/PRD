@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"steps_to_take": 50000, #1000
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 1000,
-				"top_k": 5,
+				"top_k": 4,
 				"gif": False,
 				"save_model": True,
 				"eval_policy": True,
