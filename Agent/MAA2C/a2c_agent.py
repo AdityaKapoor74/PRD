@@ -240,7 +240,7 @@ class A2CAgent:
 		if self.experiment_type == "shared":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * weights ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights,-1,-2) ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights,dim=0)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * avg_weights ,dim=-2)
