@@ -107,7 +107,7 @@ class GATCritic(nn.Module):
 		# QUERIES
 		query_obs = self.query_layer(states_embed)
 		# WEIGHT
-		weight = F.softmax(torch.sigmoid(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act)),dim=-1)
+		weight = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act),dim=-1)
 		ret_weight = weight
 
 		obs_actions = torch.cat([states,actions],dim=-1)
