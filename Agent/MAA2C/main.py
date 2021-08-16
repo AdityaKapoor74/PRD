@@ -77,7 +77,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "paired_by_sharing_goals_testing_weight_calc" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "prd_above_threshold_without_sigmoid" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "prd_above_threshold_with_sigmoid" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
