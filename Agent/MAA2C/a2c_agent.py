@@ -267,7 +267,10 @@ class A2CAgent:
 		elif self.experiment_type == "relevant_set":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.relevant_set ,dim=-2)
 
-		if "threshold" in self.experiment_type:
+		if "prd_avg" in self.experiment_type:
+			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
+			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
+		elif "threshold" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 
