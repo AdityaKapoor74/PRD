@@ -60,15 +60,15 @@ class A2CAgent:
 		elif self.env_name == "crossing":
 			obs_dim = 2*3 + 2*(self.num_agents-1)
 		elif self.env_name in ["color_social_dilemma", "color_social_dilemma_pt2"]:
-			obs_dim = 2*2 + 1 + 2*3
+			obs_dim = 2*2 + 2 + (2*1 + 2)*2
 
 		self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		
 		
 		if self.env_name in ["paired_by_sharing_goals", "crossing"]:
 			obs_dim = 2*3
-		elif self.env_name in ["color_social_dilemma", "color_social_dilemma_pt2"]:
-			obs_dim = 2*2 + 1 + 2*3
+		elif self.env_name in ["color_social_dilemma_pt2"]:
+			obs_dim = 2*2 + 2 + (2*1 + 2)*2
 
 		# MLP POLICY
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
