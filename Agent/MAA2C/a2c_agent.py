@@ -23,6 +23,7 @@ class A2CAgent:
 		self.critic_entropy_pen = dictionary["critic_entropy_pen"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
+		self.entropy_delta = self.entropy_pen / dictionary["max_episodes"]
 		self.trace_decay = dictionary["trace_decay"]
 		self.top_k = dictionary["top_k"]
 		self.gae = dictionary["gae"]
@@ -313,5 +314,8 @@ class A2CAgent:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
 		if "prd_top" in self.experiment_type:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value
+
+		if self.entropy_pen > 0:
+			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
