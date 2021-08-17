@@ -315,7 +315,7 @@ class A2CAgent:
 		if "prd_top" in self.experiment_type:
 			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value
 
-		if self.entropy_pen > 0:
-			self.entropy_pen = self.entropy_pen - self.entropy_delta
+		# if self.entropy_pen > 0:
+		# 	self.entropy_pen = self.entropy_pen - self.entropy_delta
 
 		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
