@@ -23,7 +23,7 @@ class A2CAgent:
 		self.critic_entropy_pen = dictionary["critic_entropy_pen"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
-		self.entropy_delta = self.entropy_pen / dictionary["max_episodes"]
+		# self.entropy_delta = self.entropy_pen / dictionary["max_episodes"]
 		self.trace_decay = dictionary["trace_decay"]
 		self.top_k = dictionary["top_k"]
 		self.gae = dictionary["gae"]
