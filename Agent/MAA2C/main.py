@@ -90,7 +90,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 1e-3, 
 				"policy_lr": 5e-4,
-				"entropy_pen": 4e-3, 
+				"entropy_pen": 1e-3, 
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
@@ -124,5 +124,5 @@ if __name__ == '__main__':
 		ma_controller.run()
 
 
-#  export CUDA_VISIBLE_DEVICES=1
+# export CUDA_VISIBLE_DEVICES=1
 # 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
