@@ -37,7 +37,7 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"value_lr": 1e-3, 
-				"policy_lr": 1e-4, #1e-4
+				"policy_lr": 8e-5, #1e-4
 				"entropy_pen": 8e-3, 
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
