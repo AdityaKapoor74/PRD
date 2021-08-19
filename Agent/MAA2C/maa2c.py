@@ -311,7 +311,7 @@ class MAA2C:
 					one_hot_next_actions[i][act] = 1
 
 
-				if self.env_name in ["crossing"]:
+				if self.env_name in ["crossing", "team_crossing"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
 					episode_collision_rate += np.sum(collision_rate)
