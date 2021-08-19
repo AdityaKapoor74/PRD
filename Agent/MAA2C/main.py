@@ -72,11 +72,11 @@ if __name__ == '__main__':
 	# 	ma_controller.run()
 
 
-	# crossing /  paired_by_sharing_goals
+	# crossing /  paired_by_sharing_goals/ team_crossing
 	for i in range(1,6):
 		extension = "run"+str(i)
-		test_num = "crossing_8_agents_pen_non_colliding_agents_policy_eval" #crossing_8_agents_pen_non_colliding_agents_policy_eval
-		env_name = "crossing"
+		test_num = "team_crossing_8_agents_pen_non_colliding_team_members_policy_eval" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		env_name = "team_crossing"
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
