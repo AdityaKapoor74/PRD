@@ -90,7 +90,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 1e-3, 
 				"policy_lr": 1e-4,
-				"entropy_pen": 4e-3, 
+				"entropy_pen": 1e-3, 
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
@@ -99,7 +99,7 @@ if __name__ == '__main__':
 				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.01,
+				"threshold_max": 0.1,
 				"steps_to_take": 15000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
