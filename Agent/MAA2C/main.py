@@ -90,7 +90,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 1e-3, 
 				"policy_lr": 5e-4,
-				"entropy_pen": 5e-4, 
+				"entropy_pen": 0.0, 
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
