@@ -14,6 +14,7 @@ class A2CAgent:
 		):
 
 		self.env = env
+		self.test_num = dictionary["test_num"]
 		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
@@ -23,7 +24,8 @@ class A2CAgent:
 		self.critic_entropy_pen = dictionary["critic_entropy_pen"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
-		# self.entropy_delta = self.entropy_pen / dictionary["max_episodes"]
+		self.entropy_pen_min = dictionary["entropy_pen_min"]
+		self.entropy_delta = (self.entropy_pen - self.entropy_pen_min) / dictionary["max_episodes"]
 		self.trace_decay = dictionary["trace_decay"]
 		self.top_k = dictionary["top_k"]
 		self.gae = dictionary["gae"]
@@ -58,6 +60,10 @@ class A2CAgent:
 		# PAIRED AGENT
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
+			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.env_name == "crossing" and "crossing_pen_colliding_agents" in self.test_num:
+		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
+			obs_dim = 2*3
 			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "crossing":
 		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
@@ -205,7 +211,10 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+			V_values, weights_preproc, weights_post = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		else:
+			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 	
 		# # ***********************************************************************************
@@ -228,10 +237,17 @@ class A2CAgent:
 			value_loss = F.smooth_l1_loss(V_values, Value_target)
 
 
-		weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
-		l1_weights = torch.mean(weights_off_diagonal)
+		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+			weights_off_diagonal_preproc = weights_preproc * (1 - torch.eye(self.num_agents,device=self.device))
+			weights_off_diagonal = weights_post * (1 - torch.eye(self.num_agents,device=self.device))
+			l1_weights = torch.mean(weights_off_diagonal) + torch.mean(weights_off_diagonal_preproc)
 
-		weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+			weight_entropy = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2)) -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+		else:
+			weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
+			l1_weights = torch.mean(weights_off_diagonal)
+
+			weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 
 		value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
 
@@ -244,29 +260,34 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+			weights_prd = (weights_post + weights_preproc)/2.0
+		else:
+			weights_prd = weights
+
 		advantage = None
 		masking_advantage = None
 		if self.experiment_type == "shared":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights,-1,-2) ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
-			avg_weights = torch.mean(weights,dim=0)
+			avg_weights = torch.mean(weights_prd,dim=0)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
 		elif "prd_avg_top" in self.experiment_type:
-			avg_weights = torch.mean(weights,dim=0)
+			avg_weights = torch.mean(weights_prd,dim=0)
 			values, indices = torch.topk(avg_weights,k=self.top_k,dim=-1)
 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "prd_avg_above_threshold" in self.experiment_type:
-			avg_weights = torch.mean(weights,dim=0)
+			avg_weights = torch.mean(weights_prd,dim=0)
 			masking_advantage = (avg_weights>self.select_above_threshold).int()
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "prd_above_threshold" in self.experiment_type:
-			masking_advantage = (weights>self.select_above_threshold).int()
+			masking_advantage = (weights_prd>self.select_above_threshold).int()
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "top" in self.experiment_type:
-			values, indices = torch.topk(weights,k=self.top_k,dim=-1)
+			values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
 			min_weight_values, _ = torch.min(values, dim=-1)
 			mean_min_weight_value = torch.mean(min_weight_values)
 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
@@ -317,13 +338,22 @@ class A2CAgent:
 		if self.l1_pen > self.l1_pen_min and "prd_above_threshold_l1_pen_decay" in self.experiment_type:
 			self.l1_pen = self.l1_pen - self.l1_pen_delta
 
+		# annealin entropy pen
+		if self.entropy_pen > 0:
+			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
-		if "threshold" in self.experiment_type:
-			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
-		if "prd_top" in self.experiment_type:
-			return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value
+		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+			if "threshold" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
+			if "prd_top" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value
 
-		# if self.entropy_pen > 0:
-		# 	self.entropy_pen = self.entropy_pen - self.entropy_delta
+			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy
+		else:
+			if "threshold" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
+			if "prd_top" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, mean_min_weight_value
 
-		return value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy
+
+			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy

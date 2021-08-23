@@ -133,7 +133,7 @@ class GATCritic(nn.Module):
 
 class DualGATCritic(nn.Module):
 	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
-		super(GATCritic, self).__init__()
+		super(DualGATCritic, self).__init__()
 		
 		self.num_agents = num_agents
 		self.num_actions = num_actions

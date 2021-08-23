@@ -147,12 +147,20 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		if "threshold" in self.experiment_type:
-			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
-		elif "prd_top" in self.experiment_type:
-			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+		if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+			if "threshold" in self.experiment_type:
+				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+			elif "prd_top" in self.experiment_type:
+				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+			else:
+				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 		else:
-			value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+			if "threshold" in self.experiment_type:
+				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+			elif "prd_top" in self.experiment_type:
+				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+			else:
+				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
 		if self.save_tensorboard_plot:
 			
@@ -161,10 +169,6 @@ class MAA2C:
 			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
 			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-
-			# ENTROPY OF WEIGHTS
-			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
 
 			# self.calculate_indiv_weights(weights)
 			# for i in range(self.num_agents):
@@ -190,6 +194,17 @@ class MAA2C:
 			if "prd_top" in self.experiment_type:
 				self.writer.add_scalar('Reward Incurred/Mean Smallest Weight', mean_min_weight_value.item(), episode)
 
+			if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+				# ENTROPY OF WEIGHTS
+				entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Critic/Entropy_Preproc', entropy_weights.item(), episode)
+				entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Critic/Entropy_Post', entropy_weights.item(), episode)
+			else:
+				# ENTROPY OF WEIGHTS
+				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+				self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
+
 
 		if self.save_comet_ml_plot:
 			self.comet_ml.log_metric('Entropy_Loss',entropy.item(),episode)
@@ -197,9 +212,6 @@ class MAA2C:
 			self.comet_ml.log_metric('Policy_Loss',policy_loss.item(),episode)
 			self.comet_ml.log_metric('Grad_Norm_Value',grad_norm_value,episode)
 			self.comet_ml.log_metric('Grad_Norm_Policy',grad_norm_policy,episode)
-
-			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 			if "threshold" in self.experiment_type:
 				for i in range(self.num_agents):
@@ -211,6 +223,18 @@ class MAA2C:
 
 			if "prd_top" in self.experiment_type:
 				self.comet_ml.log_metric('Mean_Smallest_Weight', mean_min_weight_value.item(), episode)
+
+
+			if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+				# ENTROPY OF WEIGHTS
+				entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc', entropy_weights.item(), episode)
+				entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy_Post', entropy_weights.item(), episode)
+			else:
+				# ENTROPY OF WEIGHTS
+				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 
 
