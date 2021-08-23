@@ -77,7 +77,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "crossing_8_agents_pen_non_colliding_team_members_DUALGAT_policy_eval" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing"
-		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "greedy" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
