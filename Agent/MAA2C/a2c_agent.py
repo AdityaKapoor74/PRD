@@ -58,14 +58,18 @@ class A2CAgent:
 		# PAIRED AGENT
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
+			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "crossing":
-			obs_dim = 2*3 + 2*(self.num_agents-1)
+		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
+			obs_dim = 2*3
+			self.critic_network = DualGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name in ["color_social_dilemma", "color_social_dilemma_pt2"]:
 			obs_dim = 2*2 + 1 + 2*3
+			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "team_crossing":
-			obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
-
-		self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
+			obs_dim = 2*3 + 1
+			self.critic_network = DualGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		
 		
 		if self.env_name in ["paired_by_sharing_goals", "crossing"]:
