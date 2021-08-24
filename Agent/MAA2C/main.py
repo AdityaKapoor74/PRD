@@ -75,9 +75,9 @@ if __name__ == '__main__':
 	# crossing /  paired_by_sharing_goals/ team_crossing
 	for i in range(1,6):
 		extension = "run"+str(i)
-		test_num = "crossing_8_agents_pen_non_colliding_team_members_DUALGAT_policy_eval" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		test_num = "crossing_8_agents_pen_colliding_agents_policy_eval" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing"
-		experiment_type = "prd_above_threshold_decay" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -98,9 +98,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.01,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.01,
 				"steps_to_take": 15000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
