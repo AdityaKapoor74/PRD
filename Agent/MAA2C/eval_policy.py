@@ -98,10 +98,6 @@ def run(env, max_steps):
 
 		PRD_THRESHOLD = (PRD_THRESHOLD_MAX-PRD_THRESHOLD_MIN)/PRD_EPISODE
 
-		rewards_per_1000_eps = []
-		timesteps_per_1000_eps = []
-		collison_rate_per_1000_eps = []
-		avg_group_size_per_1000_eps = []
 
 		for run_num in range(1,NUM_EVALS+1):			
 			policy_eval_dir = '../../../tests/policy_eval/'+ENV_NAME+'_'+exp_type+'_'+str(run_num)+'/'
@@ -110,6 +106,11 @@ def run(env, max_steps):
 				print("Policy Eval Directory created successfully") 
 			except OSError as error: 
 				print("Policy Eval Directory can not be created")
+
+			rewards_per_1000_eps = []
+			timesteps_per_1000_eps = []
+			collison_rate_per_1000_eps = []
+			avg_group_size_per_1000_eps = []
 
 			for eps in eps_list:
 				# Loading models
