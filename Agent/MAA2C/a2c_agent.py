@@ -61,35 +61,35 @@ class A2CAgent:
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
 			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name == "crossing" and "crossing_pen_colliding_agents" in self.test_num:
+		elif self.env_name == "crossing_greedy":
 		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
 			obs_dim = 2*3
 			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name == "crossing":
+		elif self.env_name == "crossing_fully_coop":
 		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
 			obs_dim = 2*3
 			self.critic_network = DualGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name in ["color_social_dilemma", "color_social_dilemma_pt2"]:
+		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + 2*3
 			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name == "team_crossing":
+		elif self.env_name == "crossing_partially_coop":
 		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
 			obs_dim = 2*3 + 1
 			self.critic_network = DualGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		
 		
-		if self.env_name in ["paired_by_sharing_goals", "crossing"]:
+		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
-		elif self.env_name in ["color_social_dilemma_pt2"]:
+		elif self.env_name in ["color_social_dilemma"]:
 			obs_dim = 2*2 + 1 + 2*3
-		elif self.env_name in ["team_crossing"]:
+		elif self.env_name in ["crossing_partially_coop"]:
 			obs_dim = 2*3 + 1
 
 		# MLP POLICY
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
 
 
-		if self.env_name == "color_social_dilemma_pt2":
+		if self.env_name == "color_social_dilemma":
 			self.relevant_set = torch.zeros(self.num_agents, self.num_agents).to(self.device)
 			for i in range(self.num_agents):
 				self.relevant_set[i][i] = 1
@@ -211,7 +211,7 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 			V_values, weights_preproc, weights_post = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 		else:
 			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
@@ -237,7 +237,7 @@ class A2CAgent:
 			value_loss = F.smooth_l1_loss(V_values, Value_target)
 
 
-		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 			weights_off_diagonal_preproc = weights_preproc * (1 - torch.eye(self.num_agents,device=self.device))
 			weights_off_diagonal = weights_post * (1 - torch.eye(self.num_agents,device=self.device))
 			l1_weights = torch.mean(weights_off_diagonal) + torch.mean(weights_off_diagonal_preproc)
@@ -260,7 +260,7 @@ class A2CAgent:
 
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 			weights_prd = (weights_post + weights_preproc)/2.0
 		else:
 			weights_prd = weights
@@ -342,7 +342,7 @@ class A2CAgent:
 		if self.entropy_pen > 0:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
-		if self.env_name in ["crossing", "team_crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 			if "threshold" in self.experiment_type:
 				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
 			if "prd_top" in self.experiment_type:

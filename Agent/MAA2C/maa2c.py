@@ -147,7 +147,7 @@ class MAA2C:
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
 		
-		if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 			if "threshold" in self.experiment_type:
 				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 			elif "prd_top" in self.experiment_type:
@@ -225,7 +225,7 @@ class MAA2C:
 				self.comet_ml.log_metric('Mean_Smallest_Weight', mean_min_weight_value.item(), episode)
 
 
-			if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+			if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 				# ENTROPY OF WEIGHTS
 				entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
 				self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc', entropy_weights.item(), episode)
@@ -335,7 +335,7 @@ class MAA2C:
 					one_hot_next_actions[i][act] = 1
 
 
-				if self.env_name in ["crossing", "team_crossing"]:
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
 					episode_collision_rate += np.sum(collision_rate)
@@ -379,7 +379,7 @@ class MAA2C:
 				if self.eval_policy:
 					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-					if self.env_name in ["crossing"]:
+					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
 						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 

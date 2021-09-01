@@ -21,12 +21,12 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 
-	# color_social_dilemma_pt2
-	for i in range(1,6):
+	# color_social_dilemma
+	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "color_social_dilemma_8_Agents_50K_policy_eval"
-		env_name = "color_social_dilemma_pt2" 
-		experiment_type = "prd_above_threshold_decay" # prd_above_threshold_decay, greedy, shared, prd_above_threshold_ascend, prd_above_threshold_l1_pen_decay
+		test_num = "color_social_dilemma_32_Agents_200K_policy_eval"
+		env_name = "color_social_dilemma" 
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_decay, greedy, shared, prd_above_threshold_ascend, prd_above_threshold_l1_pen_decay
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"value_lr": 1e-3, 
-				"policy_lr": 8e-5, #1e-4
+				"policy_lr": 8e-5, #1e-4 5e-4(shared)
 				"entropy_pen": 8e-3, 
 				"entropy_pen_min": 8e-3,
 				"l1_pen": 0.0,
@@ -46,9 +46,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.01,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, #0.0001
-				"threshold_max": 0.0,
+				"threshold_max": 0.01,
 				"steps_to_take": 15000,
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 200000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gif_checkpoint":1,
@@ -73,11 +73,11 @@ if __name__ == '__main__':
 		ma_controller.run()
 
 
-	# crossing /  paired_by_sharing_goals/ team_crossing
+	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	# for i in range(1,6):
 	# 	extension = "run"+str(i)
 	# 	test_num = "team_crossing_8_agents_pen_non_colliding_team_members_dualgat_policy_eval" #crossing_8_agents_pen_non_colliding_agents_policy_eval
-	# 	env_name = "team_crossing"
+	# 	env_name = "crossing_partially_coop"
 	# 	experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_decay_episodic, greedy, shared
 
 	# 	dictionary = {
