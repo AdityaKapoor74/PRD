@@ -26,7 +26,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "color_social_dilemma_32_Agents_200K_policy_eval"
 		env_name = "color_social_dilemma" 
-		experiment_type = "shared" # prd_above_threshold_decay, greedy, shared, prd_above_threshold_ascend, prd_above_threshold_l1_pen_decay
+		experiment_type = "greedy" # prd_above_threshold_decay, greedy, shared, prd_above_threshold_ascend, prd_above_threshold_l1_pen_decay
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
