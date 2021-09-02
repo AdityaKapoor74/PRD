@@ -74,11 +74,11 @@ if __name__ == '__main__':
 
 
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
-	for i in range(1,2):
+	for i in range(1,4):
 		extension = "run"+str(i)
-		test_num = "crossing_partially_coop_24_agents_3_teams" #crossing_8_agents_pen_non_colliding_agents_policy_eval
-		env_name = "crossing_partially_coop"
-		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_decay_episodic, greedy, shared
+		test_num = "paired_by_sharing_goals_30_agents" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		env_name = "paired_by_sharing_goals"
+		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
