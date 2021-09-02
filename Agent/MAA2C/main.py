@@ -78,7 +78,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "crossing_partially_coop_24_agents_3_teams" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing_partially_coop"
-		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, 
-				"policy_lr": 5e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, 
 				"entropy_pen_min": 1e-3,
 				"l1_pen": 0.0,
