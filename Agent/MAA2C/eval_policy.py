@@ -17,12 +17,13 @@ import multiagent.scenarios as scenarios
 from a2c_model import *
 
 
-ENV_NAME = "crossing_partially_coop" #color_social_dilemma, corssing_greedy, crossing_fully_coop, crossing_partial_coop, paired_by_sharing_goals
+ENV_NAME = "paired_by_sharing_goals" #color_social_dilemma, corssing_greedy, crossing_fully_coop, crossing_partially_coop, paired_by_sharing_goals
 NUM_EVALS = 5
 PRD_THRESHOLD_MIN = 0.0
 PRD_THRESHOLD_MAX = 0.01
 PRD_EPISODE = 15000
 PRD_THRESHOLD = (PRD_THRESHOLD_MAX-PRD_THRESHOLD_MIN)/PRD_EPISODE
+MAX_EPISODES = 100
 
 
 def make_env(scenario_name, benchmark=False):
@@ -94,7 +95,7 @@ def run(env, max_steps):
 	exp_types = ["shared", "greedy", "prd_above_threshold_ascend"]
 
 
-	for exp_type in ["prd_above_threshold_ascend"]: 
+	for exp_type in ["prd_above_threshold"]: 
 
 		PRD_THRESHOLD = (PRD_THRESHOLD_MAX-PRD_THRESHOLD_MIN)/PRD_EPISODE
 
@@ -114,8 +115,8 @@ def run(env, max_steps):
 
 			for eps in eps_list:
 				# Loading models
-				model_path_value = "../../../tests/policy_eval/team_crossing_8_agents_pen_non_colliding_team_members_DUALGAT_policy_eval/models/team_crossing_prd_above_threshold_ascend_run1/critic_networks/24-08-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode"+eps+".pt"
-				model_path_policy = "../../../tests/policy_eval/team_crossing_8_agents_pen_non_colliding_team_members_DUALGAT_policy_eval/models/team_crossing_prd_above_threshold_ascend_run1/actor_networks/24-08-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode"+eps+".pt"
+				model_path_value = "../../../tests/policy_eval/paired_by_switching_goals_30_Agents/models/paired_by_sharing_goals_prd_above_threshold_run1/critic_networks/12-08-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01l1_pen0.0critic_entropy_pen0.0_epsiode"+eps+".pt"
+				model_path_policy = "../../../tests/policy_eval/paired_by_switching_goals_30_Agents/models/paired_by_sharing_goals_prd_above_threshold_run1/actor_networks/12-08-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.01l1_pen0.0critic_entropy_pen0.0_epsiode"+eps+".pt"
 				# For CPU
 				# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 				# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -126,75 +127,84 @@ def run(env, max_steps):
 
 				states = env.reset()
 
-				images = []
-
 				states_critic,states_actor = split_states(states,num_agents)
 
-				if int(eps) > PRD_EPISODE:
-					PRD_THRESHOLD = ((PRD_THRESHOLD_MAX - PRD_THRESHOLD_MIN) * int(eps))/PRD_EPISODE
+				# if int(eps) > PRD_EPISODE:
+				# 	PRD_THRESHOLD = ((PRD_THRESHOLD_MAX - PRD_THRESHOLD_MIN) * int(eps))/PRD_EPISODE
+				PRD_THRESHOLD = 0.01
 
 				episode_collision_rate = 0
 				total_rewards = 0
 				avg_group_size = 0
-				final_timestep = max_steps
+				final_timesteps = 0
 
-				for step in range(max_steps):
+				for episode in range(MAX_EPISODES):
 
-					actions = None
-					dists = None
-					with torch.no_grad():
-						states_actor = torch.FloatTensor([states_actor]).to(device)
-						dists, _ = policy_network.forward(states_actor)
-						actions = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
+					final_timestep = max_steps
 
-						one_hot_actions = np.zeros((num_agents,num_actions))
-						for i,act in enumerate(actions):
-							one_hot_actions[i][act] = 1
+					for step in range(max_steps):
 
-						states_critic = torch.FloatTensor([states_critic]).to(device)
-						if ENV_NAME in ["crossing_fully_coop", "crossing_partially_coop"]:
-							V_values, weights_preproc, weights_postproc = critic_network.forward(states_critic, dists.detach(), torch.FloatTensor(one_hot_actions).unsqueeze(0).to(device))
-							weights_prd = (weights_preproc+weights_postproc)/2.0
-						else:
-							V_values, weights = critic_network.forward(states_critic, dists.detach(), torch.FloatTensor(one_hot_actions).unsqueeze(0).to(device))
-							weights_prd = weights
-					# Advance a step and render a new image
-					next_states,rewards,dones,info = env.step(actions)
-					next_states_critic,next_states_actor = split_states(next_states, num_agents)
+						actions = None
+						dists = None
+						with torch.no_grad():
+							states_actor = torch.FloatTensor([states_actor]).to(device)
+							dists, _ = policy_network.forward(states_actor)
+							actions = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
 
-					if ENV_NAME in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
-						collision_rate = [value[1] for value in rewards]
-						rewards = [value[0] for value in rewards]
-						episode_collision_rate += np.sum(collision_rate)
+							one_hot_actions = np.zeros((num_agents,num_actions))
+							for i,act in enumerate(actions):
+								one_hot_actions[i][act] = 1
 
-					if "prd" in exp_type:
-						masking_advantage = (weights_prd>PRD_THRESHOLD).float()
-						avg_group_size += torch.mean(masking_advantage)*num_agents
+							states_critic = torch.FloatTensor([states_critic]).to(device)
+							if ENV_NAME in ["crossing_fully_coop", "crossing_partially_coop"]:
+								V_values, weights_preproc, weights_postproc = critic_network.forward(states_critic, dists.detach(), torch.FloatTensor(one_hot_actions).unsqueeze(0).to(device))
+								weights_prd = (weights_preproc+weights_postproc)/2.0
+							else:
+								V_values, weights = critic_network.forward(states_critic, dists.detach(), torch.FloatTensor(one_hot_actions).unsqueeze(0).to(device))
+								weights_prd = weights
+						# Advance a step and render a new image
+						next_states,rewards,dones,info = env.step(actions)
+						next_states_critic,next_states_actor = split_states(next_states, num_agents)
 
-					total_rewards = np.sum(rewards)
+						if ENV_NAME in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
+							collision_rate = [value[1] for value in rewards]
+							rewards = [value[0] for value in rewards]
+							episode_collision_rate += np.sum(collision_rate)
 
-					print("*"*100)
-					print("TIMESTEP: {} | REWARD: {} \n".format(step,np.round(total_rewards,decimals=4)))
-					print("*"*100)
+						if "prd" in exp_type:
+							masking_advantage = (weights_prd>PRD_THRESHOLD).float()
+							avg_group_size += torch.mean(masking_advantage)*num_agents
+
+						total_rewards += np.sum(rewards)
+
+						print("*"*100)
+						print("TIMESTEP: {} | REWARD: {} \n".format(step,np.round(total_rewards,decimals=4)))
+						print("*"*100)
 
 
-					states_critic,states_actor = next_states_critic,next_states_actor
-					states = next_states
+						states_critic,states_actor = next_states_critic,next_states_actor
+						states = next_states
 
 
-					if all(dones):
-						final_timestep = step
-						break
+						if all(dones):
+							final_timestep = step
+							break
 
-				avg_group_size /= final_timestep
+					final_timesteps += final_timestep
+
+				final_timesteps /= MAX_EPISODES
+				avg_group_size /= (final_timesteps*MAX_EPISODES)
+				total_rewards /= MAX_EPISODES
 
 				rewards_per_1000_eps.append(total_rewards)
 				timesteps_per_1000_eps.append(final_timestep)
 
 				if ENV_NAME in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
+					episode_collision_rate /= MAX_EPISODES
 					collison_rate_per_1000_eps.append(episode_collision_rate)
 
 				if "prd" in exp_type:
+					avg_group_size /= MAX_EPISODES
 					print("AVG GROUP SIZE", avg_group_size)
 					avg_group_size_per_1000_eps.append(avg_group_size)
 

@@ -76,7 +76,7 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "crossing_partially_coop_32_agents" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		test_num = "crossing_partially_coop_24_agents_3_teams" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing_partially_coop"
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
