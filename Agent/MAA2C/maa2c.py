@@ -12,7 +12,7 @@ class MAA2C:
 
 	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		# self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
@@ -342,6 +342,10 @@ class MAA2C:
 					episode_collision_rate += np.sum(collision_rate)
 
 				episode_reward += np.sum(rewards)
+
+				if self.test_num == "coma_v7":
+					rewards = [np.sum(rewards)]*self.num_agents
+
 
 				if self.learn:
 					if all(dones) or step == self.max_time_steps:
