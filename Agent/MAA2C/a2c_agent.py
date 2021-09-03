@@ -57,7 +57,6 @@ class A2CAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		# PAIRED AGENT
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
 			self.critic_network = GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
