@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
 
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
-	for i in range(1,4):
+	for i in range(1,5):
 		extension = "run"+str(i)
 		test_num = "coma_v7" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "paired_by_sharing_goals"
