@@ -78,7 +78,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "paired_by_sharing_goals_30_agents" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "prd_above_threshold" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, 
 				"policy_lr": 5e-4, #prd 1e-4
 				"entropy_pen": 8e-3, 
-				"entropy_pen_min": 1e-3,
+				"entropy_pen_min": 8e-3,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
@@ -128,3 +128,12 @@ if __name__ == '__main__':
 
 # export CUDA_VISIBLE_DEVICES=1
 # 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
+
+# 1) ssh biorobotics@highbay.pc.cs.cmu.edu
+# Ben
+# password: biorobotics
+# Ben
+# 2) ssh biorobotics@10.0.0.8
+# Ben
+# Ben Freed
+# password: biorobotics
