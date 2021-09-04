@@ -22,7 +22,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 
 	# color_social_dilemma
-	for i in range(1,2):
+	for i in range(1,3):
 		extension = "run"+str(i)
 		test_num = "color_social_dilemma_32_Agents_200K_policy_eval"
 		env_name = "color_social_dilemma" 
