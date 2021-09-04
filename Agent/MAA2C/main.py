@@ -37,7 +37,7 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"value_lr": 1e-3, 
-				"policy_lr": 5e-4, # 5e-4(shared) 8e-5(prd_above_threshold_ascend)
+				"policy_lr": 2e-4, # 5e-4(shared) 8e-5(prd_above_threshold_ascend)
 				"entropy_pen": 8e-3, 
 				"entropy_pen_min": 8e-3,
 				"l1_pen": 0.0,
