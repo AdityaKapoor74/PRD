@@ -12,7 +12,7 @@ class MAA2C:
 
 	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		# self.device = "cpu"
+		self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
