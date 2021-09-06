@@ -635,6 +635,10 @@ class MAA2C:
 		policy_grad_mat = torch.stack(policy_grads)
 		policy_grad_var = torch.var(policy_grad_mat,dim=0)
 
+		print('policy_grad_var.shape: ', policy_grad_var.shape)
+
+		return torch.sum(policy_grad_var)
+
 		# if self.eval_policy:
 		# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
 		# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)

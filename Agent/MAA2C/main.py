@@ -123,7 +123,7 @@ if __name__ == '__main__':
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
 		ma_controller = MAA2C(env,dictionary)
-		ma_controller.run_gradvar_exp()
+		grad_var = ma_controller.run_gradvar_exp()
 
 
 # export CUDA_VISIBLE_DEVICES=1
