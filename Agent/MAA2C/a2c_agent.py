@@ -478,11 +478,14 @@ class A2CAgent:
 		# self.critic_optimizer.step()
 
 
+		policy_grad = []
 		self.policy_optimizer.zero_grad()
 		policy_loss.backward(retain_graph=False)
 		for name,param in self.policy_network.named_parameters():
 			if param.requires_grad:
-				print('param.grad: ',param.grad)
+				policy_grad.append(param.grad.flatten())
+				# print('param.grad: ',param.grad)
+
 		# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		# self.policy_optimizer.step()
 
@@ -501,18 +504,20 @@ class A2CAgent:
 		if self.entropy_pen > 0:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
-		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-			if "threshold" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
-			if "prd_top" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value
+		# if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
+		# 	if "threshold" in self.experiment_type:
+		# 		return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
+		# 	if "prd_top" in self.experiment_type:
+		# 		return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value
 
-			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy
-		else:
-			if "threshold" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
-			if "prd_top" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, mean_min_weight_value
+		# 	return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy
+		# else:
+		# 	if "threshold" in self.experiment_type:
+		# 		return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
+		# 	if "prd_top" in self.experiment_type:
+		# 		return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, mean_min_weight_value
 
 
-			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy
+		# 	return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy
+
+		return torch.cat(policy_grad)

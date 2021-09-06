@@ -255,92 +255,94 @@ class MAA2C:
 		
 		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 			if "threshold" in self.experiment_type:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				policy_grad = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 			elif "prd_top" in self.experiment_type:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				policy_grad = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 			else:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				policy_grad = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 		else:
 			if "threshold" in self.experiment_type:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				policy_grad = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 			elif "prd_top" in self.experiment_type:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				policy_grad = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 			else:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				policy_grad = self.agents.get_policy_grad(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
 
-		if self.save_tensorboard_plot:
+		# if self.save_tensorboard_plot:
 			
-			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+		# 	self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
+		# 	self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
+		# 	self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
+		# 	self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
+		# 	self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
 
-			# self.calculate_indiv_weights(weights)
-			# for i in range(self.num_agents):
-			# 	agent_name = 'agent %d' % i
-			# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+		# 	# self.calculate_indiv_weights(weights)
+		# 	# for i in range(self.num_agents):
+		# 	# 	agent_name = 'agent %d' % i
+		# 	# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 
-			# self.calculate_indiv_weights(weight_policy)
-			# for i in range(self.num_agents):
-			# 	agent_name = 'agent %d' % i
-			# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
+		# 	# self.calculate_indiv_weights(weight_policy)
+		# 	# for i in range(self.num_agents):
+		# 	# 	agent_name = 'agent %d' % i
+		# 	# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
 			
 
-			# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+		# 	# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+		# 	# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
-			if "threshold" in self.experiment_type:
-				for i in range(self.num_agents):
-					agent_name = "agent"+str(i)
-					self.agent_group[agent_name] = agent_groups_over_episode[i].item()
-				self.writer.add_scalars('Reward Incurred/Group Size', self.agent_group, episode)
-				self.writer.add_scalar('Reward Incurred/Avg Group Size', avg_agent_group_over_episode.item(), episode)
+		# 	if "threshold" in self.experiment_type:
+		# 		for i in range(self.num_agents):
+		# 			agent_name = "agent"+str(i)
+		# 			self.agent_group[agent_name] = agent_groups_over_episode[i].item()
+		# 		self.writer.add_scalars('Reward Incurred/Group Size', self.agent_group, episode)
+		# 		self.writer.add_scalar('Reward Incurred/Avg Group Size', avg_agent_group_over_episode.item(), episode)
 
-			if "prd_top" in self.experiment_type:
-				self.writer.add_scalar('Reward Incurred/Mean Smallest Weight', mean_min_weight_value.item(), episode)
+		# 	if "prd_top" in self.experiment_type:
+		# 		self.writer.add_scalar('Reward Incurred/Mean Smallest Weight', mean_min_weight_value.item(), episode)
 
-			if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Critic/Entropy_Preproc', entropy_weights.item(), episode)
-				entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Critic/Entropy_Post', entropy_weights.item(), episode)
-			else:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
-
-
-		if self.save_comet_ml_plot:
-			self.comet_ml.log_metric('Entropy_Loss',entropy.item(),episode)
-			self.comet_ml.log_metric('Value_Loss',value_loss.item(),episode)
-			self.comet_ml.log_metric('Policy_Loss',policy_loss.item(),episode)
-			self.comet_ml.log_metric('Grad_Norm_Value',grad_norm_value,episode)
-			self.comet_ml.log_metric('Grad_Norm_Policy',grad_norm_policy,episode)
-
-			if "threshold" in self.experiment_type:
-				for i in range(self.num_agents):
-					agent_name = "agent"+str(i)
-					self.comet_ml.log_metric('Group_Size_'+agent_name, agent_groups_over_episode[i].item(), episode)
-
-				self.comet_ml.log_metric('Avg_Group_Size', avg_agent_group_over_episode.item(), episode)
+		# 	if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
+		# 		# ENTROPY OF WEIGHTS
+		# 		entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
+		# 		self.writer.add_scalar('Weights_Critic/Entropy_Preproc', entropy_weights.item(), episode)
+		# 		entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+		# 		self.writer.add_scalar('Weights_Critic/Entropy_Post', entropy_weights.item(), episode)
+		# 	else:
+		# 		# ENTROPY OF WEIGHTS
+		# 		entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+		# 		self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
 
 
-			if "prd_top" in self.experiment_type:
-				self.comet_ml.log_metric('Mean_Smallest_Weight', mean_min_weight_value.item(), episode)
+		# if self.save_comet_ml_plot:
+		# 	self.comet_ml.log_metric('Entropy_Loss',entropy.item(),episode)
+		# 	self.comet_ml.log_metric('Value_Loss',value_loss.item(),episode)
+		# 	self.comet_ml.log_metric('Policy_Loss',policy_loss.item(),episode)
+		# 	self.comet_ml.log_metric('Grad_Norm_Value',grad_norm_value,episode)
+		# 	self.comet_ml.log_metric('Grad_Norm_Policy',grad_norm_policy,episode)
+
+		# 	if "threshold" in self.experiment_type:
+		# 		for i in range(self.num_agents):
+		# 			agent_name = "agent"+str(i)
+		# 			self.comet_ml.log_metric('Group_Size_'+agent_name, agent_groups_over_episode[i].item(), episode)
+
+		# 		self.comet_ml.log_metric('Avg_Group_Size', avg_agent_group_over_episode.item(), episode)
 
 
-			if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc', entropy_weights.item(), episode)
-				entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy_Post', entropy_weights.item(), episode)
-			else:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
+		# 	if "prd_top" in self.experiment_type:
+		# 		self.comet_ml.log_metric('Mean_Smallest_Weight', mean_min_weight_value.item(), episode)
+
+
+		# 	if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
+		# 		# ENTROPY OF WEIGHTS
+		# 		entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
+		# 		self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc', entropy_weights.item(), episode)
+		# 		entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+		# 		self.comet_ml.log_metric('Critic_Weight_Entropy_Post', entropy_weights.item(), episode)
+		# 	else:
+		# 		# ENTROPY OF WEIGHTS
+		# 		entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+		# 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
+
+		return policy_grad
 
 
 	def split_states(self,states):
@@ -522,6 +524,8 @@ class MAA2C:
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
 
+		poliyc_grads = []
+
 		for episode in range(1,self.max_episodes+1):
 
 			states = self.env.reset()
@@ -624,14 +628,18 @@ class MAA2C:
 			# 	print("GENERATING GIF")
 			# 	self.make_gif(np.array(images),self.gif_path)
 
-			self.get_policy_grad(trajectory,episode)
+			policy_grad = self.get_policy_grad(trajectory,episode)
+			print('policy_grad: ', policy_grad)
+			policy_grads.append(policy_grad)
 
+		policy_grad_mat = torch.stack(policy_grads)
+		policy_grad_var = torch.var(policy_grad_mat,dim=0)
 
-		if self.eval_policy:
-			np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
-			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-			np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
-			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-			if self.env_name in ["crossing"]:
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)			
+		# if self.eval_policy:
+		# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
+		# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
+		# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		# 	if self.env_name in ["crossing"]:
+		# 		np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+		# 		np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)			
