@@ -524,7 +524,7 @@ class MAA2C:
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
 
-		poliyc_grads = []
+		policy_grads = []
 
 		for episode in range(1,self.max_episodes+1):
 
