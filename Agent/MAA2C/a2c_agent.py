@@ -356,3 +356,163 @@ class A2CAgent:
 
 
 			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy
+
+	def get_policy_grad(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones):
+
+		'''
+		Getting the probability mass function over the action space for each agent
+		'''
+		probs, weight_policy = self.policy_network.forward(states_actor)
+
+		'''
+		Calculate V values
+		'''
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
+			V_values, weights_preproc, weights_post = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		else:
+			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+	
+		# # ***********************************************************************************
+		# update critic (value_net)
+		# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
+		discounted_rewards = None
+
+		if self.critic_loss_type == "MC":
+			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
+			value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+		elif self.critic_loss_type == "TD_1":
+			next_probs, _ = self.policy_network.forward(next_states_actor)
+			V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+			target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+			value_loss = F.smooth_l1_loss(V_values,target_values)
+		elif self.critic_loss_type == "TD_lambda":
+			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
+			value_loss = F.smooth_l1_loss(V_values, Value_target)
+
+
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
+			weights_off_diagonal_preproc = weights_preproc * (1 - torch.eye(self.num_agents,device=self.device))
+			weights_off_diagonal = weights_post * (1 - torch.eye(self.num_agents,device=self.device))
+			l1_weights = torch.mean(weights_off_diagonal) + torch.mean(weights_off_diagonal_preproc)
+
+			weight_entropy = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2)) -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+		else:
+			weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
+			l1_weights = torch.mean(weights_off_diagonal)
+
+			weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+
+		value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
+
+		
+	
+		# # ***********************************************************************************
+		# update actor (policy net)
+		# # ***********************************************************************************
+		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+
+		# summing across each agent j to get the advantage
+		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
+			weights_prd = (weights_post + weights_preproc)/2.0
+		else:
+			weights_prd = weights
+
+		advantage = None
+		masking_advantage = None
+		if self.experiment_type == "shared":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+		elif "prd_soft_adv" in self.experiment_type:
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
+		elif "prd_averaged" in self.experiment_type:
+			avg_weights = torch.mean(weights_prd,dim=0)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
+		elif "prd_avg_top" in self.experiment_type:
+			avg_weights = torch.mean(weights_prd,dim=0)
+			values, indices = torch.topk(avg_weights,k=self.top_k,dim=-1)
+			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+		elif "prd_avg_above_threshold" in self.experiment_type:
+			avg_weights = torch.mean(weights_prd,dim=0)
+			masking_advantage = (avg_weights>self.select_above_threshold).int()
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+		elif "prd_above_threshold" in self.experiment_type:
+			masking_advantage = (weights_prd>self.select_above_threshold).int()
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+		elif "top" in self.experiment_type:
+			values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
+			min_weight_values, _ = torch.min(values, dim=-1)
+			mean_min_weight_value = torch.mean(min_weight_values)
+			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+		elif self.experiment_type == "greedy":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+		elif self.experiment_type == "relevant_set":
+			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.relevant_set ,dim=-2)
+
+		if "prd_avg" in self.experiment_type:
+			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
+			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
+		elif "threshold" in self.experiment_type:
+			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+
+		if "scaled" in self.experiment_type:
+			if "prd_soft_adv" in self.experiment_type:
+				advantage = advantage*self.num_agents
+			elif "top" in self.experiment_type:
+				advantage = advantage*(self.num_agents/self.top_k)
+	
+		probs = Categorical(probs)
+		policy_loss = -probs.log_prob(actions) * advantage.detach()
+		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+		# # ***********************************************************************************
+			
+		# **********************************
+		self.critic_optimizer.zero_grad()
+		# value_loss.backward(retain_graph=False)
+		# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+		# self.critic_optimizer.step()
+
+
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward(retain_graph=False)
+		for name,param in self.policy_network.named_parameters():
+			if param.requires_grad:
+				print('param.grad: ',param.grad)
+		# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		# self.policy_optimizer.step()
+
+
+
+		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
+
+		if self.threshold_max >= self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
+
+		if self.l1_pen > self.l1_pen_min and "prd_above_threshold_l1_pen_decay" in self.experiment_type:
+			self.l1_pen = self.l1_pen - self.l1_pen_delta
+
+		# annealin entropy pen
+		if self.entropy_pen > 0:
+			self.entropy_pen = self.entropy_pen - self.entropy_delta
+
+		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
+			if "threshold" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
+			if "prd_top" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value
+
+			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy
+		else:
+			if "threshold" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
+			if "prd_top" in self.experiment_type:
+				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, mean_min_weight_value
+
+
+			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy

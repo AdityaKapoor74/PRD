@@ -113,7 +113,7 @@ if __name__ == '__main__':
 				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 1000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gif_checkpoint":1,
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
 		ma_controller = MAA2C(env,dictionary)
-		ma_controller.run()
+		ma_controller.run_gradvar_exp()
 
 
 # export CUDA_VISIBLE_DEVICES=1
