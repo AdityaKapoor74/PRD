@@ -624,7 +624,7 @@ class MAA2C:
 			# 	print("GENERATING GIF")
 			# 	self.make_gif(np.array(images),self.gif_path)
 
-			self.get_grad_var(trajectory,episode)
+			self.get_policy_grad(trajectory,episode)
 
 
 		if self.eval_policy:
