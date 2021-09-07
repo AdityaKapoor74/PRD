@@ -120,7 +120,7 @@ if __name__ == '__main__':
 '12-08-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode20000.pt']
 
 	load_path_actors = ['paired_agent_model/paired_by_sharing_goals_shared_run1/actor_networks/'+a_name for a_name in actor_file_names]
-	load_path_critics = ['paired_agent_model/paired_by_sharing_goals_shared_run1/critic_networks/'+c_name for ]
+	load_path_critics = ['paired_agent_model/paired_by_sharing_goals_shared_run1/critic_networks/'+c_name for c_name in critic_file_names]
 
 	grad_vars = []
 	for i in range(len(load_path_actors)):
