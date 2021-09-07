@@ -206,7 +206,7 @@ thresholds = [0.00066667, #1000
 		grad_var = ma_controller.run_gradvar_exp()
 		print('grad_var: ', grad_var)
 		grad_vars.append(grad_var)
-		np.save('grad_vars',np.array(grad_vars))
+		np.save('grad_vars_'+str(experiment_type),np.array(grad_vars))
 
 
 # export CUDA_VISIBLE_DEVICES=1
