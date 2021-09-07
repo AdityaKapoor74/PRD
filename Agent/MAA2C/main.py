@@ -123,12 +123,39 @@ if __name__ == '__main__':
 	load_path_actors = ['paired_agent_model/paired_by_sharing_goals_shared_run1/actor_networks/'+a_name for a_name in actor_file_names]
 	load_path_critics = ['paired_agent_model/paired_by_sharing_goals_shared_run1/critic_networks/'+c_name for c_name in critic_file_names]
 
+
+thresholds = [0.00066667, #1000
+			0.00133333,  # 2
+			0.002     , # 3
+			0.00266667, # 4
+			0.00333333, # 5
+			0.004     , # 6
+			0.00466667, # 7
+			# 0.00533333, # 8
+			# 0.006     , # 9
+			0.00666667,# 10
+			0.00733333, # 11
+			0.008     , #
+			0.00866667, #
+			0.00933333, #
+			0.01      ,#
+			0.01,
+			0.01,
+			0.01,
+			0.01,
+			0.01,
+			]
+
+	assert len(thresholds) >= len(load_path_actors)
+
+
 	grad_vars = []
 	for i in range(len(load_path_actors)):
 		extension = "run"+str(i)
 		test_num = "paired_by_sharing_goals_30_agents" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
+		# experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "prd_above_threshold"
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -149,7 +176,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.01,
+				"select_above_threshold": thresholds[i],
 				"threshold_min": 0.0, 
 				"threshold_max": 0.01,
 				"steps_to_take": 15000, 
