@@ -41,6 +41,8 @@ class A2CAgent:
 		self.threshold_min = dictionary["threshold_min"]
 		self.threshold_max = dictionary["threshold_max"]
 		self.steps_to_take = dictionary["steps_to_take"]
+		self.model_path_value = dictionary["load_path_critic"]
+		self.model_path_policy = dictionary["load_path_actor"]
 		if "prd_above_threshold_decay" in self.experiment_type:
 			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
 		elif "prd_above_threshold_ascend" in self.experiment_type:
@@ -115,8 +117,11 @@ class A2CAgent:
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 		# # For GPU
-		# self.critic_network.load_state_dict(torch.load(model_path_value))
-		# self.policy_network.load_state_dict(torch.load(model_path_policy))
+		if self.model_path_value is not None or self.model_path_policy is not None:
+			print('loading critic from ', self.model_path_value)
+			pritn('loading policy from ', self.model_path_policy)
+			self.critic_network.load_state_dict(torch.load(self.model_path_value))
+			self.policy_network.load_state_dict(torch.load(self.model_path_policy))
 
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
