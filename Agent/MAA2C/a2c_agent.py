@@ -119,7 +119,7 @@ class A2CAgent:
 		# # For GPU
 		if self.model_path_value is not None or self.model_path_policy is not None:
 			print('loading critic from ', self.model_path_value)
-			pritn('loading policy from ', self.model_path_policy)
+			print('loading policy from ', self.model_path_policy)
 			self.critic_network.load_state_dict(torch.load(self.model_path_value))
 			self.policy_network.load_state_dict(torch.load(self.model_path_policy))
 
