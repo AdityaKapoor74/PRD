@@ -124,8 +124,8 @@ if __name__ == '__main__':
 
 	load_path_actors = ['paired_agent_model/paired_by_sharing_goals_shared_run1/actor_networks/'+a_name for a_name in actor_file_names]
 	load_path_critics = ['paired_agent_model/paired_by_sharing_goals_shared_run1/critic_networks/'+c_name for c_name in critic_file_names]
-    thresholds = [0.00066667,0.00133333,0.002,0.00266667,.00333333,0.004,0.00466667,0.00533333,0.006,0.00666667,0.00733333,0.008,0.00866667,0.00933333,0.01,0.01,0.01,0.01,0.01,0.01]
-    assert len(thresholds) >= len(load_path_actors)
+	thresholds = [0.00066667,0.00133333,0.002,0.00266667,.00333333,0.004,0.00466667,0.00533333,0.006,0.00666667,0.00733333,0.008,0.00866667,0.00933333,0.01,0.01,0.01,0.01,0.01,0.01]
+	assert len(thresholds) >= len(load_path_actors)
 
 
 	grad_vars = []
