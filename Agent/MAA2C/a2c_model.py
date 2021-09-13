@@ -14,7 +14,7 @@ class MLPPolicyNetwork(nn.Module):
 		self.state_dim = state_dim
 		self.num_agents = num_agents		
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		# self.device = "cpu"
 
 
 		self.fc1 = nn.Linear(state_dim*num_agents,128)
@@ -50,7 +50,7 @@ class GATCritic(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		# self.device = "cpu"
 
 		self.state_embed = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
 		self.key_layer = nn.Linear(128, obs_output_dim, bias=False)
@@ -140,7 +140,7 @@ class DualGATCritic(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.device = "cpu"
+		# self.device = "cpu"
 
 		self.state_embed_preproc = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
 		self.key_layer_preproc = nn.Linear(128, obs_output_dim, bias=False)

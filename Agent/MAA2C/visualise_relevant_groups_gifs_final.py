@@ -13,9 +13,11 @@ import numpy as np
 num_actions = 5
 num_agents = 8
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-TITLE = "CROSSING GREEDY (v1)" # PAIRED AGENT, CROSSING GREEDY (v1), CROSSING FULLY COOPERATIVE (v2), CROSSING PARTIALLY COOPERATIVE (v3), SOCIAL DILEMMA
-ENVIRONMENT_NAME = "crossing_greedy" # paired_by_sharing_goals, crossing_fully_coop, crossing_greedy, crossing_partially_coop, color_social_dilemma
-SCREEN_SIZE = WIDTH, HEIGHT = (800, 800)
+TITLE = "CROSSING FULLY COOPERATIVE (v2)" # PAIRED AGENT, CROSSING GREEDY (v1), CROSSING FULLY COOPERATIVE (v2), CROSSING PARTIALLY COOPERATIVE (v3), SOCIAL DILEMMA
+ENVIRONMENT_NAME = "paired_by_sharing_goals" # paired_by_sharing_goals, crossing_fully_coop, crossing_greedy, crossing_partially_coop, color_social_dilemma
+WIDTH, HEIGHT = (1000, 1000)
+SCREEN_SIZE = (WIDTH, HEIGHT)
+START, END = (100,900)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 50, 50)
@@ -87,10 +89,10 @@ elif ENVIRONMENT_NAME == "crossing_fully_coop":
 	critic_network.load_state_dict(torch.load(model_path_value))
 	policy_network.load_state_dict(torch.load(model_path_policy))
 
-# CROSSING PARTIAL COOP WITH 16 AGENTS
+# CROSSING PARTIAL COOP WITH 24 AGENTS, 3 TEAMS
 elif ENVIRONMENT_NAME == "crossing_partially_coop":
-	model_path_value = "../../../tests/policy_eval/team_crossing_16_agents_pen_non_colliding_team_members_DUALGAT_policy_eval/models/team_crossing_prd_above_threshold_ascend_run1/critic_networks/24-08-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0005_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
-	model_path_policy = "../../../tests/policy_eval/team_crossing_16_agents_pen_non_colliding_team_members_DUALGAT_policy_eval/models/team_crossing_prd_above_threshold_ascend_run1/actor_networks/24-08-2021_PN_ATN_FCN_lr0.0005VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
+	model_path_value = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/critic_networks/02-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
+	model_path_policy = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/actor_networks/02-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
 	# For CPU
 	# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 	# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -116,6 +118,7 @@ pygame.init()
 screen = pygame.display.set_mode(SCREEN_SIZE)
 pygame.display.set_caption(TITLE)
 fps = pygame.time.Clock()
+surface = pygame.Surface(SCREEN_SIZE, pygame.SRCALPHA)
 paused = False
 
 agent_position = []
@@ -129,16 +132,42 @@ landmark_position = []
 # 	agent_color = agent_color+agent_color[::-1]
 
 
-if ENVIRONMENT_NAME in ["paired_by_sharing_goals", "crossing_greedy"]:
+if ENVIRONMENT_NAME in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 	'''
 	agent in question : green color
-	other agents : red color
-	relevant agents : blue color
+	other agents : transparent red color
+	relevant agents : opaque red color
 	'''
-	agent_color = [np.array([0,255,0])] 
-	for i in range(num_agents-1):
-		agent_color.append(np.array([255,0,0]))
-
+	# agent_color = [np.array([0,255,0,100])] 
+	# landmark_color = [np.array([0,255,0,200])] 
+	agent_color = []
+	landmark_color = []
+	for i in range(num_agents):
+		agent_color.append(np.array([255,0,0,50]))
+		landmark_color.append(np.array([0,0,0,200]))
+	agent_color[0] = np.array([255,0,0,150])
+elif ENVIRONMENT_NAME == "color_social_dilemma":
+	'''
+	agent in question : blue colored ring
+	team 1: blue color
+	team 2 : red color
+	FOR SOCIAL DILEMMA
+	landmark for team 1: green color
+	landmark for team 2: cyan color
+	'''
+	agent_color = [np.array([0,0,255,50])]*(num_agents//2) + [np.array([255,0,0,50])]*(num_agents//2) 
+elif ENVIRONMENT_NAME == "crossing_partially_coop":
+	'''
+	agent in question: dark blue
+	team1 : blue
+	team2: green
+	team3: red
+	relevant set: opaque
+	not in relevant set: transparent
+	'''
+	agent_color = [np.array([0,0,255,50])]*(num_agents//3) + [np.array([0,255,0,50])]*(num_agents//3) + [np.array([255,0,0,50])]*(num_agents//3)
+	agent_color[0] = np.array([0,0,255,150])
+	landmark_color = [np.array([0,0,0,200])]*(num_agents)# + [np.array([0,0,0,200])]*(num_agents//3) + [np.array([0,0,0,200])]*(num_agents//3)
 
 no_act = 0
 left_act = 1
@@ -148,8 +177,11 @@ up_act = 4
 
 # (-1,1) --> (0,HEIGHT) (0,WIDTH)
 def scale_pose_to_screen(x,y):
-	posex = (x+1)*WIDTH/2
-	posey = (y+1)*HEIGHT/2
+	# posex = (x+1)*WIDTH/2
+	# posey = (y+1)*HEIGHT/2
+	# print("x",x,"y",y)
+	posex = START+(x+1)*(END-START)/2
+	posey = START+(y+1)*(END-START)/2
 	return posex, posey
 
 # Ball setup
@@ -166,24 +198,46 @@ def init_pose(states):
 				posex, posey = scale_pose_to_screen(states[i][8], states[i][9])
 				landmark_position.append([posex,posey])
 		else:
-			posex, posey = scale_pose_to_screen(states[i][4], states[i][5])
-			landmark_position.append([posex,posey])
+			if ENVIRONMENT_NAME == "crossing_partially_coop":
+				posex, posey = scale_pose_to_screen(states[i][5], states[i][6])
+				landmark_position.append([posex,posey])
+			else:
+				posex, posey = scale_pose_to_screen(states[i][4], states[i][5])
+				landmark_position.append([posex,posey])
 
 
 def map_weight_to_width(weight, agent_index):
 	if weight>0.01:
-		if agent_index != 0:
-			agent_color[agent_index] = np.array([0,0,255])
-			update_agent = pygame.draw.circle(screen, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+		if ENVIRONMENT_NAME in ["color_social_dilemma", "crossing_partially_coop"]:
+			if agent_index != 0:
+				agent_color[agent_index][3] = 150
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+			else:
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+				pygame.draw.circle(surface, np.array([0,0,0,200]), agent_position[agent_index], AGENT_RADIUS, 5)
 		else:
-			pygame.draw.circle(screen, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+			if agent_index != 0:
+				agent_color[agent_index] = np.array([255,0,0,150])
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+			else:
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+				pygame.draw.circle(surface, np.array([0,0,0,200]), agent_position[agent_index], AGENT_RADIUS, 5)
 		return 5
 	else:
-		if agent_index != 0:
-			agent_color[agent_index] = np.array([255,0,0])
-			update_agent = pygame.draw.circle(screen, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+		if ENVIRONMENT_NAME in ["color_social_dilemma", "crossing_partially_coop"]:
+			if agent_index != 0:
+				agent_color[agent_index][3] = 50
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+			else:
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+				pygame.draw.circle(surface, np.array([0,0,0,200]), agent_position[agent_index], AGENT_RADIUS, 5)
 		else:
-			pygame.draw.circle(screen, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+			if agent_index != 0:
+				agent_color[agent_index] = np.array([255,0,0,50])
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+			else:
+				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
+				pygame.draw.circle(surface, np.array([0,0,0,200]), agent_position[agent_index], AGENT_RADIUS, 5)
 		return 0
 
 def update(states):
@@ -194,26 +248,27 @@ def update(states):
 
 def render(states_critic, weights):
 	screen.fill(WHITE)
-
+	surface.fill((255,255,255,0))
 	for i in range(num_agents):
-		# if i == 0:
-		# pygame.draw.circle(screen, agent_color[i], agent_position[i], AGENT_RADIUS, 0)
-		# else:
-		# 	pygame.draw.circle(screen, agent_color[i], agent_position[i], AGENT_RADIUS, 0)
+
+		if i == 0:
+			for j in range(num_agents):
+				pygame.draw.line(surface, BLACK, agent_position[i], agent_position[j], map_weight_to_width(weights[i][j].item(), j))
 
 		if ENVIRONMENT_NAME == "color_social_dilemma":
 			if i>1:
 				continue
 			elif i==0:
-				pygame.draw.circle(screen, agent_color[0], landmark_position[i], LANDMARK_RADIUS*4, 0)
+				pygame.draw.circle(surface, np.array([0, 255, 0, 200]), landmark_position[i], LANDMARK_RADIUS*4, 0)
 			elif i==1:
-				pygame.draw.circle(screen, agent_color[-1], landmark_position[i], LANDMARK_RADIUS*4, 0)
+				pygame.draw.circle(surface, np.array([255, 0, 0, 200]), landmark_position[i], LANDMARK_RADIUS*4, 0)
 		else:
-			pygame.draw.circle(screen, agent_color[i], landmark_position[i], LANDMARK_RADIUS, 0)
-		if i == 0:
-			for j in range(num_agents):
-				pygame.draw.line(screen, BLACK, agent_position[i], agent_position[j], map_weight_to_width(weights[i][j].item(), j))
+			pygame.draw.circle(surface, landmark_color[i], landmark_position[i], LANDMARK_RADIUS, 0)
 
+		
+
+		
+	screen.blit(surface, (0,0))
 	pygame.display.update()
 	fps.tick(60)
 

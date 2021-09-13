@@ -74,11 +74,11 @@ if __name__ == '__main__':
 
 
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
-	for i in range(1,4):
+	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "paired_by_sharing_goals_30_agents" #crossing_8_agents_pen_non_colliding_agents_policy_eval
-		env_name = "paired_by_sharing_goals"
-		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
+		test_num = "crossing_pen_colliding_agents_threshold_tests" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		env_name = "crossing_greedy"
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -99,21 +99,21 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.01,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.01,
 				"steps_to_take": 15000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
 				"top_k": 0,
-				"gif": False,
-				"eval_policy": True,
-				"save_model": True,
+				"gif": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
 				"save_tensorboard_plot": False,
-				"save_comet_ml_plot": True,
-				"learn":True,
-				"max_episodes": 20000,
+				"save_comet_ml_plot": False,
+				"learn":False,
+				"max_episodes": 50000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gif_checkpoint":1,
@@ -124,16 +124,3 @@ if __name__ == '__main__':
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
 		ma_controller = MAA2C(env,dictionary)
 		ma_controller.run()
-
-
-# export CUDA_VISIBLE_DEVICES=1
-# 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
-
-# 1) ssh biorobotics@highbay.pc.cs.cmu.edu
-# Ben
-# password: biorobotics
-# Ben
-# 2) ssh biorobotics@10.0.0.8
-# Ben
-# Ben Freed
-# password: biorobotics
