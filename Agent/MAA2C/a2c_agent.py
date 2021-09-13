@@ -109,14 +109,14 @@ class A2CAgent:
 
 
 		# Loading models
-		model_path_value = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/critic_networks/02-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
-		model_path_policy = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/actor_networks/02-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
+		# model_path_value = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/critic_networks/02-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
+		# model_path_policy = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/actor_networks/02-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
 		# For CPU
 		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
 		# # For GPU
-		self.critic_network.load_state_dict(torch.load(model_path_value))
-		self.policy_network.load_state_dict(torch.load(model_path_policy))
+		# self.critic_network.load_state_dict(torch.load(model_path_value))
+		# self.policy_network.load_state_dict(torch.load(model_path_policy))
 
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
