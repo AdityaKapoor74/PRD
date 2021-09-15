@@ -55,6 +55,9 @@ class A2CAgent:
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
 
+		# for soft-prd and top-k
+		self.counter = 0
+
 		print("EXPERIMENT TYPE", self.experiment_type)
 
 		if self.env_name == "paired_by_sharing_goals":
@@ -269,7 +272,10 @@ class A2CAgent:
 		if self.experiment_type == "shared":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
+			if self.counter < self.steps_to_take:
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+			else:
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
@@ -286,11 +292,14 @@ class A2CAgent:
 			masking_advantage = (weights_prd>self.select_above_threshold).int()
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "top" in self.experiment_type:
-			values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
-			min_weight_values, _ = torch.min(values, dim=-1)
-			mean_min_weight_value = torch.mean(min_weight_values)
-			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+			if self.counter < self.steps_to_take:
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+			else:
+				values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
+				min_weight_values, _ = torch.min(values, dim=-1)
+				mean_min_weight_value = torch.mean(min_weight_values)
+				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif self.experiment_type == "greedy":
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 		elif self.experiment_type == "relevant_set":
@@ -336,6 +345,9 @@ class A2CAgent:
 
 		if self.l1_pen > self.l1_pen_min and "prd_above_threshold_l1_pen_decay" in self.experiment_type:
 			self.l1_pen = self.l1_pen - self.l1_pen_delta
+
+		# increment counter (number of episodes essentially)
+		self.counter += 1
 
 		# annealin entropy pen
 		if self.entropy_pen > 0:
