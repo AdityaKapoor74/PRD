@@ -312,7 +312,7 @@ class A2CAgent:
 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 
-		if "scaled" in self.experiment_type:
+		if "scaled" in self.experiment_type and self.counter > self.steps_to_take:
 			if "prd_soft_adv" in self.experiment_type:
 				advantage = advantage*self.num_agents
 			elif "top" in self.experiment_type:
