@@ -78,7 +78,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "crossing_pen_colliding_agents_threshold_tests" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing_greedy"
-		experiment_type = "prd_top7" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "prd_top8" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -105,7 +105,7 @@ if __name__ == '__main__':
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
-				"top_k": 7,
+				"top_k": 8,
 				"gif": False,
 				"eval_policy": False,
 				"save_model": False,
