@@ -294,6 +294,8 @@ class A2CAgent:
 		elif "top" in self.experiment_type:
 			if self.counter < self.steps_to_take:
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+				min_weight_values, _ = torch.min(weights_prd, dim=-1)
+				mean_min_weight_value = torch.mean(min_weight_values)
 			else:
 				values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
 				min_weight_values, _ = torch.min(values, dim=-1)
