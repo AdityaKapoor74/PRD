@@ -87,7 +87,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"env": env_name, 
-				"policy_type": "MLP",
+				"policy_type": "GAT",
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, 
