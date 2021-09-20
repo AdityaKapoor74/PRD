@@ -7,9 +7,9 @@ import datetime
 import math
 
 
-class MLPPolicyNetwork(nn.Module):
+class MLPPolicy(nn.Module):
 	def __init__(self,state_dim,num_agents,action_dim):
-		super(MLPPolicyNetwork,self).__init__()
+		super(MLPPolicy,self).__init__()
 
 		self.state_dim = state_dim
 		self.num_agents = num_agents		
@@ -41,6 +41,72 @@ class MLPPolicyNetwork(nn.Module):
 		Policy = F.softmax(x, dim=-1)
 
 		return Policy, 1/self.num_agents*torch.ones((T,self.num_agents,self.num_agents),device=self.device)
+
+
+class GATPolicy(nn.Module):
+	def __init__(self, obs_input_dim, obs_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
+		super(GATPolicy, self).__init__()
+		
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+
+		self.state_embed = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
+		self.key_layer = nn.Linear(128, obs_output_dim, bias=False)
+		self.query_layer = nn.Linear(128, obs_output_dim, bias=False)
+		self.attention_value_layer = nn.Linear(128, obs_output_dim, bias=False)
+		# dimesion of key
+		self.d_k_obs_act = obs_output_dim  
+
+		# NOISE
+		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		self.noise_uniform = torch.rand
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_policy_layer_1 = nn.Linear(final_input_dim, 64, bias=False)
+		self.final_policy_layer_2 = nn.Linear(64, final_output_dim, bias=False)
+		# ********************************************************************************************************
+
+
+		self.reset_parameters()
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.state_embed[0].weight, gain=gain_leaky)
+
+		nn.init.xavier_uniform_(self.key_layer.weight)
+		nn.init.xavier_uniform_(self.query_layer.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer.weight)
+
+
+		nn.init.xavier_uniform_(self.final_policy_layer_1.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_policy_layer_2.weight, gain=gain_leaky)
+
+
+
+	def forward(self, states):
+		# EMBED STATES
+		states_embed = self.state_embed(states)
+		# KEYS
+		key_obs = self.key_layer(states_embed)
+		# QUERIES
+		query_obs = self.query_layer(states_embed)
+		# WEIGHT
+		weight = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act),dim=-1)
+		attention_values = self.attention_value_layer(states_embed)
+		node_features = torch.matmul(weight, attention_values)
+
+
+		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
+		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
+
+		return Policy, weight
 
 
 class GATCritic(nn.Module):

@@ -14,6 +14,7 @@ class A2CAgent:
 		):
 
 		self.env = env
+		self.policy_type = dictionary["policy_type"]
 		self.test_num = dictionary["test_num"]
 		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
@@ -88,7 +89,10 @@ class A2CAgent:
 			obs_dim = 2*3 + 1
 
 		# MLP POLICY
-		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
+		if self.policy_type == "MLP":
+			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
+		elif self.policy_type == "GAT":
+			self.policy_network = GATPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
 
 		if self.env_name == "color_social_dilemma":
@@ -269,7 +273,7 @@ class A2CAgent:
 
 		advantage = None
 		masking_advantage = None
-		if self.experiment_type == "shared":
+		if "shared" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
 			if self.counter < self.steps_to_take:
@@ -302,9 +306,9 @@ class A2CAgent:
 				mean_min_weight_value = torch.mean(min_weight_values)
 				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
-		elif self.experiment_type == "greedy":
+		elif "greedy" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
-		elif self.experiment_type == "relevant_set":
+		elif "relevant_set" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.relevant_set ,dim=-2)
 
 		if "prd_avg" in self.experiment_type:

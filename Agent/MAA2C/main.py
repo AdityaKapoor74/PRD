@@ -76,9 +76,9 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "crossing_pen_colliding_agents_threshold_tests" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		test_num = "crossing_pen_colliding_agents_Policy_MLP_vs_GNN" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing_greedy"
-		experiment_type = "greedy" # prd_above_threshold_decay_episodic, greedy, shared
+		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -87,6 +87,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"env": env_name, 
+				"policy_type": "MLP",
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, 
@@ -105,10 +106,10 @@ if __name__ == '__main__':
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
-				"top_k": 10,
+				"top_k": 0,
 				"gif": False,
 				"eval_policy": False,
-				"save_model": False,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,

@@ -12,6 +12,7 @@ class MAA2C:
 
 	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.policy_type = dictionary["policy_type"]
 		# self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
@@ -236,6 +237,11 @@ class MAA2C:
 				# ENTROPY OF WEIGHTS
 				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
 				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
+
+			if self.policy_type != "MLP":
+				# ENTROPY OF WEIGHTS
+				entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Policy_Weight_Entropy', entropy_weights.item(), episode)
 
 
 
