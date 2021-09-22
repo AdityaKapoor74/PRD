@@ -1400,8 +1400,8 @@ class MultiHeadGATV2Critic(nn.Module):
 		weights_list = []
 		attention_values_list = []
 		for i in range(self.num_heads):
-			states_embed = self.state_embed(state_embed_input)
-			weight = F.softmax(self.attention_network(states_embed).squeeze(-1),dim=-1)
+			states_embed = self.state_embed_list[i](state_embed_input)
+			weight = F.softmax(self.attention_network_list[i](states_embed).squeeze(-1),dim=-1)
 			weights_list.append(weight)
 
 			obs_actions = torch.cat([states,actions],dim=-1)
@@ -1410,7 +1410,7 @@ class MultiHeadGATV2Critic(nn.Module):
 			obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
 			obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 			# EMBED STATE ACTION POLICY
-			obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
 			obs_actions_policies_embed = obs_actions_policies_embed.repeat(1,self.num_agents,1,1).reshape(obs_actions_policies_embed.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 			weighted_attention_values = obs_actions_policies_embed*weight
@@ -1523,7 +1523,7 @@ class SemiHardMultiHeadGATV2Critic(nn.Module):
 	'''
 	https://arxiv.org/pdf/2105.14491.pdf
 	'''
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, num_heads=2):
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, weight_threshold=None, kth_weight=None, num_heads=2):
 		super(SemiHardMultiHeadGATV2Critic, self).__init__()
 
 		self.name = "SemiHardMultiHeadGATV2Critic" + str(num_heads)
@@ -1532,6 +1532,8 @@ class SemiHardMultiHeadGATV2Critic(nn.Module):
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
+		self.kth_weight = kth_weight
+		self.weight_threshold = weight_threshold
 		self.num_heads = num_heads
 
 		self.state_embed_list = []
@@ -1595,8 +1597,8 @@ class SemiHardMultiHeadGATV2Critic(nn.Module):
 		weights_list = []
 		attention_values_list = []
 		for i in range(self.num_heads):
-			states_embed = self.state_embed(state_embed_input)
-			weight = F.softmax(self.attention_network(states_embed).squeeze(-1),dim=-1)
+			states_embed = self.state_embed_list[i](state_embed_input)
+			weight = F.softmax(self.attention_network_list[i](states_embed).squeeze(-1),dim=-1)
 
 			if self.kth_weight is not None:
 				weight_sub, indices = torch.topk(weight,k=self.kth_weight,dim=-1)
@@ -1614,7 +1616,7 @@ class SemiHardMultiHeadGATV2Critic(nn.Module):
 			obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
 			obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
 			# EMBED STATE ACTION POLICY
-			obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
 			obs_actions_policies_embed = obs_actions_policies_embed.repeat(1,self.num_agents,1,1).reshape(obs_actions_policies_embed.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 			weighted_attention_values = obs_actions_policies_embed*weight
