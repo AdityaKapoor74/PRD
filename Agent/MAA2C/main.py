@@ -76,7 +76,7 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "crossing_pen_colliding_agents_Policy_MLP_vs_GNN" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		test_num = "crossing_pen_colliding_agents_TransformerCritics_test" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing_greedy"
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
@@ -87,11 +87,14 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"env": env_name, 
-				"policy_type": "GAT",
+				"policy_type": "MLP", # MLP/ GCN/ GAT
+				"policy_attention_heads": 0,
+				"critic_type": "TransformersONLY", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ ALL/ X_NAME
+				"critic_attention_heads": [2,4,8],
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, 
-				"policy_lr": 5e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, 
 				"entropy_pen_min": 8e-3,
 				"l1_pen": 0.0,
@@ -109,12 +112,12 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"gif": False,
 				"eval_policy": False,
-				"save_model": True,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
 				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 100000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gif_checkpoint":1,

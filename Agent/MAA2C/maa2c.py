@@ -13,6 +13,9 @@ class MAA2C:
 	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.policy_type = dictionary["policy_type"]
+		self.critic_type = dictionary["critic_type"]
+		self.critic_attention_heads = dictionary["critic_attention_heads"]
+		self.policy_attention_heads = dictionary["policy_attention_heads"]
 		# self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
@@ -28,14 +31,9 @@ class MAA2C:
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
-
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
-
 		self.experiment_type = dictionary["experiment_type"]
-
-		self.agents = A2CAgent(self.env, dictionary)
-
 		self.weight_dictionary = {}
 
 		for i in range(self.num_agents):
@@ -50,14 +48,19 @@ class MAA2C:
 			agent_name = 'agent'+str(i)
 			self.agent_group[agent_name] = 0
 
+		self.writer = None
 		if self.save_tensorboard_plot:
 			tensorboard_dir = dictionary["run_dir"]
 			tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
 			self.writer = SummaryWriter(tensorboard_path)
 
+		self.comet_ml = None
 		if self.save_comet_ml_plot:
 			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["test_num"])
 			self.comet_ml.log_parameters(dictionary)
+
+
+		self.agents = A2CAgent(self.env, dictionary, self.comet_ml)
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -151,18 +154,18 @@ class MAA2C:
 		
 		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
 			if "threshold" in self.experiment_type:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 			elif "prd_top" in self.experiment_type:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 			else:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 		else:
 			if "threshold" in self.experiment_type:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 			elif "prd_top" in self.experiment_type:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 			else:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones)
+				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 
 		if self.save_tensorboard_plot:
 			
