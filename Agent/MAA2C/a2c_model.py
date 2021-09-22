@@ -883,7 +883,7 @@ class GATCritic(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		nn.init.xavier_uniform_(self.state_embed.weight)
-		nn.init.xavier_uniform_(self.state_act_pol_embed.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.state_act_pol_embed[0].weight, gain=gain_leaky)
 
 		nn.init.xavier_uniform_(self.attention_network[0].weight, gain=gain_leaky)
 
@@ -943,8 +943,8 @@ class MultiHeadGATCritic(nn.Module):
 		multi_head_obs_act_output_dim = obs_act_output_dim//self.num_heads
 		for i in range(self.num_heads):
 			self.state_embed_list.append(nn.Linear(obs_input_dim, multi_head_obs_output_dim).to(self.device))
-			self.state_act_pol_embed.append(nn.Sequential(nn.Linear(obs_act_input_dim, multi_head_obs_act_output_dim), nn.LeakyReLU()).to(self.device))
-			self.attention_network.append(nn.Sequential(nn.Linear(multi_head_obs_output_dim*2, 1), nn.LeakyReLU()).to(self.device))
+			self.state_act_pol_embed_list.append(nn.Sequential(nn.Linear(obs_act_input_dim, multi_head_obs_act_output_dim), nn.LeakyReLU()).to(self.device))
+			self.attention_network_list.append(nn.Sequential(nn.Linear(multi_head_obs_output_dim*2, 1), nn.LeakyReLU()).to(self.device))
 
 		# NOISE
 		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
@@ -979,7 +979,7 @@ class MultiHeadGATCritic(nn.Module):
 
 		for i in range(self.num_heads):
 			nn.init.xavier_uniform_(self.state_embed_list[i].weight)
-			nn.init.xavier_uniform_(self.state_act_pol_embed_list[i].weight, gain=gain_leaky)
+			nn.init.xavier_uniform_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
 
 			nn.init.xavier_uniform_(self.attention_network_list[i][0].weight, gain=gain_leaky)
 
@@ -1000,17 +1000,17 @@ class MultiHeadGATCritic(nn.Module):
 
 		for i in range(self.num_heads):
 			# EMBED STATES
-			states_embed = self.state_embed(states)
+			states_embed = self.state_embed_list[i](states)
 
 			source_state_embed = states_embed.unsqueeze(2).repeat(1,1,self.num_agents,1)
 			destination_state_embed = states_embed.unsqueeze(1).repeat(1,self.num_agents,1,1)
 			# WEIGHT
 			weight_input = torch.cat([source_state_embed, destination_state_embed], dim=-1)
-			weight = F.softmax(self.attention_network(weight_input).squeeze(-1),dim=-1)
+			weight = F.softmax(self.attention_network_list[i](weight_input).squeeze(-1),dim=-1)
 			weights_list.append(weight)
 
 			# EMBED STATE ACTION POLICY
-			obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
 			obs_actions_policies_embed = obs_actions_policies_embed.repeat(1,self.num_agents,1,1).reshape(obs_actions_policies_embed.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 			weighted_attention_values = obs_actions_policies_embed*weight
@@ -1021,7 +1021,7 @@ class MultiHeadGATCritic(nn.Module):
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
 
-		return Value, weights
+		return Value, weights_list
 
 
 
@@ -1074,8 +1074,7 @@ class SemiHardGATCritic(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		nn.init.xavier_uniform_(self.state_embed.weight)
-		nn.init.xavier_uniform_(self.state_act_pol_embed.weight, gain=gain_leaky)
-
+		nn.init.xavier_uniform_(self.state_act_pol_embed[0].weight, gain=gain_leaky)
 		nn.init.xavier_uniform_(self.attention_network[0].weight, gain=gain_leaky)
 
 		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain_leaky)
@@ -1146,8 +1145,8 @@ class SemiHardMultiHeadGATCritic(nn.Module):
 		multi_head_obs_act_output_dim = obs_act_output_dim//self.num_heads
 		for i in range(self.num_heads):
 			self.state_embed_list.append(nn.Linear(obs_input_dim, multi_head_obs_output_dim).to(self.device))
-			self.state_act_pol_embed.append(nn.Sequential(nn.Linear(obs_act_input_dim, multi_head_obs_act_output_dim), nn.LeakyReLU()).to(self.device))
-			self.attention_network.append(nn.Sequential(nn.Linear(multi_head_obs_output_dim*2, 1), nn.LeakyReLU()).to(self.device))
+			self.state_act_pol_embed_list.append(nn.Sequential(nn.Linear(obs_act_input_dim, multi_head_obs_act_output_dim), nn.LeakyReLU()).to(self.device))
+			self.attention_network_list.append(nn.Sequential(nn.Linear(multi_head_obs_output_dim*2, 1), nn.LeakyReLU()).to(self.device))
 
 		# NOISE
 		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
@@ -1182,7 +1181,7 @@ class SemiHardMultiHeadGATCritic(nn.Module):
 
 		for i in range(self.num_heads):
 			nn.init.xavier_uniform_(self.state_embed_list[i].weight)
-			nn.init.xavier_uniform_(self.state_act_pol_embed_list[i].weight, gain=gain_leaky)
+			nn.init.xavier_uniform_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
 
 			nn.init.xavier_uniform_(self.attention_network_list[i][0].weight, gain=gain_leaky)
 
@@ -1203,13 +1202,13 @@ class SemiHardMultiHeadGATCritic(nn.Module):
 
 		for i in range(self.num_heads):
 			# EMBED STATES
-			states_embed = self.state_embed(states)
+			states_embed = self.state_embed_list[i](states)
 
 			source_state_embed = states_embed.unsqueeze(2).repeat(1,1,self.num_agents,1)
 			destination_state_embed = states_embed.unsqueeze(1).repeat(1,self.num_agents,1,1)
 			# WEIGHT
 			weight_input = torch.cat([source_state_embed, destination_state_embed], dim=-1)
-			weight = F.softmax(self.attention_network(weight_input).squeeze(-1),dim=-1)
+			weight = F.softmax(self.attention_network_list[i](weight_input).squeeze(-1),dim=-1)
 
 			if self.kth_weight is not None:
 				weight_sub, indices = torch.topk(weight,k=self.kth_weight,dim=-1)
@@ -1223,7 +1222,7 @@ class SemiHardMultiHeadGATCritic(nn.Module):
 			weights_list.append(weight)
 
 			# EMBED STATE ACTION POLICY
-			obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
 			obs_actions_policies_embed = obs_actions_policies_embed.repeat(1,self.num_agents,1,1).reshape(obs_actions_policies_embed.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
 			weighted_attention_values = obs_actions_policies_embed*weight
@@ -1234,7 +1233,7 @@ class SemiHardMultiHeadGATCritic(nn.Module):
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
 
-		return Value, weights
+		return Value, weights_list
 
 
 '''
