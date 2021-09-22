@@ -1631,8 +1631,6 @@ class SemiHardMultiHeadGATV2Critic(nn.Module):
 '''
 Replacing Softmax attention with Normalized attention
 '''
-
-
 class NormalizedAttentionTransformerCritic(nn.Module):
 	'''
 	https://arxiv.org/pdf/2005.09561.pdf
@@ -1652,13 +1650,14 @@ class NormalizedAttentionTransformerCritic(nn.Module):
 		self.query_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.state_act_pol_embed = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
 		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=False)
+		self.layer_norm = nn.LayerNorm([self.num_agents,self.num_agents])
 		# dimesion of key
 		self.d_k_obs_act = obs_output_dim  
 
 		# Normalized weights parameters
-		self.gain = torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True)
-		self.bias = torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True)
-		self.epsilon = 1e-3
+		# self.gain = torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True)
+		# self.bias = torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True)
+		# self.epsilon = 1e-3
 
 		# NOISE
 		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
@@ -1714,7 +1713,8 @@ class NormalizedAttentionTransformerCritic(nn.Module):
 		query_obs = self.query_layer(states_embed)
 		# WEIGHT
 		score = torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act)
-		weight = self.normalize_weights(score)
+		# weight = self.normalize_weights(score)
+		weight = self.layer_norm(score)
 		ret_weight = weight
 
 		obs_actions = torch.cat([states,actions],dim=-1)
@@ -1750,7 +1750,7 @@ class MultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
-		self.epsilon = 1e-3
+		# self.epsilon = 1e-3
 		self.num_heads = num_heads
 
 		self.state_embed_list = []
@@ -1758,8 +1758,9 @@ class MultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 		self.query_layer_list = []
 		self.state_act_pol_embed_list = []
 		self.attention_value_layer_list = []
-		self.gain_list = []
-		self.bias_list = []
+		self.layer_norm_list = []
+		# self.gain_list = []
+		# self.bias_list = []
 		multi_head_hidden_dim = 128//self.num_heads
 		multi_head_obs_output_dim = obs_output_dim//self.num_heads
 		multi_head_obs_act_output_dim = obs_act_output_dim//self.num_heads
@@ -1770,8 +1771,9 @@ class MultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 			self.state_act_pol_embed_list.append(nn.Sequential(nn.Linear(obs_act_input_dim, multi_head_hidden_dim), nn.LeakyReLU()).to(self.device))
 			self.attention_value_layer_list.append(nn.Linear(multi_head_hidden_dim, multi_head_obs_act_output_dim, bias=False).to(self.device))
 			# Normalized weights parameters
-			self.gain_list.append(torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True).to(self.device))
-			self.bias_list.append(torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True).to(self.device))
+			# self.gain_list.append(torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True).to(self.device))
+			# self.bias_list.append(torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True).to(self.device))
+			self.layer_norm_list.append(nn.LayerNorm([self.num_agents,self.num_agents]).to(self.device))
 			
 
 		# dimesion of key
@@ -1828,7 +1830,7 @@ class MultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 
 	def forward(self, states, policies, actions):
 		weights_list = []
-		attention_values = []
+		attention_values_list = []
 
 		obs_actions = torch.cat([states,actions],dim=-1)
 		obs_policy = torch.cat([states,policies], dim=-1)
@@ -1838,20 +1840,21 @@ class MultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 
 		for i in range(self.num_heads):
 			# EMBED STATES
-			states_embed = self.state_embed(states)
+			states_embed = self.state_embed_list[i](states)
 			# KEYS
-			key_obs = self.key_layer(states_embed)
+			key_obs = self.key_layer_list[i](states_embed)
 			# QUERIES
-			query_obs = self.query_layer(states_embed)
+			query_obs = self.query_layer_list[i](states_embed)
 			# WEIGHT
 			score = torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act)
-			weight = self.normalize_weights(score)
+			# weight = self.normalize_weights(score)
+			weight = self.layer_norm_list[i](score)
 			weights_list.append(weight)
 
 		
 			# EMBED STATE ACTION POLICY
-			obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
-			attention_values = self.attention_value_layer(obs_actions_policies_embed)
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
+			attention_values = self.attention_value_layer_list[i](obs_actions_policies_embed)
 			attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 			
 			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
@@ -1886,13 +1889,14 @@ class SemiHardNormalizedAttentionTransformerCritic(nn.Module):
 		self.query_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.state_act_pol_embed = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
 		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=False)
+		self.layer_norm = nn.LayerNorm([self.num_agents,self.num_agents])
 		# dimesion of key
 		self.d_k_obs_act = obs_output_dim  
 
 		# Normalized weights parameters
-		self.gain = torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True)
-		self.bias = torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True)
-		self.epsilon = 1e-3
+		# self.gain = torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True)
+		# self.bias = torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True)
+		# self.epsilon = 1e-3
 
 		# NOISE
 		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
@@ -1947,8 +1951,9 @@ class SemiHardNormalizedAttentionTransformerCritic(nn.Module):
 		# QUERIES
 		query_obs = self.query_layer(states_embed)
 		# WEIGHT
-		score = torch.nn.ReLU(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act))
-		weight = self.normalize_weights(score)
+		score = F.relu(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act))
+		# weight = self.normalize_weights(score)
+		weight = self.layer_norm(score)
 		ret_weight = weight
 
 		obs_actions = torch.cat([states,actions],dim=-1)
@@ -1984,7 +1989,7 @@ class SemiHardMultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 		self.num_actions = num_actions
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
-		self.epsilon = 1e-3
+		# self.epsilon = 1e-3
 		self.num_heads = num_heads
 
 		self.state_embed_list = []
@@ -1992,8 +1997,9 @@ class SemiHardMultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 		self.query_layer_list = []
 		self.state_act_pol_embed_list = []
 		self.attention_value_layer_list = []
-		self.gain_list = []
-		self.bias_list = []
+		self.layer_norm_list = []
+		# self.gain_list = []
+		# self.bias_list = []
 		multi_head_hidden_dim = 128//self.num_heads
 		multi_head_obs_output_dim = obs_output_dim//self.num_heads
 		multi_head_obs_act_output_dim = obs_act_output_dim//self.num_heads
@@ -2004,8 +2010,9 @@ class SemiHardMultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 			self.state_act_pol_embed_list.append(nn.Sequential(nn.Linear(obs_act_input_dim, multi_head_hidden_dim), nn.LeakyReLU()).to(self.device))
 			self.attention_value_layer_list.append(nn.Linear(multi_head_hidden_dim, multi_head_obs_act_output_dim, bias=False).to(self.device))
 			# Normalized weights parameters
-			self.gain_list.append(torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True).to(self.device))
-			self.bias_list.append(torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True).to(self.device))
+			# self.gain_list.append(torch.nn.parameter.Parameter(torch.Tensor([1]), requires_grad=True).to(self.device))
+			# self.bias_list.append(torch.nn.parameter.Parameter(torch.Tensor([0]), requires_grad=True).to(self.device))
+			self.layer_norm_list.append(nn.LayerNorm([self.num_agents,self.num_agents]).to(self.device))
 			
 
 		# dimesion of key
@@ -2062,7 +2069,7 @@ class SemiHardMultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 
 	def forward(self, states, policies, actions):
 		weights_list = []
-		attention_values = []
+		attention_values_list = []
 
 		obs_actions = torch.cat([states,actions],dim=-1)
 		obs_policy = torch.cat([states,policies], dim=-1)
@@ -2072,20 +2079,21 @@ class SemiHardMultiHeadNormalizedAttentionTransformerCritic(nn.Module):
 
 		for i in range(self.num_heads):
 			# EMBED STATES
-			states_embed = self.state_embed(states)
+			states_embed = self.state_embed_list[i](states)
 			# KEYS
-			key_obs = self.key_layer(states_embed)
+			key_obs = self.key_layer_list[i](states_embed)
 			# QUERIES
-			query_obs = self.query_layer(states_embed)
+			query_obs = self.query_layer_list[i](states_embed)
 			# WEIGHT
-			score = torch.nn.ReLU(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act))
-			weight = self.normalize_weights(score)
+			score = F.relu(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act))
+			# weight = self.normalize_weights(score)
+			weight = self.layer_norm_list[i](score)
 			weights_list.append(weight)
 
 		
 			# EMBED STATE ACTION POLICY
-			obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
-			attention_values = self.attention_value_layer(obs_actions_policies_embed)
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
+			attention_values = self.attention_value_layer_list[i](obs_actions_policies_embed)
 			attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 			
 			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)

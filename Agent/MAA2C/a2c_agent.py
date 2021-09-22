@@ -335,7 +335,12 @@ class A2CAgent:
 					value_loss = F.smooth_l1_loss(V_values, Value_target)
 
 				self.critic_optimizers[i].zero_grad()
-				value_loss.backward(retain_graph=False)
+
+				if "Normalized" in self.critic_type:
+					value_loss.backward(retain_graph=True)
+				else:
+					value_loss.backward(retain_graph=False)
+					
 				grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critics[i].parameters(),0.5)
 				self.critic_optimizers[i].step()
 
