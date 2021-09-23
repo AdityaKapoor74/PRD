@@ -90,7 +90,7 @@ if __name__ == '__main__':
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
 				"critic_type": "MultiHeadDualTransformerCritic", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
-				"critic_attention_heads": 4,
+				"critic_attention_heads": 8,
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, 
