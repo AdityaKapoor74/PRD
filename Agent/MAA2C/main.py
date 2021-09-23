@@ -89,7 +89,7 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "SemiHardAttnTransformerCritic8thweight", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"critic_type": "SemiHardAttnTransformerCritic0.01weight", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": 0,
 				"test_num":test_num,
 				"extension":extension,
