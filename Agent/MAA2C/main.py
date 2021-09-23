@@ -112,7 +112,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"gif": False,
 				"eval_policy": False,
-				"save_model": False,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
