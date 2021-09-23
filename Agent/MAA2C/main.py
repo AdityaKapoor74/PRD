@@ -76,7 +76,7 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	for i in range(1,2):
 		extension = "run"+str(i)
-		test_num = "crossing_pen_colliding_agents_NormalizedATCritics_test" #crossing_8_agents_pen_non_colliding_agents_policy_eval
+		test_num = "Transformer" #crossing_8_agents_pen_non_colliding_agents_policy_eval
 		env_name = "crossing_greedy"
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "NormalizedATONLY", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ ALL/ X_NAME
+				"critic_type": "TransformerCritic", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": [2,4,8],
 				"test_num":test_num,
 				"extension":extension,
@@ -114,7 +114,6 @@ if __name__ == '__main__':
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_tensorboard_plot": False,
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 100000,

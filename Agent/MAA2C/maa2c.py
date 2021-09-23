@@ -2,7 +2,6 @@ from comet_ml import Experiment
 import os
 import torch
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
 from a2c_agent import A2CAgent
 import datetime
 
@@ -21,7 +20,6 @@ class MAA2C:
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
 		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
-		self.save_tensorboard_plot = dictionary["save_tensorboard_plot"]
 		self.save_comet_ml_plot = dictionary["save_comet_ml_plot"]
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
@@ -48,12 +46,6 @@ class MAA2C:
 			agent_name = 'agent'+str(i)
 			self.agent_group[agent_name] = 0
 
-		self.writer = None
-		if self.save_tensorboard_plot:
-			tensorboard_dir = dictionary["run_dir"]
-			tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
-			self.writer = SummaryWriter(tensorboard_path)
-
 		self.comet_ml = None
 		if self.save_comet_ml_plot:
 			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["test_num"])
@@ -77,7 +69,6 @@ class MAA2C:
 				print("Actor Directory can not be created")
 
 			
-			# paths for models, tensorboard and gifs
 			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
 			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
 			
@@ -151,102 +142,9 @@ class MAA2C:
 
 		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
 		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
+
+		self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 		
-		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-			if "threshold" in self.experiment_type:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-			elif "prd_top" in self.experiment_type:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-			else:
-				value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-		else:
-			if "threshold" in self.experiment_type:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy, agent_groups_over_episode, avg_agent_group_over_episode = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-			elif "prd_top" in self.experiment_type:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy,mean_min_weight_value = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-			else:
-				value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-
-		if self.save_tensorboard_plot:
-			
-			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-
-			# self.calculate_indiv_weights(weights)
-			# for i in range(self.num_agents):
-			# 	agent_name = 'agent %d' % i
-			# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-
-			# self.calculate_indiv_weights(weight_policy)
-			# for i in range(self.num_agents):
-			# 	agent_name = 'agent %d' % i
-			# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-			
-
-			# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
-
-			if "threshold" in self.experiment_type:
-				for i in range(self.num_agents):
-					agent_name = "agent"+str(i)
-					self.agent_group[agent_name] = agent_groups_over_episode[i].item()
-				self.writer.add_scalars('Reward Incurred/Group Size', self.agent_group, episode)
-				self.writer.add_scalar('Reward Incurred/Avg Group Size', avg_agent_group_over_episode.item(), episode)
-
-			if "prd_top" in self.experiment_type:
-				self.writer.add_scalar('Reward Incurred/Mean Smallest Weight', mean_min_weight_value.item(), episode)
-
-			if self.env_name in ["team_crossing", "crossing"] and "crossing_pen_colliding_agents" not in self.test_num:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Critic/Entropy_Preproc', entropy_weights.item(), episode)
-				entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Critic/Entropy_Post', entropy_weights.item(), episode)
-			else:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
-
-
-		if self.save_comet_ml_plot:
-			self.comet_ml.log_metric('Entropy_Loss',entropy.item(),episode)
-			self.comet_ml.log_metric('Value_Loss',value_loss.item(),episode)
-			self.comet_ml.log_metric('Policy_Loss',policy_loss.item(),episode)
-			self.comet_ml.log_metric('Grad_Norm_Value',grad_norm_value,episode)
-			self.comet_ml.log_metric('Grad_Norm_Policy',grad_norm_policy,episode)
-
-			if "threshold" in self.experiment_type:
-				for i in range(self.num_agents):
-					agent_name = "agent"+str(i)
-					self.comet_ml.log_metric('Group_Size_'+agent_name, agent_groups_over_episode[i].item(), episode)
-
-				self.comet_ml.log_metric('Avg_Group_Size', avg_agent_group_over_episode.item(), episode)
-
-
-			if "prd_top" in self.experiment_type:
-				self.comet_ml.log_metric('Mean_Smallest_Weight', mean_min_weight_value.item(), episode)
-
-
-			if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc', entropy_weights.item(), episode)
-				entropy_weights = -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy_Post', entropy_weights.item(), episode)
-			else:
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
-
-			if self.policy_type != "MLP":
-				# ENTROPY OF WEIGHTS
-				entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Policy_Weight_Entropy', entropy_weights.item(), episode)
-
-
 
 	def split_states(self,states):
 		states_critic = []
@@ -365,10 +263,6 @@ class MAA2C:
 						print("*"*100)
 
 						final_timestep = step
-
-						if self.save_tensorboard_plot:
-							self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
-							self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
 
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)

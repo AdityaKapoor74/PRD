@@ -58,11 +58,6 @@ class A2CAgent:
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
 
-		# for soft-prd and top-k
-		self.counter = 0
-
-		# EP
-
 		print("EXPERIMENT TYPE", self.experiment_type)
 
 		if self.env_name == "paired_by_sharing_goals":
@@ -146,6 +141,7 @@ class A2CAgent:
 			SemiHardMultiHeadNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=8).to(self.device),
 			]
 
+
 		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
@@ -196,13 +192,16 @@ class A2CAgent:
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
+
 		self.critic_optimizers = []
-		for i in range(len(self.critics)):
-			self.critic_optimizers.append(optim.Adam(self.critics[i].parameters(),lr=self.value_lr))
+		if self.critics is not None:
+			for i in range(len(self.critics)):
+				self.critic_optimizers.append(optim.Adam(self.critics[i].parameters(),lr=self.value_lr))
 
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
+
 
 	def get_action(self,state):
 		state = torch.FloatTensor([state]).to(self.device)
@@ -279,40 +278,39 @@ class A2CAgent:
 		return returns_tensor
 
 
-	def plot(self, critic_name, value_loss, weights, grad_norm_value, episode):
+	def plot_critics(self, critic_name, value_loss, weights, grad_norm_value, episode):
 
-		if self.comet_ml is not None:
-			self.comet_ml.log_metric('Value_Loss_Compare_'+critic_name,value_loss.item(),episode)
-			self.comet_ml.log_metric('Grad_Norm_Value_Compare_'+critic_name,grad_norm_value,episode)
+		self.comet_ml.log_metric('Value_Loss_Compare_'+critic_name,value_loss.item(),episode)
+		self.comet_ml.log_metric('Grad_Norm_Value_Compare_'+critic_name,grad_norm_value,episode)
 
 
-			if len(weights) == 2:
-				# ENTROPY OF WEIGHTS
-				if "MultiHead" in critic_name:
-					for i in range(len(weights[0])):
-						entropy_weights = -torch.mean(torch.sum(weights[0][i] * torch.log(torch.clamp(weights[0][i], 1e-10,1.0)), dim=2))
-						self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc_Compare'+critic_name, entropy_weights.item(), episode)
-
-					for i in range(len(weights[1])):
-						entropy_weights = -torch.mean(torch.sum(weights[1][i] * torch.log(torch.clamp(weights[1][i], 1e-10,1.0)), dim=2))
-						self.comet_ml.log_metric('Critic_Weight_Entropy_Post_Compare'+critic_name, entropy_weights.item(), episode)
-				else:
-					entropy_weights = -torch.mean(torch.sum(weights[0] * torch.log(torch.clamp(weights[0], 1e-10,1.0)), dim=2))
+		if len(self.plotting_dict["weights_value"][0]) == 2:
+			# ENTROPY OF WEIGHTS
+			if "MultiHead" in critic_name:
+				for i in range(len(weights[0])):
+					entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0][i] * torch.log(torch.clamp(self.plotting_dict["weights_value"][0][i], 1e-10,1.0)), dim=2))
 					self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc_Compare'+critic_name, entropy_weights.item(), episode)
 
-					entropy_weights = -torch.mean(torch.sum(weights[1] * torch.log(torch.clamp(weights[1], 1e-10,1.0)), dim=2))
+				for i in range(len(weights[1])):
+					entropy_weights = -torch.mean(torch.sum(weights[1][i] * torch.log(torch.clamp(weights[1][i], 1e-10,1.0)), dim=2))
 					self.comet_ml.log_metric('Critic_Weight_Entropy_Post_Compare'+critic_name, entropy_weights.item(), episode)
-				
-				
 			else:
-				# ENTROPY OF WEIGHTS
-				if "MultiHead" in critic_name:
-					for i in range(len(weights[0])):
-						entropy_weights = -torch.mean(torch.sum(weights[0][i]* torch.log(torch.clamp(weights[0][i], 1e-10,1.0)), dim=2))
-						self.comet_ml.log_metric('Critic_Weight_Entropy'+critic_name, entropy_weights.item(), episode)
-				else:
-					entropy_weights = -torch.mean(torch.sum(weights[0]* torch.log(torch.clamp(weights[0], 1e-10,1.0)), dim=2))
+				entropy_weights = -torch.mean(torch.sum(weights[0] * torch.log(torch.clamp(weights[0], 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy_Preproc_Compare'+critic_name, entropy_weights.item(), episode)
+
+				entropy_weights = -torch.mean(torch.sum(weights[1] * torch.log(torch.clamp(weights[1], 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy_Post_Compare'+critic_name, entropy_weights.item(), episode)
+			
+			
+		else:
+			# ENTROPY OF WEIGHTS
+			if "MultiHead" in critic_name:
+				for i in range(len(weights[0])):
+					entropy_weights = -torch.mean(torch.sum(weights[0][i]* torch.log(torch.clamp(weights[0][i], 1e-10,1.0)), dim=2))
 					self.comet_ml.log_metric('Critic_Weight_Entropy'+critic_name, entropy_weights.item(), episode)
+			else:
+				entropy_weights = -torch.mean(torch.sum(weights[0]* torch.log(torch.clamp(weights[0], 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy'+critic_name, entropy_weights.item(), episode)
 
 
 
@@ -340,39 +338,69 @@ class A2CAgent:
 					value_loss.backward(retain_graph=True)
 				else:
 					value_loss.backward(retain_graph=False)
-					
+
 				grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critics[i].parameters(),0.5)
 				self.critic_optimizers[i].step()
 
 				if self.comet_ml is not None:
-					self.plot(self.critics[i].name, value_loss, V[1:], grad_norm_value, episode)
-
-		
-		
+					self.plot_critics(self.critics[i].name, value_loss, V[1:], grad_norm_value, episode)
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
-
-		'''
-		Getting the probability mass function over the action space for each agent
-		'''
-		probs, weight_policy = self.policy_network.forward(states_actor)
-
-		'''
-		Calculate V values
-		'''
-		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-			V_values, weights_preproc, weights_post = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		else:
-			V_values, weights = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+	def plot(self, episode):
 	
-		# # ***********************************************************************************
-		# update critic (value_net)
-		# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
+		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"].item(),episode)
+		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
+		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
+		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
+		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
+
+		if "threshold" in self.experiment_type:
+			for i in range(self.num_agents):
+				agent_name = "agent"+str(i)
+				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
+
+			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
+
+
+		if "prd_top" in self.experiment_type:
+			self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
+
+
+		if len(self.plotting_dict["weights_value"]) == 2:
+			# ENTROPY OF WEIGHTS
+			if "MultiHead" in self.critic_type:
+				for i in range(len(self.plotting_dict["weights_value"][0])):
+					entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0][i] * torch.log(torch.clamp(self.plotting_dict["weights_value"][0][i], 1e-10,1.0)), dim=2))
+					self.comet_ml.log_metric('Critic_Weight_Entropy_States', entropy_weights.item(), episode)
+
+				for i in range(len(self.plotting_dict["weights_value"][1])):
+					entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][1][i] * torch.log(torch.clamp(self.plotting_dict["weights_value"][1][i], 1e-10,1.0)), dim=2))
+					self.comet_ml.log_metric('Critic_Weight_Entropy_StatesActions', entropy_weights.item(), episode)
+			else:
+				entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0] * torch.log(torch.clamp(self.plotting_dict["weights_value"][0], 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy_States', entropy_weights.item(), episode)
+
+				entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][1] * torch.log(torch.clamp(self.plotting_dict["weights_value"][1], 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy_StatesActions', entropy_weights.item(), episode)
+			
+			
+		else:
+			# ENTROPY OF WEIGHTS
+			if "MultiHead" in self.critic_type:
+				for i in range(len(self.plotting_dict["weights_value"][0])):
+					entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0][i]* torch.log(torch.clamp(self.plotting_dict["weights_value"][0][i], 1e-10,1.0)), dim=2))
+					self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
+			else:
+				entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0]* torch.log(torch.clamp(self.plotting_dict["weights_value"][0], 1e-10,1.0)), dim=2))
+				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
+
+		
+	def calculate_value_loss(self, V_values, rewards, dones, weights):
 		discounted_rewards = None
 		next_probs = None
+
 		if self.critic_loss_type == "MC":
+			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 			value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
@@ -387,44 +415,64 @@ class A2CAgent:
 			value_loss = F.smooth_l1_loss(V_values, Value_target)
 
 
-		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-			weights_off_diagonal_preproc = weights_preproc * (1 - torch.eye(self.num_agents,device=self.device))
-			weights_off_diagonal = weights_post * (1 - torch.eye(self.num_agents,device=self.device))
-			l1_weights = torch.mean(weights_off_diagonal) + torch.mean(weights_off_diagonal_preproc)
+		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
+			if len(weights)==2:
+				if "MultiHead" in self.critic_type:
+					weights_preproc = torch.mean(torch.stack(weights[0]), dim=1)
+					weights_postproc = torch.mean(torch.stack(weights[1]), dim=1)
+				else:
+					weights_preproc = weights[0]
+					weights_postproc = weights[1]
 
-			weight_entropy = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2)) -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+				weights_off_diagonal_preproc = weights_preproc * (1 - torch.eye(self.num_agents,device=self.device))
+				weights_off_diagonal = weights_postproc * (1 - torch.eye(self.num_agents,device=self.device))
+				l1_weights = torch.mean(weights_off_diagonal) + torch.mean(weights_off_diagonal_preproc)
+				weight_entropy = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2)) -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
+			
+			else:
+				if "MultiHead" in self.critic_type:
+					weights_ = torch.mean(torch.stack(weights[0]), dim=1)
+				else:
+					weights_ = weights
+
+
+				weights_off_diagonal = weights_ * (1 - torch.eye(self.num_agents,device=self.device))
+				l1_weights = torch.mean(weights_off_diagonal)
+				weight_entropy = -torch.mean(torch.sum(weights_ * torch.log(torch.clamp(weights_, 1e-10,1.0)), dim=2))
+
+			
+			value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
+
+		return discounted_rewards, next_probs, value_loss
+
+
+	def calculate_prd_weights(self, weights):
+		weights_prd = None
+		if len(weights) == 2:
+			if "MultiHead" in critic_name:
+				weights_prd_preproc = torch.mean(weights[0], dim=2)
+				weights_prd_postproc = torch.mean(weights[1], dim=2)
+				weights_prd = (weights_prd_preproc + weights_prd_postproc) / 2.0
+			else:
+				weights_prd = (weights_prd_preproc + weights_prd_postproc) / 2.0
 		else:
-			weights_off_diagonal = weights * (1 - torch.eye(self.num_agents,device=self.device))
-			l1_weights = torch.mean(weights_off_diagonal)
+			if "MultiHead" in critic_name:
+				weights_prd = torch.mean(weights[0], dim=2)
+			else:
+				weights_prd = weights[0]
 
-			weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
+		return weights_prd
 
-		value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
 
-		
-		# train other critics
-		if self.critics is not None:
-			self.train_other_critics(discounted_rewards, rewards, states_critic, probs, one_hot_actions, dones, next_states_critic, next_probs, one_hot_next_actions, episode)
-
-	
-		# # ***********************************************************************************
-		# update actor (policy net)
-		# # ***********************************************************************************
-		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
-
+	def calculate_advantages_based_on_exp(self, discounted_rewards, V_values, rewards, dones, weights_prd, episode):
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
-		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-			weights_prd = (weights_post + weights_preproc)/2.0
-		else:
-			weights_prd = weights
-
 		advantage = None
 		masking_advantage = None
 		if "shared" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
-			if self.counter < self.steps_to_take:
+			if episode < self.steps_to_take:
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 			else:
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
@@ -444,7 +492,7 @@ class A2CAgent:
 			masking_advantage = (weights_prd>self.select_above_threshold).int()
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "top" in self.experiment_type:
-			if self.counter < self.steps_to_take:
+			if episode < self.steps_to_take:
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 				min_weight_values, _ = torch.min(weights_prd, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
@@ -459,22 +507,79 @@ class A2CAgent:
 		elif "relevant_set" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.relevant_set ,dim=-2)
 
+		if "scaled" in self.experiment_type and episode > self.steps_to_take:
+			if "prd_soft_adv" in self.experiment_type:
+				advantage = advantage*self.num_agents
+			elif "top" in self.experiment_type:
+				advantage = advantage*(self.num_agents/self.top_k)
+
+		return advantage, masking_advantage
+
+	def calculate_policy_loss(self, probs, actions, entropy, advantage):
+		probs = Categorical(probs)
+		policy_loss = -probs.log_prob(actions) * advantage.detach()
+		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+
+		return policy_loss
+
+	def update_parameters(self):
+		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
+
+		if self.threshold_max >= self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
+
+		if self.l1_pen > self.l1_pen_min and "prd_above_threshold_l1_pen_decay" in self.experiment_type:
+			self.l1_pen = self.l1_pen - self.l1_pen_delta
+
+		# annealin entropy pen
+		if self.entropy_pen > 0:
+			self.entropy_pen = self.entropy_pen - self.entropy_delta
+
+
+	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
+
+		'''
+		Getting the probability mass function over the action space for each agent
+		'''
+		Policy_return = self.policy_network.forward(states_actor)
+		probs = Policy_return[0]
+		weights_policy = Policy_return[1:]
+
+		'''
+		Calculate V values
+		'''
+		Value_return = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		V_values = Value_return[0]
+		weights_value = Value_return[1:]
+		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+	
+		
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1])
+		
+		# train other critics
+		if self.critics is not None and self.comet_ml is not None:
+			self.train_other_critics(discounted_rewards, rewards, states_critic, probs, one_hot_actions, dones, next_states_critic, next_probs, one_hot_next_actions, episode)
+
+	
+		# policy entropy
+		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+
+		if "prd" in self.experiment_type:
+			weights_prd = self.calculate_prd_weights(weights_value)
+		else:
+			weights_prd = None
+
+		advantage, masking_advantage = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
+
 		if "prd_avg" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
 		elif "threshold" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-
-		if "scaled" in self.experiment_type and self.counter > self.steps_to_take:
-			if "prd_soft_adv" in self.experiment_type:
-				advantage = advantage*self.num_agents
-			elif "top" in self.experiment_type:
-				advantage = advantage*(self.num_agents/self.top_k)
 	
-		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions) * advantage.detach()
-		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+		policy_loss = self.calculate_policy_loss(probs, actions, entropy, advantage)
 		# # ***********************************************************************************
 			
 		# **********************************
@@ -490,34 +595,24 @@ class A2CAgent:
 		self.policy_optimizer.step()
 
 
-		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
-			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
-
-		if self.threshold_max >= self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
-			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
-
-		if self.l1_pen > self.l1_pen_min and "prd_above_threshold_l1_pen_decay" in self.experiment_type:
-			self.l1_pen = self.l1_pen - self.l1_pen_delta
-
-		# increment counter (number of episodes essentially)
-		self.counter += 1
-
-		# annealin entropy pen
-		if self.entropy_pen > 0:
-			self.entropy_pen = self.entropy_pen - self.entropy_delta
-
-		if self.env_name in ["crossing_fully_coop", "crossing_partially_coop"]:
-			if "threshold" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
-			if "prd_top" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy, mean_min_weight_value
-
-			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights_preproc, weights_post, weight_policy
-		else:
-			if "threshold" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, agent_groups_over_episode, avg_agent_group_over_episode
-			if "prd_top" in self.experiment_type:
-				return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy, mean_min_weight_value
+		self.update_parameters()
 
 
-			return value_loss, policy_loss, entropy, grad_norm_value, grad_norm_policy, weights, weight_policy
+		self.plotting_dict = {
+		"value_loss": value_loss,
+		"policy_loss": policy_loss,
+		"entropy": entropy,
+		"grad_norm_value":grad_norm_value,
+		"grad_norm_policy": grad_norm_policy,
+		"weights_value": weights_value,
+		"weights_policy": weights_policy
+		}
+
+		if "threshold" in self.experiment_type:
+			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode
+			self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode
+		if "prd_top" in self.experiment_type:
+			self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
+
+		if self.comet_ml is not None:
+			self.plot(episode)
