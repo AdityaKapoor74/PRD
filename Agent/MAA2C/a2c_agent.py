@@ -74,7 +74,7 @@ class A2CAgent:
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + 2*3
 			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name == "crossing_partially_coop":
+		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
 		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
 			obs_dim = 2*3 + 1
 			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
@@ -142,13 +142,13 @@ class A2CAgent:
 			]
 
 
-		self.critic_network = SemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03).to(self.device)
+		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
 		elif self.env_name in ["color_social_dilemma"]:
 			obs_dim = 2*2 + 1 + 2*3
-		elif self.env_name in ["crossing_partially_coop"]:
+		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
 			obs_dim = 2*3 + 1
 
 		# MLP POLICY
@@ -177,16 +177,16 @@ class A2CAgent:
 			self.greedy_policy[i][i] = 1
 
 
-
-		# Loading models
-		# model_path_value = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/critic_networks/02-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
-		# model_path_policy = "../../../tests/policy_eval/crossing_partially_coop_24_agents_3_teams/models/crossing_partially_coop_prd_above_threshold_ascend_run1/actor_networks/02-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode200000.pt"
-		# For CPU
-		# self.critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
-		# self.policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
-		# # For GPU
-		# self.critic_network.load_state_dict(torch.load(model_path_value))
-		# self.policy_network.load_state_dict(torch.load(model_path_policy))
+		if dictionary["load_models"]:
+			# Loading models
+			if torch.cuda.is_available() is False:
+				# For CPU
+				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"],map_location=torch.device('cpu')))
+				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"],map_location=torch.device('cpu')))
+			else:
+				# For GPU
+				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
+				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)

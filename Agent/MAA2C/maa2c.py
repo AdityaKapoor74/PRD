@@ -243,7 +243,7 @@ class MAA2C:
 					one_hot_next_actions[i][act] = 1
 
 
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
 					episode_collision_rate += np.sum(collision_rate)
@@ -287,7 +287,7 @@ class MAA2C:
 				if self.eval_policy:
 					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
+					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
 						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 

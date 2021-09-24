@@ -77,7 +77,7 @@ if __name__ == '__main__':
 	for i in range(1,2):
 		extension = "run"+str(i)
 		test_num = "TransformersTest" #TransformersTest
-		env_name = "crossing_greedy"
+		env_name = "crossing_team_greedy"
 		experiment_type = "shared" # prd_above_threshold_decay_episodic, greedy, shared
 
 		dictionary = {
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "SemiHardAttnTransformerCritic0.01weight", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"critic_type": "TransformerCritic", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": 0,
 				"test_num":test_num,
 				"extension":extension,
@@ -111,6 +111,10 @@ if __name__ == '__main__':
 				"l1_pen_steps_to_take": 0,
 				"top_k": 0,
 				"gif": False,
+				"gif_checkpoint":1,
+				"load_models": False,
+				"model_path_value": "../../../tests/ablation_study/Transformers/23-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode51000.pt",
+				"model_path_policy": "../../../tests/ablation_study/Transformers/23-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode51000.pt",
 				"eval_policy": False,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
@@ -119,7 +123,6 @@ if __name__ == '__main__':
 				"max_episodes": 100000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
-				"gif_checkpoint":1,
 				"gae": True,
 				"norm_adv": False,
 				"norm_rew": False,
