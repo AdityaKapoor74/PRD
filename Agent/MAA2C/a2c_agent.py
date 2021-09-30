@@ -142,7 +142,7 @@ class A2CAgent:
 			]
 
 
-		self.critic_network = SemiHardGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03).to(self.device)
+		self.critic_network = SemiHardMultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=2).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
