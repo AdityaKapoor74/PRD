@@ -142,7 +142,7 @@ class A2CAgent:
 			]
 
 
-		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -450,13 +450,13 @@ class A2CAgent:
 		# print("weights", weights[0].shape)
 		weights_prd = None
 		if "MultiHeadDual" in critic_name:
-			weights_ = torch.stack([weight[0][0] for weight in weights[1]])
+			weights_ = torch.stack([weight for weight in weights[1]])
 			weights_prd = torch.mean(weights_, dim=0)
 		elif "MultiHead" in critic_name:
-			weights_ = torch.stack([weight[0][0] for weight in weights[0]])
+			weights_ = torch.stack([weight for weight in weights[0]])
 			weights_prd = torch.mean(weights_, dim=0)
 		elif "Dual" in critic_name:
-			weights_prd = weights[1][0][0]
+			weights_prd = weights[1]
 		else:
 			weights_prd = weights[0]
 
