@@ -407,7 +407,7 @@ class A2CAgent:
 				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, V_values, rewards, dones, weights):
+	def calculate_value_loss(self, V_values, rewards, dones, weights, weights_prd, custom_loss=False):
 		discounted_rewards = None
 		next_probs = None
 
@@ -415,16 +415,19 @@ class A2CAgent:
 			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-			value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
+			Value_target = discounted_rewards
 		elif self.critic_loss_type == "TD_1":
 			next_probs, _ = self.policy_network.forward(next_states_actor)
 			V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-			target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-			value_loss = F.smooth_l1_loss(V_values,target_values)
+			Value_target = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 		elif self.critic_loss_type == "TD_lambda":
 			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
+		
+		if custom_loss is False:
 			value_loss = F.smooth_l1_loss(V_values, Value_target)
+		else:
+			value_loss = F.smooth_l1_loss(V_values*weights_prd, Value_target*weights_prd, reduction="sum")/V_values.shape[0]
 
 
 		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
@@ -568,9 +571,14 @@ class A2CAgent:
 		V_values = Value_return[0]
 		weights_value = Value_return[1:]
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+
+		if "prd" in self.experiment_type:
+			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
+		else:
+			weights_prd = None
 	
-		
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1])
+
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_prd, custom_loss=True)
 		
 		# train other critics
 		if self.critics is not None and self.comet_ml is not None:
@@ -579,11 +587,6 @@ class A2CAgent:
 	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
-
-		if "prd" in self.experiment_type:
-			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
-		else:
-			weights_prd = None
 
 		advantage, masking_advantage = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
 
