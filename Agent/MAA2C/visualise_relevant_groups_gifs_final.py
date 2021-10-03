@@ -11,10 +11,10 @@ from torch.distributions import Categorical
 import numpy as np
 
 num_actions = 5
-num_agents = 8
+num_agents = 12
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-TITLE = "CROSSING FULLY COOPERATIVE (v2)" # PAIRED AGENT, CROSSING GREEDY (v1), CROSSING FULLY COOPERATIVE (v2), CROSSING PARTIALLY COOPERATIVE (v3), SOCIAL DILEMMA
-ENVIRONMENT_NAME = "paired_by_sharing_goals" # paired_by_sharing_goals, crossing_fully_coop, crossing_greedy, crossing_partially_coop, color_social_dilemma
+TITLE = "CROSSING TEAM GREEDY" # PAIRED AGENT, CROSSING GREEDY (v1), CROSSING FULLY COOPERATIVE (v2), CROSSING PARTIALLY COOPERATIVE (v3), SOCIAL DILEMMA
+ENVIRONMENT_NAME = "crossing_team_greedy" # paired_by_sharing_goals, crossing_fully_coop, crossing_greedy, crossing_partially_coop, color_social_dilemma
 WIDTH, HEIGHT = (1000, 1000)
 SCREEN_SIZE = (WIDTH, HEIGHT)
 START, END = (100,900)
@@ -24,7 +24,6 @@ RED = (255, 50, 50)
 GREEN = (50, 255, 50)
 AGENT_RADIUS = 800/20
 LANDMARK_RADIUS = 800/40
-
 
 if ENVIRONMENT_NAME == "paired_by_sharing_goals":
 	obs_dim = 2*4
@@ -41,17 +40,20 @@ elif ENVIRONMENT_NAME == "color_social_dilemma":
 elif ENVIRONMENT_NAME == "crossing_partially_coop":
 	obs_dim = 2*3 + 1
 	critic_network = DualGATCritic(obs_dim, 128, obs_dim+num_actions, 128, 128, 1, num_agents, num_actions).to(device)
+elif ENVIRONMENT_NAME == "crossing_team_greedy":
+	obs_dim = 2*3 + 1
+	critic_network = GATV2Critic(obs_dim, 128, obs_dim+num_actions, 128, 128, 1, num_agents, num_actions).to(device)
 
 
 if ENVIRONMENT_NAME in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 	obs_dim = 2*3
 elif ENVIRONMENT_NAME in ["color_social_dilemma"]:
 	obs_dim = 2*2 + 1 + 2*3
-elif ENVIRONMENT_NAME in ["crossing_partially_coop"]:
+elif ENVIRONMENT_NAME in ["crossing_partially_coop", "crossing_team_greedy"]:
 	obs_dim = 2*3 + 1
 
-# MLP POLICY
-policy_network = MLPPolicyNetwork(obs_dim, num_agents, num_actions).to(device)
+# # MLP POLICY
+policy_network = MLPPolicy(obs_dim, num_agents, num_actions).to(device)
 
 
 # Loading models
@@ -104,6 +106,18 @@ elif ENVIRONMENT_NAME == "crossing_partially_coop":
 elif ENVIRONMENT_NAME == "color_social_dilemma":
 	model_path_value = "../../../tests/policy_eval/color_social_dilemma_8_Agents_50K_policy_eval/models/color_social_dilemma_pt2_prd_above_threshold_ascend_run4/critic_networks/19-08-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode50000.pt"
 	model_path_policy = "../../../tests/policy_eval/color_social_dilemma_8_Agents_50K_policy_eval/models/color_social_dilemma_pt2_prd_above_threshold_ascend_run4/actor_networks/19-08-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode50000.pt"
+	# For CPU
+	# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
+	# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
+	# # For GPU
+	critic_network.load_state_dict(torch.load(model_path_value))
+	policy_network.load_state_dict(torch.load(model_path_policy))
+
+# CROSSING TEAM GREEDY
+elif ENVIRONMENT_NAME == "crossing_team_greedy":
+
+	model_path_value = "../../../tests/ablation_study/GATv2/tests/GATV2Critic/models/crossing_team_greedy_shared_run1/critic_networks/29-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt"
+	model_path_policy =  "../../../tests/ablation_study/GATv2/tests/GATV2Critic/models/crossing_team_greedy_shared_run1/actor_networks/29-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt"
 	# For CPU
 	# critic_network.load_state_dict(torch.load(model_path_value,map_location=torch.device('cpu')))
 	# policy_network.load_state_dict(torch.load(model_path_policy,map_location=torch.device('cpu')))
@@ -168,6 +182,17 @@ elif ENVIRONMENT_NAME == "crossing_partially_coop":
 	agent_color = [np.array([0,0,255,50])]*(num_agents//3) + [np.array([0,255,0,50])]*(num_agents//3) + [np.array([255,0,0,50])]*(num_agents//3)
 	agent_color[0] = np.array([0,0,255,150])
 	landmark_color = [np.array([0,0,0,200])]*(num_agents)# + [np.array([0,0,0,200])]*(num_agents//3) + [np.array([0,0,0,200])]*(num_agents//3)
+elif ENVIRONMENT_NAME == "crossing_team_greedy":
+	'''
+	agent in question: dark color
+	team1: blue
+	team2: green
+	team3: red
+	relevant set: opaque
+	not in relevant set: transparent
+	'''
+	agent_color = [np.array([0,0,255,50])]*(num_agents//3) + [np.array([0,255,0,50])]*(num_agents//3) + [np.array([255,0,0,50])]*(num_agents//3)
+	landmark_color = [np.array([0,0,0,200])]*(num_agents)
 
 no_act = 0
 left_act = 1
@@ -198,7 +223,7 @@ def init_pose(states):
 				posex, posey = scale_pose_to_screen(states[i][8], states[i][9])
 				landmark_position.append([posex,posey])
 		else:
-			if ENVIRONMENT_NAME == "crossing_partially_coop":
+			if ENVIRONMENT_NAME in ["crossing_partially_coop", "crossing_team_greedy"]:
 				posex, posey = scale_pose_to_screen(states[i][5], states[i][6])
 				landmark_position.append([posex,posey])
 			else:
@@ -207,8 +232,8 @@ def init_pose(states):
 
 
 def map_weight_to_width(weight, agent_index):
-	if weight>0.01:
-		if ENVIRONMENT_NAME in ["color_social_dilemma", "crossing_partially_coop"]:
+	if weight>0.1:
+		if ENVIRONMENT_NAME in ["color_social_dilemma", "crossing_partially_coop", "crossing_team_greedy"]:
 			if agent_index != 0:
 				agent_color[agent_index][3] = 150
 				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
@@ -224,7 +249,7 @@ def map_weight_to_width(weight, agent_index):
 				pygame.draw.circle(surface, np.array([0,0,0,200]), agent_position[agent_index], AGENT_RADIUS, 5)
 		return 5
 	else:
-		if ENVIRONMENT_NAME in ["color_social_dilemma", "crossing_partially_coop"]:
+		if ENVIRONMENT_NAME in ["color_social_dilemma", "crossing_partially_coop", "crossing_team_greedy"]:
 			if agent_index != 0:
 				agent_color[agent_index][3] = 50
 				pygame.draw.circle(surface, agent_color[agent_index], agent_position[agent_index], AGENT_RADIUS, 0)
@@ -320,9 +345,9 @@ def run(env, max_steps):
 			states_actor_ = torch.FloatTensor([states_actor]).to(device)
 			dists, _ = policy_network.forward(states_actor_)
 			# sample an action
-			actions = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
+			# actions = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
 			# choose best action only
-			# actions = [torch.argmax(dist).cpu().detach().item() for dist in dists[0]]
+			actions = [torch.argmax(dist).cpu().detach().item() for dist in dists[0]]
 
 			one_hot_actions = np.zeros((num_agents,num_actions))
 			for i,act in enumerate(actions):
