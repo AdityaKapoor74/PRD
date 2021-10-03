@@ -241,7 +241,7 @@ class TransformerStateTransformerStateAction(nn.Module):
 		state_action_value = F.leaky_relu(self.state_action_value_layer_1(node_features_transformer2))
 		state_action_value = self.state_action_value_layer_2(state_action_value)
 
-		Value = state_value + state_action_value
+		Value = state_value.unsqueeze(-1) + state_action_value
 
 		return Value, weight_obs, ret_weight_obs_act
 
