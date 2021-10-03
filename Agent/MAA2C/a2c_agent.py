@@ -382,7 +382,19 @@ class A2CAgent:
 
 				entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][1] * torch.log(torch.clamp(self.plotting_dict["weights_value"][1], 1e-10,1.0)), dim=2))
 				self.comet_ml.log_metric('Critic_Weight_Entropy_StatesActions', entropy_weights.item(), episode)
-			
+
+		elif len(self.plotting_dict["weights_value"]) == 4:
+			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0] * torch.log(torch.clamp(self.plotting_dict["weights_value"][0], 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('Critic_Weight_Entropy_States_Preproc1', entropy_weights.item(), episode)
+
+			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][1] * torch.log(torch.clamp(self.plotting_dict["weights_value"][1], 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('Critic_Weight_Entropy_States_Preproc2', entropy_weights.item(), episode)
+
+			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][2] * torch.log(torch.clamp(self.plotting_dict["weights_value"][2], 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('Critic_Weight_Entropy_States_1', entropy_weights.item(), episode)
+
+			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][3] * torch.log(torch.clamp(self.plotting_dict["weights_value"][3], 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('Critic_Weight_Entropy_StatesActions', entropy_weights.item(), episode)
 			
 		else:
 			# ENTROPY OF WEIGHTS
@@ -455,6 +467,8 @@ class A2CAgent:
 		elif "MultiHead" in critic_name:
 			weights_ = torch.stack([weight for weight in weights[0]])
 			weights_prd = torch.mean(weights_, dim=0)
+		elif "DualTransformerStateDualTransformerStateAction" in critic_name:
+			weights_prd = weights[-1]
 		elif "Dual" in critic_name:
 			weights_prd = weights[1]
 		elif "TransformerStateTransformerStateAction" in critic_name:

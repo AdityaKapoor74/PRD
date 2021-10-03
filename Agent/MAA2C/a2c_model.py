@@ -246,6 +246,176 @@ class TransformerStateTransformerStateAction(nn.Module):
 		return Value, weight_obs, ret_weight_obs_act
 
 
+class DualTransformerStateDualTransformerStateAction(nn.Module):
+	'''
+	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
+	'''
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, state_value_input_dim, state_value_output_dim, state_action_value_input_dim, state_action_value_output_dim, num_agents, num_actions):
+		super(DualTransformerStateDualTransformerStateAction, self).__init__()
+		
+		self.name = "DualTransformerStateDualTransformerStateAction"
+
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+
+		self.state_embed_preproc_transformer1 = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
+		self.state_embed_preproc_transformer2 = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
+
+		self.key_layer_preproc_transformer1 = nn.Linear(128, 128, bias=False)
+		self.query_layer_preproc_transformer1 = nn.Linear(128, 128, bias=False)
+		self.attention_value_layer_preproc_transformer1 = nn.Linear(128, 128, bias=False)
+
+		self.key_layer_preproc_transformer2 = nn.Linear(128, 128, bias=False)
+		self.query_layer_preproc_transformer2 = nn.Linear(128, 128, bias=False)
+		self.attention_value_layer_preproc_transformer2 = nn.Linear(128, 128, bias=False)
+
+		self.state_embed_transformer1 = nn.Sequential(nn.Linear(128, 128), nn.LeakyReLU())
+		self.state_embed_transformer2 = nn.Sequential(nn.Linear(128, 128), nn.LeakyReLU())
+		self.state_act_pol_embed = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
+
+		self.key_layer_transformer1 = nn.Linear(128, obs_output_dim, bias=False)
+		self.query_layer_transformer1 = nn.Linear(128, obs_output_dim, bias=False)
+		self.attention_value_layer_transformer1 = nn.Linear(128, obs_output_dim, bias=False)
+
+		self.key_layer_transformer2 = nn.Linear(128, obs_output_dim, bias=False)
+		self.query_layer_transformer2 = nn.Linear(128, obs_output_dim, bias=False)
+		self.attention_value_layer_transformer2 = nn.Linear(128, obs_act_output_dim, bias=False)
+
+
+		# dimesion of key
+		self.d_k_preproc_transformer1 = 128 
+		self.d_k_preproc_transformer2 = 128 
+		self.d_k_transformer1 = obs_output_dim 
+		self.d_k_transformer2 = obs_output_dim 
+
+		# NOISE
+		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		self.noise_uniform = torch.rand
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.state_value_layer_1 = nn.Linear(state_value_input_dim, 64, bias=False)
+		self.state_value_layer_2 = nn.Linear(64, state_value_output_dim, bias=False)
+		# FCN FINAL LAYER TO GET VALUES
+		self.state_action_value_layer_1 = nn.Linear(state_action_value_input_dim, 64, bias=False)
+		self.state_action_value_layer_2 = nn.Linear(64, state_action_value_output_dim, bias=False)
+		# ********************************************************************************************************	
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+
+		self.reset_parameters()
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.state_embed_preproc_transformer1[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.state_embed_preproc_transformer2[0].weight, gain=gain_leaky)
+
+		nn.init.xavier_uniform_(self.key_layer_preproc_transformer1.weight)
+		nn.init.xavier_uniform_(self.query_layer_preproc_transformer1.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer_preproc_transformer1.weight)
+
+		nn.init.xavier_uniform_(self.key_layer_preproc_transformer2.weight)
+		nn.init.xavier_uniform_(self.query_layer_preproc_transformer2.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer_preproc_transformer2.weight)
+
+		nn.init.xavier_uniform_(self.state_embed_transformer1[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.state_embed_transformer2[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.state_act_pol_embed[0].weight, gain=gain_leaky)
+
+		nn.init.xavier_uniform_(self.key_layer_transformer1.weight)
+		nn.init.xavier_uniform_(self.query_layer_transformer1.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer_transformer1.weight)
+
+		nn.init.xavier_uniform_(self.key_layer_transformer2.weight)
+		nn.init.xavier_uniform_(self.query_layer_transformer2.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer_transformer2.weight)
+
+		nn.init.xavier_uniform_(self.state_value_layer_1.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.state_value_layer_2.weight, gain=gain_leaky)
+
+		nn.init.xavier_uniform_(self.state_action_value_layer_1.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.state_action_value_layer_2.weight, gain=gain_leaky)
+
+
+
+
+	def forward(self, states, policies, actions):
+		# EMBED STATES
+		states_embed_transformer1 = self.state_embed_preproc_transformer1(states)
+		states_embed_transformer2 = self.state_embed_preproc_transformer2(states)
+		obs_actions = torch.cat([states,actions],dim=-1)
+		obs_policy = torch.cat([states,policies], dim=-1)
+		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+		# EMBED STATE ACTION POLICY
+		obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
+
+		# TRANSFORMER OVER STATES
+		# KEYS
+		key_obs = self.key_layer_preproc_transformer1(states_embed_transformer1)
+		# QUERIES
+		query_obs = self.query_layer_preproc_transformer1(states_embed_transformer1)
+		# WEIGHT
+		weight_obs_preproc_transformer1 = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_preproc_transformer1),dim=-1)
+		attention_values_obs = self.attention_value_layer_preproc_transformer1(states_embed_transformer1)
+		proc_states_1 = torch.matmul(weight_obs_preproc_transformer1, attention_values_obs)
+		proc_states_1 = self.state_embed_transformer1(proc_states_1)
+		# KEYS
+		key_obs = self.key_layer_transformer1(proc_states_1)
+		# QUERIES
+		query_obs = self.query_layer_transformer1(proc_states_1)
+		# WEIGHT
+		weight_obs_transformer1 = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_transformer1),dim=-1)
+		attention_values_obs = self.attention_value_layer_transformer1(proc_states_1)
+		node_features_states = torch.matmul(weight_obs_transformer1, attention_values_obs)
+
+		state_value = F.leaky_relu(self.state_value_layer_1(node_features_states))
+		state_value = self.state_value_layer_2(state_value)
+
+		# TRANSFORMER OVER STATE ACTIONS
+		# KEYS
+		key_obs = self.key_layer_preproc_transformer2(states_embed_transformer2)
+		# QUERIES
+		query_obs = self.query_layer_preproc_transformer2(states_embed_transformer2)
+		# WEIGHT
+		weight_obs_preproc_transformer2 = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_preproc_transformer2),dim=-1)
+		attention_values_obs = self.attention_value_layer_preproc_transformer2(states_embed_transformer2)
+		proc_states_2 = torch.matmul(weight_obs_preproc_transformer2, attention_values_obs)
+		proc_states_2 = self.state_embed_transformer2(proc_states_2)
+		# KEYS
+		key_obs = self.key_layer_preproc_transformer2(proc_states_2)
+		# QUERIES
+		query_obs = self.query_layer_preproc_transformer2(proc_states_2)
+		# WEIGHT
+		weight_obs_transformer2 = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_transformer2),dim=-1)
+		attention_values_obs_act = self.attention_value_layer_transformer2(obs_actions_policies_embed)
+		attention_values_obs_act = attention_values_obs_act.repeat(1,self.num_agents,1,1).reshape(attention_values_obs_act.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+		ret_weight_obs_transformer2 = weight_obs_transformer2
+		weight_obs_transformer2 = weight_obs_transformer2.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+		weighted_attention_values_state_actions = attention_values_obs_act*weight_obs_transformer2
+		node_features_state_actions = torch.sum(weighted_attention_values_state_actions, dim=-2)
+		state_action_value = F.leaky_relu(self.state_action_value_layer_1(node_features_state_actions))
+		state_action_value = self.state_action_value_layer_2(state_action_value)
+
+		Value = state_value.unsqueeze(-1) + state_action_value
+
+		return Value, weight_obs_preproc_transformer1, weight_obs_transformer1, weight_obs_preproc_transformer2, ret_weight_obs_transformer2
+
 
 '''
 Scalar Dot Product Attention: Transformer
