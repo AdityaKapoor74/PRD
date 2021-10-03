@@ -446,20 +446,19 @@ class A2CAgent:
 		return discounted_rewards, next_probs, value_loss
 
 
-	def calculate_prd_weights(self, weights):
+	def calculate_prd_weights(self, weights, critic_name):
+		# print("weights", weights[0].shape)
 		weights_prd = None
-		if len(weights) == 2:
-			if "MultiHead" in critic_name:
-				weights_prd_preproc = torch.mean(weights[0], dim=2)
-				weights_prd_postproc = torch.mean(weights[1], dim=2)
-				weights_prd = (weights_prd_preproc + weights_prd_postproc) / 2.0
-			else:
-				weights_prd = (weights_prd_preproc + weights_prd_postproc) / 2.0
+		if "MultiHeadDual" in critic_name:
+			weights_ = torch.stack([weight[0][0] for weight in weights[1]])
+			weights_prd = torch.mean(weights_, dim=0)
+		elif "MultiHead" in critic_name:
+			weights_ = torch.stack([weight[0][0] for weight in weights[0]])
+			weights_prd = torch.mean(weights_, dim=0)
+		elif "Dual" in critic_name:
+			weights_prd = weights[1][0][0]
 		else:
-			if "MultiHead" in critic_name:
-				weights_prd = torch.mean(weights[0], dim=2)
-			else:
-				weights_prd = weights[0]
+			weights_prd = weights[0]
 
 		return weights_prd
 
@@ -566,7 +565,7 @@ class A2CAgent:
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
 		if "prd" in self.experiment_type:
-			weights_prd = self.calculate_prd_weights(weights_value)
+			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
 		else:
 			weights_prd = None
 
