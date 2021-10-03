@@ -121,7 +121,7 @@ class TransformerStateTransformerStateAction(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, state_value_input_dim, state_value_output_dim, state_action_value_input_dim, state_action_value_output_dim num_agents, num_actions):
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, state_value_input_dim, state_value_output_dim, state_action_value_input_dim, state_action_value_output_dim, num_agents, num_actions):
 		super(TransformerStateTransformerStateAction, self).__init__()
 		
 		self.name = "TransformerStateTransformerStateAction"
