@@ -407,7 +407,7 @@ class A2CAgent:
 				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, V_values, rewards, dones, weights, weights_prd, custom_loss=False):
+	def calculate_value_loss(self, V_values, rewards, dones, weights, weights_value, custom_loss=False):
 		discounted_rewards = None
 		next_probs = None
 
@@ -427,6 +427,7 @@ class A2CAgent:
 		if custom_loss is False:
 			value_loss = F.smooth_l1_loss(V_values, Value_target)
 		else:
+			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
 			value_loss = F.smooth_l1_loss(V_values*weights_prd, Value_target*weights_prd, reduction="sum")/V_values.shape[0]
 
 
@@ -578,7 +579,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_prd, custom_loss=True)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_value, custom_loss=True)
 		
 		# train other critics
 		if self.critics is not None and self.comet_ml is not None:
