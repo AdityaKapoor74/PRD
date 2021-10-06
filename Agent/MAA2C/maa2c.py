@@ -267,6 +267,8 @@ class MAA2C:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
+							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
 
 						break
 					else:
