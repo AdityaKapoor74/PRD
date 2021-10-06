@@ -579,7 +579,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_value, custom_loss=True)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_value, custom_loss=False)
 		
 		# train other critics
 		if self.critics is not None and self.comet_ml is not None:
