@@ -143,9 +143,9 @@ class A2CAgent:
 			]
 
 		# TransformerStateTransformerStateAction/ DualTransformerStateDualTransformerStateAction
-		self.critic_network = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+		self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
-		self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+		# self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -195,7 +195,7 @@ class A2CAgent:
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
-		self.actor_critic_optimizer = optim.Adam(self.shared_actor_critic.parameters(),lr=self.shared_actor_critic_lr)
+		# self.actor_critic_optimizer = optim.Adam(self.shared_actor_critic.parameters(),lr=self.shared_actor_critic_lr)
 
 
 		self.critic_optimizers = []
