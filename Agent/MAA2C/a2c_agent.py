@@ -21,6 +21,7 @@ class A2CAgent:
 		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
+		self.shared_actor_critic_lr = dictionary["shared_actor_critic_lr"]
 		self.l1_pen = dictionary["l1_pen"]
 		self.l1_pen_min = dictionary["l1_pen_min"]
 		self.l1_pen_steps_to_take = dictionary["l1_pen_steps_to_take"]
@@ -142,7 +143,9 @@ class A2CAgent:
 			]
 
 		# TransformerStateTransformerStateAction/ DualTransformerStateDualTransformerStateAction
-		self.critic_network = DualTransformerStateDualTransformerAction(obs_dim, 128, self.num_actions, 128, 128, 1, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		self.critic_network = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+
+		self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -191,6 +194,8 @@ class A2CAgent:
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+
+		self.actor_critic_optimizer = optim.Adam(self.shared_actor_critic.parameters(),lr=self.shared_actor_critic_lr)
 
 
 		self.critic_optimizers = []
@@ -558,19 +563,26 @@ class A2CAgent:
 
 	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
 
-		'''
-		Getting the probability mass function over the action space for each agent
-		'''
-		Policy_return = self.policy_network.forward(states_actor)
-		probs = Policy_return[0]
-		weights_policy = Policy_return[1:]
+		if self.critic_network.name == "SharedTransformerActorCritic":
+			AC_out = self.shared_actor_critic(states_critic, one_hot_actions)
+			V_values, probs, weights = AC_out[0], AC_out[1], AC_out[2:]
+			weights_policy = weights
+			weights_value = weights
+		else:
+			'''
+			Getting the probability mass function over the action space for each agent
+			'''
+			Policy_return = self.policy_network.forward(states_actor)
+			probs = Policy_return[0]
+			weights_policy = Policy_return[1:]
 
-		'''
-		Calculate V values
-		'''
-		Value_return = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		V_values = Value_return[0]
-		weights_value = Value_return[1:]
+			'''
+			Calculate V values
+			'''
+			Value_return = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			V_values = Value_return[0]
+			weights_value = Value_return[1:]
+
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
 		if "prd" in self.experiment_type:
@@ -602,16 +614,25 @@ class A2CAgent:
 		# # ***********************************************************************************
 			
 		# **********************************
-		self.critic_optimizer.zero_grad()
-		value_loss.backward(retain_graph=False)
-		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
-		self.critic_optimizer.step()
+		if self.critic_network.name == "SharedTransformerActorCritic":
+			total_loss = policy_loss + value_loss
+			self.actor_critic_optimizer.zero_grad()
+			total_loss.backward(retain_graph=False)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.shared_actor_critic.parameters(),0.5)
+			grad_norm_policy = grad_norm_value
+			self.critic_optimizer.step()
+
+		else:
+			self.critic_optimizer.zero_grad()
+			value_loss.backward(retain_graph=False)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+			self.critic_optimizer.step()
 
 
-		self.policy_optimizer.zero_grad()
-		policy_loss.backward(retain_graph=False)
-		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-		self.policy_optimizer.step()
+			self.policy_optimizer.zero_grad()
+			policy_loss.backward(retain_graph=False)
+			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+			self.policy_optimizer.step()
 
 
 		self.update_parameters()

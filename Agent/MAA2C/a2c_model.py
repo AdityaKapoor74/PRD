@@ -177,8 +177,8 @@ class SharedTransformerActorCritic(nn.Module):
 
 		nn.init.xavier_uniform_(self.key_layer.weight)
 		nn.init.xavier_uniform_(self.query_layer.weight)
-		nn.init.xavier_uniform_(self.self.attention_value_layer_state.weight)
-		nn.init.xavier_uniform_(self.self.attention_value_layer_state_action.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer_state.weight)
+		nn.init.xavier_uniform_(self.attention_value_layer_state_action.weight)
 
 
 		nn.init.xavier_uniform_(self.final_value_layer_1.weight, gain=gain_leaky)
@@ -189,7 +189,7 @@ class SharedTransformerActorCritic(nn.Module):
 
 
 
-	def forward(self, states, policies, actions):
+	def forward(self, states, actions):
 		# EMBED STATES
 		states_embed = self.state_embed(states)
 		# KEYS
@@ -199,7 +199,15 @@ class SharedTransformerActorCritic(nn.Module):
 		# WEIGHT
 		weight = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k_obs_act),dim=-1)
 
+		# POLICY
+		attention_values = self.attention_value_layer_state(states_embed)
+		node_features = torch.matmul(weight,attention_values)
+		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
+		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
+
+
 		# VALUE
+		policies = Policy
 		obs_actions = torch.cat([states,actions],dim=-1)
 		obs_policy = torch.cat([states,policies], dim=-1)
 		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
@@ -215,11 +223,7 @@ class SharedTransformerActorCritic(nn.Module):
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
 		Value = self.final_value_layer_2(Value)
 
-		# POLICY
-		attention_values = self.attention_value_layer_state(states_embed)
-		node_features = torch.matmul(weight,attention_values)
-		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
-		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
+		
 
 		return Value, Policy, weight
 
