@@ -78,12 +78,12 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "PRDvsShared_20Agents_5Teams" #TransformersTest
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_soft_adv_scaled" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "shared" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "Transformer_custom_loss", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"critic_type": "DualTransformer_custom_loss", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": 0,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',

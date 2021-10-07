@@ -143,7 +143,7 @@ class A2CAgent:
 			]
 
 		# TransformerStateTransformerStateAction/ DualTransformerStateDualTransformerStateAction
-		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 		# self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
