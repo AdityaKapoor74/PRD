@@ -142,7 +142,7 @@ class A2CAgent:
 			]
 
 		# TransformerStateTransformerStateAction/ DualTransformerStateDualTransformerStateAction
-		self.critic_network = TransformerStateTransformerAction(obs_dim, 128, self.num_actions, 128, 128, 1, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -579,7 +579,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_value, custom_loss=False)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_value, custom_loss=True)
 		
 		# train other critics
 		if self.critics is not None and self.comet_ml is not None:
