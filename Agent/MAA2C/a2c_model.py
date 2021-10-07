@@ -519,7 +519,7 @@ class DualTransformerStateDualTransformerAction(nn.Module):
 		weighted_attention_values_actions = attention_values_act*weight_obs_transformer2
 		node_features_actions = torch.sum(weighted_attention_values_actions, dim=-2)
 		action_value = F.leaky_relu(self.action_value_layer_1(node_features_actions))
-		action_value = self.state_action_value_layer_2(action_value)
+		action_value = self.action_value_layer_2(action_value)
 
 		Value = state_value.unsqueeze(-1) + action_value
 
