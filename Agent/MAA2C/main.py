@@ -78,7 +78,7 @@ if __name__ == '__main__':
 		extension = "run"+str(i)
 		test_num = "PRDvsShared_20Agents_5Teams" #TransformersTest
 		env_name = "crossing_team_greedy"
-		experiment_type = "shared" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_soft_adv_scaled" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
