@@ -31,7 +31,7 @@ if __name__ == '__main__':
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "Transformer_train_using_predicted_indiv_rews", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"critic_type": "Transformer_train_using_shared_rews", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"reward_predictor_type": "Transformer",
 				"critic_attention_heads": 0,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
