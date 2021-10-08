@@ -6,28 +6,41 @@ from ppo_agent import PPOAgent
 import datetime
 
 
+from comet_ml import Experiment
+import os
+import torch
+import numpy as np
+from ppo_agent import PPOAgent
+import datetime
+
+
 
 class MAPPO:
 
 	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.policy_type = dictionary["policy_type"]
+		self.critic_type = dictionary["critic_type"]
+		self.critic_attention_heads = dictionary["critic_attention_heads"]
+		self.policy_attention_heads = dictionary["policy_attention_heads"]
+		# self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
 		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
-		self.save_tensorboard_plot = dictionary["save_tensorboard_plot"]
+		self.save_comet_ml_plot = dictionary["save_comet_ml_plot"]
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
+		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = env.n
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
-
+		self.test_num = dictionary["test_num"]
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
+		self.experiment_type = dictionary["experiment_type"]
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
-
-		self.agents = PPOAgent(self.env, dictionary)
 
 		self.weight_dictionary = {}
 
@@ -38,10 +51,18 @@ class MAPPO:
 				agent_name_ = 'agent %d' % j
 				self.weight_dictionary[agent_name][agent_name_] = 0
 
-		if self.save_tensorboard_plot:
-			tensorboard_dir = dictionary["tensorboard_dir"]
-			tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)
-			self.writer = SummaryWriter(tensorboard_path)
+		self.agent_group = {}
+		for i in range(self.num_agents):
+			agent_name = 'agent'+str(i)
+			self.agent_group[agent_name] = 0
+
+		self.comet_ml = None
+		if self.save_comet_ml_plot:
+			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["test_num"])
+			self.comet_ml.log_parameters(dictionary)
+
+
+		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -58,9 +79,8 @@ class MAPPO:
 				print("Actor Directory can not be created")
 
 			
-			# paths for models, tensorboard and gifs
-			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)
-			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)
+			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
+			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
 			
 
 		if self.gif:
@@ -70,8 +90,16 @@ class MAPPO:
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+'.gif'
+			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)+'.gif'
 
+
+		if self.eval_policy:
+			self.policy_eval_dir = dictionary["policy_eval_dir"]
+			try: 
+				os.makedirs(self.policy_eval_dir, exist_ok = True) 
+				print("Policy Eval Directory created successfully") 
+			except OSError as error: 
+				print("Policy Eval Directory can not be created")
 
 
 	def get_actions(self,states):
@@ -79,7 +107,7 @@ class MAPPO:
 		return actions
 
 
-	# FOR OTHER ENVIRONMENTS
+	# FOR PAIRED AGENT ENVIRONMENTS
 	def calculate_weights(self,weights):
 		paired_agents_weight = 0
 		paired_agents_weight_count = 0
@@ -99,7 +127,7 @@ class MAPPO:
 		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
 
 
-	# FOR PAIRED AGENT ENV
+	# FOR OTHER ENV
 	def calculate_indiv_weights(self,weights):
 		weights_per_agent = torch.sum(weights,dim=0) / weights.shape[0]
 
@@ -109,36 +137,6 @@ class MAPPO:
 				agent_name_ = 'agent %d' % j
 				self.weight_dictionary[agent_name][agent_name_] = weights_per_agent[i][j].item()
 
-
-	def update(self,episode):
-		
-		value_loss,policy_loss,entropy,grad_norm_value,grad_norm_policy,weights,weight_policy = self.agents.update()
-
-		if self.save_tensorboard_plot:
-			
-			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
-
-			# ENTROPY OF WEIGHTS
-			entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Critic/Entropy', entropy_weights.item(), episode)
-
-			# self.calculate_indiv_weights(weights)
-			# for i in range(self.num_agents):
-			# 	agent_name = 'agent %d' % i
-			# 	self.writer.add_scalars('Weights_Critic/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-
-			# self.calculate_indiv_weights(weight_policy)
-			# for i in range(self.num_agents):
-			# 	agent_name = 'agent %d' % i
-			# 	self.writer.add_scalars('Weights_Policy/Average_Weights/'+agent_name,self.weight_dictionary[agent_name],episode)
-			
-
-			# entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			# self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
 
 
 	def split_states(self,states):
@@ -190,6 +188,14 @@ class MAPPO:
 
 
 	def run(self):  
+		if self.eval_policy:
+			self.rewards = []
+			self.rewards_mean_per_1000_eps = []
+			self.timesteps = []
+			self.timesteps_mean_per_1000_eps = []
+			self.collision_rates = []
+			self.collison_rate_mean_per_1000_eps = []
+
 		for episode in range(1,self.max_episodes+1):
 
 			states = self.env.reset()
@@ -198,7 +204,10 @@ class MAPPO:
 
 			states_critic,states_actor = self.split_states(states)
 
+			trajectory = []
 			episode_reward = 0
+			episode_collision_rate = 0
+			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -218,6 +227,21 @@ class MAPPO:
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
 
+				# next actions
+				# next_actions = self.get_actions(next_states_actor)
+
+
+				# one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
+				# for i,act in enumerate(next_actions):
+				# 	one_hot_next_actions[i][act] = 1
+
+
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+					collision_rate = [value[1] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
+
+
 				if step == self.max_time_steps:
 					dones = [True for _ in range(self.num_agents)]
 
@@ -233,17 +257,35 @@ class MAPPO:
 				states_critic,states_actor = next_states_critic,next_states_actor
 				states = next_states
 
-				if all(dones):
 
-					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
-					print("*"*100)
+				if self.learn:
+					if all(dones):
 
-					if self.save_tensorboard_plot:
-						self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
-						self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+						print("*"*100)
+						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
+						print("*"*100)
 
-					break
+						final_timestep = step
+
+						if self.save_comet_ml_plot:
+							self.comet_ml.log_metric('Episode_Length', step, episode)
+							self.comet_ml.log_metric('Reward', episode_reward, episode)
+							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+
+						break
+
+			if self.eval_policy:
+				self.rewards.append(episode_reward)
+				self.timesteps.append(final_timestep)
+				self.collision_rates.append(episode_collision_rate)
+
+			if episode > self.save_model_checkpoint and episode%self.save_model_checkpoint:
+				if self.eval_policy:
+					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
@@ -251,7 +293,17 @@ class MAPPO:
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if self.learn and episode%self.update_ppo_agent == 0 and episode != 0:
-				self.update(episode) 
+				self.agents.update(episode) 
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
+
+
+		if self.eval_policy:
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			if self.env_name in ["crossing"]:
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
