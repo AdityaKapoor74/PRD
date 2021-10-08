@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
 	for i in range(1,2):
 		extension = "MAPPO"+str(i)
-		test_num = "paired_by_sharing_goals"
+		test_num = "MAPPO_exps"
 		env_name = "paired_by_sharing_goals" # paired_by_sharing_goals, color_social_dilemma, crossing
 		experiment_type = "shared"
 
