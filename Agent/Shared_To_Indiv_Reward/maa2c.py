@@ -254,7 +254,7 @@ class MAA2C:
 				_, predicted_indiv_rewards, _ = self.agents.reward_predictor(torch.FloatTensor([states_critic]).to(self.device))
 				shared_rewards = [np.sum(rewards)]
 
-				indiv_rewards = [np.sum(rewards)]*self.num_agents
+				# indiv_rewards = [np.sum(rewards)]*self.num_agents
 
 				episode_reward += np.sum(rewards)
 

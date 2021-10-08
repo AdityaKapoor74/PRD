@@ -441,7 +441,7 @@ class A2CAgent:
 		shared_reward, indiv_rewards, weight_reward_net = self.reward_predictor(states_critic)
 		reward_loss = F.smooth_l1_loss(shared_reward, shared_rewards)
 
-		# rewards = indiv_rewards.squeeze(-1).detach()
+		rewards = indiv_rewards.squeeze(-1).detach()
 
 	
 		'''
