@@ -1,11 +1,10 @@
 import os
-import torch
+from comet_ml import Experiment
 import numpy as np
 from ppo_agent import PPOAgent
 import datetime
 
 
-from comet_ml import Experiment
 import os
 import torch
 import numpy as np

@@ -5,14 +5,6 @@ from torch.distributions import Categorical
 from ppo_model import *
 import torch.nn.functional as F
 
-
-import numpy as np
-import torch
-import torch.optim as optim
-from torch.distributions import Categorical
-from ppo_model import *
-import torch.nn.functional as F
-
 class PPOAgent:
 
 	def __init__(
@@ -540,9 +532,9 @@ class PPOAgent:
 			self.policy_optimizer.step()
 
 
-			value_loss_batch += critic_loss.item()
-			policy_loss_batch += policy_loss.item()
-			entropy_batch += entropy.item()
+			value_loss_batch += critic_loss
+			policy_loss_batch += policy_loss
+			entropy_batch += entropy
 			grad_norm_value_batch += grad_norm_value
 			grad_norm_policy_batch += grad_norm_policy
 			value_weights_batch += weights.detach()
@@ -573,8 +565,8 @@ class PPOAgent:
 		"entropy": entropy_batch,
 		"grad_norm_value":grad_norm_value_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
-		"weights_value": value_weights_batch,
-		"weights_policy": policy_weights_batch,
+		"weights_value": [value_weights_batch],
+		"weights_policy": [policy_weights_batch],
 		}
 
 		if "threshold" in self.experiment_type:
