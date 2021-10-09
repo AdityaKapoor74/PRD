@@ -620,7 +620,7 @@ class A2CAgent:
 			total_loss.backward(retain_graph=False)
 			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.shared_actor_critic.parameters(),0.5)
 			grad_norm_policy = grad_norm_value
-			self.critic_optimizer.step()
+			self.actor_critic_optimizer.step()
 
 		else:
 			self.critic_optimizer.zero_grad()
