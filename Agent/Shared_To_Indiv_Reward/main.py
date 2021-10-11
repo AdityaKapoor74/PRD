@@ -25,8 +25,8 @@ if __name__ == '__main__':
 	for i in range(1,2):
 		extension = "run"+str(i)
 		test_num = "RewardPredictorTests" #TransformersTest
-		env_name = "paired_by_sharing_goals"
-		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
+		env_name = "crossing_team_greedy"
+		experiment_type = "shared" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.05,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
