@@ -229,7 +229,10 @@ class A2CAgent:
 		self.comet_ml.log_metric('Reward_Loss',self.plotting_dict["reward_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Reward_Predictor',self.plotting_dict["grad_norm_reward_predictor"],episode)
 
-		entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weight_reward_net"] * torch.log(torch.clamp(self.plotting_dict["weight_reward_net"], 1e-10,1.0)), dim=2))
+		# entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weight_reward_net"] * torch.log(torch.clamp(self.plotting_dict["weight_reward_net"], 1e-10,1.0)), dim=2))
+		# self.comet_ml.log_metric('Reward_Predictor_Weight_Entropy', entropy_weights.item(), episode)
+
+		entropy_weights = -torch.mean(self.plotting_dict["weight_reward_net"] * torch.log(torch.clamp(self.plotting_dict["weight_reward_net"], 1e-10,1.0)))
 		self.comet_ml.log_metric('Reward_Predictor_Weight_Entropy', entropy_weights.item(), episode)
 
 		if "threshold" in self.experiment_type:
