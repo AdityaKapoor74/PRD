@@ -83,7 +83,9 @@ class A2CAgent:
 		
 		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
-		self.reward_predictor = TransformerRewardPredictor(obs_dim, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		# self.reward_predictor = TransformerRewardPredictor(obs_dim, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+
+		self.reward_predictor = JointRewardPredictor(obs_dim+self.num_actions, 128, 64, 1).to(self.device)
 
 		# self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
@@ -438,10 +440,17 @@ class A2CAgent:
 		'''
 		Predicting indiv rewards
 		'''
-		shared_reward, indiv_rewards, weight_reward_net = self.reward_predictor(states_critic)
-		reward_loss = F.smooth_l1_loss(shared_reward, shared_rewards)
+		# shared_reward, indiv_rewards, weight_reward_net = self.reward_predictor(states_critic)
+		# reward_loss = F.smooth_l1_loss(shared_reward, shared_rewards)
+		# rewards = indiv_rewards.squeeze(-1).detach()
 
-		rewards = indiv_rewards.squeeze(-1).detach()
+
+		shared_reward, weight_reward_net = self.reward_predictor(states_critic, one_hot_actions)
+		weight_reward_net = weight_reward_net.squeeze(-1)
+		indiv_rewards = shared_reward*weight_reward_net
+		# rewards = indiv_rewards
+		reward_loss = F.smooth_l1_loss(shared_reward, shared_rewards)
+		
 
 	
 		'''

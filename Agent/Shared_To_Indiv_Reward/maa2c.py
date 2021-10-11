@@ -251,11 +251,14 @@ class MAA2C:
 					episode_collision_rate += np.sum(collision_rate)
 
 				indiv_rewards = rewards
-				_, predicted_indiv_rewards, _ = self.agents.reward_predictor(torch.FloatTensor([states_critic]).to(self.device))
+				# JOINT REWARD
 				shared_rewards = [np.sum(rewards)]
 
-				# indiv_rewards = [np.sum(rewards)]*self.num_agents
+				# _, predicted_indiv_rewards, _ = self.agents.reward_predictor(torch.FloatTensor([states_critic]).to(self.device))
+				joint_reward, weight = self.agents.reward_predictor(torch.FloatTensor([states_critic]).to(self.device), torch.FloatTensor([one_hot_actions]).to(self.device))
+				predicted_indiv_rewards = joint_reward*weight
 
+				
 				episode_reward += np.sum(rewards)
 
 
@@ -270,12 +273,14 @@ class MAA2C:
 						final_timestep = step
 
 						if self.save_comet_ml_plot:
-							self.comet_ml.log_metric('Episode_Length', step, episode)
+							self.comet_ml.log_metric('Episode Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
 							for i in range(self.num_agents):
 								agent_num = 'agent_'+str(i)
-								self.comet_ml.log_metric('ActualReward'+agent_num, indiv_rewards[i], episode)
-								self.comet_ml.log_metric('PredictedReward'+agent_num, predicted_indiv_rewards[0][i].item(), episode)
+								self.comet_ml.log_metric('ActualIndivReward'+agent_num, indiv_rewards[i], episode)
+								self.comet_ml.log_metric('PredictedIndivReward'+agent_num, predicted_indiv_rewards[0][i].item(), episode)
+							self.comet_ml.log_metric('ActualJointReward', shared_rewards[0], episode)
+							self.comet_ml.log_metric('PredictedJointReward', joint_reward[0].item(), episode)
 
 							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
 								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)

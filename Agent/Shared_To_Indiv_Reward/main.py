@@ -31,8 +31,8 @@ if __name__ == '__main__':
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "Transformer_train_using_predicted_indiv_rews", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
-				"reward_predictor_type": "Transformer",
+				"critic_type": "Transformer_train_using_true_indiv_rews", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"reward_predictor_type": "JointRewardPredictor",
 				"critic_attention_heads": 0,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 50000,
 				"max_time_steps": 100,

@@ -287,3 +287,70 @@ class TransformerRewardPredictor(nn.Module):
 		shared_reward = torch.sum(indiv_rewards, dim=-2)
 
 		return shared_reward, indiv_rewards, weight
+
+
+
+class JointRewardPredictor(nn.Module):
+	'''
+	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
+	'''
+	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim):
+		super(JointRewardPredictor, self).__init__()
+		
+		self.name = "JointRewardPredictor"
+		
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		# self.device = "cpu"
+
+		self.state_act_embed = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
+		self.attention_weight = nn.Sequential(nn.Linear(128, 64), nn.LeakyReLU(), nn.Linear(64, 1))
+		self.node_feature_embed = nn.Sequential(nn.Linear(128, 64), nn.LeakyReLU(), nn.Linear(64, 64))
+
+		# NOISE
+		self.noise_normal = torch.distributions.Normal(loc=torch.tensor([0.0]), scale=torch.tensor([1.0]))
+		self.noise_uniform = torch.rand
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.reward_predictor = nn.Sequential(nn.Linear(final_input_dim, 64), nn.LeakyReLU(), nn.Linear(64, final_output_dim))
+		# ********************************************************************************************************	
+
+
+		self.reset_parameters()
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.xavier_uniform_(self.state_act_embed[0].weight, gain=gain_leaky)
+
+		nn.init.xavier_uniform_(self.attention_weight[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.attention_weight[2].weight, gain=gain_leaky)
+
+		nn.init.xavier_uniform_(self.node_feature_embed[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.node_feature_embed[2].weight, gain=gain_leaky)
+
+
+		nn.init.xavier_uniform_(self.reward_predictor[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.reward_predictor[2].weight, gain=gain_leaky)
+
+
+
+	def forward(self, states, actions):
+		state_actions = torch.cat([states, actions], dim=-1)
+		# EMBED STATES ACTIONS
+		states_act_embed = self.state_act_embed(state_actions)
+		# FEATURE VECTOR
+		feature_vector = self.node_feature_embed(states_act_embed)
+		# ATTENTION VALUES
+		alpha = self.attention_weight(states_act_embed)
+		# WEIGHT
+		weights = F.softmax(alpha,dim=-2)
+		# NODE FEATURE
+		node_features = torch.sum(weights*feature_vector, dim=-2)
+		# REWARD PREDICTION
+		Reward = self.reward_predictor(node_features)
+
+		return Reward, weights
