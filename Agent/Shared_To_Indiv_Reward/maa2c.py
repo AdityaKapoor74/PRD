@@ -256,7 +256,7 @@ class MAA2C:
 				shared_rewards = [np.sum(rewards)]
 
 				# every agent gets joint reward
-				indiv_rewards = [np.sum(rewards)]*self.num_agents
+				# indiv_rewards = [np.sum(rewards)]*self.num_agents
 
 				# _, predicted_indiv_rewards, _ = self.agents.reward_predictor(torch.FloatTensor([states_critic]).to(self.device))
 				joint_reward, weight = self.agents.reward_predictor(torch.FloatTensor([states_critic]).to(self.device), torch.FloatTensor([one_hot_actions]).to(self.device))
