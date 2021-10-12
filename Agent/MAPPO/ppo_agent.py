@@ -374,6 +374,7 @@ class PPOAgent:
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
 		advantage = None
 		masking_advantage = None
+		mean_min_weight_value = -1
 		if "shared" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
@@ -418,7 +419,7 @@ class PPOAgent:
 			elif "top" in self.experiment_type:
 				advantage = advantage*(self.num_agents/self.top_k)
 
-		return advantage, masking_advantage
+		return advantage, masking_advantage, mean_min_weight_value
 
 	def calculate_policy_loss(self, probs, actions, entropy, advantage):
 		probs = Categorical(probs)
@@ -488,7 +489,7 @@ class PPOAgent:
 			else:
 				weights_prd = None
 
-			advantage, masking_advantage = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
+			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
 
 			if "prd_avg" in self.experiment_type:
 				agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
