@@ -21,9 +21,9 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 
-	for i in range(1,3):
+	for i in range(1,2):
 		extension = "MAPPO"+str(i)
-		test_num = "MAPPOvsMAA2C"
+		test_num = "MAPPO_exps"
 		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing
 		experiment_type = "prd_above_threshold_ascend"
 
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.05,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
