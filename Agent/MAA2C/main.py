@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	for i in range(1,2):
-		extension = "run"+str(i)
+		extension = "MAA2C"+str(i)
 		test_num = "MAPPOvsMAA2C" #TransformersTest
 		env_name = "crossing_team_greedy"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
