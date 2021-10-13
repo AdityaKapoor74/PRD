@@ -43,19 +43,19 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, 
-				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 8e-3, 
-				"entropy_pen_min": 8e-3,
+				"value_lr": 1e-5, #1e-3
+				"policy_lr": 1e-5, #prd 1e-4
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen_min": 1e-3,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.03,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.2,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
