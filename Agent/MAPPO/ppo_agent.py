@@ -456,7 +456,9 @@ class PPOAgent:
 		dones = torch.FloatTensor(self.buffer.dones).to(self.device)
 
 
-		V_values_old, weights = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
+		Values_old = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
+		V_values_old = Values_old[0]
+		weights_value_old = Values_old[1:]
 		V_values_old = V_values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 		discounted_rewards = None
@@ -469,8 +471,8 @@ class PPOAgent:
 		value_loss_batch = 0
 		policy_loss_batch = 0
 		entropy_batch = 0
-		value_weights_batch = torch.zeros_like(weights)
-		policy_weights_batch = torch.zeros_like(weights)
+		value_weights_batch = torch.zeros_like(weights_value_old[-1])
+		policy_weights_batch = torch.zeros_like(weights_value_old[-1])
 		grad_norm_value_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
@@ -538,7 +540,7 @@ class PPOAgent:
 			entropy_batch += entropy
 			grad_norm_value_batch += grad_norm_value
 			grad_norm_policy_batch += grad_norm_policy
-			value_weights_batch += weights.detach()
+			value_weights_batch += weights_value[-1].detach()
 			policy_weights_batch += weights_policy.detach()
 			
 		# Copy new weights into old policy
