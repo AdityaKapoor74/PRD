@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAPPO"+str(i)
 		test_num = "MAPPO_exps"
 		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "prd_soft_adv_scaled"
+		experiment_type = "prd_soft_adv"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
