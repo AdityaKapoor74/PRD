@@ -22,6 +22,7 @@ class PPOAgent:
 		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
+		self.reward_predictor_lr = dictionary["reward_predictor_lr"]
 		self.l1_pen = dictionary["l1_pen"]
 		self.l1_pen_min = dictionary["l1_pen_min"]
 		self.l1_pen_steps_to_take = dictionary["l1_pen_steps_to_take"]
