@@ -87,7 +87,7 @@ class PPOAgent:
 			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 
-		self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 		# self.reward_predictor = TransformerRewardPredictor(obs_dim, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		self.reward_predictor = JointRewardPredictor(obs_dim+self.num_actions, 128, 64, 1).to(self.device)
