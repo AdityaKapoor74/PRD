@@ -146,6 +146,8 @@ class PPOAgent:
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
+		self.reward_predictor_optimizer = optim.Adam(self.reward_predictor.parameters(),lr=self.reward_predictor_lr)
+
 
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
