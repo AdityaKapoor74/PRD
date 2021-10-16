@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAPPO"+str(i)
 		test_num = "MAPPO_exps"
 		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "prd_soft_adv"
+		experiment_type = "prd_top_4"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
-				"top_k": 0,
+				"top_k": 4,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
