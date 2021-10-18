@@ -25,12 +25,12 @@ if __name__ == '__main__':
 		extension = "MAPPO"+str(i)
 		test_num = "MAPPO_exps"
 		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "prd_above_threshold_ascend"
+		experiment_type = "shared"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "DualTransformer", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"critic_type": "NAT", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": 0,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -53,9 +53,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.03,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.2,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
