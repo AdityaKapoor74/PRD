@@ -1,36 +1,20 @@
 from mappo import MAPPO
-
-from multiagent.environment import MultiAgentEnv
-import multiagent.scenarios as scenarios
-
-def make_env(scenario_name, benchmark=False):
-	scenario = scenarios.load(scenario_name + ".py").Scenario()
-	world = scenario.make_world()
-	if benchmark:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
-	else:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env
-
-
-def run_file(dictionary):
-	env = make_env(scenario_name=dictionary["env"],benchmark=False)
-	ma_controller = MAPPO(env,dictionary)
-	ma_controller.run()
+import random
+from pettingzoo.sisl import pursuit_v3
 
 
 if __name__ == '__main__':
 
 	for i in range(1,2):
 		extension = "MAPPO"+str(i)
-		test_num = "MAPPO_exps"
-		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "prd_above_threshold_ascend"
+		test_num = "MAPPO_new_envs"
+		env_name = "pursuit_v3" # paired_by_sharing_goals, color_social_dilemma, crossing
+		experiment_type = "shared"
 
 		dictionary = {
-				"policy_type": "MLP", # MLP/ GCN/ GAT
+				"policy_type": "CNNPolicyBN", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "NAT_rescale", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"critic_type": "CNNTransformerCriticBN", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": 0,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -55,7 +39,7 @@ if __name__ == '__main__':
 				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.03,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
@@ -68,24 +52,16 @@ if __name__ == '__main__':
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
-				"max_time_steps": 100,
+				"max_episodes": 100000,
+				"max_time_steps": 500,
 				"experiment_type": experiment_type,
 				"gae": True,
 				"norm_adv": False,
 				"norm_rew": False,
 			}
-		env = make_env(scenario_name=dictionary["env"],benchmark=False)
+		env = pursuit_v3.env()
+		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
-
-# COLOR SOCIAL DILEMMA PT2
-'''
-Value Lr 1e-3, 1e-3, 1e-3
-Policy Lr 5e-4, 1e-4, 1e-4
-Entropy 1e-3, 1e-3, 8e-4
-Threshold 5e-3, 5e-3, 5e-3
-
-'''

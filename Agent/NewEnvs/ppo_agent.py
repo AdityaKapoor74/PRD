@@ -48,6 +48,10 @@ class PPOAgent:
 		self.policy_clip = dictionary["policy_clip"]
 		self.n_epochs = dictionary["n_epochs"]
 
+		self.agent_counter = 0
+		self.dists = []
+		self.logprobs = []
+
 
 		if "prd_above_threshold_decay" in self.experiment_type:
 			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
@@ -60,47 +64,24 @@ class PPOAgent:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		
-		self.num_agents = self.env.n
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = self.env.num_agents
+		self.num_actions = self.env.action_spaces['pursuer_0'].n
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		if self.env_name == "paired_by_sharing_goals":
-			obs_dim = 2*4
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name == "crossing_greedy":
-		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
-			obs_dim = 2*3
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name == "crossing_fully_coop":
-		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
-			obs_dim = 2*3
-			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name == "color_social_dilemma":
-			obs_dim = 2*2 + 1 + 2*3
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
-		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
-			obs_dim = 2*3 + 1
-			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-
-
-		self.critic_network = NAT(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-
-		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
-			obs_dim = 2*3
-		elif self.env_name in ["color_social_dilemma"]:
-			obs_dim = 2*2 + 1 + 2*3
-		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
-			obs_dim = 2*3 + 1
+		
+		if self.critic_type == "CNNTransformerCriticBN":
+			self.critic_network = CNNTransformerCriticBN(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30).to(self.device)
+		elif self.critic_type == "CNNTransformerCritic":
+			self.critic_network = CNNTransformerCritic(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30).to(self.device)
 
 		# MLP POLICY
-		if self.policy_type == "MLP":
-			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
-			self.policy_network_old = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
-		elif self.policy_type == "Transformer":
-			self.policy_network = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
-			self.policy_network_old = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+		if self.policy_type == "CNNPolicyBN":
+			self.policy_network = CNNPolicyBN(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
+			self.policy_network_old = CNNPolicyBN(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
+		elif self.policy_type == "CNNPolicy":
+			self.policy_network = CNNPolicy(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
+			self.policy_network_old = CNNPolicy(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
 
 		# COPY
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
@@ -151,17 +132,28 @@ class PPOAgent:
 	def get_action(self,state):
 
 		with torch.no_grad():
-			state = torch.FloatTensor([state]).to(self.device)
+			state = torch.FloatTensor(state).to(self.device).permute(0,3,1,2)
 			dists, _ = self.policy_network_old(state)
-			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
-
+			dists = dists[0]
+			action = Categorical(dists).sample().detach().cpu().item()
+			# action = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
 			probs = Categorical(dists)
-			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
+			action_logprob = probs.log_prob(torch.FloatTensor([action]).to(self.device))
 
-			self.buffer.probs.append(dists.detach().cpu())
-			self.buffer.logprobs.append(action_logprob.detach().cpu())
+			self.agent_counter += 1
 
-			return actions
+			
+			self.dists.append(dists.detach().cpu())
+			self.logprobs.append(action_logprob.detach().cpu())
+
+			if self.agent_counter == self.num_agents:
+				self.buffer.probs.append(torch.stack(self.dists))
+				self.buffer.logprobs.append(torch.stack(self.logprobs))
+				self.dists = []
+				self.logprobs = []
+				self.agent_counter = 0
+
+			return action
 
 
 	def calculate_advantages(self,returns, values, rewards, dones):
@@ -446,8 +438,9 @@ class PPOAgent:
 	def update(self,episode):
 
 		# convert list to tensor
-		old_states_critic = torch.FloatTensor(self.buffer.states_critic).to(self.device)
-		old_states_actor = torch.FloatTensor(self.buffer.states_actor).to(self.device)
+		old_states = torch.FloatTensor(self.buffer.states).to(self.device)
+		old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
+		# old_states = old_states.permute(0,1,4,2,3)
 		old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
 		old_one_hot_actions = torch.FloatTensor(self.buffer.one_hot_actions).to(self.device)
 		old_probs = torch.stack(self.buffer.probs).squeeze(1).to(self.device)
@@ -456,7 +449,7 @@ class PPOAgent:
 		dones = torch.FloatTensor(self.buffer.dones).to(self.device)
 
 
-		Values_old = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
+		Values_old = self.critic_network(old_states, old_probs, old_one_hot_actions)
 		V_values_old = Values_old[0]
 		weights_value_old = Values_old[1:]
 		V_values_old = V_values_old.reshape(-1,self.num_agents,self.num_agents)
@@ -481,7 +474,7 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
+			Value = self.critic_network(old_states, old_probs, old_one_hot_actions)
 			V_values = Value[0]
 			weights_value = Value[1:]
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
@@ -505,12 +498,12 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
 			# Evaluating old actions and values
-			dists, weights_policy = self.policy_network(old_states_actor)
+			dists, weights_policy = self.policy_network(old_states)
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions)
 
 			# Finding the ratio (pi_theta / pi_theta__old)
-			ratios = torch.exp(logprobs - old_logprobs)
+			ratios = torch.exp(logprobs - old_logprobs.squeeze(-1))
 			# Finding Surrogate Loss
 			surr1 = ratios * advantage.detach()
 			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
