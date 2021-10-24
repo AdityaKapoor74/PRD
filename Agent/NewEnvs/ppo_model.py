@@ -134,8 +134,8 @@ class CNNPolicy(nn.Module):
 
 		torch.nn.init.xavier_uniform_(self.Policy[0].weight)
 		torch.nn.init.xavier_uniform_(self.Policy[2].weight)
-		torch.nn.init.xavier_uniform_(self.Policy[4].weight)
-		torch.nn.init.xavier_uniform_(self.Policy[6].weight)
+		# torch.nn.init.xavier_uniform_(self.Policy[4].weight)
+		# torch.nn.init.xavier_uniform_(self.Policy[6].weight)
 		
 	def forward(self, local_images):
 
@@ -359,8 +359,8 @@ class CNNTransformerCritic(nn.Module):
 		torch.nn.init.xavier_uniform_(self.CNN[6].weight)
 
 		torch.nn.init.xavier_uniform_(self.CNN_post[0].weight)
-		torch.nn.init.xavier_uniform_(self.CNN_post[2].weight)
-		torch.nn.init.xavier_uniform_(self.CNN_post[4].weight)
+		# torch.nn.init.xavier_uniform_(self.CNN_post[2].weight)
+		# torch.nn.init.xavier_uniform_(self.CNN_post[4].weight)
 
 		nn.init.xavier_uniform_(self.state_embed[0].weight, gain=gain_leaky)
 		nn.init.xavier_uniform_(self.state_act_pol_embed[0].weight, gain=gain_leaky)
