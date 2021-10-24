@@ -141,7 +141,10 @@ class CNNPolicy(nn.Module):
 
 		local_images = local_images.float() / self.scaling
 		local_image_embeddings = self.CNN(local_images)
-		local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0]//self.num_agents, self.num_agents,-1)
+		if local_image_embeddings.shape[0] == 1:
+			local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0], -1)
+		else:
+			local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0]//self.num_agents, self.num_agents,-1)
 		# T x num_agents x state_dim
 		T = local_image_embeddings.shape[0]
 		x = self.Policy(local_image_embeddings)
