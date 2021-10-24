@@ -120,11 +120,11 @@ class CNNPolicy(nn.Module):
 		self.Policy = nn.Sequential(
 			nn.Linear(4 * 4 * 64, 512),
 			nn.LeakyReLU(),
-			nn.Linear(512, 128),
-			nn.LeakyReLU(),
-			nn.Linear(128, 64),
-			nn.LeakyReLU(),
-			nn.Linear(64, num_actions)
+			# nn.Linear(512, 128),
+			# nn.LeakyReLU(),
+			# nn.Linear(128, 64),
+			# nn.LeakyReLU(),
+			nn.Linear(512, num_actions)
 			)
 
 	def reset_parameters(self):
@@ -306,12 +306,12 @@ class CNNTransformerCritic(nn.Module):
 			)
 
 		self.CNN_post = nn.Sequential(
-			nn.Linear(4 * 4 * 64, 512),
+			nn.Linear(4 * 4 * 64, 128),
 			nn.LeakyReLU(),
-			nn.Linear(512, 128),
-			nn.LeakyReLU(),
-			nn.Linear(128, 128),
-			nn.LeakyReLU()
+			# nn.Linear(512, 128),
+			# nn.LeakyReLU(),
+			# nn.Linear(128, 128),
+			# nn.LeakyReLU()
 			)
 
 

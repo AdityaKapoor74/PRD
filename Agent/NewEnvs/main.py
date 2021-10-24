@@ -12,9 +12,9 @@ if __name__ == '__main__':
 		experiment_type = "shared"
 
 		dictionary = {
-				"policy_type": "CNNPolicyBN", # MLP/ GCN/ GAT
+				"policy_type": "CNNPolicy", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"critic_type": "CNNTransformerCriticBN", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
+				"critic_type": "CNNTransformerCritic", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": 0,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -29,8 +29,8 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 1e-4, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 0, #8e-3
-				"entropy_pen_min": 0,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_min": 1e-2,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
