@@ -355,8 +355,8 @@ class CNNTransformerCritic(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		torch.nn.init.xavier_uniform_(self.CNN[0].weight)
-		torch.nn.init.xavier_uniform_(self.CNN[3].weight)
-		torch.nn.init.xavier_uniform_(self.CNN[6].weight)
+		torch.nn.init.xavier_uniform_(self.CNN[2].weight)
+		torch.nn.init.xavier_uniform_(self.CNN[4].weight)
 
 		torch.nn.init.xavier_uniform_(self.CNN_post[0].weight)
 		# torch.nn.init.xavier_uniform_(self.CNN_post[2].weight)
