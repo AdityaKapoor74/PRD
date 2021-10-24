@@ -381,7 +381,7 @@ class CNNTransformerCritic(nn.Module):
 	def forward(self, local_images, policies, actions):
 		local_images = local_images.float() / self.scaling
 		local_image_embeddings = self.CNN(local_images)
-		local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0],-1)
+		local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0]//self.num_agents, self.num_agents, -1)
 		states = self.CNN_post(local_image_embeddings)
 
 		# EMBED STATES
