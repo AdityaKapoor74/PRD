@@ -131,7 +131,7 @@ class PPOAgent:
 
 		with torch.no_grad():
 			# Batch x Num agents x channels x H x W
-			state = torch.FloatTensor([state]).to(self.device).permute(0,1,4,2,3)
+			state = torch.FloatTensor([state]).to(self.device).permute(0,1,4,2,3).contiguous()
 			dists, _ = self.policy_network_old(state)
 			dists = dists[0]
 			action = Categorical(dists).sample().detach().cpu().item()
@@ -437,7 +437,7 @@ class PPOAgent:
 	def update(self,episode):
 
 		# convert list to tensor
-		old_states = torch.FloatTensor(self.buffer.states).to(self.device).permute(0,1,4,2,3)
+		old_states = torch.FloatTensor(self.buffer.states).to(self.device).permute(0,1,4,2,3).contiguous()
 		# old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
 		# old_states = old_states.permute(0,1,4,2,3)
 		old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
@@ -464,8 +464,8 @@ class PPOAgent:
 		value_loss_batch = 0
 		policy_loss_batch = 0
 		entropy_batch = 0
-		value_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents)
-		policy_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents)
+		value_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents).to(self.device)
+		policy_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents).to(self.device)
 		grad_norm_value_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
