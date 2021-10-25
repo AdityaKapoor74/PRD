@@ -477,7 +477,7 @@ class PPOAgent:
 
 			for i in range(0, old_states.shape[0]-self.sample_batch_size, self.sample_batch_size):
 
-				Value = self.critic_network(old_states[i:i+self.sample_batch_size], old_probs[i:i+self.sample_batch_size], old_one_hot_actions[i:i+self.sample_batch_size])
+				Value = self.critic_network(old_states[i:i+self.sample_batch_size, :], old_probs[i:i+self.sample_batch_size, :], old_one_hot_actions[i:i+self.sample_batch_size, :])
 				V_values = Value[0]
 				weights_value = Value[1:]
 				V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
@@ -487,7 +487,7 @@ class PPOAgent:
 				else:
 					weights_prd = None
 
-				advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards[i:i+self.sample_batch_size], V_values, rewards[i:i+self.sample_batch_size], dones[i:i+self.sample_batch_size], weights_prd, episode)
+				advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards[i:i+self.sample_batch_size, :], V_values, rewards[i:i+self.sample_batch_size, :], dones[i:i+self.sample_batch_size, :], weights_prd, episode)
 
 				if "prd_avg" in self.experiment_type:
 					agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
