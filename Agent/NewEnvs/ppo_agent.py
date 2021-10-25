@@ -62,8 +62,10 @@ class PPOAgent:
 		if "prd_above_threshold_l1_pen_decay" in self.experiment_type:
 			self.l1_pen_delta = (self.l1_pen - self.l1_pen_min)/self.l1_pen_steps_to_take
 
-		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		# self.device = "cpu"
+		if dictionary["device"] == "cpu":
+			self.device = "cpu"
+		else:
+			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		
 		self.num_agents = self.env.num_agents
 		self.num_actions = self.env.action_spaces['pursuer_0'].n
@@ -71,18 +73,13 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 
 		
-		if self.critic_type == "CNNTransformerCriticBN":
-			self.critic_network = CNNTransformerCriticBN(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30).to(self.device)
-		elif self.critic_type == "CNNTransformerCritic":
-			self.critic_network = CNNTransformerCritic(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30).to(self.device)
+		if self.critic_type == "CNNTransformerCritic":
+			self.critic_network = CNNTransformerCritic(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30, device=self.device).to(self.device)
 
 		# MLP POLICY
-		if self.policy_type == "CNNPolicyBN":
-			self.policy_network = CNNPolicyBN(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
-			self.policy_network_old = CNNPolicyBN(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
-		elif self.policy_type == "CNNPolicy":
-			self.policy_network = CNNPolicy(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
-			self.policy_network_old = CNNPolicy(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30).to(self.device)
+		if self.policy_type == "CNNPolicy":
+			self.policy_network = CNNPolicy(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30, device=self.device).to(self.device)
+			self.policy_network_old = CNNPolicy(num_channels=3, num_actions=self.num_actions, num_agents=self.num_agents, scaling=30, device=self.device).to(self.device)
 
 		# COPY
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
@@ -133,7 +130,8 @@ class PPOAgent:
 	def get_action(self,state):
 
 		with torch.no_grad():
-			state = torch.FloatTensor(state).to(self.device).permute(0,3,1,2)
+			# Batch x Num agents x channels x H x W
+			state = torch.FloatTensor([state]).to(self.device).permute(0,1,4,2,3)
 			dists, _ = self.policy_network_old(state)
 			dists = dists[0]
 			action = Categorical(dists).sample().detach().cpu().item()
@@ -439,8 +437,8 @@ class PPOAgent:
 	def update(self,episode):
 
 		# convert list to tensor
-		old_states = torch.FloatTensor(self.buffer.states).to(self.device)
-		old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
+		old_states = torch.FloatTensor(self.buffer.states).to(self.device).permute(0,1,4,2,3)
+		# old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
 		# old_states = old_states.permute(0,1,4,2,3)
 		old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
 		old_one_hot_actions = torch.FloatTensor(self.buffer.one_hot_actions).to(self.device)
@@ -462,15 +460,17 @@ class PPOAgent:
 		elif self.critic_loss_type == "TD_lambda":
 			Value_target = self.nstep_returns(V_values_old, rewards, dones).detach()
 
+
 		value_loss_batch = 0
 		policy_loss_batch = 0
 		entropy_batch = 0
-		value_weights_batch = torch.zeros_like(weights_value_old[-1])
-		policy_weights_batch = torch.zeros_like(weights_value_old[-1])
+		value_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents)
+		policy_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents)
 		grad_norm_value_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
+
 		
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
@@ -487,7 +487,11 @@ class PPOAgent:
 				else:
 					weights_prd = None
 
-				advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards[i:i+self.sample_batch_size, :], V_values, rewards[i:i+self.sample_batch_size, :], dones[i:i+self.sample_batch_size, :], weights_prd, episode)
+				if discounted_rewards is not None:
+					discounted_rewards_batch = discounted_rewards[i:i+self.sample_batch_size, :]
+				else:
+					discounted_rewards_batch = None
+				advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards_batch, V_values, rewards[i:i+self.sample_batch_size, :], dones[i:i+self.sample_batch_size, :], weights_prd, episode)
 
 				if "prd_avg" in self.experiment_type:
 					agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
@@ -501,12 +505,12 @@ class PPOAgent:
 					avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
 				# Evaluating old actions and values
-				dists, weights_policy = self.policy_network(old_states)
+				dists, weights_policy = self.policy_network(old_states[i:i+self.sample_batch_size, :])
 				probs = Categorical(dists)
-				logprobs = probs.log_prob(old_actions)
+				logprobs = probs.log_prob(old_actions[i:i+self.sample_batch_size, :])
 
 				# Finding the ratio (pi_theta / pi_theta__old)
-				ratios = torch.exp(logprobs - old_logprobs.squeeze(-1))
+				ratios = torch.exp(logprobs - old_logprobs[i:i+self.sample_batch_size, :].squeeze(-1))
 				# Finding Surrogate Loss
 				surr1 = ratios * advantage.detach()
 				surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
@@ -516,7 +520,7 @@ class PPOAgent:
 				policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 
 
-				critic_loss = F.smooth_l1_loss(V_values, Value_target)
+				critic_loss = F.smooth_l1_loss(V_values, Value_target[i:i+self.sample_batch_size, :])
 				
 				
 				# take gradient step
