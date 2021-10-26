@@ -434,159 +434,11 @@ class PPOAgent:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
 
-	def update(self,episode):
-
-		# convert list to tensor
-		old_states = torch.FloatTensor(self.buffer.states).to(self.device).permute(0,1,4,2,3).contiguous()
-		# old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
-		# old_states = old_states.permute(0,1,4,2,3)
-		old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
-		old_one_hot_actions = torch.FloatTensor(self.buffer.one_hot_actions).to(self.device)
-		old_probs = torch.stack(self.buffer.probs).squeeze(1).to(self.device)
-		old_logprobs = torch.stack(self.buffer.logprobs).squeeze(1).to(self.device)
-		rewards = torch.FloatTensor(self.buffer.rewards).to(self.device)
-		dones = torch.FloatTensor(self.buffer.dones).to(self.device)
-
-
-		Values_old = self.critic_network(old_states, old_probs, old_one_hot_actions)
-		V_values_old = Values_old[0]
-		weights_value_old = Values_old[1:]
-		V_values_old = V_values_old.reshape(-1,self.num_agents,self.num_agents)
-		
-		discounted_rewards = None
-		if self.critic_loss_type == "MC":
-			discounted_rewards = self.calculate_returns(rewards, dones).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
-			Value_target = torch.transpose(discounted_rewards,-1,-2)
-		elif self.critic_loss_type == "TD_lambda":
-			Value_target = self.nstep_returns(V_values_old, rewards, dones).detach()
-
-
-		value_loss_batch = 0
-		policy_loss_batch = 0
-		entropy_batch = 0
-		value_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents).to(self.device)
-		policy_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents).to(self.device)
-		grad_norm_value_batch = 0
-		grad_norm_policy_batch = 0
-		agent_groups_over_episode_batch = 0
-		avg_agent_group_over_episode_batch = 0
-
-		
-		# Optimize policy for n epochs
-		for _ in range(self.n_epochs):
-
-			for i in range(0, old_states.shape[0]-self.sample_batch_size, self.sample_batch_size):
-
-				Value = self.critic_network(old_states[i:i+self.sample_batch_size, :], old_probs[i:i+self.sample_batch_size, :], old_one_hot_actions[i:i+self.sample_batch_size, :])
-				V_values = Value[0]
-				weights_value = Value[1:]
-				V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-
-				if "prd" in self.experiment_type:
-					weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
-				else:
-					weights_prd = None
-
-				if discounted_rewards is not None:
-					discounted_rewards_batch = discounted_rewards[i:i+self.sample_batch_size, :]
-				else:
-					discounted_rewards_batch = None
-				advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards_batch, V_values, rewards[i:i+self.sample_batch_size, :], dones[i:i+self.sample_batch_size, :], weights_prd, episode)
-
-				if "prd_avg" in self.experiment_type:
-					agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
-					avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
-					agent_groups_over_episode_batch += agent_groups_over_episode
-					avg_agent_group_over_episode_batch += avg_agent_group_over_episode
-				elif "threshold" in self.experiment_type:
-					agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
-					avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-					agent_groups_over_episode_batch += agent_groups_over_episode
-					avg_agent_group_over_episode_batch += avg_agent_group_over_episode
-
-				# Evaluating old actions and values
-				dists, weights_policy = self.policy_network(old_states[i:i+self.sample_batch_size, :])
-				probs = Categorical(dists)
-				logprobs = probs.log_prob(old_actions[i:i+self.sample_batch_size, :])
-
-				# Finding the ratio (pi_theta / pi_theta__old)
-				ratios = torch.exp(logprobs - old_logprobs[i:i+self.sample_batch_size, :].squeeze(-1))
-				# Finding Surrogate Loss
-				surr1 = ratios * advantage.detach()
-				surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
-
-				# final loss of clipped objective PPO
-				entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
-				policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
-
-
-				critic_loss = F.smooth_l1_loss(V_values, Value_target[i:i+self.sample_batch_size, :])
-				
-				
-				# take gradient step
-				self.critic_optimizer.zero_grad()
-				critic_loss.backward()
-				grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
-				self.critic_optimizer.step()
-
-				self.policy_optimizer.zero_grad()
-				policy_loss.backward()
-				grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-				self.policy_optimizer.step()
-
-
-				value_loss_batch += critic_loss
-				policy_loss_batch += policy_loss
-				entropy_batch += entropy
-				grad_norm_value_batch += grad_norm_value
-				grad_norm_policy_batch += grad_norm_policy
-				value_weights_batch += weights_value[-1].detach()
-				policy_weights_batch += weights_policy.detach()
-				
-		# Copy new weights into old policy
-		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
-
-		# clear buffer
-		self.buffer.clear()
-
-		value_loss_batch /= (self.n_epochs*self.sample_batch_size)
-		policy_loss_batch /= (self.n_epochs*self.sample_batch_size)
-		entropy_batch /= (self.n_epochs*self.sample_batch_size)
-		grad_norm_value_batch /= (self.n_epochs*self.sample_batch_size)
-		grad_norm_policy_batch /= (self.n_epochs*self.sample_batch_size)
-		value_weights_batch /= (self.n_epochs*self.sample_batch_size)
-		policy_weights_batch /= (self.n_epochs*self.sample_batch_size)
-		agent_groups_over_episode_batch /= (self.n_epochs*self.sample_batch_size)
-		avg_agent_group_over_episode_batch /= (self.n_epochs*self.sample_batch_size)
-
-		self.update_parameters()
-
-
-		self.plotting_dict = {
-		"value_loss": value_loss_batch,
-		"policy_loss": policy_loss_batch,
-		"entropy": entropy_batch,
-		"grad_norm_value":grad_norm_value_batch,
-		"grad_norm_policy": grad_norm_policy_batch,
-		"weights_value": [value_weights_batch],
-		"weights_policy": [policy_weights_batch],
-		}
-
-		if "threshold" in self.experiment_type:
-			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode_batch
-			self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode_batch
-		if "prd_top" in self.experiment_type:
-			self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
-
-		if self.comet_ml is not None:
-			self.plot(episode)
-
-
 	# def update(self,episode):
 
 	# 	# convert list to tensor
-	# 	old_states = torch.FloatTensor(self.buffer.states).to(self.device)
-	# 	old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
+	# 	old_states = torch.FloatTensor(self.buffer.states).to(self.device).permute(0,1,4,2,3).contiguous()
+	# 	# old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
 	# 	# old_states = old_states.permute(0,1,4,2,3)
 	# 	old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
 	# 	old_one_hot_actions = torch.FloatTensor(self.buffer.one_hot_actions).to(self.device)
@@ -608,96 +460,104 @@ class PPOAgent:
 	# 	elif self.critic_loss_type == "TD_lambda":
 	# 		Value_target = self.nstep_returns(V_values_old, rewards, dones).detach()
 
+
 	# 	value_loss_batch = 0
 	# 	policy_loss_batch = 0
 	# 	entropy_batch = 0
-	# 	value_weights_batch = torch.zeros_like(weights_value_old[-1])
-	# 	policy_weights_batch = torch.zeros_like(weights_value_old[-1])
+	# 	value_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents).to(self.device)
+	# 	policy_weights_batch = torch.zeros(self.sample_batch_size, self.num_agents, self.num_agents).to(self.device)
 	# 	grad_norm_value_batch = 0
 	# 	grad_norm_policy_batch = 0
 	# 	agent_groups_over_episode_batch = 0
 	# 	avg_agent_group_over_episode_batch = 0
+
 		
 	# 	# Optimize policy for n epochs
 	# 	for _ in range(self.n_epochs):
 
-	# 		Value = self.critic_network(old_states, old_probs, old_one_hot_actions)
-	# 		V_values = Value[0]
-	# 		weights_value = Value[1:]
-	# 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+	# 		for i in range(0, old_states.shape[0]-self.sample_batch_size, self.sample_batch_size):
 
-	# 		if "prd" in self.experiment_type:
-	# 			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
-	# 		else:
-	# 			weights_prd = None
+	# 			Value = self.critic_network(old_states[i:i+self.sample_batch_size, :], old_probs[i:i+self.sample_batch_size, :], old_one_hot_actions[i:i+self.sample_batch_size, :])
+	# 			V_values = Value[0]
+	# 			weights_value = Value[1:]
+	# 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
-	# 		advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
+	# 			if "prd" in self.experiment_type:
+	# 				weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
+	# 			else:
+	# 				weights_prd = None
 
-	# 		if "prd_avg" in self.experiment_type:
-	# 			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
-	# 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
-	# 			agent_groups_over_episode_batch += agent_groups_over_episode
-	# 			avg_agent_group_over_episode_batch += avg_agent_group_over_episode
-	# 		elif "threshold" in self.experiment_type:
-	# 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
-	# 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-	# 			agent_groups_over_episode_batch += agent_groups_over_episode
-	# 			avg_agent_group_over_episode_batch += avg_agent_group_over_episode
+	# 			if discounted_rewards is not None:
+	# 				discounted_rewards_batch = discounted_rewards[i:i+self.sample_batch_size, :]
+	# 			else:
+	# 				discounted_rewards_batch = None
+	# 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards_batch, V_values, rewards[i:i+self.sample_batch_size, :], dones[i:i+self.sample_batch_size, :], weights_prd, episode)
 
-	# 		# Evaluating old actions and values
-	# 		dists, weights_policy = self.policy_network(old_states)
-	# 		probs = Categorical(dists)
-	# 		logprobs = probs.log_prob(old_actions)
+	# 			if "prd_avg" in self.experiment_type:
+	# 				agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
+	# 				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
+	# 				agent_groups_over_episode_batch += agent_groups_over_episode
+	# 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
+	# 			elif "threshold" in self.experiment_type:
+	# 				agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+	# 				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+	# 				agent_groups_over_episode_batch += agent_groups_over_episode
+	# 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
-	# 		# Finding the ratio (pi_theta / pi_theta__old)
-	# 		ratios = torch.exp(logprobs - old_logprobs.squeeze(-1))
-	# 		# Finding Surrogate Loss
-	# 		surr1 = ratios * advantage.detach()
-	# 		surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
+	# 			# Evaluating old actions and values
+	# 			dists, weights_policy = self.policy_network(old_states[i:i+self.sample_batch_size, :])
+	# 			probs = Categorical(dists)
+	# 			logprobs = probs.log_prob(old_actions[i:i+self.sample_batch_size, :])
 
-	# 		# final loss of clipped objective PPO
-	# 		entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
-	# 		policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
+	# 			# Finding the ratio (pi_theta / pi_theta__old)
+	# 			ratios = torch.exp(logprobs - old_logprobs[i:i+self.sample_batch_size, :].squeeze(-1))
+	# 			# Finding Surrogate Loss
+	# 			surr1 = ratios * advantage.detach()
+	# 			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
 
-
-	# 		critic_loss = F.smooth_l1_loss(V_values, Value_target)
-			
-			
-	# 		# take gradient step
-	# 		self.critic_optimizer.zero_grad()
-	# 		critic_loss.backward()
-	# 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
-	# 		self.critic_optimizer.step()
-
-	# 		self.policy_optimizer.zero_grad()
-	# 		policy_loss.backward()
-	# 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
-	# 		self.policy_optimizer.step()
+	# 			# final loss of clipped objective PPO
+	# 			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
+	# 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 
 
-	# 		value_loss_batch += critic_loss
-	# 		policy_loss_batch += policy_loss
-	# 		entropy_batch += entropy
-	# 		grad_norm_value_batch += grad_norm_value
-	# 		grad_norm_policy_batch += grad_norm_policy
-	# 		value_weights_batch += weights_value[-1].detach()
-	# 		policy_weights_batch += weights_policy.detach()
-			
+	# 			critic_loss = F.smooth_l1_loss(V_values, Value_target[i:i+self.sample_batch_size, :])
+				
+				
+	# 			# take gradient step
+	# 			self.critic_optimizer.zero_grad()
+	# 			critic_loss.backward()
+	# 			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+	# 			self.critic_optimizer.step()
+
+	# 			self.policy_optimizer.zero_grad()
+	# 			policy_loss.backward()
+	# 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+	# 			self.policy_optimizer.step()
+
+
+	# 			value_loss_batch += critic_loss
+	# 			policy_loss_batch += policy_loss
+	# 			entropy_batch += entropy
+	# 			grad_norm_value_batch += grad_norm_value
+	# 			grad_norm_policy_batch += grad_norm_policy
+	# 			value_weights_batch += weights_value[-1].detach()
+	# 			policy_weights_batch += weights_policy.detach()
+				
 	# 	# Copy new weights into old policy
 	# 	self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
 	# 	# clear buffer
 	# 	self.buffer.clear()
 
-	# 	value_loss_batch /= self.n_epochs
-	# 	policy_loss_batch /= self.n_epochs
-	# 	entropy_batch /= self.n_epochs
-	# 	grad_norm_value_batch /= self.n_epochs
-	# 	grad_norm_policy_batch /= self.n_epochs
-	# 	value_weights_batch /= self.n_epochs
-	# 	policy_weights_batch /= self.n_epochs
-	# 	agent_groups_over_episode_batch /= self.n_epochs
-	# 	avg_agent_group_over_episode_batch /= self.n_epochs
+	# 	value_loss_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	policy_loss_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	entropy_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	grad_norm_value_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	grad_norm_policy_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	value_weights_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	policy_weights_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	agent_groups_over_episode_batch /= (self.n_epochs*self.sample_batch_size)
+	# 	avg_agent_group_over_episode_batch /= (self.n_epochs*self.sample_batch_size)
 
 	# 	self.update_parameters()
 
@@ -720,3 +580,143 @@ class PPOAgent:
 
 	# 	if self.comet_ml is not None:
 	# 		self.plot(episode)
+
+
+	def update(self,episode):
+
+		# convert list to tensor
+		old_states = torch.FloatTensor(self.buffer.states).to(self.device)
+		old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
+		# old_states = old_states.permute(0,1,4,2,3)
+		old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
+		old_one_hot_actions = torch.FloatTensor(self.buffer.one_hot_actions).to(self.device)
+		old_probs = torch.stack(self.buffer.probs).squeeze(1).to(self.device)
+		old_logprobs = torch.stack(self.buffer.logprobs).squeeze(1).to(self.device)
+		rewards = torch.FloatTensor(self.buffer.rewards).to(self.device)
+		dones = torch.FloatTensor(self.buffer.dones).to(self.device)
+
+
+		Values_old = self.critic_network(old_states, old_probs, old_one_hot_actions)
+		V_values_old = Values_old[0]
+		weights_value_old = Values_old[1:]
+		V_values_old = V_values_old.reshape(-1,self.num_agents,self.num_agents)
+		
+		discounted_rewards = None
+		if self.critic_loss_type == "MC":
+			discounted_rewards = self.calculate_returns(rewards, dones).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+			Value_target = torch.transpose(discounted_rewards,-1,-2)
+		elif self.critic_loss_type == "TD_lambda":
+			Value_target = self.nstep_returns(V_values_old, rewards, dones).detach()
+
+		value_loss_batch = 0
+		policy_loss_batch = 0
+		entropy_batch = 0
+		value_weights_batch = torch.zeros_like(weights_value_old[-1])
+		policy_weights_batch = torch.zeros_like(weights_value_old[-1])
+		grad_norm_value_batch = 0
+		grad_norm_policy_batch = 0
+		agent_groups_over_episode_batch = 0
+		avg_agent_group_over_episode_batch = 0
+		
+		# Optimize policy for n epochs
+		for _ in range(self.n_epochs):
+
+			Value = self.critic_network(old_states, old_probs, old_one_hot_actions)
+			V_values = Value[0]
+			weights_value = Value[1:]
+			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+
+			if "prd" in self.experiment_type:
+				weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
+			else:
+				weights_prd = None
+
+			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
+
+			if "prd_avg" in self.experiment_type:
+				agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
+				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
+				agent_groups_over_episode_batch += agent_groups_over_episode
+				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
+			elif "threshold" in self.experiment_type:
+				agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+				agent_groups_over_episode_batch += agent_groups_over_episode
+				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
+
+			# Evaluating old actions and values
+			dists, weights_policy = self.policy_network(old_states)
+			probs = Categorical(dists)
+			logprobs = probs.log_prob(old_actions)
+
+			# Finding the ratio (pi_theta / pi_theta__old)
+			ratios = torch.exp(logprobs - old_logprobs.squeeze(-1))
+			# Finding Surrogate Loss
+			surr1 = ratios * advantage.detach()
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
+
+			# final loss of clipped objective PPO
+			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
+			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
+
+
+			critic_loss = F.smooth_l1_loss(V_values, Value_target)
+			
+			
+			# take gradient step
+			self.critic_optimizer.zero_grad()
+			critic_loss.backward()
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+			self.critic_optimizer.step()
+
+			self.policy_optimizer.zero_grad()
+			policy_loss.backward()
+			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+			self.policy_optimizer.step()
+
+
+			value_loss_batch += critic_loss
+			policy_loss_batch += policy_loss
+			entropy_batch += entropy
+			grad_norm_value_batch += grad_norm_value
+			grad_norm_policy_batch += grad_norm_policy
+			value_weights_batch += weights_value[-1].detach()
+			policy_weights_batch += weights_policy.detach()
+			
+		# Copy new weights into old policy
+		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+
+		# clear buffer
+		self.buffer.clear()
+
+		value_loss_batch /= self.n_epochs
+		policy_loss_batch /= self.n_epochs
+		entropy_batch /= self.n_epochs
+		grad_norm_value_batch /= self.n_epochs
+		grad_norm_policy_batch /= self.n_epochs
+		value_weights_batch /= self.n_epochs
+		policy_weights_batch /= self.n_epochs
+		agent_groups_over_episode_batch /= self.n_epochs
+		avg_agent_group_over_episode_batch /= self.n_epochs
+
+		self.update_parameters()
+
+
+		self.plotting_dict = {
+		"value_loss": value_loss_batch,
+		"policy_loss": policy_loss_batch,
+		"entropy": entropy_batch,
+		"grad_norm_value":grad_norm_value_batch,
+		"grad_norm_policy": grad_norm_policy_batch,
+		"weights_value": [value_weights_batch],
+		"weights_policy": [policy_weights_batch],
+		}
+
+		if "threshold" in self.experiment_type:
+			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode_batch
+			self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode_batch
+		if "prd_top" in self.experiment_type:
+			self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
+
+		if self.comet_ml is not None:
+			self.plot(episode)

@@ -9,7 +9,7 @@ if __name__ == '__main__':
 		extension = "MAPPO"+str(i)
 		test_num = "MAPPO_new_envs"
 		env_name = "pursuit_v3" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "shared"
+		experiment_type = "prd_above_threshold_ascend"
 
 		dictionary = {
 				"policy_type": "CNNPolicy", # MLP/ GCN/ GAT
@@ -23,7 +23,7 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.1,
 				"n_epochs": 10,
-				"sample_batch_size": 20,
+				"sample_batch_size": 500,
 				"update_ppo_agent": 1, # update ppo agent after every 4 episodes
 				"env": env_name, 
 				"test_num":test_num,
@@ -41,7 +41,7 @@ if __name__ == '__main__':
 				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.03,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
