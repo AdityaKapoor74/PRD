@@ -585,8 +585,9 @@ class PPOAgent:
 	def update(self,episode):
 
 		# convert list to tensor
-		old_states = torch.FloatTensor(self.buffer.states).to(self.device)
-		old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
+		old_states = torch.FloatTensor(self.buffer.states).to(self.device).permute(0,1,4,2,3).contiguous()
+		# old_states = torch.FloatTensor(self.buffer.states).to(self.device)
+		# old_states = old_states.reshape(-1, old_states.shape[2], old_states.shape[3], old_states.shape[4]).permute(0,3,1,2)
 		# old_states = old_states.permute(0,1,4,2,3)
 		old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
 		old_one_hot_actions = torch.FloatTensor(self.buffer.one_hot_actions).to(self.device)
