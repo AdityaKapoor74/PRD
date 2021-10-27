@@ -7,16 +7,16 @@ if __name__ == '__main__':
 
 	for i in range(1,2):
 		extension = "MAPPO"+str(i)
-		test_num = "MAPPO_pursuit_v3"
+		test_num = "MAPPO_new_envs"
 		env_name = "pursuit_v3" # paired_by_sharing_goals, color_social_dilemma, crossing
-		experiment_type = "shared"
+		experiment_type = "prd_above_threshold_ascend"
 
 		dictionary = {
 				"policy_type": "CNNPolicy", # MLP/ GCN/ GAT
 				"policy_attention_heads": 0,
-				"n_evaders": 75,
-				"n_pursuer": 20,
-				"n_catch": 4,
+				"n_evaders": 30,
+				"n_pursuer": 8,
+				"n_catch": 2,
 				"critic_type": "CNNTransformerCritic", # TransformersONLY/ GATONLY/ GATv2ONLY/ NormalizedATONLY/ else One Critic for training
 				"critic_attention_heads": 0,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.2,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_rew": False,
 			}
-		env = pursuit_v3.env(n_evaders=75, n_pursuers=20, n_catch=4)
+		env = pursuit_v3.env(n_evaders=30, n_pursuers=8, n_catch=2)
 		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
