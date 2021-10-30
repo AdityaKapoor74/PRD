@@ -111,10 +111,8 @@ class DualGATCriticV1(nn.Module):
 		# EMBED STATE ACTION POLICY
 		obs_actions_policies_embed = self.state_act_pol_embed(obs_actions_policies)
 		attention_values = self.attention_value_layer(obs_actions_policies_embed)
-		attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
 		
-		weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
-		weighted_attention_values = attention_values*weight
+		weighted_attention_values = attention_values*weight.unsqueeze(-1)
 		node_features = torch.sum(weighted_attention_values, dim=-2)
 
 		Value = F.leaky_relu(self.final_value_layer_1(node_features))
