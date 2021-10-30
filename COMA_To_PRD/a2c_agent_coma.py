@@ -108,7 +108,6 @@ class A2CAgent:
 
 		
 		# MLP POLICY
-		obs_dim = 2*3
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
 
 		# GAT POLICY NETWORK
