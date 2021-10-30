@@ -76,9 +76,9 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	for i in range(1,6):
 		extension = "MAA2C"+str(i)
-		test_num = "PRD_paired_agent_30_Agents" #TransformersTest
-		env_name = "paired_by_sharing_goals"
-		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
+		test_num = "Greedy_crossing_partially_coop_24Agents_3Teams" #TransformersTest
+		env_name = "crossing_partially_coop"
+		experiment_type = "greedy" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
