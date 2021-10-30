@@ -91,7 +91,14 @@ class A2CAgent:
 		else:
 			self.critic_network_V = GATCriticV2(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		
-		
+		# Pure COMA Exps only
+		if self.env_name == "crossing_fully_coop":
+			obs_dim = 2*3
+			self.critic_network = DualGATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
+		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
+			obs_dim = 2*3 + 1
+
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
 		elif self.env_name in ["color_social_dilemma"]:

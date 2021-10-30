@@ -251,6 +251,7 @@ class MAA2C:
 
 			trajectory = []
 			episode_reward = 0
+			episode_collision_rate = 0
 			for step in range(1,self.max_time_steps+1):
 
 				if self.gif:
@@ -269,6 +270,11 @@ class MAA2C:
 
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
+
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+					collision_rate = [value[1] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
 
 				# Joint reward
 				if self.coma_version == 1:
