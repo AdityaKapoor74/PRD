@@ -1,11 +1,11 @@
 import os
+from comet_ml import Experiment
 import torch
 import torch.nn.functional as F 
 import torch.optim as optim
 from torch.distributions import Categorical
 import torch.autograd as autograd
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
 from a2c_agent_coma import A2CAgent
 import datetime
 
@@ -20,7 +20,7 @@ class MAA2C:
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
 		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
-		self.save_tensorboard_plot = dictionary["save_tensorboard_plot"]
+		self.save_comet_ml_plot = dictionary["save_comet_ml_plot"]
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.num_agents = env.n
@@ -79,12 +79,10 @@ class MAA2C:
 			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)
 			
 			
-		if self.save_tensorboard_plot:
-
-			tensorboard_dir = dictionary["tensorboard_dir"]
-
-			tensorboard_path = tensorboard_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)
-			self.writer = SummaryWriter(tensorboard_path)
+		self.comet_ml = None
+		if self.save_comet_ml_plot:
+			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["test_num"])
+			self.comet_ml.log_parameters(dictionary)
 
 
 			
@@ -161,40 +159,36 @@ class MAA2C:
 
 
 
-		if self.save_tensorboard_plot:
-			self.writer.add_scalar('Loss/Entropy loss',entropy.item(),episode)
-			self.writer.add_scalar('Loss/Policy Loss',policy_loss.item(),episode)
-			self.writer.add_scalar('Gradient Normalization/Grad Norm Policy',grad_norm_policy,episode)
+		if self.save_comet_ml_plot:
+			self.comet_ml.log_metric('Entropy loss', entropy.item(), episode)
+			self.comet_ml.log_metric('Policy Loss',policy_loss.item(), episode)
+			self.comet_ml.log_metric('Grad Norm Policy',grad_norm_policy, episode)
+
 			entropy_weights = -torch.mean(torch.sum(weight_policy * torch.log(torch.clamp(weight_policy, 1e-10,1.0)), dim=2))
-			self.writer.add_scalar('Weights_Policy/Entropy', entropy_weights.item(), episode)
+			self.comet_ml.log_metric('Policy_Weight_Entropy', entropy_weights.item(), episode)
 			
 			if self.coma_version == 1 or self.coma_version == 2:
-				self.writer.add_scalar('Loss/Value Loss',value_loss.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Value',grad_norm_value,episode)
-				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights)
-				self.writer.add_scalars('Weights/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				self.comet_ml.log_metric('Value Loss',value_loss.item(),episode)
+				self.comet_ml.log_metric('Grad Norm Value',grad_norm_value,episode)
 				entropy_weights = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights/Entropy', entropy_weights.item(), episode)
+				self.comet_ml.log_metric('Critic Weight Entropy', entropy_weights.item(), episode)
+
 			elif self.coma_version == 3:
-				self.writer.add_scalar('Loss/Q-Value Loss',value_loss_Q.item(),episode)
-				self.writer.add_scalar('Loss/V-Value Loss',value_loss_V.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm V-Value',grad_norm_value_V,episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm Q-Value',grad_norm_value_Q,episode)
-				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_Q)
-				self.writer.add_scalars('Weights_Q/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				self.comet_ml.log_metric('Q-Value Loss',value_loss_Q.item(),episode)
+				self.comet_ml.log_metric('V-Value Loss',value_loss_V.item(),episode)
+				self.comet_ml.log_metric('Grad Norm V-Value',grad_norm_value_V,episode)
+				self.comet_ml.log_metric('Grad Norm Q-Value',grad_norm_value_Q,episode)
+
 				entropy_weights = -torch.mean(torch.sum(weights_Q * torch.log(torch.clamp(weights_Q, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_Q/Entropy', entropy_weights.item(), episode)
-				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_V)
-				self.writer.add_scalars('Weights_V/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				self.comet_ml.log_metric('Q Weight Entropy', entropy_weights.item(), episode)
 				entropy_weights = -torch.mean(torch.sum(weights_V * torch.log(torch.clamp(weights_V, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_V/Entropy', entropy_weights.item(), episode)
+				self.comet_ml.log_metric('V Weight Entropy', entropy_weights.item(), episode)
+
 			else:
-				self.writer.add_scalar('Loss/V-Value Loss',value_loss_V.item(),episode)
-				self.writer.add_scalar('Gradient Normalization/Grad Norm V-Value',grad_norm_value_V,episode)
-				paired_agent_avg_weight, unpaired_agent_avg_weight = self.calculate_weights(weights_V)
-				self.writer.add_scalars('Weights_V/Average_Weights',{'Paired':paired_agent_avg_weight,'Unpaired':unpaired_agent_avg_weight},episode)
+				self.comet_ml.log_metric('V-Value Loss',value_loss_V.item(),episode)
+				self.comet_ml.log_metric('Grad Norm V-Value',grad_norm_value_V,episode)
 				entropy_weights = -torch.mean(torch.sum(weights_V * torch.log(torch.clamp(weights_V, 1e-10,1.0)), dim=2))
-				self.writer.add_scalar('Weights_V/Entropy', entropy_weights.item(), episode)
+				self.comet_ml.log_metric('V Weights Entropy', entropy_weights.item(), episode)
 
 
 	def split_states(self,states):
@@ -302,9 +296,9 @@ class MAA2C:
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
 
-						if self.save_tensorboard_plot:
-							self.writer.add_scalar('Reward Incurred/Length of the episode',step,episode)
-							self.writer.add_scalar('Reward Incurred/Reward',episode_reward,episode)
+						if self.save_comet_ml_plot:
+							self.comet_ml.log_metric('Length of the episode',step,episode)
+							self.comet_ml.log_metric('Reward',episode_reward,episode)
 
 						break
 					else:
@@ -341,7 +335,7 @@ class MAA2C:
 				self.make_gif(np.array(images),self.gif_path)
 
 
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(self.policy_eval_dir,"paired_by_sharing_goals_mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(self.policy_eval_dir,self.env_name+"_reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(self.policy_eval_dir,self.env_name+"_mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(self.policy_eval_dir,self.env_name+"_timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(self.policy_eval_dir,self.env_name+"_mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)

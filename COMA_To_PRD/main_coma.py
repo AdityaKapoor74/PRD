@@ -1,4 +1,3 @@
-# from maa2c import MAA2C
 from maa2c_coma import MAA2C
 
 from multiagent.environment import MultiAgentEnv
@@ -30,8 +29,8 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	for i in range(1,6):
-		extension = "run"+str(i)
-		version = 6
+		version = 1
+		extension = "COMA_v"+str(version)
 		env_name = "paired_by_sharing_goals" # paired_by_sharing_goals, color_social_dilemma, crossing
 		experiment_type = "coma_v"+str(version)
 
@@ -40,11 +39,11 @@ if __name__ == '__main__':
 		# ENTROPY: v1:8e-4, v2:0.0, v3:8e-3, v4:8e-3, v5:8e-3, v6:8e-3; actual: 8e-3
 		
 		dictionary = {
-			"critic_dir": '../../tests/'+str(version)+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
-			"actor_dir": '../../tests/'+str(version)+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
-			"tensorboard_dir":'../../tests/'+str(version)+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-			"gif_dir": '../../tests/'+str(version)+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-			"policy_eval_dir": '../../tests/'+str(version)+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
+			"critic_dir": '../../tests/'+"coma_v"+str(version)+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
+			"actor_dir": '../../tests/'+"coma_v"+str(version)+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
+			"gif_dir": '../../tests/'+"coma_v"+str(version)+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+			"policy_eval_dir": '../../tests/'+"coma_v"+str(version)+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
+			"test_num": extension,
 			"env": env_name, 
 			"version": version,
 			"value_lr": 1e-3, 
@@ -58,7 +57,7 @@ if __name__ == '__main__':
 			"gif": False,
 			"save_model": True,
 			"save_model_checkpoint": 1000,
-			"save_tensorboard_plot": True,
+			"save_comet_ml_plot": True,
 			"learn":True,
 			"max_episodes": 200000,
 			"max_time_steps": 100,
