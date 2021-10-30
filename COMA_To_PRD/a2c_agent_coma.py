@@ -60,7 +60,26 @@ class A2CAgent:
 
 		print("EXPERIMENT TYPE:",self.experiment_type)
 
-		obs_dim = 2*4
+		if self.env_name == "paired_by_sharing_goals":
+			obs_dim = 2*4
+			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.env_name == "crossing_greedy":
+		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
+			obs_dim = 2*3
+			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.env_name == "crossing_fully_coop":
+		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
+			obs_dim = 2*3
+			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.env_name == "color_social_dilemma":
+			obs_dim = 2*2 + 1 + 2*3
+			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
+		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
+			obs_dim = 2*3 + 1
+			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+
+
 		# SCALAR DOT PRODUCT
 		if self.coma_version == 1:
 			self.critic_network = GATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
@@ -72,6 +91,14 @@ class A2CAgent:
 		else:
 			self.critic_network_V = GATCriticV2(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
 		
+		
+		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
+			obs_dim = 2*3
+		elif self.env_name in ["color_social_dilemma"]:
+			obs_dim = 2*2 + 1 + 2*3
+		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
+			obs_dim = 2*3 + 1
+
 		
 		# MLP POLICY
 		obs_dim = 2*3
