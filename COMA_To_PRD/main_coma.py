@@ -31,7 +31,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		version = 1
 		extension = "COMA_v"+str(version)
-		env_name = "paired_by_sharing_goals" # paired_by_sharing_goals, color_social_dilemma, crossing
+		env_name = "crossing_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing
 		experiment_type = "coma_v"+str(version)
 
 		# VALUE LR: v1:1e-2, v2:1e-2, v3:1e-2, v4:1e-2, v5:1e-2, v6:1e-2; actual: 1e-3
