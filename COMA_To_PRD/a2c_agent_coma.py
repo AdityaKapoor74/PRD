@@ -57,6 +57,8 @@ class A2CAgent:
 		self.epsilon = self.epsilon_start
 		self.epsilon_end = dictionary["epsilon_end"]
 		self.epsilon_episode_steps = dictionary["epsilon_episode_steps"]
+		self.episode = 0
+		self.target_critic_update = dictionary["target_critic_update"]
 
 
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
@@ -350,6 +352,12 @@ class A2CAgent:
 		policy_loss.backward(retain_graph=False)
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 		self.policy_optimizer.step()
+
+		self.episode += 1
+		self.epsilon = self.epsilon_end + self.episode*(self.epsilon_start-self.epsilon_end)/self.epsilon_episode_steps
+
+		if self.episode%self.target_critic_update == 0:
+			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		# DECAY ENTROPY PEN
 		# self.steps_done += 1
