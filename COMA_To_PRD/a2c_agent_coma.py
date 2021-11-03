@@ -53,6 +53,11 @@ class A2CAgent:
 		# TD lambda
 		self.lambda_ = 0.8
 
+		self.epsilon_start = dictionary["epsilon_start"]
+		self.epsilon = self.epsilon_start
+		self.epsilon_end = dictionary["epsilon_end"]
+		self.epsilon_episode_steps = dictionary["epsilon_episode_steps"]
+
 
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
 		for i in range(self.num_agents):
@@ -83,6 +88,8 @@ class A2CAgent:
 		# SCALAR DOT PRODUCT
 		if self.coma_version == 1:
 			self.critic_network = GATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = GATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 		elif self.coma_version == 2:
 			self.critic_network = GATCriticV2(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.coma_version == 3:
@@ -95,9 +102,13 @@ class A2CAgent:
 		if self.env_name == "crossing_fully_coop":
 			obs_dim = 2*3
 			self.critic_network = DualGATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = DualGATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
 			obs_dim = 2*3 + 1
 			self.critic_network = DualGATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = DualGATCriticV1(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
+
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -108,6 +119,7 @@ class A2CAgent:
 
 		
 		# MLP POLICY
+		torch.manual_seed(42)
 		self.policy_network = MLPPolicyNetwork(obs_dim, self.num_agents, self.num_actions).to(self.device)
 
 		# GAT POLICY NETWORK
@@ -143,6 +155,7 @@ class A2CAgent:
 	def get_action(self,state):
 		state = torch.FloatTensor([state]).to(self.device)
 		dists, _ = self.policy_network.forward(state)
+		dists = (1-self.epsilon)*dists + self.epsilon/self.num_actions
 		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
 		return index
 
@@ -272,7 +285,10 @@ class A2CAgent:
 				value_loss_V = F.smooth_l1_loss(V_values_baseline,discounted_rewards)
 		elif self.critic_loss_type == "TD_lambda":
 			if self.coma_version in [1,2]:
-				Value_targets = self.nstep_returns(V_values_baseline, rewards, dones)
+				Q_values_target, weights_target_V = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+				Q_values_target_act_chosen = torch.sum(Q_values_target.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
+				V_values_baseline_target = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
+				Value_targets = self.nstep_returns(V_values_baseline_target, rewards, dones)
 				value_loss_V = F.smooth_l1_loss(Q_values_act_chosen, Value_targets.detach())
 			elif self.coma_version == 3:
 				Value_targets = self.nstep_returns(V_values_baseline, rewards, dones)
