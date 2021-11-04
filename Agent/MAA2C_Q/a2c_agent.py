@@ -143,7 +143,7 @@ class A2CAgent:
 			]
 
 		# TransformerStateTransformerStateAction/ DualTransformerStateDualTransformerStateAction
-		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device),
+		self.critic_network = DualTransformerStateDualTransformerAction(obs_dim, 128, self.num_actions, 128, 128, 1, 128, 1, self.num_agents, self.num_actions).to(self.device)
 
 		# self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
@@ -412,28 +412,27 @@ class A2CAgent:
 				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, V_values, rewards, dones, weights, weights_value, custom_loss=False):
+	def calculate_value_loss(self, Q_values, rewards, dones, weights, weights_value, custom_loss=False):
 		discounted_rewards = None
 		next_probs = None
 
 		if self.critic_loss_type == "MC":
 			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
-			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
-			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-			Value_target = discounted_rewards
+			discounted_rewards = self.calculate_returns(rewards,self.gamma)
+			Q_target = discounted_rewards
+			discounted_rewards = torch.transpose(discounted_rewards.unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device),-1,-2)
 		elif self.critic_loss_type == "TD_1":
 			next_probs, _ = self.policy_network.forward(next_states_actor)
-			V_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-			Value_target = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+			Q_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			Q_target = torch.transpose(rewards + self.gamma*Q_values_next*(1-dones))
 		elif self.critic_loss_type == "TD_lambda":
-			Value_target = self.nstep_returns(V_values, rewards, dones).detach()
+			Q_target = self.nstep_returns(Q_values, rewards, dones).detach()
 		
 		if custom_loss is False:
-			value_loss = F.smooth_l1_loss(V_values, Value_target)
+			value_loss = F.smooth_l1_loss(Q_values, Q_target)
 		else:
 			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
-			value_loss = F.smooth_l1_loss(V_values*weights_prd, Value_target*weights_prd, reduction="sum")/V_values.shape[0]
+			value_loss = F.smooth_l1_loss(Q_values*weights_prd, Q_target*weights_prd, reduction="sum")/Q_values.shape[0]
 
 
 		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
@@ -563,25 +562,21 @@ class A2CAgent:
 
 	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
 
-		if self.critic_network.name == "SharedTransformerActorCritic":
-			AC_out = self.shared_actor_critic(states_critic, one_hot_actions)
-			V_values, probs, weights = AC_out[0], AC_out[1], AC_out[2:]
-			weights_policy = weights
-			weights_value = weights
-		else:
-			'''
-			Getting the probability mass function over the action space for each agent
-			'''
-			Policy_return = self.policy_network.forward(states_actor)
-			probs = Policy_return[0]
-			weights_policy = Policy_return[1:]
+		
+		'''
+		Getting the probability mass function over the action space for each agent
+		'''
+		Policy_return = self.policy_network.forward(states_actor)
+		probs = Policy_return[0]
+		weights_policy = Policy_return[1:]
 
-			'''
-			Calculate V values
-			'''
-			Value_return = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-			V_values = Value_return[0]
-			weights_value = Value_return[1:]
+		'''
+		Calculate V values
+		'''
+		Value_return = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		Q_values = Value_return[0]
+		V_values = torch.matmul(probs, Q_values)
+		weights_value = Value_return[1:]
 
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
@@ -591,7 +586,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, rewards, dones, weights_value[-1], weights_value, custom_loss=False)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(Q_values, rewards, dones, weights_value[-1], weights_value, custom_loss=False)
 		
 		# train other critics
 		if self.critics is not None and self.comet_ml is not None:

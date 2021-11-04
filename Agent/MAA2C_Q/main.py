@@ -76,9 +76,9 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop
 	for i in range(1,6):
 		extension = "MAA2C"+str(i)
-		test_num = "prd_paired_agents_30_Agents" #TransformersTest
+		test_num = "Greedy_paired_by_sharing_goals_30Agents" #TransformersTest
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "greedy" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
@@ -117,9 +117,9 @@ if __name__ == '__main__':
 				"model_path_value": "../../../tests/ablation_study/Transformers/tests/MultiHeadTransformerCritic2/models/crossing_team_greedy_shared_run1/critic_networks/24-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt",
 				"model_path_policy": "../../../tests/ablation_study/Transformers/tests/MultiHeadTransformerCritic2/models/crossing_team_greedy_shared_run1/actor_networks/24-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt",
 				"eval_policy": True,
-				"save_model": True,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 200000,
 				"max_time_steps": 100,

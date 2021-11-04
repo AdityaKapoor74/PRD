@@ -1,22 +1,21 @@
+from comet_ml import Experiment
 import os
 import torch
 import numpy as np
-from ppo_agent import PPOAgent
+from a2c_agent import A2CAgent
 import datetime
 
 
 
-class MAPPO:
+class MAA2C:
 
 	def __init__(self, env, dictionary):
-		if dictionary["device"] == "cpu":
-			self.device = "cpu"
-		else:
-			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.policy_type = dictionary["policy_type"]
 		self.critic_type = dictionary["critic_type"]
 		self.critic_attention_heads = dictionary["critic_attention_heads"]
 		self.policy_attention_heads = dictionary["policy_attention_heads"]
+		# self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
@@ -25,16 +24,14 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.num_agents
-		self.num_actions = self.env.action_spaces['pursuer_0'].n
+		self.num_agents = env.n
+		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
-		self.update_ppo_agent = dictionary["update_ppo_agent"]
-
 		self.weight_dictionary = {}
 
 		for i in range(self.num_agents):
@@ -55,7 +52,7 @@ class MAPPO:
 			self.comet_ml.log_parameters(dictionary)
 
 
-		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
+		self.agents = A2CAgent(self.env, dictionary, self.comet_ml)
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -131,6 +128,37 @@ class MAPPO:
 				self.weight_dictionary[agent_name][agent_name_] = weights_per_agent[i][j].item()
 
 
+	def update(self,trajectory,episode):
+
+		states_critic = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
+		next_states_critic = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+
+		one_hot_actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
+		one_hot_next_actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
+		actions = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
+
+		states_actor = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
+		next_states_actor = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
+
+		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
+		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
+
+		self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
+		
+
+	def split_states(self,states):
+		states_critic = []
+		states_actor = []
+		for i in range(self.num_agents):
+			states_critic.append(states[i][0])
+			states_actor.append(states[i][1])
+
+		states_critic = np.asarray(states_critic)
+		states_actor = np.asarray(states_actor)
+
+		return states_critic,states_actor
+
+
 
 	def make_gif(self,images,fname,fps=10, scale=1.0):
 		from moviepy.editor import ImageSequenceClip
@@ -177,70 +205,59 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-			self.env.reset()
+			states = self.env.reset()
 
 			images = []
 
+			states_critic,states_actor = self.split_states(states)
+
+			trajectory = []
 			episode_reward = 0
 			episode_collision_rate = 0
 			final_timestep = self.max_time_steps
-
-			states = []
-			actions = []
-			rewards = []
-			dones = []
-			infos = []
-			counter = 0
-
 			for step in range(1, self.max_time_steps+1):
 
-				states = []
-				rewards = []
-				dones = []
-				infos = []
-				actions = []
-
-				for agent in self.env.agent_iter(max_iter=self.num_agents):
-					observation, reward, done, info = self.env.last()
-
-					if self.gif:
-						# At each step, append an image to list
-						if not(episode%self.gif_checkpoint):
-							images.append(np.squeeze(self.env.render(mode='rgb_array')))
-						# Advance a step and render a new image
-						with torch.no_grad():
-							action = self.get_actions([observation])
-					else:
-						action = self.get_actions([observation])
-
-					states.append(observation)
-					rewards.append(reward)
-					dones.append(done)
-					infos.append(info)
-					actions.append(action)
-
-					self.env.step(action)
-
+				if self.gif:
+					# At each step, append an image to list
+					if not(episode%self.gif_checkpoint):
+						images.append(np.squeeze(self.env.render(mode='rgb_array')))
+					# Advance a step and render a new image
+					with torch.no_grad():
+						actions = self.get_actions(states_actor)
+				else:
+					actions = self.get_actions(states_actor)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
+				next_states,rewards,dones,info = self.env.step(actions)
+				next_states_critic,next_states_actor = self.split_states(next_states)
 
-				if step == self.max_time_steps:
-					dones = [True for _ in range(self.num_agents)]
+				# next actions
+				next_actions = self.get_actions(next_states_actor)
 
-				self.agents.buffer.states.append(states)
-				self.agents.buffer.actions.append(actions)
-				self.agents.buffer.one_hot_actions.append(one_hot_actions)
-				self.agents.buffer.dones.append(dones)
-				self.agents.buffer.rewards.append(rewards)
+
+				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
+				for i,act in enumerate(next_actions):
+					one_hot_next_actions[i][act] = 1
+
+
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+					collision_rate = [value[1] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
 
 				episode_reward += np.sum(rewards)
 
-				if self.learn:
-					if all(dones):
+				if self.test_num == "coma_v7":
+					rewards = [np.sum(rewards)]*self.num_agents
 
+
+				if self.learn:
+					if all(dones) or step == self.max_time_steps:
+
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
@@ -250,25 +267,38 @@ class MAPPO:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
+							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
 
 						break
+					else:
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
+						states_critic,states_actor = next_states_critic,next_states_actor
+						states = next_states
+
+				else:
+					states_critic,states_actor = next_states_critic,next_states_actor
+					states = next_states
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
+				self.collision_rates.append(episode_collision_rate)
 
 			if episode > self.save_model_checkpoint and episode%self.save_model_checkpoint:
 				if self.eval_policy:
 					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-					
+					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
-			if self.learn and episode%self.update_ppo_agent == 0 and episode != 0:
-				self.agents.update(episode) 
+			if self.learn:
+				self.update(trajectory,episode) 
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -279,3 +309,6 @@ class MAPPO:
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			if self.env_name in ["crossing"]:
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
