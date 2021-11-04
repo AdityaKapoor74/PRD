@@ -79,71 +79,8 @@ class A2CAgent:
 		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
 			obs_dim = 2*3 + 1
 			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		
-		self.critics = None
-		if self.critic_type == "TransformersONLY":
-			self.critics = [
-			TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device),
-			MultiHeadTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=2).to(self.device),
-			MultiHeadTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=4).to(self.device),
-			MultiHeadTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=8).to(self.device),
-			DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device),
-			MultiHeadDualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads_preproc=2, num_heads_postproc=2).to(self.device),
-			MultiHeadDualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads_preproc=4, num_heads_postproc=4).to(self.device),
-			MultiHeadDualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads_preproc=8, num_heads_postproc=8).to(self.device),
-			SemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8).to(self.device),
-			SemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03).to(self.device),
-			MultiHeadSemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=2).to(self.device),
-			MultiHeadSemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=4).to(self.device),
-			MultiHeadSemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=8).to(self.device),
-			MultiHeadSemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=2).to(self.device),
-			MultiHeadSemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=4).to(self.device),
-			MultiHeadSemiHardAttnTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=8).to(self.device),
-			]
-		elif self.critic_type == "GATONLY":
-			self.critics = [
-			GATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device),
-			MultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=2).to(self.device),
-			MultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=4).to(self.device),
-			MultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=8).to(self.device),
-			SemiHardGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8).to(self.device),
-			SemiHardGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03).to(self.device),
-			SemiHardMultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=2).to(self.device),
-			SemiHardMultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=2).to(self.device),
-			SemiHardMultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=2).to(self.device),
-			SemiHardMultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=2).to(self.device),
-			SemiHardMultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=2).to(self.device),
-			SemiHardMultiHeadGATCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=2).to(self.device),
-			]
-		elif self.critic_type == "GATv2ONLY":
-			self.critics = [
-			GATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device),
-			MultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=2).to(self.device),
-			MultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=4).to(self.device),
-			MultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=8).to(self.device),
-			SemiHardGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8).to(self.device),
-			SemiHardGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03).to(self.device),
-			SemiHardMultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=2).to(self.device),
-			SemiHardMultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=4).to(self.device),
-			SemiHardMultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, kth_weight=8, num_heads=8).to(self.device),
-			SemiHardMultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=2).to(self.device),
-			SemiHardMultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=4).to(self.device),
-			SemiHardMultiHeadGATV2Critic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, weight_threshold=0.03, num_heads=8).to(self.device),
-			]
-		elif self.critic_type == "NormalizedATONLY":
-			self.critics = [
-			NormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device),
-			MultiHeadNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=2).to(self.device),
-			MultiHeadNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=4).to(self.device),
-			MultiHeadNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=8).to(self.device),
-			SemiHardNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device),
-			SemiHardMultiHeadNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=2).to(self.device),
-			SemiHardMultiHeadNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=4).to(self.device),
-			SemiHardMultiHeadNormalizedAttentionTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, num_heads=8).to(self.device),
-			]
 
-		# TransformerStateTransformerStateAction/ DualTransformerStateDualTransformerStateAction
-		self.critic_network = DualTransformerStateDualTransformerAction(obs_dim, 128, self.num_actions, 128, 128, 1, 128, 1, self.num_agents, self.num_actions).to(self.device)
+		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
 		# self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
@@ -196,12 +133,6 @@ class A2CAgent:
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 		# self.actor_critic_optimizer = optim.Adam(self.shared_actor_critic.parameters(),lr=self.shared_actor_critic_lr)
-
-
-		self.critic_optimizers = []
-		if self.critics is not None:
-			for i in range(len(self.critics)):
-				self.critic_optimizers.append(optim.Adam(self.critics[i].parameters(),lr=self.value_lr))
 
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
@@ -317,38 +248,6 @@ class A2CAgent:
 				entropy_weights = -torch.mean(torch.sum(weights[0]* torch.log(torch.clamp(weights[0], 1e-10,1.0)), dim=2))
 				self.comet_ml.log_metric('Critic_Weight_Entropy'+critic_name, entropy_weights.item(), episode)
 
-
-
-	def train_other_critics(self, discounted_rewards, rewards, states_critic, probs, one_hot_actions, dones, next_states_critic, next_probs, one_hot_next_actions, episode):
-
-		if self.critics is not None:
-			for i in range(len(self.critics)):
-				V = self.critics[i](states_critic, probs.detach(), one_hot_actions)
-				V_values = V[0]
-
-				if self.critic_type == "MC":
-					value_loss = F.smooth_l1_loss(V_values,discounted_rewards)
-				elif self.critic_loss_type == "TD_1":
-					V_values_next, _ = self.critics[i].forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-					V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-					target_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-					value_loss = F.smooth_l1_loss(V_values,target_values)
-				elif self.critic_loss_type == "TD_lambda":
-					Value_target = self.nstep_returns(V_values, rewards, dones).detach()
-					value_loss = F.smooth_l1_loss(V_values, Value_target)
-
-				self.critic_optimizers[i].zero_grad()
-
-				if "Normalized" in self.critic_type:
-					value_loss.backward(retain_graph=True)
-				else:
-					value_loss.backward(retain_graph=False)
-
-				grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critics[i].parameters(),0.5)
-				self.critic_optimizers[i].step()
-
-				if self.comet_ml is not None:
-					self.plot_critics(self.critics[i].name, value_loss, V[1:], grad_norm_value, episode)
 
 
 	def plot(self, episode):
@@ -573,9 +472,9 @@ class A2CAgent:
 		'''
 		Calculate V values
 		'''
-		Value_return = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		Value_return = self.critic_network.forward(states_critic, one_hot_actions)
 		Q_values = Value_return[0]
-		V_values = torch.matmul(probs, Q_values)
+		V_values = torch.matmul(Q_values,probs.transpose(1,2))
 		weights_value = Value_return[1:]
 
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
@@ -588,11 +487,6 @@ class A2CAgent:
 
 		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(Q_values, rewards, dones, weights_value[-1], weights_value, custom_loss=False)
 		
-		# train other critics
-		if self.critics is not None and self.comet_ml is not None:
-			self.train_other_critics(discounted_rewards, rewards, states_critic, probs, one_hot_actions, dones, next_states_critic, next_probs, one_hot_next_actions, episode)
-
-	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 

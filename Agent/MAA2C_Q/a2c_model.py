@@ -134,7 +134,7 @@ class TransformerCritic(nn.Module):
 		self.state_embed = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
 		self.key_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.query_layer = nn.Linear(128, obs_output_dim, bias=False)
-		self.state_act_pol_embed = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
+		self.state_act_embed = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
 		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=False)
 		# dimesion of key
 		self.d_k_obs_act = obs_output_dim  
