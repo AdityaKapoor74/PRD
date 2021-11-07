@@ -24,17 +24,17 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_GNN_run_"+str(i)
 		test_num = "COMA_GNN" #TransformersTest
-		env_name = "crossing_fully_coop"
+		env_name = "paired_by_sharing_goals"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
 				"policy_attention_heads": 0,
 				"critic_type": "Transformer", # Transformer/ DualTransformer
 				"critic_attention_heads": 0,
-				"critic_dir": " ",
-				"actor_dir": " ",
-				"gif_dir": " ",
-				"policy_eval_dir":'',
+				"critic_dir": "../../../tests/"+env_name+"/critic_dir/",
+				"actor_dir": "../../../tests/"+env_name+"/actor_dir/",
+				"gif_dir": "../../../tests/"+env_name+"/gif_dir/",
+				"policy_eval_dir":"../../../tests/"+env_name+"/policy_eval_dir/",
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
