@@ -121,7 +121,7 @@ class TransformerCritic(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions):
 		super(TransformerCritic, self).__init__()
 		
 		self.name = "TransformerCritic"
@@ -131,16 +131,23 @@ class TransformerCritic(nn.Module):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 		self.state_act_embed_attn = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
+		self.state_embed_attn = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
 		self.key_layer = nn.Linear(128, obs_act_output_dim, bias=False)
-		self.query_layer = nn.Linear(128, obs_act_output_dim, bias=False)
+		self.query_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=False)
 		# dimesion of key
 		self.d_k_obs_act = obs_act_output_dim  
+
+		# score corresponding to current agent should be 0
+		self.zero_out = torch.ones(self.num_agents,self.num_agents).to(self.device)
+		for j in range(self.num_agents):
+			self.zero_out[j][j] = 0
+		# self.zero_out = torch.zeros
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
 		# EMBED (S,A) of agent whose Q value is being est
-		self.state_act_embed_q = nn.Sequential(nn.Linear(obs_act_input_dim, obs_act_output_dim), nn.LeakyReLU())
+		self.state_act_embed_q = nn.Sequential(nn.Linear(obs_input_dim, obs_output_dim), nn.LeakyReLU())
 		# FCN FINAL LAYER TO GET VALUES
 		self.final_value_layers = nn.Sequential(
 												nn.Linear(final_input_dim, 64, bias=False),
@@ -156,6 +163,7 @@ class TransformerCritic(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		nn.init.xavier_uniform_(self.state_act_embed_attn[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.state_embed_attn[0].weight, gain=gain_leaky)
 		nn.init.xavier_uniform_(self.state_act_embed_q[0].weight, gain=gain_leaky)
 
 		nn.init.xavier_uniform_(self.key_layer.weight)
@@ -168,18 +176,20 @@ class TransformerCritic(nn.Module):
 
 	def forward(self, states, actions):
 		state_actions = torch.cat([states, actions], dim=-1)
+		state_embed_attn = self.state_embed_attn(states)
 		state_act_embed_attn = self.state_act_embed_attn(state_actions)
 		# Keys
 		keys = self.key_layer(state_act_embed_attn)
 		# Queries
-		queries = self.query_layer(state_act_embed_attn)
-		# Calc weight
-		weight = F.softmax(torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act),dim=-1)
+		queries = self.query_layer(state_embed_attn)
+		# Calc score (score corresponding to self to be made 0)
+		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)*self.zero_out
+		weight = F.softmax(score,dim=-1)
 		attention_values = self.attention_value_layer(state_act_embed_attn)
 		x = torch.matmul(weight, attention_values)
 
-		# Embedding (S,A) of current agent
-		curr_agent_state_action_embed = self.state_act_embed_q(state_actions)
+		# Embedding state of current agent
+		curr_agent_state_action_embed = self.state_act_embed_q(states)
 
 		node_features = torch.cat([curr_agent_state_action_embed, x], dim=-1)
 
