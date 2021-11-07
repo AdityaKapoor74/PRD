@@ -52,16 +52,16 @@ class COMAAgent:
 			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "crossing_fully_coop":
 			obs_dim = 2*3
-			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
-			self.target_critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + 2*3
 			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
 			obs_dim = 2*3 + 1
-			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
-			self.target_critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
 
 		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
