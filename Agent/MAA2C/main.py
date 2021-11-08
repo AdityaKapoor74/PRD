@@ -23,7 +23,7 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,6):
 		extension = "MAA2C"+str(i)
-		test_num = "prd_paired_agents_30_Agents" #TransformersTest
+		test_num = "greedy_paired_agents_30_Agents" #TransformersTest
 		env_name = "paired_by_sharing_goals"
 		experiment_type = "greedy" # prd_above_threshold_ascend, greedy, shared
 
