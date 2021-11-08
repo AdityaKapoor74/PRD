@@ -271,7 +271,8 @@ class COMAAgent:
 	def update_parameters(self):
 		self.episode += 1
 
-		self.epsilon = self.epsilon_end + self.episode*(self.epsilon_start-self.epsilon_end)/self.epsilon_episode_steps
+		if self.epsilon>self.epsilon_end:
+			self.epsilon = self.epsilon_start - self.episode*(self.epsilon_start-self.epsilon_end)/self.epsilon_episode_steps
 
 		if self.episode%self.target_critic_update == 0:
 			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
