@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_GNN_run_"+str(i)
 		test_num = "COMA_GNN" 
-		env_name = "crossing_greedy"
+		env_name = "crossing_fully_coop"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 200000,
 				"max_time_steps": 100,
 				"norm_adv": False,
 				"norm_rew": False,
