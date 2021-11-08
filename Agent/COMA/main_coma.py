@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_GNN_run_"+str(i)
 		test_num = "COMA_GNN" 
-		env_name = "crossing_partially_coop"
+		env_name = "crossing_fully_coop"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
