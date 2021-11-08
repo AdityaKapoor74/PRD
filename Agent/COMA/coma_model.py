@@ -6,6 +6,13 @@ import numpy as np
 import datetime
 import math
 
+def th_delete(tensor, indices):
+    mask = torch.ones_like(tensor, dtype=torch.bool)
+    print("mask", mask.shape)
+    mask[:,:,indices] = False
+    print(mask)
+    return tensor[mask]
+
 
 class MLPPolicy(nn.Module):
 	def __init__(self,state_dim,num_agents,action_dim):
@@ -139,9 +146,13 @@ class TransformerCritic(nn.Module):
 		self.d_k_obs_act = obs_act_output_dim  
 
 		# score corresponding to current agent should be 0
-		self.zero_out = torch.ones(self.num_agents,self.num_agents).to(self.device)
+		self.mask_score = torch.ones(self.num_agents,self.num_agents, dtype=torch.bool).to(self.device)
+		self.mask_attn_values = torch.ones(self.num_agents,self.num_agents, 128, dtype=torch.bool).to(self.device)
+		mask = torch.zeros(128, dtype=torch.bool).to(self.device)
 		for j in range(self.num_agents):
-			self.zero_out[j][j] = 0
+			self.mask_score[j][j] = False
+			self.mask_attn_values[j][j] = mask
+
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
@@ -182,10 +193,14 @@ class TransformerCritic(nn.Module):
 		# Queries
 		queries = self.query_layer(state_embed_attn)
 		# Calc score (score corresponding to self to be made 0)
-		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)*self.zero_out
+		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)
+		mask = torch.ones_like(score, dtype=torch.bool).to(self.device)*self.mask_score
+		score = score[mask].reshape(mask.shape[0], self.num_agents,-1)
 		weight = F.softmax(score,dim=-1)
-		attention_values = self.attention_value_layer(state_act_embed_attn)
-		x = torch.matmul(weight, attention_values)
+		attention_values = self.attention_value_layer(state_act_embed_attn).unsqueeze(1).repeat(1,self.num_agents,1,1)
+		mask_attn = torch.ones_like(attention_values, dtype=torch.bool).to(self.device) * self.mask_attn_values
+		attention_values = attention_values[mask_attn].reshape(mask.shape[0], self.num_agents, self.num_agents-1,-1)
+		x = torch.sum(attention_values*weight.unsqueeze(-1), dim=-2)
 
 		# Embedding state of current agent
 		curr_agent_state_action_embed = self.state_embed_q(states)
@@ -225,9 +240,12 @@ class DualTransformerCritic(nn.Module):
 		self.d_k_obs_act = obs_act_output_dim  
 
 		# score corresponding to current agent should be 0
-		self.zero_out = torch.ones(self.num_agents,self.num_agents).to(self.device)
+		self.mask_score = torch.ones(self.num_agents,self.num_agents, dtype=torch.bool).to(self.device)
+		self.mask_attn_values = torch.ones(self.num_agents,self.num_agents, 128, dtype=torch.bool).to(self.device)
+		mask = torch.zeros(128, dtype=torch.bool).to(self.device)
 		for j in range(self.num_agents):
-			self.zero_out[j][j] = 0
+			self.mask_score[j][j] = False
+			self.mask_attn_values[j][j] = mask
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
@@ -288,10 +306,14 @@ class DualTransformerCritic(nn.Module):
 		# Queries
 		queries = self.query_layer(state_embed_attn)
 		# Calc score (score corresponding to self to be made 0)
-		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)*self.zero_out
+		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)
+		mask = torch.ones_like(score, dtype=torch.bool).to(self.device)*self.mask_score
+		score = score[mask].reshape(mask.shape[0], self.num_agents,-1)
 		weight_post_proc = F.softmax(score,dim=-1)
-		attention_values = self.attention_value_layer(state_act_embed_attn)
-		x = torch.matmul(weight_post_proc, attention_values)
+		attention_values = self.attention_value_layer(state_act_embed_attn).unsqueeze(1).repeat(1,self.num_agents,1,1)
+		mask_attn = torch.ones_like(attention_values, dtype=torch.bool).to(self.device) * self.mask_attn_values
+		attention_values = attention_values[mask_attn].reshape(mask.shape[0], self.num_agents, self.num_agents-1,-1)
+		x = torch.sum(attention_values*weight_post_proc.unsqueeze(-1), dim=-2)
 
 		# Embedding state of current agent
 		curr_agent_state_action_embed = self.state_embed_q(attention_values_preproc)
