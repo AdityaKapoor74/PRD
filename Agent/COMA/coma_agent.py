@@ -120,8 +120,11 @@ class COMAAgent:
 	def get_action(self,state):
 		state = torch.FloatTensor([state]).to(self.device)
 		dists, _ = self.policy_network.forward(state)
+		print("before", dists)
 		dists = (1-self.epsilon)*dists + self.epsilon/self.num_actions
+		print("after", dists)
 		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists[0]]
+		print("index", index)
 		return index
 
 

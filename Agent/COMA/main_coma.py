@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_GNN_run_"+str(i)
 		test_num = "COMA_GNN" 
-		env_name = "color_social_dilemma"
+		env_name = "crossing_greedy"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
@@ -52,12 +52,12 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": " ",
 				"model_path_policy": " ",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 20000,
 				"max_time_steps": 100,
 				"norm_adv": False,
 				"norm_rew": False,
