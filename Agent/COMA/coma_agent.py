@@ -130,7 +130,6 @@ class COMAAgent:
 		advantages = Q_values - baseline
 		
 		if self.norm_adv:
-			
 			advantages = (advantages - advantages.mean()) / advantages.std()
 		
 		return advantages

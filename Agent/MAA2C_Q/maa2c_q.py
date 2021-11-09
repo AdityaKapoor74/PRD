@@ -2,12 +2,12 @@ from comet_ml import Experiment
 import os
 import torch
 import numpy as np
-from a2c_agent import A2CAgent
+from a2c_agent_q import A2CAgent_Q
 import datetime
 
 
 
-class MAA2C:
+class MAA2C_Q:
 
 	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -52,7 +52,7 @@ class MAA2C:
 			self.comet_ml.log_parameters(dictionary)
 
 
-		self.agents = A2CAgent(self.env, dictionary, self.comet_ml)
+		self.agents = A2CAgent_Q(self.env, dictionary, self.comet_ml)
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -249,9 +249,6 @@ class MAA2C:
 					episode_collision_rate += np.sum(collision_rate)
 
 				episode_reward += np.sum(rewards)
-
-				if self.test_num == "coma_v7":
-					rewards = [np.sum(rewards)]*self.num_agents
 
 
 				if self.learn:

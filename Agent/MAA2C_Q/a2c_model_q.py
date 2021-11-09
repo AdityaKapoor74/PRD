@@ -132,11 +132,11 @@ class TransformerCritic(nn.Module):
 
 		self.state_act_embed_attn = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
 		self.state_embed_attn = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
-		self.key_layer = nn.Linear(128, obs_act_output_dim, bias=False)
+		self.key_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.query_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=False)
 		# dimesion of key
-		self.d_k_obs_act = obs_act_output_dim  
+		self.d_k_obs = obs_output_dim  
 
 		# score corresponding to current agent should be 0
 		self.mask_score = torch.ones(self.num_agents,self.num_agents, dtype=torch.bool).to(self.device)
@@ -182,11 +182,11 @@ class TransformerCritic(nn.Module):
 		state_embed_attn = self.state_embed_attn(states)
 		state_act_embed_attn = self.state_act_embed_attn(state_actions)
 		# Keys
-		keys = self.key_layer(state_act_embed_attn)
+		keys = self.key_layer(state_embed_attn)
 		# Queries
 		queries = self.query_layer(state_embed_attn)
 		# Calc score (score corresponding to self to be made 0)
-		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)
+		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs)
 		mask = torch.ones_like(score, dtype=torch.bool).to(self.device)*self.mask_score
 		score = score[mask].reshape(mask.shape[0], self.num_agents,-1)
 		weight = F.softmax(score,dim=-1)
@@ -226,11 +226,11 @@ class DualTransformerCritic(nn.Module):
 
 		self.state_act_embed_attn = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
 		self.state_embed_attn = nn.Sequential(nn.Linear(obs_output_dim, 128), nn.LeakyReLU())
-		self.key_layer = nn.Linear(128, obs_act_output_dim, bias=False)
+		self.key_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.query_layer = nn.Linear(128, obs_output_dim, bias=False)
 		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=False)
 		# dimesion of key
-		self.d_k_obs_act = obs_act_output_dim  
+		self.d_k_obs_ = obs_output_dim  
 
 		# score corresponding to current agent should be 0
 		self.mask_score = torch.ones(self.num_agents,self.num_agents, dtype=torch.bool).to(self.device)
@@ -295,11 +295,11 @@ class DualTransformerCritic(nn.Module):
 		state_embed_attn = self.state_embed_attn(attention_values_preproc)
 		state_act_embed_attn = self.state_act_embed_attn(state_actions)
 		# Keys
-		keys = self.key_layer(state_act_embed_attn)
+		keys = self.key_layer(state_embed_attn)
 		# Queries
 		queries = self.query_layer(state_embed_attn)
 		# Calc score (score corresponding to self to be made 0)
-		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)
+		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_)
 		mask = torch.ones_like(score, dtype=torch.bool).to(self.device)*self.mask_score
 		score = score[mask].reshape(mask.shape[0], self.num_agents,-1)
 		weight_post_proc = F.softmax(score,dim=-1)

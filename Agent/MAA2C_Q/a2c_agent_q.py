@@ -2,10 +2,10 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch.distributions import Categorical
-from a2c_model import *
+from a2c_model_q import *
 import torch.nn.functional as F
 
-class A2CAgent:
+class A2CAgent_Q:
 
 	def __init__(
 		self, 
@@ -53,6 +53,9 @@ class A2CAgent:
 		if "prd_above_threshold_l1_pen_decay" in self.experiment_type:
 			self.l1_pen_delta = (self.l1_pen - self.l1_pen_min)/self.l1_pen_steps_to_take
 
+		self.episode = 0
+		self.target_critic_update = dictionary["target_critic_update"]
+
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		
@@ -63,26 +66,26 @@ class A2CAgent:
 
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "crossing_greedy":
-		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
 			obs_dim = 2*3
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "crossing_fully_coop":
-		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
 			obs_dim = 2*3
-			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + 2*3
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
-		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
 			obs_dim = 2*3 + 1
-			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+			self.target_critic_network = DualTransformerCritic(obs_dim, 128, 128+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
 
-		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
-
-		# self.shared_actor_critic = SharedTransformerActorCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
+		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -92,6 +95,7 @@ class A2CAgent:
 			obs_dim = 2*3 + 1
 
 		# MLP POLICY
+		torch.manual_seed(42)
 		if self.policy_type == "MLP":
 			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
 		elif self.policy_type == "Transformer":
@@ -132,7 +136,6 @@ class A2CAgent:
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
-		# self.actor_critic_optimizer = optim.Adam(self.shared_actor_critic.parameters(),lr=self.shared_actor_critic_lr)
 
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
@@ -169,7 +172,6 @@ class A2CAgent:
 			advantages = returns - values
 		
 		if self.norm_adv:
-			
 			advantages = (advantages - advantages.mean()) / advantages.std()
 		
 		return advantages
@@ -311,21 +313,16 @@ class A2CAgent:
 				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, Q_values, rewards, dones, weights, weights_value, custom_loss=False):
+	def calculate_value_loss(self, Q_values, target_Q_values, rewards, dones, weights, weights_value,  custom_loss=False):
 		discounted_rewards = None
-		next_probs = None
 
 		if self.critic_loss_type == "MC":
 			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
 			discounted_rewards = self.calculate_returns(rewards,self.gamma)
-			Q_target = discounted_rewards
 			discounted_rewards = torch.transpose(discounted_rewards.unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device),-1,-2)
-		elif self.critic_loss_type == "TD_1":
-			next_probs, _ = self.policy_network.forward(next_states_actor)
-			Q_values_next, _ = self.critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-			Q_target = torch.transpose(rewards + self.gamma*Q_values_next*(1-dones))
+			Q_target = discounted_rewards
 		elif self.critic_loss_type == "TD_lambda":
-			Q_target = self.nstep_returns(Q_values, rewards, dones).detach()
+			Q_target = self.nstep_returns(target_Q_values, rewards, dones).detach()
 		
 		if custom_loss is False:
 			value_loss = F.smooth_l1_loss(Q_values, Q_target)
@@ -334,7 +331,7 @@ class A2CAgent:
 			value_loss = F.smooth_l1_loss(Q_values*weights_prd, Q_target*weights_prd, reduction="sum")/Q_values.shape[0]
 
 
-		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
+		if self.l1_pen !=0 or self.critic_entropy_pen != 0:
 			if len(weights)==2:
 				if "MultiHead" in self.critic_type:
 					weights_preproc = torch.mean(torch.stack(weights[0]), dim=1)
@@ -362,7 +359,7 @@ class A2CAgent:
 			
 			value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
 
-		return discounted_rewards, next_probs, value_loss
+		return discounted_rewards, value_loss
 
 
 	def calculate_prd_weights(self, weights, critic_name):
@@ -445,6 +442,8 @@ class A2CAgent:
 		return policy_loss
 
 	def update_parameters(self):
+		self.episode += 1
+
 		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
 
@@ -457,6 +456,9 @@ class A2CAgent:
 		# annealin entropy pen
 		if self.entropy_pen > 0:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
+
+		if self.episode%self.target_critic_update == 0:
+			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 
 	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
@@ -477,15 +479,24 @@ class A2CAgent:
 		V_values = torch.matmul(Q_values,probs.transpose(1,2))
 		weights_value = Value_return[1:]
 
-		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+		target_Value_return = self.target_critic_network.forward(states_critic, one_hot_actions)
+		target_Q_values = target_Value_return[0]
+		target_V_values = torch.matmul(target_Q_values,probs.transpose(1,2))
+		target_weights_value = target_Value_return[1:]
 
 		if "prd" in self.experiment_type:
 			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
+			weight_prd = torch.ones(weights_prd.shape[0], self.num_agents, self.num_agents).to(self.device)
+			for i in range(self.num_agents):
+				value = torch.cat((weights_prd[:,i,:i], weight_prd[:,i,i].unsqueeze(-1), weights_prd[:,i,i:]), dim=-1)
+				weight_prd[:,i] = value
+
+			weights_prd = weight_prd
 		else:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(Q_values, rewards, dones, weights_value[-1], weights_value, custom_loss=False)
+		discounted_rewards, value_loss = self.calculate_value_loss(Q_values, target_Q_values, rewards, dones, weights_value[-1], weights_value, custom_loss=False)
 		
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
