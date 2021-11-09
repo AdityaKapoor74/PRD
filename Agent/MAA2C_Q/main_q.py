@@ -55,7 +55,7 @@ if __name__ == '__main__':
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.1,
-				"steps_to_take": 1000, 
+				"steps_to_take": 100, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
 				"top_k": 0,
