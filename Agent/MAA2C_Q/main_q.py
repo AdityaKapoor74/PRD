@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAA2C"+str(i)
 		test_num = "MAA2C_Q" #TransformersTest
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "shared" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
@@ -40,11 +40,11 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, 
-				"policy_lr": 1e-4, #prd 1e-4
+				"value_lr": 5e-4, 
+				"policy_lr": 5e-4, #prd 1e-4
 				"shared_actor_critic_lr": 0.0,
-				"entropy_pen": 8e-3, 
-				"entropy_pen_min": 8e-3,
+				"entropy_pen": 0.0, 
+				"entropy_pen_min": 0.0,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"target_critic_update": 200,
