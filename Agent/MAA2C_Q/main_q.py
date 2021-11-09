@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAA2C"+str(i)
 		test_num = "MAA2C_Q" #TransformersTest
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "shared" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "greedy" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 20000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
