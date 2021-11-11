@@ -23,9 +23,9 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,6):
 		extension = "MAA2C"+str(i)
-		test_num = "greedy_paired_agents_30_Agents" #TransformersTest
+		test_num = "prd_paired_agents_30_Agents" #TransformersTest
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "greedy" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GCN/ GAT
@@ -51,9 +51,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.0,
+				"select_above_threshold": 0.03,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.03,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
