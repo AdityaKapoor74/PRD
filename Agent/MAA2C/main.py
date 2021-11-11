@@ -43,8 +43,8 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, #1e-3 
 				"policy_lr": 1e-3, #prd 1e-4
 				"shared_actor_critic_lr": 0.0,
-				"entropy_pen": 8e-3, 
-				"entropy_pen_min": 8e-3,
+				"entropy_pen": 0.0, #8e-3
+				"entropy_pen_min": 0.0, #8e-3
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
