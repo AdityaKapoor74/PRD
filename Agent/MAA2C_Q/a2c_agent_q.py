@@ -480,8 +480,8 @@ class A2CAgent_Q:
 
 		target_Value_return = self.target_critic_network.forward(states_critic, one_hot_actions)
 		target_Q_values = target_Value_return[0]
-		target_V_values = torch.matmul(target_Q_values,probs.transpose(1,2))
-		target_weights_value = target_Value_return[1:]
+		# target_V_values = torch.matmul(target_Q_values,probs.transpose(1,2))
+		# target_weights_value = target_Value_return[1:]
 
 		if "prd" in self.experiment_type:
 			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)

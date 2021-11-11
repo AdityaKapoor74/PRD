@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "COMA_GNN_run_"+str(i)
-		test_num = "COMA_GNN" 
+		test_num = "COMA_GNN_indiv" 
 		env_name = "color_social_dilemma"
 
 		dictionary = {
