@@ -363,7 +363,6 @@ class A2CAgent_Q:
 
 
 	def calculate_prd_weights(self, weights, critic_name):
-		# print("weights", weights[0].shape)
 		weights_prd = None
 		if "MultiHeadDual" in critic_name:
 			weights_ = torch.stack([weight for weight in weights[1]])
@@ -486,12 +485,12 @@ class A2CAgent_Q:
 
 		if "prd" in self.experiment_type:
 			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
-			weight_prd = torch.ones(weights_prd.shape[0], self.num_agents, self.num_agents).to(self.device)
-			for i in range(self.num_agents):
-				value = torch.cat((weights_prd[:,i,:i], weight_prd[:,i,i].unsqueeze(-1), weights_prd[:,i,i:]), dim=-1)
-				weight_prd[:,i] = value
+			# weight_prd = torch.ones(weights_prd.shape[0], self.num_agents, self.num_agents).to(self.device)
+			# for i in range(self.num_agents):
+			# 	value = torch.cat((weights_prd[:,i,:i], weight_prd[:,i,i].unsqueeze(-1), weights_prd[:,i,i:]), dim=-1)
+			# 	weight_prd[:,i] = value
 
-			weights_prd = weight_prd
+			# weights_prd = weight_prd
 		else:
 			weights_prd = None
 	
