@@ -41,7 +41,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, #1e-3 
-				"policy_lr": 1e-3, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"shared_actor_critic_lr": 0.0,
 				"entropy_pen": 8e-3, 
 				"entropy_pen_min": 8e-3,
@@ -51,9 +51,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.03,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.075,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
