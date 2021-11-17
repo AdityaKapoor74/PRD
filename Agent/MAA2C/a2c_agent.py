@@ -236,7 +236,7 @@ class A2CAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
 
-		if self.plotting_dict["relevant_set_error_rate"] is not None:
+		if self.env in ["crossing_partially_coop", "paired_by_sharing_goals"]:
 			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
 			self.comet_ml.log_metric('Relevant Set Error Percentage',self.plotting_dict["relevant_set_error_rate"].item()*100.0,episode)
 
