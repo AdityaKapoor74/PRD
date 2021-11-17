@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_run"+str(i)
 		test_num = "COMA"
-		env_name = "crossing_greedy"
+		env_name = "color_social_dilemma"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
