@@ -21,10 +21,10 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
-	for i in range(1,6):
+	for i in range(1,3):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "prd_paired_agents_30_Agents" 
-		env_name = "color_social_dilemma"
+		env_name = "crossing_fully_coop"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 200000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
