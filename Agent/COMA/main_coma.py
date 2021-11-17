@@ -21,10 +21,10 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 
-	for i in range(3,6):
+	for i in range(1,3):
 		extension = "COMA_run"+str(i)
 		test_num = "COMA"
-		env_name = "crossing_fully_coop"
+		env_name = "crossing_partially_coop"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
