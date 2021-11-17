@@ -207,7 +207,7 @@ class MACOMA:
 				episode_reward += np.sum(rewards)
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
-				# rewards = [np.sum(rewards)]*self.num_agents
+				rewards = [np.sum(rewards)]*self.num_agents
 
 
 				if self.learn:

@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "COMA_GNN_run_"+str(i)
-		test_num = "COMA_GNN_indiv"+str(i) 
+		test_num = "COMA_GNN_"+str(i) 
 		env_name = "paired_by_sharing_goals"
 
 		dictionary = {
@@ -31,13 +31,14 @@ if __name__ == '__main__':
 				"policy_attention_heads": 0,
 				"critic_type": "Transformer", # Transformer/ DualTransformer
 				"critic_attention_heads": 0,
-				"critic_dir": "../../../tests/"+env_name+"/critic_dir/",
-				"actor_dir": "../../../tests/"+env_name+"/actor_dir/",
-				"gif_dir": "../../../tests/"+env_name+"/gif_dir/",
-				"policy_eval_dir":"../../../tests/"+env_name+"/policy_eval_dir/",
+				"critic_dir": "../../../tests/COMA_"+"_"+env_name+"/models/critic_networks/run"+str(i)+"/",
+				"actor_dir": "../../../tests/COMA_"+"_"+env_name+"/models/actor_networks/run"+str(i)+"/",
+				"gif_dir": "../../../tests/COMA_"+"_"+env_name+"/gif_dir/run"+str(i)+"/",
+				"policy_eval_dir":"../../../tests/COMA_"+"_"+env_name+"/policy_eval_dir/run"+str(i)+"/",
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
+				"iteration": i,
 				"value_lr": 5e-4, 
 				"policy_lr": 5e-4,
 				"critic_entropy_pen": 0.0,
@@ -57,7 +58,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 20000,
 				"max_time_steps": 100,
 				"norm_adv": False,
 				"norm_rew": False,

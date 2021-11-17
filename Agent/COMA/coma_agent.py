@@ -74,7 +74,8 @@ class COMAAgent:
 			obs_dim = 2*3 + 1
 
 		# MLP POLICY
-		torch.manual_seed(42)
+		self.seeds = [42, 142, 242, 342, 442]
+		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		if self.policy_type == "MLP":
 			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
 		elif self.policy_type == "Transformer":
