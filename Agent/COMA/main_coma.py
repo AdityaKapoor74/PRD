@@ -21,7 +21,7 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 
-	for i in range(5,6):
+	for i in range(1,6):
 		extension = "COMA_run"+str(i)
 		test_num = "COMA"
 		env_name = "crossing_partially_coop"
