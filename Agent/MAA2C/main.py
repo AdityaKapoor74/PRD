@@ -21,10 +21,10 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
-	for i in range(3,6):
+	for i in range(1,3):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "prd_paired_agents_30_Agents" 
-		env_name = "crossing_fully_coop"
+		env_name = "crossing_partially_coop"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
