@@ -21,20 +21,20 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 
-	for i in range(1,6):
+	for i in range(1,3):
 		extension = "COMA_run"+str(i)
 		test_num = "COMA"
-		env_name = "color_social_dilemma"
+		env_name = "crossing_fully_coop"
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
 				"policy_attention_heads": 0,
 				"critic_type": "Transformer", # Transformer/ DualTransformer
 				"critic_attention_heads": 0,
-				"critic_dir": "../../../tests/COMA_"+"_"+env_name+"/models/critic_networks/run"+str(i)+"/",
-				"actor_dir": "../../../tests/COMA_"+"_"+env_name+"/models/actor_networks/run"+str(i)+"/",
-				"gif_dir": "../../../tests/COMA_"+"_"+env_name+"/gif_dir/run"+str(i)+"/",
-				"policy_eval_dir":"../../../tests/COMA_"+"_"+env_name+"/policy_eval_dir/run"+str(i)+"/",
+				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
+				"actor_dir": "../../../tests/COMA_"+env_name+"/models/actor_networks/run"+str(i)+"/",
+				"gif_dir": "../../../tests/COMA_"+env_name+"/gif_dir/run"+str(i)+"/",
+				"policy_eval_dir":"../../../tests/COMA_"+env_name+"/policy_eval_dir/run"+str(i)+"/",
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 200000,
 				"max_time_steps": 100,
 				"norm_adv": False,
 				"norm_rew": False,
