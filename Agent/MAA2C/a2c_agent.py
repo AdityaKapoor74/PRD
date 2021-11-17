@@ -123,8 +123,8 @@ class A2CAgent:
 					else:
 						break
 
-		# here the relevant set is given value=0
-		self.relevant_set = torch.transpose(self.relevant_set,0,1)
+			# here the relevant set is given value=0
+			self.relevant_set = torch.transpose(self.relevant_set,0,1)
 
 
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
