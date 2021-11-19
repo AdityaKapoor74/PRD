@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"critic_entropy_pen": 0.0,
 				"use_target_net": True,
 				"critic_loss_type": "TD_lambda",
-				"target_critic_update": "soft",
+				"target_critic_update": "hard",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
