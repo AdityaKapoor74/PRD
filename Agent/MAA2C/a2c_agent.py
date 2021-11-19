@@ -477,7 +477,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value[-1], weights_value)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, V_values, rewards, dones, weights_value[-1], weights_value)
 	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
