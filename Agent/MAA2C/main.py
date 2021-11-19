@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "prd_paired_agents_30_Agents" 
-		env_name = "crossing_greedy"
+		env_name = "color_social_dilemma"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
@@ -42,9 +42,9 @@ if __name__ == '__main__':
 				"iteration": i,
 				"device": "gpu",
 				"value_lr": 1e-3, #1e-3 
-				"policy_lr": 1e-3, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_min": 0.0, #8e-3
+				"entropy_pen_min": 8e-3, #8e-3
 				"tau": 1e-3,
 				"target_critic_update_eps": 200,
 				"l1_pen": 0.0,
