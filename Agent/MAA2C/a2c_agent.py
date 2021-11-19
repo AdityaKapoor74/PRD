@@ -466,10 +466,10 @@ class A2CAgent:
 
 
 		target_Value_return = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		target_V_values = Value_return[0]
-		target_weights_value = Value_return[1:]
+		target_V_values = target_Value_return[0]
+		target_weights_value = target_Value_return[1:]
 
-		target_V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+		target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
 
 		if "prd" in self.experiment_type:
 			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
@@ -477,7 +477,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, V_values, rewards, dones, weights_value[-1], weights_value)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value[-1], weights_value)
 	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))

@@ -253,9 +253,6 @@ class MAA2C:
 
 				episode_reward += np.sum(rewards)
 
-				if self.test_num == "coma_v7":
-					rewards = [np.sum(rewards)]*self.num_agents
-
 
 				if self.learn:
 					if all(dones) or step == self.max_time_steps:
