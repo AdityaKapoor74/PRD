@@ -45,13 +45,13 @@ if __name__ == '__main__':
 				"policy_lr": 1e-3, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
-				"tau": 0.001,
+				"tau": 1e-3,
 				"target_critic_update_eps": 200,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"use_target_net": True,
 				"critic_loss_type": "TD_lambda",
-				"target_critic_update": "hard",
+				"target_critic_update": "soft",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
