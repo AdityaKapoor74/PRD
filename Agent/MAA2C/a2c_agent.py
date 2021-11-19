@@ -60,6 +60,9 @@ class A2CAgent:
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
+
+		self.error_rate = []
+		self.average_relevant_set = []
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
@@ -243,6 +246,7 @@ class A2CAgent:
 		if self.env in ["crossing_partially_coop", "paired_by_sharing_goals"]:
 			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
 			self.comet_ml.log_metric('Relevant Set Error Percentage',self.plotting_dict["relevant_set_error_rate"].item()*100.0,episode)
+			self.error_rate.append(self.plotting_dict["relevant_set_error_rate"].item())
 
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
@@ -250,6 +254,7 @@ class A2CAgent:
 				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
+			self.average_relevant_set.append(self.plotting_dict["avg_agent_group_over_episode"].item())
 
 
 		if "prd_top" in self.experiment_type:
