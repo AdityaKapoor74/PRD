@@ -49,7 +49,7 @@ if __name__ == '__main__':
 				"target_critic_update_eps": 200,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
-				"critic_loss_type": "TD_lambda",
+				"critic_loss_type": "MC",
 				"target_critic_update": "hard",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
