@@ -54,7 +54,7 @@ if __name__ == '__main__':
 				"target_critic_update": "soft",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
-				"lambda": 0.8, #0.8
+				"lambda": 0.9, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.05,
