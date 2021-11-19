@@ -21,7 +21,7 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
-	for i in range(5,6):
+	for i in range(1,6):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "prd_paired_agents_30_Agents" 
 		env_name = "crossing_greedy"
