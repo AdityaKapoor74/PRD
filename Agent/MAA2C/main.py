@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	for i in range(1,2):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "relevant_set_all_envs" 
-		env_name = "crossing_fully_coop"
+		env_name = "color_social_dilemma"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 50000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
