@@ -29,6 +29,7 @@ class A2CAgent:
 		self.entropy_pen = dictionary["entropy_pen"]
 		self.entropy_pen_min = dictionary["entropy_pen_min"]
 		self.entropy_delta = (self.entropy_pen - self.entropy_pen_min) / dictionary["max_episodes"]
+		self.use_target_net = dictionary["use_target_net"]
 		self.target_critic_update = dictionary["target_critic_update"]
 		self.tau = dictionary["tau"]
 		self.target_critic_update_eps = dictionary["target_critic_update_eps"]
@@ -464,12 +465,13 @@ class A2CAgent:
 
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
-
-		target_Value_return = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
-		target_V_values = target_Value_return[0]
-		target_weights_value = target_Value_return[1:]
-
-		target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
+		if self.use_target_net:
+			target_Value_return = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			target_V_values = target_Value_return[0]
+			target_weights_value = target_Value_return[1:]
+			target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
+		else:
+			target_V_values = V_values.clone()
 
 		if "prd" in self.experiment_type:
 			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
