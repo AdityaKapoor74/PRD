@@ -24,7 +24,7 @@ if __name__ == '__main__':
 	for i in range(1,2):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "relevant_set_all_envs" 
-		env_name = "crossing_partially_coop"
+		env_name = "crossing_greedy"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
