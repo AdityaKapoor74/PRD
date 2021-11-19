@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAA2C_run_"+str(i)
 		test_num = "prd_paired_agents_30_Agents" 
 		env_name = "crossing_greedy"
-		experiment_type = "greedy" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"policy_type": "MLP", # MLP/ GAT
