@@ -29,7 +29,9 @@ class A2CAgent:
 		self.entropy_pen = dictionary["entropy_pen"]
 		self.entropy_pen_min = dictionary["entropy_pen_min"]
 		self.entropy_delta = (self.entropy_pen - self.entropy_pen_min) / dictionary["max_episodes"]
+		self.target_critic_update = dictionary["target_critic_update"]
 		self.tau = dictionary["tau"]
+		self.target_critic_update_eps = dictionary["target_critic_update_eps"]
 		self.trace_decay = dictionary["trace_decay"]
 		self.top_k = dictionary["top_k"]
 		self.gae = dictionary["gae"]
@@ -60,6 +62,7 @@ class A2CAgent:
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
+		self.episode = 0
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
@@ -420,6 +423,8 @@ class A2CAgent:
 		return policy_loss
 
 	def update_parameters(self):
+		self.episode += 1
+
 		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
 
@@ -429,8 +434,12 @@ class A2CAgent:
 		if self.l1_pen > self.l1_pen_min and "prd_above_threshold_l1_pen_decay" in self.experiment_type:
 			self.l1_pen = self.l1_pen - self.l1_pen_delta
 
-		for target_param, param in zip(self.target_critic_network.parameters(), self.critic_network.parameters()):
-			target_param.data.copy_(target_param.data * (1.0 - self.tau) + param.data * self.tau)
+		if self.target_critic_update == "soft":
+			for target_param, param in zip(self.target_critic_network.parameters(), self.critic_network.parameters()):
+				target_param.data.copy_(target_param.data * (1.0 - self.tau) + param.data * self.tau)
+		else:
+			if self.episode%self.target_critic_update_eps==0:
+				self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		# annealing entropy pen
 		if self.entropy_pen > 0:
