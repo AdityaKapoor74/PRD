@@ -44,12 +44,12 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, #1e-3 
 				"policy_lr": 1e-3, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_min": 1e-3, #8e-3
+				"entropy_pen_min": 0.0, #8e-3
 				"tau": 0.001,
 				"target_critic_update_eps": 200,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
-				"use_target_net": False,
+				"use_target_net": True,
 				"critic_loss_type": "TD_lambda",
 				"target_critic_update": "hard",
 				"gamma": 0.99, 
