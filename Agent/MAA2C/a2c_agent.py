@@ -5,6 +5,8 @@ from torch.distributions import Categorical
 from a2c_model import *
 import torch.nn.functional as F
 
+import ipdb
+
 class A2CAgent:
 
 	def __init__(
@@ -26,9 +28,10 @@ class A2CAgent:
 		self.l1_pen_steps_to_take = dictionary["l1_pen_steps_to_take"]
 		self.critic_entropy_pen = dictionary["critic_entropy_pen"]
 		self.gamma = dictionary["gamma"]
-		self.entropy_pen = dictionary["entropy_pen"]
+		# self.entropy_pen = dictionary["entropy_pen"]
+		self.entropy_pen_init = dictionary["entropy_pen"]
 		self.entropy_pen_min = dictionary["entropy_pen_min"]
-		self.entropy_delta = (self.entropy_pen - self.entropy_pen_min) / dictionary["max_episodes"]
+		self.entropy_delta = (self.entropy_pen_init - self.entropy_pen_min) / dictionary["max_episodes"]
 		self.use_target_net = dictionary["use_target_net"]
 		self.target_critic_update = dictionary["target_critic_update"]
 		self.tau = dictionary["tau"]
@@ -44,14 +47,15 @@ class A2CAgent:
 		self.lambda_ = dictionary["lambda"]
 		self.experiment_type = dictionary["experiment_type"]
 		# Used for masking advantages above a threshold
-		self.select_above_threshold = dictionary["select_above_threshold"]
+		# self.select_above_threshold = dictionary["select_above_threshold"]
+		self.select_above_threshold_init = dictionary["select_above_threshold"]
 		self.threshold_min = dictionary["threshold_min"]
 		self.threshold_max = dictionary["threshold_max"]
 		self.steps_to_take = dictionary["steps_to_take"]
 		if "prd_above_threshold_decay" in self.experiment_type:
 			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
 		elif "prd_above_threshold_ascend" in self.experiment_type:
-			self.threshold_delta = (self.threshold_max - self.select_above_threshold)/self.steps_to_take
+			self.threshold_delta = (self.threshold_max - self.select_above_threshold_init)/self.steps_to_take
 
 		if "prd_above_threshold_l1_pen_decay" in self.experiment_type:
 			self.l1_pen_delta = (self.l1_pen - self.l1_pen_min)/self.l1_pen_steps_to_take
@@ -143,12 +147,15 @@ class A2CAgent:
 			# Loading models
 			if torch.cuda.is_available() is False:
 				# For CPU
-				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"],map_location=torch.device('cpu')))
-				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"],map_location=torch.device('cpu')))
+				self.critic_network.load_state_dict(torch.load(dictionary["load_path_critic"],map_location=torch.device('cpu')))
+				self.policy_network.load_state_dict(torch.load(dictionary["load_path_actor"],map_location=torch.device('cpu')))
 			else:
 				# For GPU
-				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
-				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
+				# ipdb.set_trace()
+				# self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
+				# self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
+				self.critic_network.load_state_dict(torch.load(dictionary["load_path_critic"]))
+				self.policy_network.load_state_dict(torch.load(dictionary["load_path_actor"]))
 
 		
 		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
@@ -373,6 +380,9 @@ class A2CAgent:
 	def calculate_advantages_based_on_exp(self, discounted_rewards, V_values, rewards, dones, weights_prd, episode):
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		
+
+
 		advantage = None
 		masking_advantage = None
 		if "shared" in self.experiment_type:
@@ -450,6 +460,27 @@ class A2CAgent:
 		# annealing entropy pen
 		if self.entropy_pen > 0:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
+
+	def update_parameters_episode(self,episode):
+
+		self.episode = episode
+
+
+		if "prd_above_threshold_ascend" in self.experiment_type:
+
+			self.select_above_threshold = self.select_above_threshold_init + self.episode*self.threshold_delta
+			if self.select_above_threshold > self.threshold_max:
+				self.select_above_threshold = self.threshold_max
+
+		elif "shared" in self.experiment_type:
+			pass
+
+		else:
+			raise NotImplemtentedError
+
+		self.entropy_pen = self.entropy_pen_init - self.entropy_delta*self.episode
+		if self.entropy_pen <= 0:
+			self.entropy_pen = 0.0
 
 
 	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
@@ -541,3 +572,114 @@ class A2CAgent:
 
 		if self.comet_ml is not None:
 			self.plot(episode)
+
+
+	def get_policy_grad(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
+
+		'''
+		Getting the probability mass function over the action space for each agent
+		'''
+		# run this to set self.select_above_threshold
+		self.update_parameters_episode(episode)
+
+
+		Policy_return = self.policy_network.forward(states_actor)
+		probs = Policy_return[0]
+		weights_policy = Policy_return[1:]
+
+		'''
+		Calculate V values
+		'''
+		Value_return = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		V_values = Value_return[0]
+		weights_value = Value_return[1:]
+
+		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+
+		if self.use_target_net:
+			target_Value_return = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			target_V_values = target_Value_return[0]
+			target_weights_value = target_Value_return[1:]
+			target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
+		else:
+			target_V_values = V_values.clone()
+
+		if "prd" in self.experiment_type:
+			weights_prd = self.calculate_prd_weights(weights_value, self.critic_network.name)
+		else:
+			weights_prd = None
+	
+
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value[-1], weights_value)
+	
+		# policy entropy
+		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+
+		advantage, masking_advantage = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
+
+		if "prd_avg" in self.experiment_type:
+			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
+			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode.float())
+		elif "threshold" in self.experiment_type:
+			print('self.select_above_threshold: ', self.select_above_threshold)
+			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+	
+		policy_loss = self.calculate_policy_loss(probs, actions, entropy, advantage)
+		# # ***********************************************************************************
+			
+		# **********************************
+
+
+		policy_grad = []
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward(retain_graph=False)
+		for name,param in self.policy_network.named_parameters():
+			if param.requires_grad:
+				policy_grad.append(param.grad.flatten())
+
+		
+		# self.critic_optimizer.zero_grad()
+		# value_loss.backward(retain_graph=False)
+		# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+		# self.critic_optimizer.step()
+
+
+		# self.policy_optimizer.zero_grad()
+		# policy_loss.backward(retain_graph=False)
+		# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+		# self.policy_optimizer.step()
+
+
+		# self.update_parameters()
+
+
+		# if "prd" in self.experiment_type and self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop"]:
+		# 	relevant_set_error_rate = torch.mean(masking_advantage*self.relevant_set)
+		# else:
+		# 	relevant_set_error_rate = -1
+
+
+		# self.plotting_dict = {
+		# "value_loss": value_loss,
+		# "policy_loss": policy_loss,
+		# "entropy": entropy,
+		# "grad_norm_value":grad_norm_value,
+		# "grad_norm_policy": grad_norm_policy,
+		# "weights_value": weights_value,
+		# "weights_policy": weights_policy,
+		# "relevant_set_error_rate":relevant_set_error_rate,
+		# }
+
+		# if "threshold" in self.experiment_type:
+		# 	self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode
+		# 	self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode
+		# if "prd_top" in self.experiment_type:
+		# 	self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
+
+		# if self.comet_ml is not None:
+		# 	self.plot(episode)
+
+
+
+		return torch.cat(policy_grad)
