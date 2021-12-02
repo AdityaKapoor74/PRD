@@ -52,6 +52,9 @@ class PPOAgent:
 		self.policy_clip = dictionary["policy_clip"]
 		self.n_epochs = dictionary["n_epochs"]
 
+		self.error_rate = []
+		self.average_relevant_set = []
+
 
 		if "prd_above_threshold_decay" in self.experiment_type:
 			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
@@ -87,17 +90,21 @@ class PPOAgent:
 			obs_dim = 2*3 + 1
 			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_team_greedy":
-			obs_dim = 2*3 + 1
+			obs_dim = 2*3 + 5
 			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
 		elif self.env_name in ["color_social_dilemma"]:
 			obs_dim = 2*2 + 1 + 2*3
-		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
+		elif self.env_name == "crossing_partially_coop":
 			obs_dim = 2*3 + 1
+		elif self.env_name == "crossing_team_greedy":
+			obs_dim = 2*3 + 5
 
-		# MLP POLICY
+		self.seeds = [42, 142, 242, 342, 442]
+		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
+		# POLICY
 		if self.policy_type == "MLP":
 			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
 			self.policy_network_old = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
@@ -112,6 +119,47 @@ class PPOAgent:
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
 		self.buffer = RolloutBuffer()
+
+		if self.env_name == "paired_by_sharing_goals":
+			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
+			for i in range(self.num_agents):
+				self.relevant_set[i][self.num_agents-i-1] = 0
+
+			# here the relevant set is given value=0
+			self.relevant_set = torch.transpose(self.relevant_set,0,1)
+		elif self.env_name == "crossing_partially_coop":
+			team_size = 8
+			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
+			for i in range(self.num_agents):
+				for j in range(self.num_agents):
+					if i<team_size and j<team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=team_size and i<2*team_size and j>=team_size and j<2*team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=2*team_size and i<3*team_size and j>=2*team_size and j<3*team_size:
+						self.relevant_set[i][j] = 0
+					else:
+						break
+
+			# here the relevant set is given value=0
+			self.relevant_set = torch.transpose(self.relevant_set,0,1)
+		elif self.env_name == "crossing_team_greedy":
+			team_size = 4
+			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
+			for i in range(self.num_agents):
+				for j in range(self.num_agents):
+					if i<team_size and j<team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=team_size and i<2*team_size and j>=team_size and j<2*team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=2*team_size and i<3*team_size and j>=2*team_size and j<3*team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=3*team_size and i<4*team_size and j>=3*team_size and j<4*team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=4*team_size and i<5*team_size and j>=4*team_size and j<5*team_size:
+						self.relevant_set[i][j] = 0
+					else:
+						break
 
 
 		if self.env_name == "color_social_dilemma":
@@ -246,6 +294,11 @@ class PPOAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
 
+		if self.env_name in ["crossing_partially_coop", "paired_by_sharing_goals", "crossing_team_greedy"]:
+			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
+			self.comet_ml.log_metric('Relevant Set Error Percentage',self.plotting_dict["relevant_set_error_rate"].item()*100.0,episode)
+			self.error_rate.append(self.plotting_dict["relevant_set_error_rate"].item())
+
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
 				agent_name = "agent"+str(i)
@@ -260,44 +313,17 @@ class PPOAgent:
 
 		if len(self.plotting_dict["weights_value"]) == 2:
 			# ENTROPY OF WEIGHTS
-			if "MultiHead" in self.critic_type:
-				for i in range(len(self.plotting_dict["weights_value"][0])):
-					entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0][i] * torch.log(torch.clamp(self.plotting_dict["weights_value"][0][i], 1e-10,1.0)), dim=2))
-					self.comet_ml.log_metric('Critic_Weight_Entropy_States', entropy_weights.item(), episode)
-
-				for i in range(len(self.plotting_dict["weights_value"][1])):
-					entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][1][i] * torch.log(torch.clamp(self.plotting_dict["weights_value"][1][i], 1e-10,1.0)), dim=2))
-					self.comet_ml.log_metric('Critic_Weight_Entropy_StatesActions', entropy_weights.item(), episode)
-			else:
-				entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0] * torch.log(torch.clamp(self.plotting_dict["weights_value"][0], 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy_States', entropy_weights.item(), episode)
-
-				entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][1] * torch.log(torch.clamp(self.plotting_dict["weights_value"][1], 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy_StatesActions', entropy_weights.item(), episode)
-
-		elif len(self.plotting_dict["weights_value"]) == 4:
 			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0] * torch.log(torch.clamp(self.plotting_dict["weights_value"][0], 1e-10,1.0)), dim=2))
-			self.comet_ml.log_metric('Critic_Weight_Entropy_States_Preproc1', entropy_weights.item(), episode)
+			self.comet_ml.log_metric('Critic_Weight_Entropy_States', entropy_weights.item(), episode)
 
 			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][1] * torch.log(torch.clamp(self.plotting_dict["weights_value"][1], 1e-10,1.0)), dim=2))
-			self.comet_ml.log_metric('Critic_Weight_Entropy_States_Preproc2', entropy_weights.item(), episode)
-
-			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][2] * torch.log(torch.clamp(self.plotting_dict["weights_value"][2], 1e-10,1.0)), dim=2))
-			self.comet_ml.log_metric('Critic_Weight_Entropy_States_1', entropy_weights.item(), episode)
-
-			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][3] * torch.log(torch.clamp(self.plotting_dict["weights_value"][3], 1e-10,1.0)), dim=2))
 			self.comet_ml.log_metric('Critic_Weight_Entropy_StatesActions', entropy_weights.item(), episode)
 			
+		
 		else:
 			# ENTROPY OF WEIGHTS
-			if "MultiHead" in self.critic_type:
-				for i in range(len(self.plotting_dict["weights_value"][0])):
-					entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0][i]* torch.log(torch.clamp(self.plotting_dict["weights_value"][0][i], 1e-10,1.0)), dim=2))
-					self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
-			else:
-				entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0]* torch.log(torch.clamp(self.plotting_dict["weights_value"][0], 1e-10,1.0)), dim=2))
-				self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
-
+			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"][0]* torch.log(torch.clamp(self.plotting_dict["weights_value"][0], 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 		
 	def calculate_value_loss(self, V_values, rewards, dones, weights, weights_value, custom_loss=False):
 		discounted_rewards = None
@@ -325,12 +351,9 @@ class PPOAgent:
 
 		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
 			if len(weights)==2:
-				if "MultiHead" in self.critic_type:
-					weights_preproc = torch.mean(torch.stack(weights[0]), dim=1)
-					weights_postproc = torch.mean(torch.stack(weights[1]), dim=1)
-				else:
-					weights_preproc = weights[0]
-					weights_postproc = weights[1]
+				weights_preproc = torch.mean(torch.stack(weights[0]), dim=1)
+				weights_postproc = torch.mean(torch.stack(weights[1]), dim=1)
+				
 
 				weights_off_diagonal_preproc = weights_preproc * (1 - torch.eye(self.num_agents,device=self.device))
 				weights_off_diagonal = weights_postproc * (1 - torch.eye(self.num_agents,device=self.device))
@@ -338,10 +361,7 @@ class PPOAgent:
 				weight_entropy = -torch.mean(torch.sum(weights_preproc * torch.log(torch.clamp(weights_preproc, 1e-10,1.0)), dim=2)) -torch.mean(torch.sum(weights_post * torch.log(torch.clamp(weights_post, 1e-10,1.0)), dim=2))
 			
 			else:
-				if "MultiHead" in self.critic_type:
-					weights_ = torch.mean(torch.stack(weights[0]), dim=1)
-				else:
-					weights_ = weights
+				weights_ = torch.mean(torch.stack(weights[0]), dim=1)
 
 
 				weights_off_diagonal = weights_ * (1 - torch.eye(self.num_agents,device=self.device))
@@ -355,22 +375,13 @@ class PPOAgent:
 
 
 	def calculate_prd_weights(self, weights, critic_name):
-		# print("weights", weights[0].shape)
 		weights_prd = None
-		if "MultiHeadDual" in critic_name:
+		if "Dual" in critic_name:
 			weights_ = torch.stack([weight for weight in weights[1]])
 			weights_prd = torch.mean(weights_, dim=0)
-		elif "MultiHead" in critic_name:
+		else:
 			weights_ = torch.stack([weight for weight in weights[0]])
 			weights_prd = torch.mean(weights_, dim=0)
-		elif "DualTransformerStateDualTransformerStateAction" in critic_name:
-			weights_prd = weights[-1]
-		elif "Dual" in critic_name:
-			weights_prd = weights[1]
-		elif "TransformerStateTransformerStateAction" in critic_name:
-			weights_prd = weights[1]
-		else:
-			weights_prd = weights[0]
 
 		return weights_prd
 
@@ -477,8 +488,12 @@ class PPOAgent:
 		value_loss_batch = 0
 		policy_loss_batch = 0
 		entropy_batch = 0
-		value_weights_batch = torch.zeros_like(weights_value_old[-1])
-		policy_weights_batch = torch.zeros_like(weights_value_old[-1])
+		value_weights_batch_1 = torch.zeros_like(weights_value_old[0][0])
+		policy_weights_batch_1 = torch.zeros_like(weights_value_old[0][0])
+		if "Dual" in self.critic_network.name:
+			value_weights_batch_2 = torch.zeros_like(weights_value_old[1][0])
+		if "Dual" in self.policy_network.name:
+			policy_weights_batch_2 = torch.zeros_like(weights_value_old[1][0])
 		grad_norm_value_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
@@ -540,14 +555,34 @@ class PPOAgent:
 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
 			self.policy_optimizer.step()
 
-
 			value_loss_batch += critic_loss
 			policy_loss_batch += policy_loss
 			entropy_batch += entropy
 			grad_norm_value_batch += grad_norm_value
 			grad_norm_policy_batch += grad_norm_policy
-			value_weights_batch += weights_value[-1].detach()
-			policy_weights_batch += weights_policy.detach()
+			if "Dual" in self.critic_network.name:
+				weights_ = torch.stack([weight for weight in weights_value[0]])
+				weights_1 = torch.mean(weights_, dim=0)
+				value_weights_batch_1 += weights_1.detach()
+				weights_ = torch.stack([weight for weight in weights_value[1]])
+				weights_2 = torch.mean(weights_, dim=0)
+				value_weights_batch_2 += weights_2.detach()
+			else:
+				weights_ = torch.stack([weight for weight in weights_value[0]])
+				weights_1 = torch.mean(weights_, dim=0)
+				value_weights_batch_1 += weights_1.detach()
+
+			if "Dual" in self.policy_network.name:
+				weights_ = torch.stack([weight for weight in weights_policy[0]])
+				weights_1 = torch.mean(weights_, dim=0)
+				policy_weights_batch_1 += weights_1.detach()
+				weights_ = torch.stack([weight for weight in weights_policy[1]])
+				weights_2 = torch.mean(weights_, dim=0)
+				policy_weights_batch_1 += weights_2.detach()
+			else:
+				weights_ = torch.stack([weight for weight in weights_policy[0]])
+				weights_1 = torch.mean(weights_, dim=0)
+				policy_weights_batch_1 += weights_1.detach()
 			
 		# Copy new weights into old policy
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
@@ -560,13 +595,31 @@ class PPOAgent:
 		entropy_batch /= self.n_epochs
 		grad_norm_value_batch /= self.n_epochs
 		grad_norm_policy_batch /= self.n_epochs
-		value_weights_batch /= self.n_epochs
-		policy_weights_batch /= self.n_epochs
+		value_weights_batch_1 /= self.n_epochs
+		if "Dual" in self.critic_network.name:
+			value_weights_batch_2 /= self.n_epochs
+		policy_weights_batch_1 /= self.n_epochs
+		if "Dual" in self.policy_network.name:
+			policy_weights_batch_2 /= self.n_epochs
 		agent_groups_over_episode_batch /= self.n_epochs
 		avg_agent_group_over_episode_batch /= self.n_epochs
 
 		self.update_parameters()
 
+		if "prd" in self.experiment_type and self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop", "crossing_team_greedy"]:
+			relevant_set_error_rate = torch.mean(masking_advantage*self.relevant_set)
+		else:
+			relevant_set_error_rate = -1
+
+		if "Dual" in self.critic_network.name:
+			weights_value_batch = [value_weights_batch_1, value_weights_batch_2]
+		else:
+			value_weights_batch = [value_weights_batch_1]
+
+		if "Dual" in self.policy_network.name:
+			policy_weights_batch = [policy_weights_batch_1, policy_weights_batch_2]
+		else:
+			policy_weights_batch = [policy_weights_batch_1]
 
 		self.plotting_dict = {
 		"value_loss": value_loss_batch,
@@ -574,8 +627,9 @@ class PPOAgent:
 		"entropy": entropy_batch,
 		"grad_norm_value":grad_norm_value_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
-		"weights_value": [value_weights_batch],
-		"weights_policy": [policy_weights_batch],
+		"weights_value": value_weights_batch,
+		"weights_policy": policy_weights_batch,
+		"relevant_set_error_rate":relevant_set_error_rate,
 		}
 
 		if "threshold" in self.experiment_type:
