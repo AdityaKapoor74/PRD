@@ -106,7 +106,7 @@ class PPOAgent:
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
 		if self.policy_type == "MLP":
-			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
+			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
 			self.policy_network_old = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
 		elif self.policy_type == "Transformer":
 			self.policy_network = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.device).to(self.device)
