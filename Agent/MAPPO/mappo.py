@@ -16,12 +16,12 @@ import datetime
 class MAPPO:
 
 	def __init__(self, env, dictionary):
-		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		if dictionary["device"] == "gpu":
+			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		else:
+			self.device = "cpu"
 		self.policy_type = dictionary["policy_type"]
 		self.critic_type = dictionary["critic_type"]
-		self.critic_attention_heads = dictionary["critic_attention_heads"]
-		self.policy_attention_heads = dictionary["policy_attention_heads"]
-		# self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]

@@ -45,6 +45,10 @@ class PPOAgent:
 		self.threshold_max = dictionary["threshold_max"]
 		self.steps_to_take = dictionary["steps_to_take"]
 
+		# Transformer Heads
+		self.num_heads_critic = dictionary["num_heads_critic"]
+		self.num_heads_actor = dictionary["num_heads_actor"]
+
 		self.policy_clip = dictionary["policy_clip"]
 		self.n_epochs = dictionary["n_epochs"]
 
@@ -57,8 +61,10 @@ class PPOAgent:
 		if "prd_above_threshold_l1_pen_decay" in self.experiment_type:
 			self.l1_pen_delta = (self.l1_pen - self.l1_pen_min)/self.l1_pen_steps_to_take
 
-		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		# self.device = "cpu"
+		if dictionary["device"] == "gpu":
+			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		else:
+			self.device = "cpu"
 		
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
@@ -67,25 +73,22 @@ class PPOAgent:
 
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_greedy":
-		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
 			obs_dim = 2*3
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_fully_coop":
-		# 	obs_dim = 2*3 + 2*(self.num_agents-1)
 			obs_dim = 2*3
-			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + 2*3
-			# self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
-		# 	obs_dim = 2*3 + 1 + (2+1) * (self.num_agents-1)
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+		elif self.env_name == "crossing_partially_coop":
 			obs_dim = 2*3 + 1
-			# self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
-
-
-		self.critic_network = NAT(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions).to(self.device)
+			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
+		elif self.env_name == "crossing_team_greedy":
+			obs_dim = 2*3 + 1
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -99,9 +102,12 @@ class PPOAgent:
 			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
 			self.policy_network_old = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
 		elif self.policy_type == "Transformer":
-			self.policy_network = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
-			self.policy_network_old = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions).to(self.device)
-
+			self.policy_network = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.device).to(self.device)
+			self.policy_network_old = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.device).to(self.device)
+		elif self.policy_type == "DualTransformer":
+			self.policy_network = DualTransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.num_heads_actor, self.device).to(self.device)
+			self.policy_network_old = DualTransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.num_heads_actor, self.device).to(self.device)
+		
 		# COPY
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 

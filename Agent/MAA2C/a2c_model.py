@@ -68,8 +68,11 @@ class TransformerPolicy(nn.Module):
 
 		# ********************************************************************************************************
 		# FCN FINAL LAYER TO GET VALUES
-		self.final_policy_layer_1 = nn.Linear(final_input_dim, 64, bias=False)
-		self.final_policy_layer_2 = nn.Linear(64, final_output_dim, bias=False)
+		self.final_policy_layers = nn.Sequential(
+			nn.Linear(final_input_dim, 64, bias=True), 
+			nn.LeakyReLU(),
+			nn.Linear(64, final_output_dim, bias=True)
+			)
 		# ********************************************************************************************************
 
 
@@ -87,8 +90,8 @@ class TransformerPolicy(nn.Module):
 		nn.init.xavier_uniform_(self.attention_value_layer.weight)
 
 
-		nn.init.xavier_uniform_(self.final_policy_layer_1.weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_policy_layer_2.weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_policy_layers[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_policy_layers[1].weight, gain=gain_leaky)
 
 
 
@@ -104,9 +107,7 @@ class TransformerPolicy(nn.Module):
 		attention_values = self.attention_value_layer(states_embed)
 		node_features = torch.matmul(weight, attention_values)
 
-
-		Policy = F.leaky_relu(self.final_policy_layer_1(node_features))
-		Policy = F.softmax(self.final_policy_layer_2(Policy), dim=-1)
+		Policy = self.final_policy_layers(node_features)
 
 		return Policy, weight
 
@@ -202,7 +203,6 @@ class TransformerCritic(nn.Module):
 		Value = self.final_value_layers(node_features)
 
 		return Value, ret_weight
-
 
 
 class DualTransformerCritic(nn.Module):

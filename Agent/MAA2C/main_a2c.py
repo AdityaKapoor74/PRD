@@ -23,8 +23,8 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,6):
 		extension = "MAA2C_run_"+str(i)
-		test_num = "prd_paired_agents_30_agents" 
-		env_name = "color_social_dilemma"
+		test_num = "PRD_2_exps" 
+		env_name = "crossing_greedy"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
@@ -32,15 +32,15 @@ if __name__ == '__main__':
 				"policy_attention_heads": 0,
 				"critic_type": "Transformer",
 				"critic_attention_heads": 0,
-				"critic_dir": '../../../tests/MAA2C_'+env_name+"_"+experiment_type+'/models/critic_networks/run'+str(i),
-				"actor_dir": '../../../tests/MAA2C_'+env_name+"_"+experiment_type+'/models/actor_networks/run'+str(i),
-				"gif_dir": '../../../tests/MAA2C_'+env_name+"_"+experiment_type+'/gifs/',
-				"policy_eval_dir":'../../../tests/MAA2C_'+env_name+"_"+experiment_type+'/policy_eval_dir/run'+str(i),
+				"critic_dir": '../../../data/MAA2C_'+env_name+"_"+experiment_type+'/models/critic_networks/run'+str(i),
+				"actor_dir": '../../../data/MAA2C_'+env_name+"_"+experiment_type+'/models/actor_networks/run'+str(i),
+				"gif_dir": '../../../data/MAA2C_'+env_name+"_"+experiment_type+'/gifs/',
+				"policy_eval_dir":'../../../data/MAA2C_'+env_name+"_"+experiment_type+'/policy_eval_dir/run'+str(i),
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
 				"iteration": i,
-				"device": "gpu",
+				"device": "cpu",
 				"value_lr": 7e-4, #1e-3 
 				"policy_lr": 5e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
@@ -64,13 +64,13 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"gif": False,
 				"gif_checkpoint":1,
-				"load_models": False,
+				"load_models": True,
 				"model_path_value": " ",
 				"model_path_policy": " ",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 50000,
 				"max_time_steps": 100,
