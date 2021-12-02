@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"device": "cpu",
+				"device": "gpu",
 				"policy_type": "Transformer", # MLP/ Transformer/ DualTransformer
 				"critic_type": "Transformer", # Transformer/ DualTransformer
 				"num_heads_critic": 1,
@@ -67,8 +67,8 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/ablation_study/Transformers/tests/MultiHeadTransformerCritic2/models/crossing_team_greedy_shared_run1/critic_networks/24-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt",
 				"model_path_policy": "../../../tests/ablation_study/Transformers/tests/MultiHeadTransformerCritic2/models/crossing_team_greedy_shared_run1/actor_networks/24-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
