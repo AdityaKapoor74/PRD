@@ -30,7 +30,7 @@ if __name__ == '__main__':
 		dictionary = {
 				"iteration": i,
 				"device": "gpu",
-				"policy_type": "Transformer", # MLP/ Transformer/ DualTransformer
+				"policy_type": "MLP", # MLP/ Transformer/ DualTransformer
 				"critic_type": "Transformer", # Transformer/ DualTransformer
 				"num_heads_critic": 1,
 				"num_heads_actor": 1,
