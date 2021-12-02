@@ -520,3 +520,134 @@ class DualTransformerCritic(nn.Module):
 		Value = self.final_value_layers(node_features)
 
 		return Value, weight_preproc, ret_weight
+
+
+
+class TransformerCritic_threshold_pred(nn.Module):
+	'''
+	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
+	'''
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
+		super(TransformerCritic_threshold_pred, self).__init__()
+		
+		self.name = "TransformerCritic_threshold_pred"
+
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = device
+		self.num_heads = num_heads
+
+		self.state_embed_threshold = []
+		self.state_embed_list = []
+		self.key_threshold = []
+		self.key_list = []
+		self.query_threshold = []
+		self.query_list = []
+		self.state_act_pol_embed_list = []
+		self.attention_value_list = []
+
+		for i in range(self.num_heads):
+			self.state_embed_threshold.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
+			self.state_embed_list.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
+			self.key_list.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.query_list.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.key_threshold.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.query_threshold.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.state_act_pol_embed_list.append(nn.Sequential(nn.Linear(obs_act_input_dim, 128, bias=True), nn.LeakyReLU()).to(self.device))
+			self.attention_value_list.append(nn.Sequential(nn.Linear(128, obs_act_output_dim), nn.LeakyReLU()).to(self.device))
+
+		# dimesion of key
+		self.d_k = obs_output_dim
+		self.d_k_threshold = obs_output_dim
+
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layers = nn.Sequential(
+			nn.Linear(final_input_dim, 64, bias=True), 
+			nn.LeakyReLU(),
+			nn.Linear(64, final_output_dim, bias=True)
+			)
+		# ********************************************************************************************************	
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+
+		self.reset_parameters()
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		for i in range(self.num_heads):
+			nn.init.xavier_uniform_(self.state_embed_list[i][0].weight, gain=gain_leaky)
+			nn.init.xavier_uniform_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
+
+			nn.init.xavier_uniform_(self.key_list[i].weight)
+			nn.init.xavier_uniform_(self.query_list[i].weight)
+			nn.init.xavier_uniform_(self.attention_value_list[i][0].weight)
+
+			nn.init.xavier_uniform_(self.state_embed_threshold[i][0].weight, gain=gain_leaky)
+			nn.init.xavier_uniform_(self.key_threshold[i].weight)
+			nn.init.xavier_uniform_(self.query_threshold[i].weight)
+
+
+		nn.init.xavier_uniform_(self.final_value_layers[0].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_value_layers[2].weight, gain=gain_leaky)
+
+
+
+	def forward(self, states, policies, actions):
+
+		obs_actions = torch.cat([states,actions],dim=-1)
+		obs_policy = torch.cat([states,policies], dim=-1)
+		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+
+		node_features = []
+		weights = []
+		for i in range(self.num_heads):
+			# EMBED STATES
+			states_embed = self.state_embed_list[i](states)
+			# KEYS
+			key_obs = self.key_list[i](states_embed)
+			# QUERIES
+			query_obs = self.query_list[i](states_embed)
+			# WEIGHT
+			weight = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k),dim=-1)
+
+			state_embed_threshold = self.state_embed_threshold[i](states)
+			query_threshold = self.query_threshold[i](state_embed_threshold)
+			key_threshold = self.key_threshold[i](torch.sum(state_embed_threshold, dim=-2)).unsqueeze(-2).repeat(1,self.num_agents,1)
+			threshold = (torch.tanh(torch.matmul(query_threshold,key_threshold.transpose(1,2))/math.sqrt(self.d_k_threshold))+1)/2.0
+			weight_diff = torch.relu(weight-threshold)+1e-12
+			weight = torch.div(weight_diff,torch.sum(weight_diff,dim=-1).unsqueeze(-1).repeat(1,1,self.num_agents))
+
+			print(weight)
+
+			weights.append(weight)
+
+			# EMBED STATE ACTION POLICY
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
+			attention_values = self.attention_value_list[i](obs_actions_policies_embed)
+			attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+			
+			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+			weighted_attention_values = attention_values*weight
+			node_feature = torch.sum(weighted_attention_values, dim=-2)
+			node_features.append(node_feature)
+
+		node_features = torch.cat(node_features, dim=0).to(self.device)
+		Value = self.final_value_layers(node_features)
+
+		return Value, weights
