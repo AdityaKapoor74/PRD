@@ -633,8 +633,6 @@ class TransformerCritic_threshold_pred(nn.Module):
 			weight_diff = torch.relu(weight-threshold)+1e-12
 			weight = torch.div(weight_diff,torch.sum(weight_diff,dim=-1).unsqueeze(-1).repeat(1,1,self.num_agents))
 
-			print(weight)
-
 			weights.append(weight)
 
 			# EMBED STATE ACTION POLICY
