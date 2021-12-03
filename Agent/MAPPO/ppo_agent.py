@@ -91,7 +91,7 @@ class PPOAgent:
 			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_team_greedy":
 			obs_dim = 2*3 + 5
-			self.critic_network = TransformerCritic_threshold_pred(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
