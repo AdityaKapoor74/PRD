@@ -46,7 +46,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, #1e-3
-				"policy_lr": 5e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
 				"entropy_pen_min": 0.0,
 				"l1_pen": 0.0,
