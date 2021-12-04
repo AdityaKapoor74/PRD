@@ -142,7 +142,7 @@ class TransformerPolicy(nn.Module):
 
 			node_features.append(node_feature)
 
-		node_features = torch.cat(node_features, dim=0).to(self.device)
+		node_features = torch.cat(node_features, dim=-1).to(self.device)
 		Policy = F.softmax(self.final_policy_layers(node_features), dim=-1)
 
 		return Policy, weights
@@ -248,7 +248,7 @@ class DualTransformerPolicy(nn.Module):
 
 			attention_values_list.append(attention_values)
 
-		attention_values_list = torch.cat(attention_values, dim=0).to(self.device)
+		attention_values_list = torch.cat(attention_values, dim=-1).to(self.device)
 
 		weights_2 = []
 		node_features = []
@@ -268,9 +268,8 @@ class DualTransformerPolicy(nn.Module):
 
 			node_features.append(node_feature)
 
-		node_features = torch.cat(node_features, dim=0).to(self.device)
 
-		node_features = torch.cat(node_features, dim=0).to(self.device)
+		node_features = torch.cat(node_features, dim=-1).to(self.device)
 		Policy = F.softmax(self.final_policy_layers(node_features), dim=-1)
 
 		return Policy, weights_1, weights_2
@@ -385,7 +384,8 @@ class TransformerCritic(nn.Module):
 			node_feature = torch.sum(weighted_attention_values, dim=-2)
 			node_features.append(node_feature)
 
-		node_features = torch.cat(node_features, dim=0).to(self.device)
+		node_features = torch.cat(node_features, dim=-1).to(self.device)
+		
 		Value = self.final_value_layers(node_features)
 
 		return Value, weights
@@ -509,7 +509,7 @@ class DualTransformerCritic(nn.Module):
 			attention_values_preproc = torch.matmul(weight_preproc, states_embed_preproc)
 			attention_values_1.append(attention_values_preproc)
 
-		attention_values_1 = torch.cat(attention_values_1, dim=0).to(self.device)
+		attention_values_1 = torch.cat(attention_values_1, dim=-1).to(self.device)
 
 		weights_2 = []
 		node_features = []
@@ -536,7 +536,7 @@ class DualTransformerCritic(nn.Module):
 
 			node_features.append(node_feature)
 
-		node_features = torch.cat(node_features, dim=0).to(self.device)
+		node_features = torch.cat(node_features, dim=-1).to(self.device)
 		Value = self.final_value_layers(node_features)
 
 		return Value, weight_preproc, ret_weight
@@ -547,7 +547,7 @@ class TransformerCritic_threshold_pred(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
+	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
 		super(TransformerCritic_threshold_pred, self).__init__()
 		
 		self.name = "TransformerCritic_threshold_pred"
@@ -566,6 +566,9 @@ class TransformerCritic_threshold_pred(nn.Module):
 		self.state_act_pol_embed_list = []
 		self.attention_value_list = []
 
+		obs_output_dim = 128
+		obs_act_input_dim = obs_input_dim+self.num_actions
+		obs_act_output_dim = 128//self.num_heads
 		for i in range(self.num_heads):
 			self.state_embed_threshold.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
 			self.state_embed_list.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
@@ -584,6 +587,7 @@ class TransformerCritic_threshold_pred(nn.Module):
 
 		# ********************************************************************************************************
 		# FCN FINAL LAYER TO GET VALUES
+		final_input_dim = obs_act_output_dim*self.num_heads
 		self.final_value_layers = nn.Sequential(
 			nn.Linear(final_input_dim, 64, bias=True), 
 			nn.LeakyReLU(),
@@ -665,7 +669,7 @@ class TransformerCritic_threshold_pred(nn.Module):
 			node_feature = torch.sum(weighted_attention_values, dim=-2)
 			node_features.append(node_feature)
 
-		node_features = torch.cat(node_features, dim=0).to(self.device)
+		node_features = torch.cat(node_features, dim=-1).to(self.device)
 		Value = self.final_value_layers(node_features)
 
 		return Value, weights
