@@ -67,7 +67,7 @@ class MLPPolicy(nn.Module):
 
 
 class TransformerPolicy(nn.Module):
-	def __init__(self, obs_input_dim, obs_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
+	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
 		super(TransformerPolicy, self).__init__()
 		
 		self.name = "TransformerPolicy"
@@ -76,6 +76,8 @@ class TransformerPolicy(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
+
+		obs_output_dim = 128//self.num_heads
 
 		self.state_embed_list = []
 		self.key_list = []
@@ -92,6 +94,7 @@ class TransformerPolicy(nn.Module):
 
 		# ********************************************************************************************************
 		# FCN FINAL LAYER TO GET VALUES
+		final_input_dim = obs_output_dim*self.num_heads
 		self.final_policy_layers = nn.Sequential(
 			nn.Linear(final_input_dim, 64, bias=True), 
 			nn.LeakyReLU(),
@@ -147,7 +150,7 @@ class TransformerPolicy(nn.Module):
 
 
 class DualTransformerPolicy(nn.Module):
-	def __init__(self, obs_input_dim, obs_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, num_heads_1, num_heads_2, device):
+	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads_1, num_heads_2, device):
 		super(DualTransformerPolicy, self).__init__()
 		
 		self.name = "DualTransformerPolicy"
@@ -158,6 +161,8 @@ class DualTransformerPolicy(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 
+		output_dim = 128//self.num_heads_1
+
 		self.state_embed_list_1 = []
 		self.key_list_1 = []
 		self.query_list_1 = []
@@ -166,25 +171,29 @@ class DualTransformerPolicy(nn.Module):
 			self.state_embed_list_1.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
 			self.key_list_1.append(nn.Linear(128, 128, bias=True).to(self.device))
 			self.query_list_1.append(nn.Linear(128, 128, bias=True).to(self.device))
-			self.attention_value_list_1.append(nn.Sequential(nn.Linear(128, 128, bias=True), nn.LeakyReLU()).to(self.device))
+			self.attention_value_list_1.append(nn.Sequential(nn.Linear(128, output_dim, bias=True), nn.LeakyReLU()).to(self.device))
 
 		self.d_k_1 = 128
+
+		input_dim = output_dim*self.num_heads_1
+		obs_output_dim = 128//self.num_heads_2
 
 		self.state_embed_list_2 = []
 		self.key_list_2 = []
 		self.query_list_2 = []
 		self.attention_value_list_2 = []
 		for i in range(self.num_heads_2):
-			self.state_embed_list_2.append(nn.Sequential(nn.Linear(128, 128), nn.LeakyReLU()).to(self.device))
-			self.key_list_2.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
-			self.query_list_2.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.state_embed_list_2.append(nn.Sequential(nn.Linear(input_dim, 128), nn.LeakyReLU()).to(self.device))
+			self.key_list_2.append(nn.Linear(128, 128, bias=True).to(self.device))
+			self.query_list_2.append(nn.Linear(128, 128, bias=True).to(self.device))
 			self.attention_value_list_2.append(nn.Sequential(nn.Linear(128, obs_output_dim, bias=True), nn.LeakyReLU()).to(self.device))
 
-		self.d_k_2 = obs_output_dim
+		self.d_k_2 = 128
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
 		# FCN FINAL LAYER TO GET VALUES
+		final_input_dim = obs_output_dim*self.num_heads_2
 		self.final_policy_layers = nn.Sequential(
 			nn.Linear(final_input_dim, 64, bias=True), 
 			nn.LeakyReLU(),
@@ -272,7 +281,7 @@ class TransformerCritic(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
+	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
 		super(TransformerCritic, self).__init__()
 		
 		self.name = "TransformerCritic"
@@ -288,6 +297,10 @@ class TransformerCritic(nn.Module):
 		self.state_act_pol_embed_list = []
 		self.attention_value_list = []
 
+		obs_output_dim = 128
+		obs_act_input_dim = obs_input_dim+self.num_actions
+		obs_act_output_dim = 128//self.num_heads
+
 		for i in range(self.num_heads):
 			self.state_embed_list.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
 			self.key_list.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
@@ -301,6 +314,7 @@ class TransformerCritic(nn.Module):
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
+		final_input_dim = obs_act_output_dim*self.num_heads
 		# FCN FINAL LAYER TO GET VALUES
 		self.final_value_layers = nn.Sequential(
 			nn.Linear(final_input_dim, 64, bias=True), 
@@ -378,7 +392,7 @@ class TransformerCritic(nn.Module):
 
 
 class DualTransformerCritic(nn.Module):
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, num_heads_1, num_heads_2, device):
+	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads_1, num_heads_2, device):
 		super(DualTransformerCritic, self).__init__()
 		
 		self.name = "DualTransformerCritic"
@@ -389,6 +403,8 @@ class DualTransformerCritic(nn.Module):
 		self.num_heads_1 = num_heads_1
 		self.num_heads_2 = num_heads_2
 
+		obs_output_dim = 128//self.num_heads_1
+
 		# TRANSFORMER LAYER 1
 		self.state_embed_list_1 = []
 		self.key_list_1 = []
@@ -396,29 +412,33 @@ class DualTransformerCritic(nn.Module):
 		self.attention_value_list_1 = []
 		for i in range(self.num_heads_1):
 			self.state_embed_list_1.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
-			self.key_list_1.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
-			self.query_list_1.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.key_list_1.append(nn.Linear(128, 128, bias=True).to(self.device))
+			self.query_list_1.append(nn.Linear(128, 128, bias=True).to(self.device))
 			self.attention_value_list_1.append(nn.Sequential(nn.Linear(128, obs_output_dim, bias=True), nn.LeakyReLU()).to(self.device))
 
-		self.d_k_1 = obs_output_dim
+		self.d_k_1 = 128
 
+		obs_output_dim_ = 128
+		obs_act_input_dim = obs_input_dim+self.num_actions
+		obs_act_output_dim = 128//self.num_heads_2
 		# TRANSFORMER LAYER 2
 		self.state_embed_list_2 = []
 		self.key_list_2 = []
 		self.query_list_2 = []
 		self.attention_value_list_2 = []
 		for i in range(self.num_heads_2):
-			self.state_embed_list_2.append(nn.Sequential(nn.Linear(obs_output_dim, 128), nn.LeakyReLU()).to(self.device))
-			self.key_list_2.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
-			self.query_list_2.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.state_embed_list_2.append(nn.Sequential(nn.Linear(obs_output_dim*self.num_heads_1, 128), nn.LeakyReLU()).to(self.device))
+			self.key_list_2.append(nn.Linear(128, obs_output_dim_, bias=True).to(self.device))
+			self.query_list_2.append(nn.Linear(128, obs_output_dim_, bias=True).to(self.device))
 			self.state_act_pol_embed_list_2.append(nn.Sequential(nn.Linear(obs_act_input_dim, 128, bias=True), nn.LeakyReLU()).to(self.device))
 			self.attention_value_list_2.append(nn.Sequential(nn.Linear(128, obs_act_output_dim, bias=True), nn.LeakyReLU()).to(self.device))
 		# dimesion of key
-		self.d_k_2 = obs_output_dim  
+		self.d_k_2 = obs_output_dim_  
 
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
+		final_input_dim = obs_act_output_dim*self.num_heads_2
 		# FCN FINAL LAYER TO GET VALUES
 		self.final_value_layers = nn.Sequential(
 			nn.Linear(final_input_dim, 64, bias=True), 
