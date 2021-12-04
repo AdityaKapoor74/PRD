@@ -90,7 +90,7 @@ class PPOAgent:
 			obs_dim = 2*3 + 1
 			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_team_greedy":
-			obs_dim = 2*3 + 5
+			obs_dim = 2*3 + 1
 			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
@@ -100,7 +100,7 @@ class PPOAgent:
 		elif self.env_name == "crossing_partially_coop":
 			obs_dim = 2*3 + 1
 		elif self.env_name == "crossing_team_greedy":
-			obs_dim = 2*3 + 5
+			obs_dim = 2*3 + 1
 
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
