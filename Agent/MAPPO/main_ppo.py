@@ -30,8 +30,8 @@ if __name__ == '__main__':
 		dictionary = {
 				"iteration": i,
 				"auto_clip": True,
-				"auto_clip_percentile_critic": 1,
-				"auto_clip_percentile_actor": 1,
+				"auto_clip_percentile_critic": 0,
+				"auto_clip_percentile_actor": 0,
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",
