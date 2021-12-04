@@ -29,8 +29,13 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
+				"auto_clip": True,
+				"auto_clip_percentile_critic": 10,
+				"auto_clip_percentile_actor": 10,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
-				"policy_type": "Transformer", # MLP/ Transformer/ DualTransformer
+				"policy_type": "MLP", # MLP/ Transformer/ DualTransformer
 				"critic_type": "Transformer", # Transformer/ DualTransformer
 				"num_heads_critic": 1,
 				"num_heads_actor": 1,
@@ -48,7 +53,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_min": 1e-3,
+				"entropy_pen_min": 8e-3,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",

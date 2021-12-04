@@ -52,8 +52,18 @@ class PPOAgent:
 		self.policy_clip = dictionary["policy_clip"]
 		self.n_epochs = dictionary["n_epochs"]
 
+		self.grad_clip_critic = dictionary["grad_clip_critic"]
+		self.grad_clip_actor = dictionary["grad_clip_actor"]
+
 		self.error_rate = []
 		self.average_relevant_set = []
+
+		# Auto clip
+		self.auto_clip = dictionary["auto_clip"]
+		self.auto_clip_percentile_critic = dictionary["auto_clip_percentile_critic"]
+		self.auto_clip_percentile_actor = dictionary["auto_clip_percentile_actor"]
+		self.grad_history_critic = []
+		self.grad_history_actor = []
 
 
 		if "prd_above_threshold_decay" in self.experiment_type:
@@ -92,6 +102,8 @@ class PPOAgent:
 		elif self.env_name == "crossing_team_greedy":
 			obs_dim = 2*3 + 1
 			self.critic_network = TransformerCritic(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+
+		# self.critic_network = TransformerCritic_threshold_pred(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -460,6 +472,27 @@ class PPOAgent:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
 
+
+
+	def get_grad_norm(self):
+		total_norm_critic = 0
+		for p in self.critic_network.parameters():
+			if p.grad is not None:
+				param_norm = p.grad.data.norm(2)
+				total_norm_critic += param_norm.item() ** 2
+		total_norm_critic = total_norm_critic ** (1. / 2)
+
+		total_norm_actor = 0
+		for p in self.policy_network.parameters():
+			if p.grad is not None:
+				param_norm = p.grad.data.norm(2)
+				total_norm_actor += param_norm.item() ** 2
+		total_norm_actor = total_norm_actor ** (1. / 2)
+
+
+		return total_norm_critic, total_norm_actor
+
+
 	def update(self,episode):
 
 		# convert list to tensor
@@ -543,16 +576,23 @@ class PPOAgent:
 
 			critic_loss = F.smooth_l1_loss(V_values, Value_target)
 			
-			
+			# if auto clip
+			if self.auto_clip:
+				total_norm_critic, total_norm_actor = self.get_grad_norm()
+				self.grad_history_critic.append(total_norm_critic)
+				self.grad_history_actor.append(total_norm_actor)
+				self.grad_clip_critic = np.percentile(self.grad_history_critic, self.auto_clip_percentile_critic)
+				self.grad_clip_actor = np.percentile(self.grad_history_actor, self.auto_clip_percentile_actor)
+
 			# take gradient step
 			self.critic_optimizer.zero_grad()
 			critic_loss.backward()
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),0.5)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
 			self.critic_optimizer.step()
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward()
-			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),0.5)
+			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
 			self.policy_optimizer.step()
 
 			value_loss_batch += critic_loss
