@@ -32,8 +32,8 @@ if __name__ == '__main__':
 				"auto_clip": False,
 				"auto_clip_percentile_critic": 0,
 				"auto_clip_percentile_actor": 0,
-				"grad_clip_critic": 10,
-				"grad_clip_actor": 10,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"policy_type": "MLP", # MLP/ Transformer/ DualTransformer
 				"critic_type": "Transformer", # Transformer/ DualTransformer
@@ -50,10 +50,10 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, #1e-3
+				"value_lr": 1e-4, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_min": 1e-3,
+				"entropy_pen_min": 8e-3,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
@@ -70,8 +70,8 @@ if __name__ == '__main__':
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
-				"model_path_value": "../../../tests/ablation_study/Transformers/tests/MultiHeadTransformerCritic2/models/crossing_team_greedy_shared_run1/critic_networks/24-09-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt",
-				"model_path_policy": "../../../tests/ablation_study/Transformers/tests/MultiHeadTransformerCritic2/models/crossing_team_greedy_shared_run1/actor_networks/24-09-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode100000.pt",
+				"model_path_value": "../../../tests/PRD_2_exps/models/crossing_team_greedy_prd_above_threshold_ascend_MAPPO_run_1/critic_networks/04-12-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode10000.pt",
+				"model_path_policy": "../../../tests/PRD_2_exps/models/crossing_team_greedy_prd_above_threshold_ascend_MAPPO_run_1/actor_networks/04-12-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode10000.pt",
 				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
