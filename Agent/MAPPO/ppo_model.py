@@ -653,7 +653,9 @@ class TransformerCritic_threshold_pred(nn.Module):
 			state_embed_threshold = self.state_embed_threshold[i](states)
 			query_threshold = self.query_threshold[i](state_embed_threshold)
 			key_threshold = self.key_threshold[i](torch.sum(state_embed_threshold, dim=-2)).unsqueeze(-2).repeat(1,self.num_agents,1)
-			threshold = (torch.tanh(torch.matmul(query_threshold,key_threshold.transpose(1,2))/math.sqrt(self.d_k_threshold))+1)/2.0
+			score_threshold = torch.matmul(query_threshold,key_threshold.transpose(1,2))/math.sqrt(self.d_k_threshold)
+			# threshold = (torch.tanh(score)+1)/2.0
+			threshold = torch.sigmoid(score)
 			print("Threshold", torch.mean(threshold).item())
 			weight_diff = torch.relu(weight-threshold)+1e-12
 			weight = torch.div(weight_diff,torch.sum(weight_diff,dim=-1).unsqueeze(-1).repeat(1,1,self.num_agents))
