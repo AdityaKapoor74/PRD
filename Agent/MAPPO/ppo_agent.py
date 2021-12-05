@@ -65,6 +65,9 @@ class PPOAgent:
 		self.grad_history_critic = []
 		self.grad_history_actor = []
 
+		# threshold pen
+		self.pen_threshold = dictionary["pen_threshold"]
+
 
 		if "prd_above_threshold_decay" in self.experiment_type:
 			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
@@ -305,6 +308,7 @@ class PPOAgent:
 		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
+		self.comet_ml.log_metric('Threshold_pred',self.plotting_dict["threshold"],episode)
 
 		if self.env_name in ["crossing_partially_coop", "paired_by_sharing_goals", "crossing_team_greedy"]:
 			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
@@ -508,7 +512,11 @@ class PPOAgent:
 
 		Values_old = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
 		V_values_old = Values_old[0]
-		weights_value_old = Values_old[1:]
+		if "threshold_pred" in self.critic_network.name:
+			weights_value_old = Values_old[1:-1]
+			threshold = Values_old[-1]
+		else:
+			weights_value_old = Values_old[1:]
 		V_values_old = V_values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 		discounted_rewards = None
@@ -531,13 +539,18 @@ class PPOAgent:
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
+		threshold_batch = 0
 		
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
 			Value = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
 			V_values = Value[0]
-			weights_value = Value[1:]
+			if "threshold_pred" in self.critic_network.name:
+				weights_value = Value[1:-1]
+				threshold = Value[-1]
+			else:
+				weights_value = Value[1:]
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
 			if "prd" in self.experiment_type:
@@ -574,7 +587,11 @@ class PPOAgent:
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 
 
-			critic_loss = F.smooth_l1_loss(V_values, Value_target)
+			if "threshold_pred" in self.critic_network.name:
+				critic_loss =  F.smooth_l1_loss(V_values, Value_target) + self.pen_threshold*torch.mean(threshold)
+				threshold_batch += torch.mean(threshold).item()
+			else:
+				critic_loss = F.smooth_l1_loss(V_values, Value_target)
 			
 			# if auto clip
 			if self.auto_clip:
@@ -643,6 +660,7 @@ class PPOAgent:
 			policy_weights_batch_2 /= self.n_epochs
 		agent_groups_over_episode_batch /= self.n_epochs
 		avg_agent_group_over_episode_batch /= self.n_epochs
+		threshold_batch /= self.n_epochs
 
 		self.update_parameters()
 
@@ -670,6 +688,7 @@ class PPOAgent:
 		"weights_value": value_weights_batch,
 		"weights_policy": policy_weights_batch,
 		"relevant_set_error_rate":relevant_set_error_rate,
+		"threshold": threshold_batch,
 		}
 
 		if "threshold" in self.experiment_type:

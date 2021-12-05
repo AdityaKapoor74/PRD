@@ -42,7 +42,7 @@ if __name__ == '__main__':
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"run_dir":'../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"gif_dir": '../../../tests/ablation_study/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.2,
 				"n_epochs": 10,
@@ -50,6 +50,7 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
+				"pen_threshold": 0.01,
 				"value_lr": 1e-4, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
@@ -60,9 +61,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 1e-12,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 1e-12,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000, 
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,

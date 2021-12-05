@@ -657,9 +657,8 @@ class TransformerCritic_threshold_pred(nn.Module):
 			threshold = (torch.tanh(score_threshold)+1)/2.0
 			# threshold = torch.sigmoid(score_threshold)
 			print("Threshold", torch.mean(threshold).item())
-			weight_diff = torch.relu(weight-threshold)+1e-12
-			weight = torch.div(weight_diff,torch.sum(weight_diff,dim=-1).unsqueeze(-1).repeat(1,1,self.num_agents))
-
+			weight_diff = torch.relu(weight-threshold*0.05)
+			weight = torch.div(weight_diff,torch.sum(weight_diff+1e-12,dim=-1).unsqueeze(-1).repeat(1,1,self.num_agents))
 			weights.append(weight)
 
 			# EMBED STATE ACTION POLICY
@@ -675,4 +674,4 @@ class TransformerCritic_threshold_pred(nn.Module):
 		node_features = torch.cat(node_features, dim=-1).to(self.device)
 		Value = self.final_value_layers(node_features)
 
-		return Value, weights
+		return Value, weights, threshold
