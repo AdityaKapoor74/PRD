@@ -32,8 +32,8 @@ if __name__ == '__main__':
 				"auto_clip": False,
 				"auto_clip_percentile_critic": 0,
 				"auto_clip_percentile_actor": 0,
-				"grad_clip_critic": 1,
-				"grad_clip_actor": 1,
+				"grad_clip_critic": 5,
+				"grad_clip_actor": 5,
 				"device": "gpu",
 				"policy_type": "MLP", # MLP/ Transformer/ DualTransformer
 				"critic_type": "Transformer", # Transformer/ DualTransformer
