@@ -32,8 +32,8 @@ if __name__ == '__main__':
 				"auto_clip": False,
 				"auto_clip_percentile_critic": 0,
 				"auto_clip_percentile_actor": 0,
-				"grad_clip_critic": 0.5,
-				"grad_clip_actor": 0.5,
+				"grad_clip_critic": 1,
+				"grad_clip_actor": 1,
 				"device": "gpu",
 				"policy_type": "MLP", # MLP/ Transformer/ DualTransformer
 				"critic_type": "Transformer", # Transformer/ DualTransformer
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.1,
-				"n_epochs": 15,
+				"n_epochs": 5,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
