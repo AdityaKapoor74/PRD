@@ -82,8 +82,8 @@ if __name__ == '__main__':
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
-				"norm_adv": True,
-				"norm_rew": False,
+				"norm_adv": False,
+				"norm_rew": True,
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
 		ma_controller = MAPPO(env,dictionary)
