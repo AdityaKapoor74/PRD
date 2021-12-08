@@ -34,7 +34,7 @@ class PPOAgent:
 		self.gae = dictionary["gae"]
 		self.critic_loss_type = dictionary["critic_loss_type"]
 		self.norm_adv = dictionary["norm_adv"]
-		self.norm_rew = dictionary["norm_rew"]
+		self.norm_returns = dictionary["norm_returns"]
 		self.gif = dictionary["gif"]
 		# TD lambda
 		self.lambda_ = dictionary["lambda"]
@@ -294,9 +294,10 @@ class PPOAgent:
 		
 		returns_tensor = torch.stack(returns).to(self.device)
 		
-		if self.norm_rew:
+		if self.norm_returns:
 			
-			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / 
+			returns_tensor.std()
 			
 		return returns_tensor
 
