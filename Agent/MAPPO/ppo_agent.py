@@ -296,8 +296,7 @@ class PPOAgent:
 		
 		if self.norm_returns:
 			
-			returns_tensor = (returns_tensor - returns_tensor.mean()) / 
-			returns_tensor.std()
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
 			
 		return returns_tensor
 
