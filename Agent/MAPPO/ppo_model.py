@@ -40,6 +40,8 @@ class MLPPolicy(nn.Module):
 		self.Policy = nn.Sequential(
 			nn.Linear(current_agent_state_dim+(other_agent_state_dim*(num_agents-1)),128),
 			nn.LeakyReLU(),
+			nn.Linear(128,128),
+			nn.LeakyReLU(),
 			nn.Linear(128,64),
 			nn.LeakyReLU(),
 			nn.Linear(64,action_dim),
@@ -51,7 +53,8 @@ class MLPPolicy(nn.Module):
 
 		nn.init.orthogonal_(self.Policy[0].weight, gain=gain_leaky)	
 		nn.init.orthogonal_(self.Policy[2].weight, gain=gain_leaky)		
-		nn.init.orthogonal_(self.Policy[4].weight, gain=gain_leaky)	
+		nn.init.orthogonal_(self.Policy[4].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)	
 
 	def forward(self, states):
 
