@@ -38,7 +38,7 @@ class MLPPolicy(nn.Module):
 		self.device = device
 
 		self.Policy = nn.Sequential(
-			nn.Linear(current_agent_state_dim+(other_agent_state_dim*num_agents),128),
+			nn.Linear(current_agent_state_dim+(other_agent_state_dim*(num_agents-1)),128),
 			nn.LeakyReLU(),
 			nn.Linear(128,64),
 			nn.LeakyReLU(),
