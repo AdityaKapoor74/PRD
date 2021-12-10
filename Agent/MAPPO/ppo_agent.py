@@ -68,6 +68,9 @@ class PPOAgent:
 		# threshold pen
 		self.pen_threshold = dictionary["pen_threshold"]
 
+		# episode track
+		self.episode = 0
+
 
 		if "prd_above_threshold_decay" in self.experiment_type:
 			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
@@ -466,6 +469,9 @@ class PPOAgent:
 		return policy_loss
 
 	def update_parameters(self):
+		# increment episode
+		self.episode+=1
+
 		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
 
@@ -648,8 +654,11 @@ class PPOAgent:
 		# Copy new weights into old policy
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
-		self.scheduler.step()
+		if self.episode == 1000:
+			self.scheduler.step()
+		
 		print("learning rate of policy", self.scheduler.get_lr())
+
 
 		# clear buffer
 		self.buffer.clear()
