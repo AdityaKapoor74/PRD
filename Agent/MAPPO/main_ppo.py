@@ -32,8 +32,8 @@ if __name__ == '__main__':
 				"auto_clip": False,
 				"auto_clip_percentile_critic": 0,
 				"auto_clip_percentile_actor": 0,
-				"grad_clip_critic": 5,
-				"grad_clip_actor": 5,
+				"grad_clip_critic": 10,
+				"grad_clip_actor": 10,
 				"device": "gpu",
 				"policy_type": "MLP", # MLP/ Transformer/ DualTransformer
 				"critic_type": "Transformer", # Transformer/ DualTransformer
@@ -53,15 +53,15 @@ if __name__ == '__main__':
 				"pen_threshold": 0.01,
 				"value_lr": 1e-4, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_min": 8e-3,
+				"entropy_pen": 0.0, #8e-3
+				"entropy_pen_min": 0.0,
 				"l1_pen": 0.0,
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
-				"trace_decay": 0.98,
+				"trace_decay": 0.95,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.05,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.05,
 				"steps_to_take": 1000, 
