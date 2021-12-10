@@ -34,8 +34,6 @@ class MLPPolicy(nn.Module):
 		super(MLPPolicy,self).__init__()
 
 		self.name = "MLPPolicy"
-
-		self.state_dim = state_dim
 		self.num_agents = num_agents		
 		self.device = device
 
