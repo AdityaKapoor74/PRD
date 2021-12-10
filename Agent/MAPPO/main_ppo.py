@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"pen_threshold": 0.01,
 				"value_lr": 1e-4, #1e-3
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"entropy_pen": 1e-2, #8e-3
 				"entropy_pen_min": 1e-2,
 				"l1_pen": 0.0,
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
-				"norm_adv": True,
+				"norm_adv": False,
 				"norm_returns": False,
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
