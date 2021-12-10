@@ -116,13 +116,14 @@ class PPOAgent:
 			obs_dim = 2*3 + 1
 		elif self.env_name == "crossing_team_greedy":
 			obs_dim = 2*3 + 1
+			other_obs_dim = 2*2+1
 
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
 		if self.policy_type == "MLP":
-			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
-			self.policy_network_old = MLPPolicy(obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
+			self.policy_network = MLPPolicy(obs_dim, other_obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
+			self.policy_network_old = MLPPolicy(obs_dim, other_obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
 		elif self.policy_type == "Transformer":
 			self.policy_network = TransformerPolicy(obs_dim, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.device).to(self.device)
 			self.policy_network_old = TransformerPolicy(obs_dim, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.device).to(self.device)

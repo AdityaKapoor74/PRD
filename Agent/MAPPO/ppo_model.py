@@ -30,7 +30,7 @@ class RolloutBuffer:
 
 
 class MLPPolicy(nn.Module):
-	def __init__(self,state_dim,num_agents,action_dim, device):
+	def __init__(self,current_agent_state_dim, other_agent_state_dim, num_agents, action_dim, device):
 		super(MLPPolicy,self).__init__()
 
 		self.name = "MLPPolicy"
@@ -39,29 +39,27 @@ class MLPPolicy(nn.Module):
 		self.num_agents = num_agents		
 		self.device = device
 
-
-		self.fc1 = nn.Linear(state_dim*num_agents,128)
-		self.fc2 = nn.Linear(128,128)
-		self.fc3 = nn.Linear(128,action_dim)
+		self.Policy = nn.Sequential(
+			nn.Linear(current_agent_state_dim+(other_agent_state_dim*num_agents),128).
+			nn.LeakyReLU(),
+			nn.Linear(128,64),
+			nn.LeakyReLU(),
+			nn.Linear(64,action_dim),
+			nn.Softmax(dim=-1)
+			)
 
 	def forward(self, states):
 
 		# T x num_agents x state_dim
 		T = states.shape[0]
 		
-		# [s0;s1;s2;s3]  -> [s0 s1 s2 s3; s1 s2 s3 s0; s2 s3 s1 s0 ....]
+		# # [s0;s1;s2;s3]  -> [s0 s1 s2 s3; s1 s2 s3 s0; s2 s3 s1 s0 ....]
 
-		states_aug = [torch.roll(states,i,1) for i in range(self.num_agents)]
+		# states_aug = [torch.roll(states,i,1) for i in range(self.num_agents)]
 
-		states_aug = torch.cat(states_aug,dim=2)
+		# states_aug = torch.cat(states_aug,dim=2)
 
-		x = self.fc1(states_aug)
-		x = nn.ReLU()(x)
-		x = self.fc2(x)
-		x = nn.ReLU()(x)
-		x = self.fc3(x)
-
-		Policy = F.softmax(x, dim=-1)
+		Policy = self.Policy(states)
 
 		return Policy, 1/self.num_agents*torch.ones((T,self.num_agents,self.num_agents),device=self.device)
 
