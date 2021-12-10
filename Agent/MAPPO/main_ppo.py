@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_run_"+str(i)
 		test_num = "PRD_2_exps"
 		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "greedy"
+		experiment_type = "prd_above_threshold_ascend"
 
 		dictionary = {
 				"iteration": i,
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 				"run_dir":'../../../tests/'+test_num+'/runs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.1,
+				"policy_clip": 0.05,
 				"n_epochs": 5,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
