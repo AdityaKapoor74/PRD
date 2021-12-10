@@ -205,6 +205,7 @@ class MAPPO:
 			trajectory = []
 			episode_reward = 0
 			episode_collision_rate = 0
+			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
@@ -226,10 +227,16 @@ class MAPPO:
 				next_states_critic,next_states_actor = self.split_states(next_states)
 
 
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
 					episode_collision_rate += np.sum(collision_rate)
+				elif self.env_name == "crossing_team_greedy":
+					collision_rate = [value[1] for value in rewards]
+					goal_reached = [value[2] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
+					episode_goal_reached += np.sum(goal_reached)
 
 
 				if step == self.max_time_steps:
@@ -262,6 +269,8 @@ class MAPPO:
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
 							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
 								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							if self.env_name == "crossing_team_greedy":
+								self.comet_ml.log_metric('Num Agents Goal Reached', episode_goal_reached, episode)
 
 						break
 

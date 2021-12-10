@@ -655,9 +655,9 @@ class PPOAgent:
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
 		# if self.episode == 1000:
-		self.scheduler.step()
+		# self.scheduler.step()
 		
-		print("learning rate of policy", self.scheduler.get_lr())
+		# print("learning rate of policy", self.scheduler.get_lr())
 
 
 		# clear buffer
