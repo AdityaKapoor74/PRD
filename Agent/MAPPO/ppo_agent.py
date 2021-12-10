@@ -311,7 +311,7 @@ class PPOAgent:
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
 		self.comet_ml.log_metric('Threshold_pred',self.plotting_dict["threshold"],episode)
 
-		if self.env_name in ["crossing_partially_coop", "paired_by_sharing_goals", "crossing_team_greedy"]:
+		if self.env_name in ["crossing_partially_coop", "paired_by_sharing_goals", "crossing_team_greedy"] and "prd" in self.experiment_type:
 			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
 			self.comet_ml.log_metric('Relevant Set Error Percentage',self.plotting_dict["relevant_set_error_rate"].item()*100.0,episode)
 			self.error_rate.append(self.plotting_dict["relevant_set_error_rate"].item())
