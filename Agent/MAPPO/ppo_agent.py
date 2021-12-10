@@ -213,6 +213,9 @@ class PPOAgent:
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
+		self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000], gamma=10)
+
+
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
@@ -644,6 +647,9 @@ class PPOAgent:
 			
 		# Copy new weights into old policy
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+
+		self.scheduler.step()
+		print("learning rate of policy", self.scheduler.get_lr())
 
 		# clear buffer
 		self.buffer.clear()
