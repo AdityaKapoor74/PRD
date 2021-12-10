@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"pen_threshold": 0.01,
 				"value_lr": 1e-3, #1e-3
-				"policy_lr": 1e-3, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"entropy_pen": 0.0, #8e-3
 				"entropy_pen_min": 0.0,
 				"l1_pen": 0.0,
