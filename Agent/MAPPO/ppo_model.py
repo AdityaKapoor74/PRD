@@ -46,6 +46,13 @@ class MLPPolicy(nn.Module):
 			nn.Softmax(dim=-1)
 			)
 
+	def reset_parameters(self):
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		nn.init.orthogonal_(self.Policy[0].weight, gain=gain_leaky)	
+		nn.init.orthogonal_(self.Policy[2].weight, gain=gain_leaky)		
+		nn.init.orthogonal_(self.Policy[4].weight, gain=gain_leaky)	
+
 	def forward(self, states):
 
 		# T x num_agents x state_dim
@@ -107,15 +114,15 @@ class TransformerPolicy(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		for i in range(self.num_heads):
-			nn.init.xavier_uniform_(self.state_embed_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_list[i][0].weight, gain=gain_leaky)
 
-			nn.init.xavier_uniform_(self.key_list[i].weight)
-			nn.init.xavier_uniform_(self.query_list[i].weight)
-			nn.init.xavier_uniform_(self.attention_value_list[i][0].weight)
+			nn.init.orthogonal_(self.key_list[i].weight)
+			nn.init.orthogonal_(self.query_list[i].weight)
+			nn.init.orthogonal_(self.attention_value_list[i][0].weight)
 
 
-		nn.init.xavier_uniform_(self.final_policy_layers[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_policy_layers[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_policy_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_policy_layers[2].weight, gain=gain_leaky)
 
 
 
@@ -206,22 +213,22 @@ class DualTransformerPolicy(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		for i in range(self.num_heads_1):
-			nn.init.xavier_uniform_(self.state_embed_list_1[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_list_1[i][0].weight, gain=gain_leaky)
 
-			nn.init.xavier_uniform_(self.key_list_1[i].weight)
-			nn.init.xavier_uniform_(self.query_list_1[i].weight)
-			nn.init.xavier_uniform_(self.attention_value_list_1[i][0].weight)
+			nn.init.orthogonal_(self.key_list_1[i].weight)
+			nn.init.orthogonal_(self.query_list_1[i].weight)
+			nn.init.orthogonal_(self.attention_value_list_1[i][0].weight)
 
 		for i in range(self.num_heads_2):
-			nn.init.xavier_uniform_(self.state_embed_list_2[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_list_2[i][0].weight, gain=gain_leaky)
 
-			nn.init.xavier_uniform_(self.key_list_2[i].weight)
-			nn.init.xavier_uniform_(self.query_list_2[i].weight)
-			nn.init.xavier_uniform_(self.attention_value_list_2[i][0].weight)
+			nn.init.orthogonal_(self.key_list_2[i].weight)
+			nn.init.orthogonal_(self.query_list_2[i].weight)
+			nn.init.orthogonal_(self.attention_value_list_2[i][0].weight)
 
 
-		nn.init.xavier_uniform_(self.final_policy_layers[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_policy_layers[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_policy_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_policy_layers[2].weight, gain=gain_leaky)
 
 
 
@@ -336,16 +343,16 @@ class TransformerCritic(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		for i in range(self.num_heads):
-			nn.init.xavier_uniform_(self.state_embed_list[i][0].weight, gain=gain_leaky)
-			nn.init.xavier_uniform_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
 
-			nn.init.xavier_uniform_(self.key_list[i].weight)
-			nn.init.xavier_uniform_(self.query_list[i].weight)
-			nn.init.xavier_uniform_(self.attention_value_list[i][0].weight)
+			nn.init.orthogonal_(self.key_list[i].weight)
+			nn.init.orthogonal_(self.query_list[i].weight)
+			nn.init.orthogonal_(self.attention_value_list[i][0].weight)
 
 
-		nn.init.xavier_uniform_(self.final_value_layers[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_value_layers[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
 
 
 
@@ -461,23 +468,23 @@ class DualTransformerCritic(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		for i in range(self.num_heads_1):
-			nn.init.xavier_uniform_(self.state_embed_list_1[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_list_1[i][0].weight, gain=gain_leaky)
 
-			nn.init.xavier_uniform_(self.key_list_1[i].weight)
-			nn.init.xavier_uniform_(self.query_list[i].weight)
-			nn.init.xavier_uniform_(self.attention_value_list[i][0].weight)
+			nn.init.orthogonal_(self.key_list_1[i].weight)
+			nn.init.orthogonal_(self.query_list[i].weight)
+			nn.init.orthogonal_(self.attention_value_list[i][0].weight)
 
 		for i in range(self.num_heads_2):
-			nn.init.xavier_uniform_(self.state_embed_list_2[i][0].weight, gain=gain_leaky)
-			nn.init.xavier_uniform_(self.state_act_pol_embed_list_2[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_list_2[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_act_pol_embed_list_2[i][0].weight, gain=gain_leaky)
 
-			nn.init.xavier_uniform_(self.key_list_2[i].weight)
-			nn.init.xavier_uniform_(self.query_list_2[i].weight)
-			nn.init.xavier_uniform_(self.attention_value_list_2[i][0].weight)
+			nn.init.orthogonal_(self.key_list_2[i].weight)
+			nn.init.orthogonal_(self.query_list_2[i].weight)
+			nn.init.orthogonal_(self.attention_value_list_2[i][0].weight)
 
 
-		nn.init.xavier_uniform_(self.final_value_layers[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_value_layers[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
 
 
 
@@ -609,20 +616,20 @@ class TransformerCritic_threshold_pred(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 
 		for i in range(self.num_heads):
-			nn.init.xavier_uniform_(self.state_embed_list[i][0].weight, gain=gain_leaky)
-			nn.init.xavier_uniform_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
 
-			nn.init.xavier_uniform_(self.key_list[i].weight)
-			nn.init.xavier_uniform_(self.query_list[i].weight)
-			nn.init.xavier_uniform_(self.attention_value_list[i][0].weight)
+			nn.init.orthogonal_(self.key_list[i].weight)
+			nn.init.orthogonal_(self.query_list[i].weight)
+			nn.init.orthogonal_(self.attention_value_list[i][0].weight)
 
-			nn.init.xavier_uniform_(self.state_embed_threshold[i][0].weight, gain=gain_leaky)
-			nn.init.xavier_uniform_(self.key_threshold[i].weight)
-			nn.init.xavier_uniform_(self.query_threshold[i].weight)
+			nn.init.orthogonal_(self.state_embed_threshold[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.key_threshold[i].weight)
+			nn.init.orthogonal_(self.query_threshold[i].weight)
 
 
-		nn.init.xavier_uniform_(self.final_value_layers[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_value_layers[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
 
 
 
