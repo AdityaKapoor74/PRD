@@ -301,6 +301,7 @@ class TransformerCritic(nn.Module):
 		self.query_list = []
 		self.state_act_pol_embed_list = []
 		self.attention_value_list = []
+		self.curr_agent_state_embed = nn.Sequential(nn.Linear(obs_input_dim, 64), nn.LeakyReLU()).to(self.device)
 
 		obs_output_dim = 128
 		obs_act_input_dim = obs_input_dim+self.num_actions
@@ -319,7 +320,7 @@ class TransformerCritic(nn.Module):
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
-		final_input_dim = obs_act_output_dim*self.num_heads
+		final_input_dim = obs_act_output_dim*self.num_heads + 64
 		# FCN FINAL LAYER TO GET VALUES
 		self.final_value_layers = nn.Sequential(
 			nn.Linear(final_input_dim, 64, bias=True), 
@@ -352,6 +353,8 @@ class TransformerCritic(nn.Module):
 			nn.init.orthogonal_(self.key_list[i].weight)
 			nn.init.orthogonal_(self.query_list[i].weight)
 			nn.init.orthogonal_(self.attention_value_list[i][0].weight)
+
+		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight, gain=gain_leaky)
 
 
 		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
@@ -391,8 +394,11 @@ class TransformerCritic(nn.Module):
 			node_features.append(node_feature)
 
 		node_features = torch.cat(node_features, dim=-1).to(self.device)
+
+		curr_agent_state_embed = self.curr_agent_state_embed(states).unsqueeze(-2).repeat(1,1,self.num_agents,1)
+		curr_agent_node_features = torch.cat([curr_agent_state_embed, node_features], dim=-1)
 		
-		Value = self.final_value_layers(node_features)
+		Value = self.final_value_layers(curr_agent_node_features)
 
 		return Value, weights
 
