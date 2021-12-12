@@ -92,24 +92,24 @@ class PPOAgent:
 
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
-			self.critic_network = TransformerCritic(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+			self.critic_network = TransformerCritic_v1(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_greedy":
 			obs_dim = 2*3
-			self.critic_network = TransformerCritic(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+			self.critic_network = TransformerCritic_v1(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_fully_coop":
 			obs_dim = 2*3
 			self.critic_network = DualTransformerCritic(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + 2*3
-			self.critic_network = TransformerCritic(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+			self.critic_network = TransformerCritic_v1(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_partially_coop":
 			obs_dim = 2*3 + 1
 			self.critic_network = DualTransformerCritic(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_team_greedy":
 			obs_dim = 2*3 + 1
-			self.critic_network = TransformerCritic(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+			self.critic_network = TransformerCritic_v1(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
-		# self.critic_network = TransformerCritic_threshold_pred(obs_dim, 1, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+		self.critic_network = TransformerCritic_v3(obs_dim, self.num_actions, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
@@ -525,16 +525,27 @@ class PPOAgent:
 		if "threshold_pred" in self.critic_network.name:
 			weights_value_old = Values_old[1:-1]
 			threshold = Values_old[-1]
+		elif "TransformerCritic_v3" == self.critic_network.name:
+			Q_values_old = Values_old[1]
+			weights_value_old = Values_old[-1]
 		else:
 			weights_value_old = Values_old[1:]
+
 		V_values_old = V_values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 		discounted_rewards = None
 		if self.critic_loss_type == "MC":
-			discounted_rewards = self.calculate_returns(rewards, dones).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
-			Value_target = torch.transpose(discounted_rewards,-1,-2)
+			if self.critic_network.name == "TransformerCritic_v3":
+				discounted_rewards = self.calculate_returns(rewards, dones).to(self.device)
+				Value_target = discounted_rewards
+			else:
+				discounted_rewards = self.calculate_returns(rewards, dones).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+				Value_target = torch.transpose(discounted_rewards,-1,-2)
 		elif self.critic_loss_type == "TD_lambda":
-			Value_target = self.nstep_returns(V_values_old, rewards, dones).detach()
+			if self.critic_network.name == "TransformerCritic_v3":
+				Value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+			else:
+				Value_target = self.nstep_returns(V_values_old, rewards, dones).detach()
 
 		value_loss_batch = 0
 		policy_loss_batch = 0
@@ -559,6 +570,9 @@ class PPOAgent:
 			if "threshold_pred" in self.critic_network.name:
 				weights_value = Value[1:-1]
 				threshold = Value[-1]
+			elif "TransformerCritic_v3" == self.critic_network.name:
+				Q_values = Value[1]
+				weights_value = Value[-1]
 			else:
 				weights_value = Value[1:]
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
@@ -600,6 +614,8 @@ class PPOAgent:
 			if "threshold_pred" in self.critic_network.name:
 				critic_loss =  F.smooth_l1_loss(V_values, Value_target) + self.pen_threshold*torch.mean(threshold)
 				threshold_batch += torch.mean(threshold).item()
+			elif self.critic_network.name == "TransformerCritic_v3":
+				critic_loss = F.smooth_l1_loss(Q_values,Value_target)
 			else:
 				critic_loss = F.smooth_l1_loss(V_values, Value_target)
 			

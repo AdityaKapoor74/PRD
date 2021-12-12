@@ -281,15 +281,165 @@ class DualTransformerPolicy(nn.Module):
 		return Policy, weights_1, weights_2
 
 
-
-class TransformerCritic(nn.Module):
+# using Q network of MAAC
+class TransformerCritic_v3(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
 	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
-		super(TransformerCritic, self).__init__()
+		super(TransformerCritic_v3, self).__init__()
 		
-		self.name = "TransformerCritic"
+		self.name = "TransformerCritic_v3"
+
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = device
+		self.num_heads = num_heads
+
+		self.state_embed_query_list = []
+		self.state_embed_key_list = []
+		self.key_list = []
+		self.query_list = []
+		self.state_act_embed_list = []
+		self.attention_value_list = []
+		self.curr_agent_state_embed = nn.Sequential(nn.Linear(obs_input_dim, 64), nn.LeakyReLU()).to(self.device)
+
+		obs_output_dim = 128
+		obs_act_input_dim = obs_input_dim+self.num_actions
+		obs_act_output_dim = 128//self.num_heads
+
+		for i in range(self.num_heads):
+			self.state_embed_query_list.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
+			self.state_embed_key_list.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
+			self.key_list.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.query_list.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.state_act_embed_list.append(nn.Sequential(nn.Linear(obs_act_input_dim, 128, bias=True), nn.LeakyReLU()).to(self.device))
+			self.attention_value_list.append(nn.Sequential(nn.Linear(128, obs_act_output_dim), nn.LeakyReLU()).to(self.device))
+
+		# dimesion of key
+		self.d_k = obs_output_dim
+
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		final_input_dim = obs_act_output_dim*self.num_heads + 64
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layers = nn.Sequential(
+			nn.Linear(final_input_dim, 64, bias=True), 
+			nn.LeakyReLU(),
+			nn.Linear(64, final_output_dim, bias=True)
+			)
+		# ********************************************************************************************************
+
+
+		self.reset_parameters()
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		for i in range(self.num_heads):
+			nn.init.orthogonal_(self.state_embed_query_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_embed_key_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_act_embed_list[i][0].weight, gain=gain_leaky)
+
+			nn.init.orthogonal_(self.key_list[i].weight)
+			nn.init.orthogonal_(self.query_list[i].weight)
+			nn.init.orthogonal_(self.attention_value_list[i][0].weight)
+
+		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight, gain=gain_leaky)
+
+
+		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
+
+
+	def remove_self_loops(self, states_key):
+		ret_states_keys = torch.zeros(states_key.shape[0],self.num_agents,self.num_agents-1,states_key.shape[-1])
+		for i in range(self.num_agents):
+			if i == 0:
+				red_state = states_key[:,i,i+1:]
+			elif i == self.num_agents-1:
+				red_state = states_key[:,i,:i]
+			else:
+				red_state = torch.cat([states_key[:,i,:i],states_key[:,i,i+1:]], dim=-2)
+
+			ret_states_keys[:,i] = red_state
+
+		return ret_states_keys.to(self.device)
+
+	def weight_assignment(self,weights):
+		weights_new = torch.zeros(weights.shape[0], self.num_agents, self.num_agents).to(self.device)
+		one = torch.ones(weights.shape[0],1).to(self.device)
+		for i in range(self.num_agents):
+			if i == 0:
+				weight_vec = torch.cat([one,weights[:,i,:]], dim=-1)
+			elif i == self.num_agents-1:
+				weight_vec = torch.cat([weights[:,i,:],one], dim=-1)
+			else:
+				weight_vec = torch.cat([weights[:,i,:i],one,weights[:,i,i:]], dim=-1)
+
+			weights_new[:,i] = weight_vec
+
+		return weights_new
+
+
+	def forward(self, states, policies, actions):
+
+		states_query = states.unsqueeze(-2)
+		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1)
+		states_key = self.remove_self_loops(states_key)
+		actions_ = self.remove_self_loops(actions.unsqueeze(1).repeat(1,self.num_agents,1,1))
+
+		obs_actions = torch.cat([states_key,actions_],dim=-1)
+
+		node_features = []
+		weights = []
+		for i in range(self.num_heads):
+			# EMBED STATES QUERY
+			states_query_embed = self.state_embed_query_list[i](states_query)
+			# EMBED STATES QUERY
+			states_key_embed = self.state_embed_key_list[i](states_key)
+			# KEYS
+			key_obs = self.key_list[i](states_key_embed)
+			# QUERIES
+			query_obs = self.query_list[i](states_query_embed)
+			# WEIGHT
+			weight = F.softmax(torch.matmul(query_obs,key_obs.transpose(2,3))/math.sqrt(self.d_k),dim=-1)
+			weight_ = self.weight_assignment(weight.squeeze(-2))
+			weights.append(weight_)
+
+			# EMBED STATE ACTION POLICY
+			obs_actions_embed = self.state_act_embed_list[i](obs_actions)
+			attention_values = self.attention_value_list[i](obs_actions_embed)
+			node_feature = torch.matmul(weight, attention_values)
+
+			node_features.append(node_feature)
+
+		node_features = torch.cat(node_features, dim=-1).to(self.device)
+
+		curr_agent_state_embed = self.curr_agent_state_embed(states)
+		curr_agent_node_features = torch.cat([curr_agent_state_embed, node_features.squeeze(-2)], dim=-1)
+		
+		Q_value = self.final_value_layers(curr_agent_node_features)
+
+		Value = torch.matmul(Q_value,policies.transpose(1,2))
+
+		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1)
+
+		return Value, Q_value, weights
+
+
+# concatenate curr agent's states to node features while calculating Value estimate of curr agent
+class TransformerCritic_v2(nn.Module):
+	'''
+	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
+	'''
+	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
+		super(TransformerCritic_v2, self).__init__()
+		
+		self.name = "TransformerCritic_v2"
 
 		self.num_agents = num_agents
 		self.num_actions = num_actions
@@ -399,6 +549,122 @@ class TransformerCritic(nn.Module):
 		curr_agent_node_features = torch.cat([curr_agent_state_embed, node_features], dim=-1)
 		
 		Value = self.final_value_layers(curr_agent_node_features)
+
+		return Value, weights
+
+
+# using only aggregated node features while calculating Value estimate of curr agent
+class TransformerCritic_v1(nn.Module):
+	'''
+	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
+	'''
+	def __init__(self, obs_input_dim, final_output_dim, num_agents, num_actions, num_heads, device):
+		super(TransformerCritic_v1, self).__init__()
+		
+		self.name = "TransformerCritic_v1"
+
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = device
+		self.num_heads = num_heads
+
+		self.state_embed_list = []
+		self.key_list = []
+		self.query_list = []
+		self.state_act_pol_embed_list = []
+		self.attention_value_list = []
+
+		obs_output_dim = 128
+		obs_act_input_dim = obs_input_dim+self.num_actions
+		obs_act_output_dim = 128//self.num_heads
+
+		for i in range(self.num_heads):
+			self.state_embed_list.append(nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU()).to(self.device))
+			self.key_list.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.query_list.append(nn.Linear(128, obs_output_dim, bias=True).to(self.device))
+			self.state_act_pol_embed_list.append(nn.Sequential(nn.Linear(obs_act_input_dim, 128, bias=True), nn.LeakyReLU()).to(self.device))
+			self.attention_value_list.append(nn.Sequential(nn.Linear(128, obs_act_output_dim), nn.LeakyReLU()).to(self.device))
+
+		# dimesion of key
+		self.d_k = obs_output_dim
+
+		# ********************************************************************************************************
+
+		# ********************************************************************************************************
+		final_input_dim = obs_act_output_dim*self.num_heads
+		# FCN FINAL LAYER TO GET VALUES
+		self.final_value_layers = nn.Sequential(
+			nn.Linear(final_input_dim, 64, bias=True), 
+			nn.LeakyReLU(),
+			nn.Linear(64, final_output_dim, bias=True)
+			)
+		# ********************************************************************************************************	
+
+		self.place_policies = torch.zeros(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		self.place_actions = torch.ones(self.num_agents,self.num_agents,obs_act_input_dim).to(self.device)
+		one_hots = torch.ones(obs_act_input_dim)
+		zero_hots = torch.zeros(obs_act_input_dim)
+
+		for j in range(self.num_agents):
+			self.place_policies[j][j] = one_hots
+			self.place_actions[j][j] = zero_hots
+
+
+		self.reset_parameters()
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		gain_leaky = nn.init.calculate_gain('leaky_relu')
+
+		for i in range(self.num_heads):
+			nn.init.orthogonal_(self.state_embed_list[i][0].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.state_act_pol_embed_list[i][0].weight, gain=gain_leaky)
+
+			nn.init.orthogonal_(self.key_list[i].weight)
+			nn.init.orthogonal_(self.query_list[i].weight)
+			nn.init.orthogonal_(self.attention_value_list[i][0].weight)
+
+
+		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
+
+
+
+	def forward(self, states, policies, actions):
+
+		obs_actions = torch.cat([states,actions],dim=-1)
+		obs_policy = torch.cat([states,policies], dim=-1)
+		obs_actions = obs_actions.repeat(1,self.num_agents,1).reshape(obs_actions.shape[0],self.num_agents,self.num_agents,-1)
+		obs_policy = obs_policy.repeat(1,self.num_agents,1).reshape(obs_policy.shape[0],self.num_agents,self.num_agents,-1)
+		obs_actions_policies = self.place_policies*obs_policy + self.place_actions*obs_actions
+
+		node_features = []
+		weights = []
+		for i in range(self.num_heads):
+			# EMBED STATES
+			states_embed = self.state_embed_list[i](states)
+			# KEYS
+			key_obs = self.key_list[i](states_embed)
+			# QUERIES
+			query_obs = self.query_list[i](states_embed)
+			# WEIGHT
+			weight = F.softmax(torch.matmul(query_obs,key_obs.transpose(1,2))/math.sqrt(self.d_k),dim=-1)
+			weights.append(weight)
+
+			# EMBED STATE ACTION POLICY
+			obs_actions_policies_embed = self.state_act_pol_embed_list[i](obs_actions_policies)
+			attention_values = self.attention_value_list[i](obs_actions_policies_embed)
+			attention_values = attention_values.repeat(1,self.num_agents,1,1).reshape(attention_values.shape[0],self.num_agents,self.num_agents,self.num_agents,-1)
+			
+			weight = weight.unsqueeze(-2).repeat(1,1,self.num_agents,1).unsqueeze(-1)
+			weighted_attention_values = attention_values*weight
+			node_feature = torch.sum(weighted_attention_values, dim=-2)
+			node_features.append(node_feature)
+
+		node_features = torch.cat(node_features, dim=-1).to(self.device)
+		
+		Value = self.final_value_layers(node_features)
 
 		return Value, weights
 
