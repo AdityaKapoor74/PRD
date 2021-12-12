@@ -404,7 +404,10 @@ class PPOAgent:
 			weights_prd = torch.mean(weights_, dim=0)
 		else:
 			weights_ = torch.stack([weight for weight in weights[0]])
-			weights_prd = torch.mean(weights_, dim=0)
+			if weights_.shape[1] == 100:
+				weights_prd = torch.mean(weights_, dim=0)
+			else:
+				weights_prd = weights_
 
 		return weights_prd
 
@@ -527,7 +530,7 @@ class PPOAgent:
 			threshold = Values_old[-1]
 		elif "TransformerCritic_v3" == self.critic_network.name:
 			Q_values_old = Values_old[1]
-			weights_value_old = Values_old[-1]
+			weights_value_old = Values_old[1:]
 		else:
 			weights_value_old = Values_old[1:]
 

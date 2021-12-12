@@ -28,10 +28,10 @@ if __name__ == '__main__':
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
-				"policy_type": "MLP", # MLP/ GAT
-				"policy_attention_heads": 0,
-				"critic_type": "Transformer",
-				"critic_attention_heads": 0,
+				"policy_type": "MLP", # MLP/ Transformer/ DualTransformer/ MultiHeadTransformer/ MultiHeadDualTransformer
+				"critic_type": "Transformer", # Transformer/ DualTransformer/ MultiHeadTransformer/ MultiHeadDualTransformer
+				"num_heads_critic": 1,
+				"num_heads_actor": 1,
 				"critic_dir": '../../../data/MAA2C_'+env_name+"_"+experiment_type+'/models/critic_networks/run'+str(i),
 				"actor_dir": '../../../data/MAA2C_'+env_name+"_"+experiment_type+'/models/actor_networks/run'+str(i),
 				"gif_dir": '../../../data/MAA2C_'+env_name+"_"+experiment_type+'/gifs/',

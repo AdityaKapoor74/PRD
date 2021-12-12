@@ -1,22 +1,25 @@
+import os
 from comet_ml import Experiment
+import numpy as np
+from ppo_agent import PPOAgent
+import datetime
+
+
 import os
 import torch
 import numpy as np
-from a2c_agent import A2CAgent
+from ppo_agent import PPOAgent
 import datetime
 
 
 
-class MAA2C:
+class MAPPO:
 
 	def __init__(self, env, dictionary):
 		if dictionary["device"] == "gpu":
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
-		self.policy_type = dictionary["policy_type"]
-		self.critic_type = dictionary["critic_type"]
-		
 		self.env = env
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
@@ -33,6 +36,8 @@ class MAA2C:
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
+		self.update_ppo_agent = dictionary["update_ppo_agent"]
+
 		self.weight_dictionary = {}
 
 		for i in range(self.num_agents):
@@ -53,7 +58,7 @@ class MAA2C:
 			self.comet_ml.log_parameters(dictionary)
 
 
-		self.agents = A2CAgent(self.env, dictionary, self.comet_ml)
+		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -70,8 +75,8 @@ class MAA2C:
 				print("Actor Directory can not be created")
 
 			
-			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
-			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+'_trace_decay'+str(self.agents.trace_decay)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)
+			self.critic_model_path = critic_dir+"critic"
+			self.actor_model_path = actor_dir+"actor"
 			
 
 		if self.gif:
@@ -81,7 +86,7 @@ class MAA2C:
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_Entropy'+str(self.agents.entropy_pen)+"topK_"+str(self.agents.top_k)+"select_above_threshold"+str(self.agents.select_above_threshold)+"l1_pen"+str(self.agents.l1_pen)+"critic_entropy_pen"+str(self.agents.critic_entropy_pen)+'.gif'
+			self.gif_path = gif_dir+self.env_name+'.gif'
 
 
 		if self.eval_policy:
@@ -98,54 +103,6 @@ class MAA2C:
 		return actions
 
 
-	# FOR PAIRED AGENT ENVIRONMENTS
-	def calculate_weights(self,weights):
-		paired_agents_weight = 0
-		paired_agents_weight_count = 0
-		unpaired_agents_weight = 0
-		unpaired_agents_weight_count = 0
-
-		for k in range(weights.shape[0]):
-			for i in range(self.num_agents):
-				for j in range(self.num_agents):
-					if self.num_agents-1-i == j:
-						paired_agents_weight += weights[k][i][j]
-						paired_agents_weight_count += 1
-					else:
-						unpaired_agents_weight += weights[k][i][j]
-						unpaired_agents_weight_count += 1
-
-		return round(paired_agents_weight.item()/paired_agents_weight_count,4), round(unpaired_agents_weight.item()/unpaired_agents_weight_count,4)
-
-
-	# FOR OTHER ENV
-	def calculate_indiv_weights(self,weights):
-		weights_per_agent = torch.sum(weights,dim=0) / weights.shape[0]
-
-		for i in range(self.num_agents):
-			agent_name = 'agent %d' % i
-			for j in range(self.num_agents):
-				agent_name_ = 'agent %d' % j
-				self.weight_dictionary[agent_name][agent_name_] = weights_per_agent[i][j].item()
-
-
-	def update(self,trajectory,episode):
-
-		states_critic = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		next_states_critic = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
-
-		one_hot_actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		one_hot_next_actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
-
-		states_actor = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
-		next_states_actor = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
-
-		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
-
-		self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-		
 
 	def split_states(self,states):
 		states_critic = []
@@ -215,6 +172,7 @@ class MAA2C:
 			trajectory = []
 			episode_reward = 0
 			episode_collision_rate = 0
+			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
@@ -235,27 +193,38 @@ class MAA2C:
 				next_states,rewards,dones,info = self.env.step(actions)
 				next_states_critic,next_states_actor = self.split_states(next_states)
 
-				# next actions
-				next_actions = self.get_actions(next_states_actor)
 
-
-				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
-				for i,act in enumerate(next_actions):
-					one_hot_next_actions[i][act] = 1
-
-
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
 					episode_collision_rate += np.sum(collision_rate)
+				elif self.env_name == "crossing_team_greedy":
+					collision_rate = [value[1] for value in rewards]
+					goal_reached = [value[2] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
+					episode_goal_reached += np.sum(goal_reached)
+
+
+				if step == self.max_time_steps:
+					dones = [True for _ in range(self.num_agents)]
+
+				self.agents.buffer.states_critic.append(states_critic)
+				self.agents.buffer.states_actor.append(states_actor)
+				self.agents.buffer.actions.append(actions)
+				self.agents.buffer.one_hot_actions.append(one_hot_actions)
+				self.agents.buffer.dones.append(dones)
+				self.agents.buffer.rewards.append(rewards)
 
 				episode_reward += np.sum(rewards)
 
+				states_critic,states_actor = next_states_critic,next_states_actor
+				states = next_states
+
 
 				if self.learn:
-					if all(dones) or step == self.max_time_steps:
+					if all(dones):
 
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
@@ -267,16 +236,10 @@ class MAA2C:
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
 							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
 								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							if self.env_name == "crossing_team_greedy":
+								self.comet_ml.log_metric('Num Agents Goal Reached', episode_goal_reached, episode)
 
 						break
-					else:
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
-						states_critic,states_actor = next_states_critic,next_states_actor
-						states = next_states
-
-				else:
-					states_critic,states_actor = next_states_critic,next_states_actor
-					states = next_states
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
@@ -295,8 +258,8 @@ class MAA2C:
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
-			if self.learn:
-				self.update(trajectory,episode) 
+			if self.learn and episode%self.update_ppo_agent == 0 and episode != 0:
+				self.agents.update(episode) 
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -310,6 +273,7 @@ class MAA2C:
 			if self.env_name in ["crossing"]:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+
 			if "prd" in self.experiment_type:
 				if self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop", "crossing_team_greedy"]:
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)

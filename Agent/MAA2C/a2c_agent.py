@@ -61,6 +61,10 @@ class A2CAgent:
 		else:
 			self.device = "cpu"
 
+		# Transformer Heads
+		self.num_heads_critic = dictionary["num_heads_critic"]
+		self.num_heads_actor = dictionary["num_heads_actor"]
+
 		self.error_rate = []
 		self.average_relevant_set = []
 		
@@ -70,44 +74,52 @@ class A2CAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
+		obs_output_dim = 128
+		obs_act_input_dim = obs_dim+self.num_actions
+		obs_act_output_dim = 128//self.num_heads_critic
+		final_input_dim = 128
+		final_output_dim = 1
+
 		if self.env_name == "paired_by_sharing_goals":
 			obs_dim = 2*4
-			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
-			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_greedy":
 			obs_dim = 2*3
-			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
-			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
+			self.critic_network = TransformerCritic(obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "crossing_fully_coop":
 			obs_dim = 2*3
-			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
-			self.target_critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
+			self.critic_network = DualTransformerCritic(obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
 		elif self.env_name == "color_social_dilemma":
 			obs_dim = 2*2 + 1 + 2*3
-			self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
-			self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
-		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
+			self.critic_network = TransformerCritic(obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
+		elif self.env_name == "crossing_partially_coop":
 			obs_dim = 2*3 + 1
-			self.critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
-			self.target_critic_network = DualTransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128, 1, self.num_agents, self.num_actions, self.device).to(self.device)
-
-		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
+			self.critic_network = DualTransformerCritic(obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.num_heads_critic, self.num_heads_critic, self.device).to(self.device)
+		elif self.env_name == "crossing_team_greedy":
+			obs_dim = 2*3 + 1
+			self.critic_network = TransformerCritic(obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.num_heads_critic, self.device).to(self.device)
 
 		if self.env_name in ["paired_by_sharing_goals", "crossing_greedy", "crossing_fully_coop"]:
 			obs_dim = 2*3
 		elif self.env_name in ["color_social_dilemma"]:
 			obs_dim = 2*2 + 1 + 2*3
-		elif self.env_name in ["crossing_partially_coop", "crossing_team_greedy"]:
+		elif self.env_name == "crossing_partially_coop":
+			obs_dim = 2*3 + 1
+		elif self.env_name == "crossing_team_greedy":
 			obs_dim = 2*3 + 1
 
-		# MLP POLICY
+
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
+		# POLICY
 		if self.policy_type == "MLP":
-			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
+			self.policy_network = MLPPolicy(obs_dim, self.num_agents, self.num_actions).to(self.device)
 		elif self.policy_type == "Transformer":
-			self.policy_network = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
+			self.policy_network = TransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.device).to(self.device)
+		elif self.policy_type == "DualTransformer":
+			self.policy_network = DualTransformerPolicy(obs_dim, 128, 128, self.num_actions, self.num_agents, self.num_actions, self.num_heads_actor, self.num_heads_actor, self.device).to(self.device)
 
+		
 
 		if self.env_name == "paired_by_sharing_goals":
 			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
@@ -132,6 +144,23 @@ class A2CAgent:
 
 			# here the relevant set is given value=0
 			self.relevant_set = torch.transpose(self.relevant_set,0,1)
+		elif self.env_name == "crossing_team_greedy":
+			self.team_size = 4
+			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
+			for i in range(self.num_agents):
+				for j in range(self.num_agents):
+					if i<team_size and j<team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=team_size and i<2*team_size and j>=team_size and j<2*team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=2*team_size and i<3*team_size and j>=2*team_size and j<3*team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=3*team_size and i<4*team_size and j>=3*team_size and j<4*team_size:
+						self.relevant_set[i][j] = 0
+					elif i>=4*team_size and i<5*team_size and j>=4*team_size and j<5*team_size:
+						self.relevant_set[i][j] = 0
+					else:
+						break
 
 
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
@@ -243,7 +272,7 @@ class A2CAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
 
-		if self.env in ["crossing_partially_coop", "paired_by_sharing_goals"]:
+		if self.env_name in ["crossing_partially_coop", "paired_by_sharing_goals", "crossing_team_greedy"]:
 			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
 			self.comet_ml.log_metric('Relevant Set Error Percentage',self.plotting_dict["relevant_set_error_rate"].item()*100.0,episode)
 			self.error_rate.append(self.plotting_dict["relevant_set_error_rate"].item())
@@ -516,7 +545,7 @@ class A2CAgent:
 
 		self.update_parameters()
 
-		if "prd" in self.experiment_type and self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop"]:
+		if "prd" in self.experiment_type and self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop", "crossing_team_greedy"]:
 			relevant_set_error_rate = torch.mean(masking_advantage*self.relevant_set)
 		else:
 			relevant_set_error_rate = -1
