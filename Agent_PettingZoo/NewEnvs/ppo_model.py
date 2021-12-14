@@ -52,7 +52,7 @@ class CNNPolicy(nn.Module):
 			nn.Conv2d(64, 64, kernel_size=2, stride=1),
 			nn.ReLU(),
 			)
-
+			
 		self.Policy = nn.Sequential(
 			nn.Linear(4 * 4 * 64, 512),
 			nn.LeakyReLU(),
