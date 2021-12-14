@@ -29,7 +29,7 @@ class MAPPO:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = self.env.num_agents
-		self.num_actions = self.env.action_spaces['pursuer_0'].n
+		self.num_actions = self.env.action_space('pursuer_0').n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -134,7 +134,7 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-			self.env.reset()
+			states_ = self.env.reset()
 
 			images = []
 
@@ -142,42 +142,56 @@ class MAPPO:
 			episode_collision_rate = 0
 			final_timestep = self.max_time_steps
 
-			states = []
-			actions = []
-			rewards = []
-			dones = []
-			infos = []
-			counter = 0
 
 			for step in range(1, self.max_time_steps+1):
+
+				# states = []
+				# rewards = []
+				# dones = []
+				# infos = []
+				# actions = []
+
+				# for agent in self.env.agent_iter(max_iter=self.num_agents):
+				# 	observation, reward, done, info = self.env.last()
+
+				# 	if self.gif:
+				# 		# At each step, append an image to list
+				# 		if not(episode%self.gif_checkpoint):
+				# 			images.append(np.squeeze(self.env.render(mode='rgb_array')))
+				# 		# Advance a step and render a new image
+				# 		with torch.no_grad():
+				# 			action = self.get_actions([observation])
+				# 	else:
+				# 		action = self.get_actions([observation])
+
+				# 	states.append(observation)
+				# 	rewards.append(reward)
+				# 	dones.append(done)
+				# 	infos.append(info)
+				# 	actions.append(action)
+
+				# 	self.env.step(action)
+
+				# actions_ = {agent: self.get_actions(observations[agent]) for agent in self.env.agents}
+				states = []
+				for agent in self.env.agents:
+					states.append(states_[agent])
+
+				actions = self.get_actions(states)
+				actions_dict = {}
+				for i,agent in enumerate(self.env.agents):
+					actions_dict[agent] = actions[i]
+
+				states_, rewards_, dones_, infos_ = self.env.step(actions_dict)
 
 				states = []
 				rewards = []
 				dones = []
-				infos = []
-				actions = []
 
-				for agent in self.env.agent_iter(max_iter=self.num_agents):
-					observation, reward, done, info = self.env.last()
-
-					if self.gif:
-						# At each step, append an image to list
-						if not(episode%self.gif_checkpoint):
-							images.append(np.squeeze(self.env.render(mode='rgb_array')))
-						# Advance a step and render a new image
-						with torch.no_grad():
-							action = self.get_actions([observation])
-					else:
-						action = self.get_actions([observation])
-
-					states.append(observation)
-					rewards.append(reward)
-					dones.append(done)
-					infos.append(info)
-					actions.append(action)
-
-					self.env.step(action)
-
+				for i,agent in enumerate(self.env.agents):
+					states.append(states_[agent])
+					rewards.append(rewards_[agent])
+					dones.append(dones_[agent])
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):

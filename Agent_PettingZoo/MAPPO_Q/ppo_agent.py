@@ -64,7 +64,7 @@ class PPOAgent:
 			self.device = "cpu"
 		
 		self.num_agents = self.env.num_agents
-		self.num_actions = self.env.action_spaces['pursuer_0'].n
+		self.num_actions = self.env.action_space('pursuer_0').n
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
@@ -115,29 +115,45 @@ class PPOAgent:
 	def get_action(self,state):
 
 		with torch.no_grad():
-			# Batch x Num agents x channels x H x W
 			state = torch.FloatTensor(np.array([state])).to(self.device).permute(0,1,4,2,3).contiguous()
 			dists, _ = self.policy_network_old(state)
-			dists = dists[0]
-			action = Categorical(dists).sample().detach().cpu().item()
-			# action = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
-			probs = Categorical(dists)
-			action_logprob = probs.log_prob(torch.FloatTensor([action]).to(self.device))
+			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
 
-			self.agent_counter += 1
+			probs = Categorical(dists)
+			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
+
+			self.buffer.probs.append(dists.detach().cpu())
+			self.buffer.logprobs.append(action_logprob.detach().cpu())
+
+			return actions
+
+
+	# def get_action(self,state):
+
+	# 	with torch.no_grad():
+	# 		# Batch x Num agents x channels x H x W
+	# 		state = torch.FloatTensor(np.array([state])).to(self.device).permute(0,1,4,2,3).contiguous()
+	# 		dists, _ = self.policy_network_old(state)
+	# 		dists = dists[0]
+	# 		action = Categorical(dists).sample().detach().cpu().item()
+	# 		# action = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
+	# 		probs = Categorical(dists)
+	# 		action_logprob = probs.log_prob(torch.FloatTensor([action]).to(self.device))
+
+	# 		self.agent_counter += 1
 
 			
-			self.dists.append(dists.detach().cpu())
-			self.logprobs.append(action_logprob.detach().cpu())
+	# 		self.dists.append(dists.detach().cpu())
+	# 		self.logprobs.append(action_logprob.detach().cpu())
 
-			if self.agent_counter == self.num_agents:
-				self.buffer.probs.append(torch.stack(self.dists))
-				self.buffer.logprobs.append(torch.stack(self.logprobs))
-				self.dists = []
-				self.logprobs = []
-				self.agent_counter = 0
+	# 		if self.agent_counter == self.num_agents:
+	# 			self.buffer.probs.append(torch.stack(self.dists))
+	# 			self.buffer.logprobs.append(torch.stack(self.logprobs))
+	# 			self.dists = []
+	# 			self.logprobs = []
+	# 			self.agent_counter = 0
 
-			return action
+	# 		return action
 
 
 	def calculate_advantages(self, values, rewards, dones):
