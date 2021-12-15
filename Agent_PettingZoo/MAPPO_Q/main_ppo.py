@@ -21,7 +21,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.2,
-				"n_epochs": 15,
+				"n_epochs": 5,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
@@ -29,7 +29,7 @@ if __name__ == '__main__':
 				"pen_threshold": 0.01,
 				"value_lr": 1e-3, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 0.0, #8e-3
+				"entropy_pen": 1e-3, #8e-3
 				"gamma": 0.99, 
 				"trace_decay": 0.95,
 				"lambda": 0.8, #0.8
