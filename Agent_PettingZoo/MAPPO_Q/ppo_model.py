@@ -74,9 +74,9 @@ class CNNPolicy(nn.Module):
 		self.Policy = nn.Sequential(
 			nn.Linear(4 * 4 * 64, 512),
 			nn.LeakyReLU(),
-			nn.Linear(512, 128),
-			nn.LeakyReLU(),
-			nn.Linear(128, 64),
+			# nn.Linear(512, 128),
+			# nn.LeakyReLU(),
+			nn.Linear(512, 64),
 			nn.LeakyReLU(),
 			nn.Linear(64, num_actions),
 			nn.Softmax(dim=-1)
@@ -134,10 +134,10 @@ class CNN_Q_network(nn.Module):
 			)
 
 		self.FC = nn.Sequential(
-			nn.Linear(4 * 4 * 64, 512),
+			nn.Linear(4 * 4 * 64, 128),
 			nn.LeakyReLU(),
-			nn.Linear(512, 128),
-			nn.LeakyReLU(),
+			# nn.Linear(512, 128),
+			# nn.LeakyReLU(),
 			)
 
 		obs_input_dim = 128
