@@ -72,11 +72,11 @@ class CNNPolicy(nn.Module):
 			)
 			
 		self.Policy = nn.Sequential(
-			nn.Linear(4 * 4 * 64, 512),
+			nn.Linear(4 * 4 * 64, 256),
 			nn.LeakyReLU(),
 			# nn.Linear(512, 128),
 			# nn.LeakyReLU(),
-			nn.Linear(512, 64),
+			nn.Linear(256, 64),
 			nn.LeakyReLU(),
 			nn.Linear(64, num_actions),
 			nn.Softmax(dim=-1)
@@ -93,7 +93,7 @@ class CNNPolicy(nn.Module):
 		nn.init.orthogonal_(self.Policy[0].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.Policy[2].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.Policy[4].weight, gain=gain_leaky)
-		nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
+		# nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
 
 	def forward(self, local_images):
 
@@ -183,7 +183,7 @@ class CNN_Q_network(nn.Module):
 		nn.init.orthogonal_(self.CNN[4].weight, gain=gain_relu)
 
 		nn.init.orthogonal_(self.FC[0].weight, gain=gain_leaky)
-		nn.init.orthogonal_(self.FC[2].weight, gain=gain_leaky)
+		# nn.init.orthogonal_(self.FC[2].weight, gain=gain_leaky)
 
 		nn.init.orthogonal_(self.state_embed[0].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.state_act_embed[0].weight, gain=gain_leaky)
