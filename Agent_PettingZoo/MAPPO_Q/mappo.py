@@ -209,9 +209,6 @@ class MAPPO:
 
 				episode_reward += np.sum(rewards)
 
-				print("REWARDS")
-				print(rewards)
-
 				if self.learn:
 					if all(dones):
 
