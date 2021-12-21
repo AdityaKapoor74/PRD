@@ -64,19 +64,19 @@ class CNNPolicy(nn.Module):
 
 		self.CNN = nn.Sequential(
 			nn.Conv2d(num_channels, 32, kernel_size=2, stride=1),
-			nn.ReLU(),
+			nn.LeakyReLU(),
 			nn.Conv2d(32, 64, kernel_size=2, stride=1),
-			nn.ReLU(),
+			nn.LeakyReLU(),
 			nn.Conv2d(64, 64, kernel_size=2, stride=1),
-			nn.ReLU(),
+			nn.LeakyReLU(),
 			)
 			
 		self.Policy = nn.Sequential(
 			nn.Linear(4 * 4 * 64, 256),
 			nn.LeakyReLU(),
-			# nn.Linear(512, 128),
-			# nn.LeakyReLU(),
-			nn.Linear(256, 64),
+			nn.Linear(256, 128),
+			nn.LeakyReLU(),
+			nn.Linear(128, 64),
 			nn.LeakyReLU(),
 			nn.Linear(64, num_actions),
 			nn.Softmax(dim=-1)
@@ -86,14 +86,14 @@ class CNNPolicy(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 		gain_relu = nn.init.calculate_gain('relu')
 
-		nn.init.orthogonal_(self.CNN[0].weight, gain=gain_relu)
-		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_relu)
-		nn.init.orthogonal_(self.CNN[4].weight, gain=gain_relu)
+		nn.init.orthogonal_(self.CNN[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.CNN[4].weight, gain=gain_leaky)
 
 		nn.init.orthogonal_(self.Policy[0].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.Policy[2].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.Policy[4].weight, gain=gain_leaky)
-		# nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
 
 	def forward(self, local_images):
 
@@ -126,18 +126,18 @@ class CNN_Q_network(nn.Module):
 
 		self.CNN = nn.Sequential(
 			nn.Conv2d(num_channels, 32, kernel_size=2, stride=1),
-			nn.ReLU(),
+			nn.LeakyReLU(),
 			nn.Conv2d(32, 64, kernel_size=2, stride=1),
-			nn.ReLU(),
+			nn.LeakyReLU(),
 			nn.Conv2d(64, 64, kernel_size=2, stride=1),
-			nn.ReLU(),
+			nn.LeakyReLU(),
 			)
 
 		self.FC = nn.Sequential(
-			nn.Linear(4 * 4 * 64, 128),
+			nn.Linear(4 * 4 * 64, 512),
 			nn.LeakyReLU(),
-			# nn.Linear(512, 128),
-			# nn.LeakyReLU(),
+			nn.Linear(512, 128),
+			nn.LeakyReLU(),
 			)
 
 		obs_input_dim = 128
@@ -178,12 +178,12 @@ class CNN_Q_network(nn.Module):
 		gain_leaky = nn.init.calculate_gain('leaky_relu')
 		gain_relu = nn.init.calculate_gain('relu')
 
-		nn.init.orthogonal_(self.CNN[0].weight, gain=gain_relu)
-		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_relu)
-		nn.init.orthogonal_(self.CNN[4].weight, gain=gain_relu)
+		nn.init.orthogonal_(self.CNN[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.CNN[4].weight, gain=gain_leaky)
 
 		nn.init.orthogonal_(self.FC[0].weight, gain=gain_leaky)
-		# nn.init.orthogonal_(self.FC[2].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.FC[2].weight, gain=gain_leaky)
 
 		nn.init.orthogonal_(self.state_embed[0].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.state_act_embed[0].weight, gain=gain_leaky)
