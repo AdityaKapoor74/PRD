@@ -1,8 +1,8 @@
 from mappo import MAPPO
 import random
 # from pettingzoo.sisl import pursuit_v3
-# import pettingzoo.sisl.pursuit_v4 as pursuit_v4
-from pettingzoo.sisl import pursuit_v4
+import pettingzoo.sisl.pursuit_v4 as pursuit_v4
+# from pettingzoo.sisl import pursuit_v4
 
 
 if __name__ == '__main__':
