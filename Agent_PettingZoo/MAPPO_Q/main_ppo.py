@@ -13,12 +13,12 @@ if __name__ == '__main__':
 		extension = "MAPPO_run_"+str(i)
 		test_num = "PRD_2_exps"
 		env_name = "pursuit_v4" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "prd_above_threshold_ascend"
+		experiment_type = "shared"
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 10,
-				"grad_clip_actor": 10,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"pen_threshold": 0.01,
-				"value_lr": 1e-3, #1e-3
+				"value_lr": 1e-4, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 1e-2, #8e-3
 				"gamma": 0.99, 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_returns": False,
 			}
-		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=33)
+		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=7)
 		# random_demo(env, render=True, episodes=10) # env has to be env() and not parallel_env()
 		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)
