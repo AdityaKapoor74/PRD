@@ -3,6 +3,8 @@ import random
 # from pettingzoo.sisl import pursuit_v3
 import pettingzoo.sisl.pursuit_v4 as pursuit_v4
 # from pettingzoo.sisl import pursuit_v4
+from pettingzoo.utils import random_demo
+
 
 
 if __name__ == '__main__':
@@ -56,7 +58,8 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_returns": False,
 			}
-		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False)
+		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=33)
+		# random_demo(env, render=True, episodes=10) # env has to be env() and not parallel_env()
 		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
