@@ -13,7 +13,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_run_"+str(i)
 		test_num = "PRD_2_exps"
 		env_name = "pursuit_v4" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "greedy"
+		experiment_type = "shared"
 
 		dictionary = {
 				"iteration": i,
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"pen_threshold": 0.01,
-				"value_lr": 1e-4, #1e-3
+				"value_lr": 1e-3, #1e-3
 				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 1e-2, #8e-3
 				"gamma": 0.99, 
