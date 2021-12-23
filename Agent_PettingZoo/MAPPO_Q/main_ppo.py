@@ -11,7 +11,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_run_"+str(i)
 		test_num = "PRD_2_exps"
 		env_name = "pursuit_v4" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "shared"
+		experiment_type = "greedy"
 
 		dictionary = {
 				"iteration": i,
