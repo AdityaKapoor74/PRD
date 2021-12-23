@@ -15,8 +15,8 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 0.5,
-				"grad_clip_actor": 0.5,
+				"grad_clip_critic": 10,
+				"grad_clip_actor": 10,
 				"device": "gpu",
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_returns": False,
 			}
-		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2)
+		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False)
 		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
