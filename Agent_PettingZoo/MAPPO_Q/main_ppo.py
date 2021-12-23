@@ -58,7 +58,7 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_returns": False,
 			}
-		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=33)
+		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=7)
 		# random_demo(env, render=True, episodes=10) # env has to be env() and not parallel_env()
 		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)

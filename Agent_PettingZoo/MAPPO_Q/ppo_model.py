@@ -96,7 +96,6 @@ class CNNPolicy(nn.Module):
 		nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
 
 	def forward(self, local_images):
-
 		local_images = local_images.float() / self.scaling
 		cnn_input = local_images.reshape(-1, local_images.shape[2], local_images.shape[3], local_images.shape[4])
 		local_image_embeddings = self.CNN(cnn_input)

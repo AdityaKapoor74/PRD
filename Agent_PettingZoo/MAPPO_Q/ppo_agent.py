@@ -68,14 +68,14 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		self.critic_network = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30, device=self.device).to(self.device)
+		self.critic_network = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
 
 		
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		self.policy_network = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30, device=self.device).to(self.device)
-		self.policy_network_old = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=30, device=self.device).to(self.device)
+		self.policy_network = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+		self.policy_network_old = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
 		
 		# COPY
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
