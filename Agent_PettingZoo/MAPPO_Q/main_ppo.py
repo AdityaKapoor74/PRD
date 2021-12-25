@@ -26,13 +26,13 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.05,
 				"n_epochs": 5,
-				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 2, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
 				"pen_threshold": 0.01,
-				"value_lr": 1e-4, #1e-3
-				"policy_lr": 1e-4, #prd 1e-4
+				"value_lr": 1e-3, #1e-3
+				"policy_lr": 1e-3, #prd 1e-4
 				"entropy_pen": 1e-2, #8e-3
 				"gamma": 0.99, 
 				"trace_decay": 0.95,
@@ -58,8 +58,8 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_returns": False,
 			}
-		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=17)
-		# random_demo(env, render=True, episodes=10) # env has to be env() and not parallel_env()
+		env = pursuit_v4.env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=7, constraint_window=0.5)
+		random_demo(env, render=True, episodes=10) # env has to be env() and not parallel_env()
 		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
