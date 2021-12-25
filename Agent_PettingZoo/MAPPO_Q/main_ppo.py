@@ -25,8 +25,8 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.2,
-				"n_epochs": 5,
-				"update_ppo_agent": 8, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 15,
+				"update_ppo_agent": 4, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
