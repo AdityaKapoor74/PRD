@@ -17,8 +17,8 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 10,
-				"grad_clip_actor": 10,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"device": "gpu",
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -26,13 +26,13 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.05,
 				"n_epochs": 5,
-				"update_ppo_agent": 2, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 4, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
 				"pen_threshold": 0.01,
 				"value_lr": 1e-3, #1e-3
-				"policy_lr": 1e-3, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"entropy_pen": 1e-2, #8e-3
 				"gamma": 0.99, 
 				"trace_decay": 0.95,
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": False,
 				"learn":True,
-				"max_episodes": 100000,
+				"max_episodes": 1e5,
 				"max_time_steps": 500,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
