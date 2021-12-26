@@ -136,7 +136,7 @@ class CNN_Q_network(nn.Module):
 			)
 
 		self.FC = nn.Sequential(
-			nn.Linear(26 * 26 * 64, 256), # obs_range = 29
+			nn.Linear(26 * 26 * 64, 512), # obs_range = 29
 			# nn.Linear(4 * 4 * 64, 512), # obs_range = 7
 			# nn.Linear(30 * 30 * 64, 512), # obs_range = 33
 			nn.LeakyReLU(),
