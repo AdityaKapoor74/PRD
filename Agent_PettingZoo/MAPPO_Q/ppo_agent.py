@@ -21,7 +21,7 @@ class PPOAgent:
 		self.policy_lr = dictionary["policy_lr"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
-		self.trace_decay = dictionary["trace_decay"]
+		self.gae_lambda = dictionary["gae_lambda"]
 		self.top_k = dictionary["top_k"]
 		self.norm_adv = dictionary["norm_adv"]
 		self.norm_returns = dictionary["norm_returns"]
@@ -36,6 +36,7 @@ class PPOAgent:
 		self.steps_to_take = dictionary["steps_to_take"]
 
 		self.policy_clip = dictionary["policy_clip"]
+		self.value_clip = dictionary["value_clip"]
 		self.n_epochs = dictionary["n_epochs"]
 
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
@@ -69,7 +70,8 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 
 		self.critic_network = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
-
+		self.critic_network_old = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
 		
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
@@ -168,7 +170,7 @@ class PPOAgent:
 			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
 			next_value = values.data[t]
 			
-			advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
+			advantage = td_error + (self.gamma * self.gae_lambda * advantage * masks[t])
 			advantages.insert(0, advantage)
 
 		advantages = torch.stack(advantages)
@@ -296,10 +298,10 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).to(self.device)
 
 
-		Values_old, Q_values_old, weights_value_old = self.critic_network(old_states, old_probs, old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_probs, old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 
-		Value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
 
 		value_loss_batch = 0
 		policy_loss_batch = 0
@@ -342,7 +344,9 @@ class PPOAgent:
 			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 			
-			critic_loss = F.smooth_l1_loss(Q_value,Value_target)
+			critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target)
+			critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target)
+			critic_loss = torch.max(critic_loss_1, critic_loss_2)
 			
 
 			# take gradient step
@@ -368,6 +372,9 @@ class PPOAgent:
 			
 		# Copy new weights into old policy
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+
+		# Copy new weights into old critic
+		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
 
 		# self.scheduler.step()
 		# print("learning rate of policy", self.scheduler.get_lr())

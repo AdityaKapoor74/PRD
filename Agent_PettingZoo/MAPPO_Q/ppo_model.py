@@ -72,8 +72,8 @@ class CNNPolicy(nn.Module):
 			)
 			
 		self.Policy = nn.Sequential(
-			nn.Linear(4 * 4 * 64, 256), # obs_range = 7
-			# nn.Linear(30 * 30 * 64, 256), # obs_range = 33
+			nn.Linear(26 * 26 * 64, 256), # obs_range = 29
+			# nn.Linear(4 * 4 * 64, 256), # obs_range = 7
 			nn.LeakyReLU(),
 			nn.Linear(256, 128),
 			nn.LeakyReLU(),
@@ -94,12 +94,14 @@ class CNNPolicy(nn.Module):
 		nn.init.orthogonal_(self.Policy[0].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.Policy[2].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.Policy[4].weight, gain=gain_leaky)
+		gain_leaky = nn.init.calculate_gain('leaky_relu', 0.01)
 		nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
 
 	def forward(self, local_images):
 		local_images = local_images.float() / self.scaling
 		cnn_input = local_images.reshape(-1, local_images.shape[2], local_images.shape[3], local_images.shape[4])
 		local_image_embeddings = self.CNN(cnn_input)
+		# print(local_image_embeddings.shape)
 		if local_image_embeddings.shape[0] == 1:
 			local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0], -1)
 		else:
@@ -134,7 +136,8 @@ class CNN_Q_network(nn.Module):
 			)
 
 		self.FC = nn.Sequential(
-			nn.Linear(4 * 4 * 64, 512), # obs_range = 7
+			nn.Linear(26 * 26 * 64, 256), # obs_range = 29
+			# nn.Linear(4 * 4 * 64, 512), # obs_range = 7
 			# nn.Linear(30 * 30 * 64, 512), # obs_range = 33
 			nn.LeakyReLU(),
 			nn.Linear(512, 128),
