@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
 from ppo_model import *
@@ -69,20 +70,41 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		self.critic_network = nn.DataParallel(CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
-		self.critic_network_old = nn.DataParallel(CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
-		
-		# COPY
-		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
-		
-		self.seeds = [42, 142, 242, 342, 442]
-		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
-		# POLICY
-		self.policy_network = nn.DataParallel(CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
-		self.policy_network_old = nn.DataParallel(CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
-		
-		# COPY
-		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+		if torch.cuda.device_count() > 1:
+			print("Let's use", torch.cuda.device_count(), "GPUs!")
+
+			self.critic_network = nn.parallel.DistributedDataParallel(CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
+			self.critic_network_old = nn.parallel.DistributedDataParallel(CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
+			
+			# COPY
+			self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+			
+			self.seeds = [42, 142, 242, 342, 442]
+			torch.manual_seed(self.seeds[dictionary["iteration"]-1])
+			# POLICY
+			self.policy_network = nn.parallel.DistributedDataParallel(CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
+			self.policy_network_old = nn.parallel.DistributedDataParallel(CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
+			
+			# COPY
+			self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+		else:
+			print("Let's use", torch.cuda.device_count(), "GPUs!")
+
+			self.critic_network = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+			self.critic_network_old = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+			
+			# COPY
+			self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+			
+			self.seeds = [42, 142, 242, 342, 442]
+			torch.manual_seed(self.seeds[dictionary["iteration"]-1])
+			# POLICY
+			self.policy_network = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+			self.policy_network_old = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+			
+			# COPY
+			self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+
 
 		self.buffer = RolloutBuffer()
 
@@ -319,16 +341,6 @@ class PPOAgent:
 
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
-
-
-			old_states = torch.FloatTensor(np.array(self.buffer.states)).to(self.device).permute(0,1,4,2,3).contiguous()
-			old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
-			old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
-			old_probs = torch.stack(self.buffer.probs).squeeze(1).to(self.device)
-			old_logprobs = torch.stack(self.buffer.logprobs).squeeze(1).to(self.device)
-			rewards = torch.FloatTensor(np.array(self.buffer.rewards)).to(self.device)
-			dones = torch.FloatTensor(np.array(self.buffer.dones)).to(self.device)
-
 
 			Value, Q_value, weights_value = self.critic_network(old_states, old_probs, old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
