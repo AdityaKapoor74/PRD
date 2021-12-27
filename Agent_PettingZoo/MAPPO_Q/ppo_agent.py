@@ -89,7 +89,7 @@ class PPOAgent:
 			# COPY
 			self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 		else:
-			print("Let's use", torch.cuda.device_count(), "GPUs!")
+			print("Let's use 1 GPU!")
 
 			self.critic_network = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
 			self.critic_network_old = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
