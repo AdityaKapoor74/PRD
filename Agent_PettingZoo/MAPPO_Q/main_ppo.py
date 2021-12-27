@@ -1,4 +1,5 @@
 from mappo import MAPPO
+import torch
 import random
 # from pettingzoo.sisl import pursuit_v3
 import pettingzoo.sisl.pursuit_v4 as pursuit_v4
@@ -48,18 +49,23 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_exps/models/crossing_team_greedy_prd_above_threshold_ascend_MAPPO_run_1/critic_networks/04-12-2021VN_ATN_FCN_lr0.001_PN_ATN_FCN_lr0.0001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode10000.pt",
 				"model_path_policy": "../../../tests/PRD_2_exps/models/crossing_team_greedy_prd_above_threshold_ascend_MAPPO_run_1/actor_networks/04-12-2021_PN_ATN_FCN_lr0.0001VN_SAT_FCN_lr0.001_GradNorm0.5_Entropy0.008_trace_decay0.98topK_0select_above_threshold0.0l1_pen0.0critic_entropy_pen0.0_epsiode10000.pt",
-				"eval_policy": False,
-				"save_model": False,
+				"eval_policy": True,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 100000,
 				"max_time_steps": 500,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
+				"parallel_training": False,
+				# Training related
+				# "nodes": 1,
+				# "gpus": torch.cuda.device_count(),
+				# "node_rank":0,
 			}
-		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=29, constraint_window=1.0)
+		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=7, constraint_window=1.0)
 		# random_demo(env, render=True, episodes=10) # env has to be env() and not parallel_env()
 		env.reset() # need to reset before accessing number of agents
 		ma_controller = MAPPO(env,dictionary)

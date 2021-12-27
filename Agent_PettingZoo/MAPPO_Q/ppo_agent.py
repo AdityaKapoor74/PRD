@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.multiprocessing as mp
 from torch.distributions import Categorical
 from ppo_model import *
 import torch.nn.functional as F
@@ -70,7 +71,7 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		if torch.cuda.device_count() > 1:
+		if torch.cuda.device_count() > 1 and dictionary["parallel_training"]:
 			print("Let's use", torch.cuda.device_count(), "GPUs!")
 
 			self.critic_network = nn.parallel.DistributedDataParallel(CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device)).to(self.device)
@@ -324,6 +325,7 @@ class PPOAgent:
 
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_probs, old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
+		Q_values_old = Q_values_old.detach()
 
 		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
 
