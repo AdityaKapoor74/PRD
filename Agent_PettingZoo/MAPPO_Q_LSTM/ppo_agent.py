@@ -353,7 +353,7 @@ class PPOAgent:
 				dists.append(dist)
 				logprobs.append(logprob)
 
-			dists = torch.stack(dists).to(self.device)
+			dists = torch.stack(dists).permute(2,0,3,1).squeeze(-1).to(self.device)
 			logprobs = torch.stack(logprobs).permute(1,0).to(self.device)
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp(logprobs - old_logprobs.squeeze(-1))
