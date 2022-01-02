@@ -25,23 +25,24 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.2,
-				"value_clip": 0.2,
-				"n_epochs": 15,
+				"policy_clip": 0.05,
+				"value_clip": 0.05,
+				"n_epochs": 5,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
+				"lstm_hidden_dim": 256,
+				"lstm_layers": 1,
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"pen_threshold": 0.01,
 				"value_lr": 1e-3, #1e-3
 				"policy_lr": 7e-4, #prd 1e-4
 				"entropy_pen": 0.015, #8e-3
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
-				"lambda": 0.8, #0.8
+				"lambda": 1.0, # 1 --> Monte Carlo; 0 --> TD(1)
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"gif": False,
@@ -52,7 +53,7 @@ if __name__ == '__main__':
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 100000,
 				"max_time_steps": 500,
@@ -60,10 +61,6 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_returns": False,
 				"parallel_training": False,
-				# Training related
-				# "nodes": 1,
-				# "gpus": torch.cuda.device_count(),
-				# "node_rank":0,
 			}
 		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=7, constraint_window=1.0, tag_reward=0.1, catch_reward=5.0, urgency_reward=-0.1)
 		# random_demo(env, render=True, episodes=10) # env has to be env() and not parallel_env()

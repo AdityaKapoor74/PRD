@@ -44,15 +44,19 @@ class PPOAgent:
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
+		self.lstm_hidden_dim = dictionary["lstm_hidden_dim"]
+		self.batch_size = dictionary["update_ppo_agent"]
+
 		self.error_rate = []
 		self.average_relevant_set = []
 
 		# episode track
 		self.episode = 0
 
-		self.agent_counter = 0
-		self.dists = []
+		self.probs = []
 		self.logprobs = []
+		self.h_out_pol = []
+		self.cell_out_pol = []
 
 
 		if "prd_above_threshold_decay" in self.experiment_type:
@@ -100,8 +104,8 @@ class PPOAgent:
 			self.seeds = [42, 142, 242, 342, 442]
 			torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 			# POLICY
-			self.policy_network = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
-			self.policy_network_old = CNNPolicy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+			self.policy_network = CNN_LSTM_Policy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, lstm_hidden_dim=self.lstm_hidden_dim, batch_size=self.batch_size, device=self.device).to(self.device)
+			self.policy_network_old = CNN_LSTM_Policy(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, lstm_hidden_dim=self.lstm_hidden_dim, batch_size=self.batch_size, device=self.device).to(self.device)
 			
 			# COPY
 			self.policy_network_old.load_state_dict(self.policy_network.state_dict())
@@ -139,47 +143,31 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self,state):
+	def get_action(self,state, h, cell, agent_num):
 
 		with torch.no_grad():
-			state = torch.FloatTensor(np.array([state])).to(self.device).permute(0,1,4,2,3).contiguous()
-			dists = self.policy_network_old(state)
-			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
-			probs = Categorical(dists)
-			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
+			state = torch.Tensor(np.array([state])).to(self.device).permute(0,3,1,2).contiguous()
+			dists, h_out_pol = self.policy_network_old(state, h, cell)
+			probs = Categorical(dists[-1,-1,:])
+			action = probs.sample().detach().cpu().item()
+			action_logprob = probs.log_prob(torch.tensor([action]).to(self.device))
+			self.probs.append(dists[-1,-1,:].detach().cpu())
+			self.logprobs.append(action_logprob.detach().cpu())
+			self.h_out_pol.append(h_out_pol[0])
+			self.cell_out_pol.append(h_out_pol[1])
 
-			self.buffer.probs.append(dists.detach().cpu())
-			self.buffer.logprobs.append(action_logprob.detach().cpu())
+		if int(agent_num[-1]) == self.num_agents-1:
+			self.buffer.probs.append(torch.stack(self.probs))
+			self.buffer.logprobs.append(torch.stack(self.logprobs))
+			self.buffer.h_out_pol.append(torch.stack(self.h_out_pol))
+			self.buffer.cell_out_pol.append(torch.stack(self.cell_out_pol))
 
-			return actions
+			self.probs = []
+			self.logprobs = []
+			self.h_out_pol = []
+			self.cell_out_pol = []
 
-
-	# def get_action(self,state):
-
-	# 	with torch.no_grad():
-	# 		# Batch x Num agents x channels x H x W
-	# 		state = torch.FloatTensor(np.array([state])).to(self.device).permute(0,1,4,2,3).contiguous()
-	# 		dists, _ = self.policy_network_old(state)
-	# 		dists = dists[0]
-	# 		action = Categorical(dists).sample().detach().cpu().item()
-	# 		# action = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
-	# 		probs = Categorical(dists)
-	# 		action_logprob = probs.log_prob(torch.FloatTensor([action]).to(self.device))
-
-	# 		self.agent_counter += 1
-
-			
-	# 		self.dists.append(dists.detach().cpu())
-	# 		self.logprobs.append(action_logprob.detach().cpu())
-
-	# 		if self.agent_counter == self.num_agents:
-	# 			self.buffer.probs.append(torch.stack(self.dists))
-	# 			self.buffer.logprobs.append(torch.stack(self.logprobs))
-	# 			self.dists = []
-	# 			self.logprobs = []
-	# 			self.agent_counter = 0
-
-	# 		return action
+		return action, h_out_pol[0], h_out_pol[1]
 
 
 	def calculate_advantages(self, values, rewards, dones):
@@ -313,13 +301,15 @@ class PPOAgent:
 
 	def update(self,episode):
 		# convert list to tensor
-		old_states = torch.FloatTensor(np.array(self.buffer.states)).to(self.device).permute(0,1,4,2,3).contiguous()
-		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
-		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
-		old_probs = torch.stack(self.buffer.probs).squeeze(1).to(self.device)
-		old_logprobs = torch.stack(self.buffer.logprobs).squeeze(1).to(self.device)
-		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).to(self.device)
-		dones = torch.FloatTensor(np.array(self.buffer.dones)).to(self.device)
+		old_states = torch.tensor(np.array(self.buffer.states)).to(self.device).permute(0,1,4,2,3).contiguous()
+		old_actions = torch.tensor(np.array(self.buffer.actions)).to(self.device)
+		hidden_state_pol = self.buffer.h_out_pol[0].detach().to(self.device)
+		cell_state_pol = self.buffer.cell_out_pol[0].detach().to(self.device)
+		old_one_hot_actions = torch.tensor(np.array(self.buffer.one_hot_actions)).to(self.device)
+		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
+		old_logprobs = torch.stack(self.buffer.logprobs, dim=0).to(self.device)
+		rewards = torch.tensor(np.array(self.buffer.rewards)).to(self.device)
+		dones = torch.tensor(np.array(self.buffer.dones)).long().to(self.device)
 
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_probs.detach().squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
@@ -353,10 +343,18 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
 			# Evaluating old actions and values
-			dists = self.policy_network(old_states)
-			probs = Categorical(dists)
-			logprobs = probs.log_prob(old_actions)
+			dists = []
+			logprobs = []
+			for agent in range(self.num_agents):
+				dist, (h_out, cell_out) = self.policy_network(old_states[:,agent,:,:,:], hidden_state_pol[agent,:,:,:], cell_state_pol[agent,:,:,:])
+				prob = Categorical(dist.squeeze(0))
+				logprob = prob.log_prob(old_actions[:,agent])
 
+				dists.append(dist)
+				logprobs.append(logprob)
+
+			dists = torch.stack(dists).to(self.device)
+			logprobs = torch.stack(logprobs).permute(1,0).to(self.device)
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp(logprobs - old_logprobs.squeeze(-1))
 			# Finding Surrogate Loss

@@ -16,6 +16,10 @@ class RolloutBuffer:
 		self.logprobs = []
 		self.rewards = []
 		self.dones = []
+		self.h_out_pol = []
+		self.cell_out_pol = []
+		self.h_out_val = []
+		self.cell_out_val = []
 	
 
 	def clear(self):
@@ -26,6 +30,10 @@ class RolloutBuffer:
 		del self.logprobs[:]
 		del self.rewards[:]
 		del self.dones[:]
+		del self.h_out_pol[:]
+		del self.cell_out_pol[:]
+		del self.h_out_val[:]
+		del self.cell_out_val[:]
 
 
 class Identity(nn.Module):
@@ -35,32 +43,21 @@ class Identity(nn.Module):
 	def forward(self, x):
 		return x
 
+class CNN_LSTM_Policy(nn.Module):
+	def __init__(self, num_channels, num_actions, num_agents, scaling, lstm_hidden_dim, batch_size, device):
 
-class CNNPolicy(nn.Module):
-	def __init__(self, num_channels, num_actions, num_agents, scaling, device):
+		super(CNN_LSTM_Policy, self).__init__()
 
-		super(CNNPolicy, self).__init__()
-
-		self.name = "CNNPolicy"
+		self.name = "CNN_LSTM_Policy"
 
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
 		self.scaling = scaling
-
-		# self.CNN = models.resnet18(pretrained=True)
-		# self.CNN.fc = Identity()
-
-		# self.Policy = nn.Sequential(
-		# 	nn.Linear(512,512),
-		# 	nn.LeakyReLU(),
-		# 	nn.Linear(512,256),
-		# 	nn.LeakyReLU(),
-		# 	nn.Linear(256,64),
-		# 	nn.LeakyReLU(),
-		# 	nn.Linear(64,action_dim),
-		# 	nn.Softmax(dim=-1)
-		# 	)
+		self.hidden_dim = 256
+		self.lstm_num_layers = 1
+		self.lstm_hidden_dim = lstm_hidden_dim
+		self.batch_size = batch_size
 
 		self.CNN = nn.Sequential(
 			nn.Conv2d(num_channels, 32, kernel_size=2, stride=1),
@@ -71,9 +68,11 @@ class CNNPolicy(nn.Module):
 			nn.LeakyReLU(),
 			)
 			
+		self.Policy_LSTM = nn.LSTM(input_size = 4*4*64, hidden_size = self.hidden_dim, num_layers=self.lstm_num_layers, batch_first=True)
+			
 
 		self.Policy_MLP = nn.Sequential(
-			nn.Linear(4 * 4 * 64, 64),
+			nn.Linear(256, 64),
 			nn.LeakyReLU(),
 			nn.Linear(64, num_actions),
 			nn.Softmax(dim=-1)
@@ -87,111 +86,24 @@ class CNNPolicy(nn.Module):
 		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.CNN[4].weight, gain=gain_leaky)
 
+		nn.init.orthogonal_(self.Policy_LSTM[0].weight)
+
 		nn.init.orthogonal_(self.Policy_MLP[0].weight, gain=gain_leaky)
 		nn.init.orthogonal_(self.Policy_MLP[2].weight, gain=gain_leaky)
 		gain_leaky = nn.init.calculate_gain('leaky_relu', 0.01)
 		nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
 
 
-	def forward(self, local_images):
-		local_images = local_images.float() / self.scaling
-		cnn_input = local_images.reshape(-1, local_images.shape[2], local_images.shape[3], local_images.shape[4])
+	def forward(self, local_images, hidden_state, cell_state):
+		# batch_size (num_episodes) x sequence_length (num_timesteps) x state_dim (channels x width x height)
+		cnn_input = local_images.float() / self.scaling
 		local_image_embeddings = self.CNN(cnn_input)
-		# print(local_image_embeddings.shape)
-		if local_image_embeddings.shape[0] == 1:
-			local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0], -1)
-		else:
-			local_image_embeddings = local_image_embeddings.reshape(local_image_embeddings.shape[0]//self.num_agents, self.num_agents,-1)
-		# T x num_agents x state_dim
-		T = local_image_embeddings.shape[0]
-		Policy = self.Policy_MLP(local_image_embeddings)
-
-		return Policy
-
-
-
-# class CNNPolicy(nn.Module):
-# 	def __init__(self, num_channels, num_actions, num_agents, scaling, device):
-
-# 		super(CNNPolicy, self).__init__()
-
-# 		self.name = "CNNPolicy"
-
-# 		self.num_agents = num_agents
-# 		self.num_actions = num_actions
-# 		self.device = device
-# 		self.scaling = scaling
-# 		self.hidden_dim = 256
-# 		self.lstm_num_layers = 1
-# 		self.hidden_state = None
-# 		self.cell_state = None
-# 		self.new_episode = True
-
-# 		self.CNN = nn.Sequential(
-# 			nn.Conv2d(num_channels, 32, kernel_size=2, stride=1),
-# 			nn.LeakyReLU(),
-# 			nn.Conv2d(32, 64, kernel_size=2, stride=1),
-# 			nn.LeakyReLU(),
-# 			nn.Conv2d(64, 64, kernel_size=2, stride=1),
-# 			nn.LeakyReLU(),
-# 			)
-			
-# 		self.Policy_LSTM = nn.LSTM(input_size = 4 * 4 * 64, hidden_size = self.hidden_dim, num_layers=self.lstm_num_layers, batch_first=True)
-			
-
-# 		self.Policy_MLP = nn.Sequential(
-# 			nn.Linear(256, 64),
-# 			nn.LeakyReLU(),
-# 			nn.Linear(64, num_actions),
-# 			nn.Softmax(dim=-1)
-# 			)
-
-# 	def init_hidden_cell_state(self, batch_size):
-# 		self.hidden_state = []
-# 		self.cell_state = []
-# 		for i in range(self.num_agents):
-# 			self.hidden_state.append(torch.zeros(self.lstm_num_layers, batch_size, self.hidden_dim).to(self.device))
-# 			self.cell_state.append(torch.zeros(self.lstm_num_layers, batch_size, self.hidden_dim).to(self.device))
-
-# 		self.hidden_state = torch.stack(self.hidden_state).to(self.device)
-# 		self.cell_state = torch.stack(self.cell_state).to(self.device)
-
-# 	def reset_parameters(self):
-# 		gain_leaky = nn.init.calculate_gain('leaky_relu')
-# 		gain_relu = nn.init.calculate_gain('relu')
-
-# 		nn.init.orthogonal_(self.CNN[0].weight, gain=gain_leaky)
-# 		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_leaky)
-# 		nn.init.orthogonal_(self.CNN[4].weight, gain=gain_leaky)
-
-# 		nn.init.orthogonal_(self.Policy_LSTM[0].weight)
-
-# 		nn.init.orthogonal_(self.Policy_MLP[0].weight, gain=gain_leaky)
-# 		nn.init.orthogonal_(self.Policy_MLP[2].weight, gain=gain_leaky)
-# 		gain_leaky = nn.init.calculate_gain('leaky_relu', 0.01)
-# 		nn.init.orthogonal_(self.Policy[6].weight, gain=gain_leaky)
-
-
-# 	def forward(self, local_images):
-# 		# T x num_agents x state_dim
-# 		T = local_images.shape[0]
-# 		local_images = local_images.float() / self.scaling
-# 		cnn_input = local_images.reshape(-1, local_images.shape[2], local_images.shape[3], local_images.shape[4])
-# 		local_image_embeddings = self.CNN(cnn_input)
-# 		# Time (Batch) x Num Agents x hidden_dim
-# 		local_image_embeddings = local_image_embeddings.reshape(local_images.shape[0], self.num_agents, -1)
-# 		for agent in range(self.num_agents):
-# 			if self.hidden_state is None or self.new_episode:
-# 				self.init_hidden_cell_state(T)
-# 				self.new_episode = False
-# 			features = local_image_embeddings[:,agent,:]
-# 			if len(features.shape) == 2:
-# 				features = features.unsqueeze(1)
-# 			output, (self.hidden_state[agent], self.cell_state[agent]) = self.Policy_LSTM(features, (self.hidden_state[agent], self.cell_state[agent]))
-# 		# input: T x num_agents x dim
-# 		Policy = self.Policy_MLP(self.hidden_state[:,-1,:,:].to(self.device))
-
-# 		return Policy
+		# batch_size (num_episodes) x sequence_length (num_timesteps) x hidden_dim
+		features = local_image_embeddings.reshape(self.batch_size, local_images.shape[0], -1)
+		output, (h, cell) = self.Policy_LSTM(features, (hidden_state, cell_state))
+		# input: T x num_agents x dim
+		Policy = self.Policy_MLP(output)
+		return Policy, (h,cell)
 
 
 # using Q network of MAAC
