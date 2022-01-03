@@ -58,7 +58,7 @@ if __name__ == '__main__':
 				"max_episodes": 100000,
 				"max_time_steps": 500,
 				"experiment_type": experiment_type,
-				"norm_adv": False,
+				"norm_adv": True,
 				"norm_returns": False,
 				"value_normalization": True,
 				"parallel_training": False,
