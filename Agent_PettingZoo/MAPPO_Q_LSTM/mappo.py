@@ -132,8 +132,8 @@ class MAPPO:
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
 
-		h = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
-		cell = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+		# h = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+		# cell = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
 
 		for episode in range(1,self.max_episodes+1):
 
@@ -145,8 +145,8 @@ class MAPPO:
 			episode_collision_rate = 0
 			final_timestep = self.max_time_steps
 
-			# h = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
-			# cell = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+			h = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+			cell = torch.zeros(self.lstm_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
 
 			for step in range(1, self.max_time_steps+1):
 

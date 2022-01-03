@@ -36,6 +36,97 @@ class RolloutBuffer:
 		del self.cell_out_val[:]
 
 
+class PopArt(torch.nn.Module):
+	
+	def __init__(self, input_shape, output_shape, norm_axes=1, beta=0.99999, epsilon=1e-5, device=torch.device("cpu")):
+		
+		super(PopArt, self).__init__()
+
+		self.beta = beta
+		self.epsilon = epsilon
+		self.norm_axes = norm_axes
+		self.device=device
+
+		self.input_shape = input_shape
+		self.output_shape = output_shape
+
+		self.weight = nn.Parameter(torch.Tensor(output_shape, input_shape)).to(self.device)
+		self.bias = nn.Parameter(torch.Tensor(output_shape)).to(self.device)
+		
+		self.stddev = nn.Parameter(torch.ones(output_shape, dtype=torch.float64), requires_grad=False).to(self.device)
+		self.mean = nn.Parameter(torch.zeros(output_shape, dtype=torch.float64), requires_grad=False).to(self.device)
+		self.mean_sq = nn.Parameter(torch.zeros(output_shape, dtype=torch.float64), requires_grad=False).to(self.device)
+		self.debiasing_term = nn.Parameter(torch.tensor(0.0), requires_grad=False).to(self.device)
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+		torch.nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+		if self.bias is not None:
+			fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
+			bound = 1 / math.sqrt(fan_in)
+			torch.nn.init.uniform_(self.bias, -bound, bound)
+		self.mean.zero_()
+		self.mean_sq.zero_()
+		self.debiasing_term.zero_()
+
+	def forward(self, input_vector):
+		if type(input_vector) == np.ndarray:
+			input_vector = torch.from_numpy(input_vector)
+
+		return F.linear(input_vector.float(), self.weight.float(), self.bias.float())
+	
+	@torch.no_grad()
+	def update(self, input_vector):
+		if type(input_vector) == np.ndarray:
+			input_vector = torch.from_numpy(input_vector)
+		
+		old_mean, old_var = self.debiased_mean_var()
+		old_stddev = torch.sqrt(old_var)
+
+		batch_mean = input_vector.mean(dim=tuple(range(self.norm_axes)))
+		batch_sq_mean = (input_vector ** 2).mean(dim=tuple(range(self.norm_axes)))
+
+
+		self.mean.mul_(self.beta).add_(batch_mean * (1.0 - self.beta))
+		self.mean_sq.mul_(self.beta).add_(batch_sq_mean * (1.0 - self.beta))
+		self.debiasing_term.mul_(self.beta).add_(1.0 * (1.0 - self.beta))
+
+		self.stddev = (self.mean_sq - self.mean ** 2).sqrt().clamp(min=1e-4)
+		
+		new_mean, new_var = self.debiased_mean_var()
+		new_stddev = torch.sqrt(new_var)
+
+		self.weight = self.weight * old_stddev.unsqueeze(-1) / new_stddev.unsqueeze(-1)
+		self.bias = (old_stddev * self.bias + old_mean - new_mean) / new_stddev
+
+	def debiased_mean_var(self):
+		debiased_mean = self.mean / self.debiasing_term.clamp(min=self.epsilon)
+		debiased_mean_sq = self.mean_sq / self.debiasing_term.clamp(min=self.epsilon)
+		debiased_var = (debiased_mean_sq - debiased_mean ** 2).clamp(min=1e-2)
+		return debiased_mean, debiased_var
+
+	def normalize(self, input_vector):
+		if type(input_vector) == np.ndarray:
+			input_vector = torch.from_numpy(input_vector)
+
+		mean, var = self.debiased_mean_var()
+		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
+		
+		return out
+
+	def denormalize(self, input_vector):
+		if type(input_vector) == np.ndarray:
+			input_vector = torch.from_numpy(input_vector)
+
+		mean, var = self.debiased_mean_var()
+		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
+		
+		# out = out.cpu().numpy()
+
+		return out
+
+
 class Identity(nn.Module):
 	def __init__(self):
 		super(Identity, self).__init__()
@@ -111,13 +202,14 @@ class CNN_Q_network(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, num_channels, num_agents, num_actions, scaling, device):
+	def __init__(self, num_channels, num_agents, num_actions, scaling, value_normalization, device):
 		super(CNN_Q_network, self).__init__()
 		
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
 		self.scaling = scaling
+		self.value_normalization = value_normalization
 
 		self.CNN = nn.Sequential(
 			nn.Conv2d(num_channels, 32, kernel_size=2, stride=1),
@@ -157,11 +249,19 @@ class CNN_Q_network(nn.Module):
 		# ********************************************************************************************************
 		final_input_dim = obs_act_output_dim + 64
 		# FCN FINAL LAYER TO GET VALUES
-		self.final_value_layers = nn.Sequential(
-			nn.Linear(final_input_dim, 64, bias=True), 
-			nn.LeakyReLU(),
-			nn.Linear(64, self.num_actions, bias=True)
-			)
+		if value_normalization:
+			self.final_value_layers = nn.Sequential(
+				nn.Linear(final_input_dim, 64, bias=True), 
+				nn.LeakyReLU(),
+				)
+			self.pop_art = PopArt(64, self.num_actions, norm_axes=1, device=self.device)
+		else:
+			self.final_value_layers = nn.Sequential(
+				nn.Linear(final_input_dim, 64, bias=True), 
+				nn.LeakyReLU(),
+				nn.Linear(64, self.num_actions, bias=True)
+				)
+			
 		# ********************************************************************************************************
 
 
@@ -191,7 +291,10 @@ class CNN_Q_network(nn.Module):
 
 
 		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
-		nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
+		if self.value_normalization:
+			nn.init.orthogonal_(self.pop_art.weight, gain=gain_leaky)
+		else:
+			nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
 
 
 	def remove_self_loops(self, states_key):
@@ -261,6 +364,9 @@ class CNN_Q_network(nn.Module):
 		curr_agent_node_features = torch.cat([curr_agent_state_embed, node_features.squeeze(-2)], dim=-1)
 		
 		Q_value = self.final_value_layers(curr_agent_node_features)
+
+		if self.value_normalization:
+			Q_value = self.pop_art(Q_value)
 
 		Value = torch.matmul(Q_value,policies.transpose(1,2))
 

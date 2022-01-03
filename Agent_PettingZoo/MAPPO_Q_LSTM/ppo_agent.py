@@ -47,6 +47,8 @@ class PPOAgent:
 		self.lstm_hidden_dim = dictionary["lstm_hidden_dim"]
 		self.batch_size = dictionary["update_ppo_agent"]
 
+		self.value_normalization = dictionary["value_normalization"]
+
 		self.error_rate = []
 		self.average_relevant_set = []
 
@@ -95,8 +97,8 @@ class PPOAgent:
 		else:
 			print("Let's use 1 GPU!")
 
-			self.critic_network = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
-			self.critic_network_old = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, device=self.device).to(self.device)
+			self.critic_network = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, value_normalization=self.value_normalization, device=self.device).to(self.device)
+			self.critic_network_old = CNN_Q_network(num_channels=3, num_agents=self.num_agents, num_actions=self.num_actions, scaling=1, value_normalization=self.value_normalization, device=self.device).to(self.device)
 			
 			# COPY
 			self.critic_network_old.load_state_dict(self.critic_network.state_dict())
@@ -135,7 +137,7 @@ class PPOAgent:
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
-		self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000], gamma=2)
+		# self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000], gamma=2)
 
 
 		self.comet_ml = None
@@ -315,6 +317,9 @@ class PPOAgent:
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		Q_values_old = Q_values_old.detach()
 
+		if self.value_normalization:
+			Q_values_old = torch.sum(self.critic_network.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)
+		
 		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
 
 		value_loss_batch = 0
@@ -345,6 +350,8 @@ class PPOAgent:
 			# Evaluating old actions and values
 			dists = []
 			logprobs = []
+			critic_loss_1 = 0
+			critic_loss_2 = 0
 			for agent in range(self.num_agents):
 				dist, (h_out, cell_out) = self.policy_network(old_states[:,agent,:,:,:], hidden_state_pol[agent,:,:,:], cell_state_pol[agent,:,:,:])
 				prob = Categorical(dist.squeeze(0))
@@ -353,6 +360,15 @@ class PPOAgent:
 				dists.append(dist)
 				logprobs.append(logprob)
 
+				if self.value_normalization:
+					self.critic_network.pop_art.update(Q_value_target[:,agent,:])
+					Q_value_target_normalized = torch.sum(self.critic_network.pop_art.normalize(Q_value_target[:,agent,:])*old_one_hot_actions[:,agent,:], dim=-1).unsqueeze(-1) # gives for all possible actions
+					critic_loss_1 += F.smooth_l1_loss(Q_value[:,agent,:],Q_value_target_normalized)
+					critic_loss_2 += F.smooth_l1_loss(torch.clamp(Q_value[:,agent,:], Q_values_old[:,agent,:]-self.value_clip, Q_values_old[:,agent,:]+self.value_clip),Q_value_target_normalized)
+
+			if self.value_normalization:
+				critic_loss_1 /= self.num_agents
+				critic_loss_2 /= self.num_agents
 			dists = torch.stack(dists).permute(2,0,3,1).squeeze(-1).to(self.device)
 			logprobs = torch.stack(logprobs).permute(1,0).to(self.device)
 			# Finding the ratio (pi_theta / pi_theta__old)
@@ -364,9 +380,11 @@ class PPOAgent:
 			# final loss of clipped objective PPO
 			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
+
+			if not(self.value_normalization):
+				critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target)
+				critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target)
 			
-			critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target)
-			critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target)
 			critic_loss = torch.max(critic_loss_1, critic_loss_2)
 			
 

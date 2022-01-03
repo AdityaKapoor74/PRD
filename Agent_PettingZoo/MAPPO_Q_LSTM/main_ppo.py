@@ -60,6 +60,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
+				"value_normalization": True,
 				"parallel_training": False,
 			}
 		env = pursuit_v4.parallel_env(max_cycles=501,n_evaders=30, n_pursuers=8, n_catch=2, shared_reward=False, obs_range=7, constraint_window=1.0, tag_reward=0.01, catch_reward=5.0, urgency_reward=-0.01)
