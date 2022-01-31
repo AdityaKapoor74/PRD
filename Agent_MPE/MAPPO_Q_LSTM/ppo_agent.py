@@ -135,8 +135,8 @@ class PPOAgent:
 
 			self.buffer.probs.append(dists.detach().cpu())
 			self.buffer.logprobs.append(action_logprob.detach().cpu())
-			self.buffer.h_out_pol.append(h.detach())
-			self.buffer.cell_out_pol.append(cell.detach())
+			self.buffer.h_out_pol.append(h)
+			self.buffer.cell_out_pol.append(cell)
 
 			return actions, dists.cpu(), h, cell
 
@@ -146,8 +146,8 @@ class PPOAgent:
 
 		self.buffer.values.append(Value)
 		self.buffer.qvalues.append(Q_value)
-		self.buffer.h_out_critic.append(h.detach())
-		self.buffer.cell_out_critic.append(cell.detach())
+		self.buffer.h_out_critic.append(h)
+		self.buffer.cell_out_critic.append(cell)
 
 		return h_critic, cell_critic
 
@@ -297,7 +297,7 @@ class PPOAgent:
 		Values_old = torch.stack(self.buffer.values, dim=0).to(self.device)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		Q_values_old = torch.stack(self.buffer.qvalues, dim=0).to(self.device)
-		
+
 
 		if self.value_normalization:
 			Q_values_old = torch.sum(self.critic_network_old.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)
