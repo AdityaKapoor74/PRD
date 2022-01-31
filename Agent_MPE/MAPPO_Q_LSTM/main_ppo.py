@@ -71,7 +71,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
-				"value_normalization": False,
+				"value_normalization": True,
 				"parallel_training": False,
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
