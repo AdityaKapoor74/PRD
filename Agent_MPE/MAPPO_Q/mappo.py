@@ -2,13 +2,7 @@ import os
 from comet_ml import Experiment
 import numpy as np
 from ppo_agent import PPOAgent
-import datetime
-
-
-import os
 import torch
-import numpy as np
-from ppo_agent import PPOAgent
 import datetime
 
 
@@ -28,7 +22,7 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = env.n
+		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -38,19 +32,6 @@ class MAPPO:
 		self.experiment_type = dictionary["experiment_type"]
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
 
-		self.weight_dictionary = {}
-
-		for i in range(self.num_agents):
-			agent_name = 'agent %d' % i
-			self.weight_dictionary[agent_name] = {}
-			for j in range(self.num_agents):
-				agent_name_ = 'agent %d' % j
-				self.weight_dictionary[agent_name][agent_name_] = 0
-
-		self.agent_group = {}
-		for i in range(self.num_agents):
-			agent_name = 'agent'+str(i)
-			self.agent_group[agent_name] = 0
 
 		self.comet_ml = None
 		if self.save_comet_ml_plot:
@@ -98,12 +79,6 @@ class MAPPO:
 				print("Policy Eval Directory can not be created")
 
 
-	def get_actions(self,states):
-		actions = self.agents.get_action(states)
-		return actions
-
-
-
 	def split_states(self,states):
 		states_critic = []
 		states_actor = []
@@ -115,7 +90,6 @@ class MAPPO:
 		states_actor = np.asarray(states_actor)
 
 		return states_critic,states_actor
-
 
 
 	def make_gif(self,images,fname,fps=10, scale=1.0):
@@ -167,7 +141,7 @@ class MAPPO:
 
 			images = []
 
-			states_critic,states_actor = self.split_states(states)
+			states_critic, states_actor = self.split_states(states)
 
 			trajectory = []
 			episode_reward = 0
@@ -182,28 +156,22 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.get_actions(states_actor)
+						actions = self.agents.get_action(states_actor)
 				else:
-					actions = self.get_actions(states_actor)
+					actions = self.agents.get_action(states_actor)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				next_states,rewards,dones,info = self.env.step(actions)
-				next_states_critic,next_states_actor = self.split_states(next_states)
+				next_states, rewards, dones, info = self.env.step(actions)
+				next_states_critic, next_states_actor = self.split_states(next_states)
 
-
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
-					collision_rate = [value[1] for value in rewards]
-					rewards = [value[0] for value in rewards]
-					episode_collision_rate += np.sum(collision_rate)
-				elif self.env_name == "crossing_team_greedy":
-					collision_rate = [value[1] for value in rewards]
-					goal_reached = [value[2] for value in rewards]
-					rewards = [value[0] for value in rewards]
-					episode_collision_rate += np.sum(collision_rate)
-					episode_goal_reached += np.sum(goal_reached)
+				collision_rate = [value[1] for value in rewards]
+				goal_reached = [value[2] for value in rewards]
+				rewards = [value[0] for value in rewards]
+				episode_collision_rate += np.sum(collision_rate)
+				episode_goal_reached += np.sum(goal_reached)
 
 
 				if step == self.max_time_steps:
@@ -218,7 +186,7 @@ class MAPPO:
 
 				episode_reward += np.sum(rewards)
 
-				states_critic,states_actor = next_states_critic,next_states_actor
+				states_critic, states_actor = next_states_critic, next_states_actor
 				states = next_states
 
 
@@ -234,10 +202,8 @@ class MAPPO:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
-								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
-							if self.env_name == "crossing_team_greedy":
-								self.comet_ml.log_metric('Num Agents Goal Reached', episode_goal_reached, episode)
+							self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							self.comet_ml.log_metric('Num Agents Goal Reached', episode_goal_reached, episode)
 
 						break
 
@@ -250,8 +216,7 @@ class MAPPO:
 				if self.eval_policy:
 					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
-						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
@@ -270,11 +235,9 @@ class MAPPO:
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-			if self.env_name in ["crossing"]:
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
 			if "prd" in self.experiment_type:
-				if self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop", "crossing_team_greedy"]:
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)

@@ -15,43 +15,43 @@ def make_env(scenario_name, benchmark=False):
 
 def run_file(dictionary):
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
-	ma_controller = MAPPO(env,dictionary)
+	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
 
 if __name__ == '__main__':
 
 	for i in range(1,2):
-		extension = "MAPPO_run_"+str(i)
-		test_num = "PRD_2_exps"
+		extension = "MAPPO_Q_run_"+str(i)
+		test_num = "PRD_2_MPE"
 		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "prd_above_threshold_ascend"
+		experiment_type = "shared"
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 10,
-				"grad_clip_actor": 10,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"device": "gpu",
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.2,
-				"n_epochs": 5,
+				"value_clip": 0.2,
+				"n_epochs": 10,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"pen_threshold": 0.01,
 				"value_lr": 1e-3, #1e-3
-				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 0.0, #8e-3
+				"policy_lr": 7e-4, #prd 1e-4
+				"entropy_pen": 0.015, #8e-3
 				"gamma": 0.99, 
-				"trace_decay": 0.95,
-				"lambda": 0.8, #0.8
+				"gae_lambda": 0.95,
+				"lambda": 1.0, # 1 --> Monte Carlo; 0 --> TD(1)
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.05,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"gif": False,
@@ -62,13 +62,15 @@ if __name__ == '__main__':
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 100000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
+				"value_normalization": False,
+				"parallel_training": False,
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
 		ma_controller = MAPPO(env,dictionary)

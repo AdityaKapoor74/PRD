@@ -1,6 +1,8 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
+import torch.multiprocessing as mp
 from torch.distributions import Categorical
 from ppo_model import *
 import torch.nn.functional as F
@@ -21,7 +23,7 @@ class PPOAgent:
 		self.policy_lr = dictionary["policy_lr"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
-		self.trace_decay = dictionary["trace_decay"]
+		self.gae_lambda = dictionary["gae_lambda"]
 		self.top_k = dictionary["top_k"]
 		self.norm_adv = dictionary["norm_adv"]
 		self.norm_returns = dictionary["norm_returns"]
@@ -36,13 +38,19 @@ class PPOAgent:
 		self.steps_to_take = dictionary["steps_to_take"]
 
 		self.policy_clip = dictionary["policy_clip"]
+		self.value_clip = dictionary["value_clip"]
 		self.n_epochs = dictionary["n_epochs"]
 
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
+		self.value_normalization = dictionary["value_normalization"]
+
 		self.error_rate = []
 		self.average_relevant_set = []
+
+		self.num_agents = self.env.n
+		self.num_actions = self.env.action_space[0].n
 
 		# episode track
 		self.episode = 0
@@ -58,46 +66,29 @@ class PPOAgent:
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
-		
-		self.num_agents = self.env.n
-		self.num_actions = self.env.action_space[0].n
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		obs_dim = 2*3 + 1
-		self.critic_network = Q_network(obs_dim, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
-
-			
-		obs_dim = 2*3 + 1
-		other_obs_dim = 2*2+1
+		self.critic_network = Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network_old = Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		for param in self.critic_network_old.parameters():
+			param.requires_grad_(False)
+		# COPY
+		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+		
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		self.policy_network = MLPPolicy(obs_dim, other_obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
-		self.policy_network_old = MLPPolicy(obs_dim, other_obs_dim, self.num_agents, self.num_actions, self.device).to(self.device)
-		
+		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
+		self.policy_network = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		for param in self.policy_network_old.parameters():
+			param.requires_grad_(False)
 		# COPY
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
-		self.buffer = RolloutBuffer()
 
-		if self.env_name == "crossing_team_greedy":
-			team_size = 4
-			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
-			for i in range(self.num_agents):
-				for j in range(self.num_agents):
-					if i<team_size and j<team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=team_size and i<2*team_size and j>=team_size and j<2*team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=2*team_size and i<3*team_size and j>=2*team_size and j<3*team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=3*team_size and i<4*team_size and j>=3*team_size and j<4*team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=4*team_size and i<5*team_size and j>=4*team_size and j<5*team_size:
-						self.relevant_set[i][j] = 0
-					else:
-						break
+		self.buffer = RolloutBuffer()
 
 
 		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
@@ -121,7 +112,7 @@ class PPOAgent:
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 
-		self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000], gamma=2)
+		# self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000], gamma=2)
 
 
 		self.comet_ml = None
@@ -129,12 +120,11 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self,state):
-
+	def get_action(self, state_policy):
 		with torch.no_grad():
-			state = torch.FloatTensor([state]).to(self.device)
-			dists, _ = self.policy_network_old(state)
-			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists[0]]
+			state_policy = torch.FloatTensor(state_policy).to(self.device)
+			dists = self.policy_network_old(state_policy)
+			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 			probs = Categorical(dists)
 			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
@@ -146,7 +136,6 @@ class PPOAgent:
 
 
 	def calculate_advantages(self, values, rewards, dones):
-		
 		advantages = []
 		next_value = 0
 		advantage = 0
@@ -157,13 +146,12 @@ class PPOAgent:
 			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
 			next_value = values.data[t]
 			
-			advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
+			advantage = td_error + (self.gamma * self.gae_lambda * advantage * masks[t])
 			advantages.insert(0, advantage)
 
 		advantages = torch.stack(advantages)
 		
 		if self.norm_adv:
-			
 			advantages = (advantages - advantages.mean()) / advantages.std()
 		
 		return advantages
@@ -202,25 +190,18 @@ class PPOAgent:
 		returns_tensor = torch.stack(returns).to(self.device)
 		
 		if self.norm_returns:
-			
 			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
 			
 		return returns_tensor
 
 
 	def plot(self, episode):
-	
 		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
 		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
 		self.comet_ml.log_metric('Threshold_pred',self.plotting_dict["threshold"],episode)
-
-		if self.env_name in ["crossing_partially_coop", "paired_by_sharing_goals", "crossing_team_greedy"] and "prd" in self.experiment_type:
-			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
-			self.comet_ml.log_metric('Relevant Set Error Percentage',self.plotting_dict["relevant_set_error_rate"].item()*100.0,episode)
-			self.error_rate.append(self.plotting_dict["relevant_set_error_rate"].item())
 
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
@@ -282,38 +263,40 @@ class PPOAgent:
 
 
 	def update(self,episode):
-
 		# convert list to tensor
-		old_states_critic = torch.FloatTensor(self.buffer.states_critic).to(self.device)
-		old_states_actor = torch.FloatTensor(self.buffer.states_actor).to(self.device)
-		old_actions = torch.FloatTensor(self.buffer.actions).to(self.device)
-		old_one_hot_actions = torch.FloatTensor(self.buffer.one_hot_actions).to(self.device)
-		old_probs = torch.stack(self.buffer.probs).squeeze(1).to(self.device)
-		old_logprobs = torch.stack(self.buffer.logprobs).squeeze(1).to(self.device)
-		rewards = torch.FloatTensor(self.buffer.rewards).to(self.device)
-		dones = torch.FloatTensor(self.buffer.dones).to(self.device)
+		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).to(self.device)
+		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).to(self.device)
+		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
+		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
+		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
+		old_logprobs = torch.stack(self.buffer.logprobs, dim=0).to(self.device)
+		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).to(self.device)
+		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
 
-
-		Values_old, Q_values_old, weights_value_old = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
-		Value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+
+		if self.value_normalization:
+			Q_values_old = torch.sum(self.critic_network_old.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)
+		
+		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
 
 		value_loss_batch = 0
 		policy_loss_batch = 0
 		entropy_batch = 0
-		value_weights_batch = torch.zeros_like(weights_value_old)
-		policy_weights_batch = torch.zeros_like(weights_value_old)
+		value_weights_batch = None
 		grad_norm_value_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
 		threshold_batch = 0
-		
+
+		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value = self.critic_network(old_states_critic, old_probs, old_one_hot_actions)
+			Value, Q_value, weights_value = self.critic_network(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
@@ -324,10 +307,19 @@ class PPOAgent:
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
-			# Evaluating old actions and values
-			dists, weights_policy = self.policy_network(old_states_actor)
-			probs = Categorical(dists)
+			dists = self.policy_network(old_states_actor)
+			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions)
+
+			if self.value_normalization:
+				self.critic_network.pop_art.update(Q_value_target)
+				Q_value_target_normalized = torch.sum(self.critic_network.pop_art.normalize(Q_value_target)*old_one_hot_actions, dim=-1).unsqueeze(-1) # gives for all possible actions
+				critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target_normalized)
+				critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target_normalized)
+			else:
+				critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target)
+				critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target)
+
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp(logprobs - old_logprobs)
@@ -339,7 +331,7 @@ class PPOAgent:
 			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 			
-			critic_loss = F.smooth_l1_loss(Q_value,Value_target)
+			critic_loss = torch.max(critic_loss_1, critic_loss_2)
 			
 
 			# take gradient step
@@ -358,17 +350,20 @@ class PPOAgent:
 			entropy_batch += entropy
 			grad_norm_value_batch += grad_norm_value
 			grad_norm_policy_batch += grad_norm_policy
-			value_weights_batch += weights_value.detach()
-			policy_weights_batch += weights_policy.detach()
+			if value_weights_batch is None:
+				value_weights_batch = torch.zeros_like(weights_value.cpu())
+			value_weights_batch += weights_value.detach().cpu()
+
+
 			
 		# Copy new weights into old policy
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
-		# if self.episode == 1000:
-		# self.scheduler.step()
-		
-		# print("learning rate of policy", self.scheduler.get_lr())
+		# Copy new weights into old critic
+		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
 
+		# self.scheduler.step()
+		# print("learning rate of policy", self.scheduler.get_lr())
 
 		# clear buffer
 		self.buffer.clear()
@@ -379,17 +374,12 @@ class PPOAgent:
 		grad_norm_value_batch /= self.n_epochs
 		grad_norm_policy_batch /= self.n_epochs
 		value_weights_batch /= self.n_epochs
-		policy_weights_batch /= self.n_epochs
 		agent_groups_over_episode_batch /= self.n_epochs
 		avg_agent_group_over_episode_batch /= self.n_epochs
 		threshold_batch /= self.n_epochs
 
 		self.update_parameters()
 
-		if "prd" in self.experiment_type and self.env_name in ["crossing_team_greedy"]:
-			relevant_set_error_rate = torch.mean(masking_advantage*self.relevant_set)
-		else:
-			relevant_set_error_rate = -1
 
 		self.plotting_dict = {
 		"value_loss": value_loss_batch,
@@ -398,8 +388,6 @@ class PPOAgent:
 		"grad_norm_value":grad_norm_value_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_value": value_weights_batch,
-		"weights_policy": policy_weights_batch,
-		"relevant_set_error_rate":relevant_set_error_rate,
 		"threshold": threshold_batch,
 		}
 
