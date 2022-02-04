@@ -46,7 +46,7 @@ class PPOAgent:
 
 		self.lstm_hidden_dim = dictionary["lstm_hidden_dim"]
 		self.lstm_num_layers = dictionary["lstm_num_layers"]
-		self.batch_size = dictionary["update_ppo_agent"]
+		self.lstm_update_sequence_length = dictionary["lstm_update_sequence_length"]
 
 		self.value_normalization = dictionary["value_normalization"]
 
@@ -73,8 +73,8 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		self.critic_network = LSTM_Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.critic_network_old = LSTM_Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network = LSTM_Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, lstm_sequence_length=self.lstm_update_sequence_length, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network_old = LSTM_Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, lstm_sequence_length=self.lstm_update_sequence_length, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -84,8 +84,8 @@ class PPOAgent:
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
 		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
-		self.policy_network = LSTM_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, device=self.device).to(self.device)
-		self.policy_network_old = LSTM_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, device=self.device).to(self.device)
+		self.policy_network = LSTM_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, lstm_sequence_length=self.lstm_update_sequence_length, device=self.device).to(self.device)
+		self.policy_network_old = LSTM_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, lstm_sequence_length=self.lstm_update_sequence_length, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -298,6 +298,39 @@ class PPOAgent:
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		Q_values_old = torch.stack(self.buffer.qvalues, dim=0).to(self.device)
 
+		print("old_states_critic", old_states_critic.shape)
+		print("old_states_actor", old_states_actor.shape)
+		print("old_actions", old_actions.shape)
+		print("hidden_state_pol", hidden_state_pol.shape)
+		print("cell_state_pol", cell_state_pol.shape)
+		print("hidden_state_critic", hidden_state_critic.shape)
+		print("old_one_hot_actions", old_one_hot_actions.shape)
+		print("old_probs", old_probs.shape)
+		print("old_logprobs", old_logprobs.shape)
+		print("rewards", rewards.shape)
+		print("dones", dones.shape)
+
+		if self.lstm_update_sequence_length > 1:
+			old_states_actor_ = []
+			hidden_state_pol_ = []
+			cell_state_pol_ = []
+			L = 0
+			while L < old_states_actor.shape[0]:
+				if L+self.lstm_update_sequence_length < old_states_actor.shape[0]:
+					seq_len = self.lstm_update_sequence_length
+				else:
+					seq_len = old_states_actor.shape[0] - L
+				
+				old_states_actor_.append(old_states_actor[L:L+seq_len])
+				hidden_state_pol_.append(hidden_state_pol[L:L+seq_len])
+				cell_state_pol_.append(cell_state_pol[L:L+seq_len])
+				L += seq_len
+
+			old_states_actor_ = torch.stack(old_states_actor_, dim=0).to(self.device)
+			hidden_state_pol_ = torch.stack(hidden_state_pol_, dim=0).to(self.device)
+			cell_state_pol_ = torch.stack(cell_state_pol_, dim=0).to(self.device)
+
+			print(cell_state_pol_.shape)
 
 		if self.value_normalization:
 			Q_values_old = torch.sum(self.critic_network_old.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)

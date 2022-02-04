@@ -145,7 +145,7 @@ class Identity(nn.Module):
 		return x
 
 class LSTM_Policy(nn.Module):
-	def __init__(self, obs_input_dim, num_actions, num_agents, lstm_hidden_dim, lstm_num_layers, device):
+	def __init__(self, obs_input_dim, num_actions, num_agents, lstm_hidden_dim, lstm_num_layers, lstm_sequence_length, device):
 		super(LSTM_Policy, self).__init__()
 
 		self.name = "LSTM_Policy"
@@ -155,6 +155,7 @@ class LSTM_Policy(nn.Module):
 		self.device = device
 		self.lstm_num_layers = lstm_num_layers
 		self.lstm_hidden_dim = lstm_hidden_dim
+		self.lstm_sequence_length = lstm_sequence_length
 
 		self.Policy_FCL = nn.Sequential(
 			nn.Linear(obs_input_dim, 128),
@@ -213,7 +214,7 @@ class LSTM_Q_network(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_input_dim, num_agents, num_actions, lstm_hidden_dim, lstm_num_layers, value_normalization, device):
+	def __init__(self, obs_input_dim, num_agents, num_actions, lstm_hidden_dim, lstm_num_layers, lstm_sequence_length, value_normalization, device):
 		super(LSTM_Q_network, self).__init__()
 		
 		self.num_agents = num_agents
@@ -221,6 +222,7 @@ class LSTM_Q_network(nn.Module):
 		self.device = device
 		self.lstm_num_layers = lstm_num_layers
 		self.lstm_hidden_dim = lstm_hidden_dim
+		self.lstm_sequence_length = lstm_sequence_length
 		self.value_normalization = value_normalization
 
 		obs_output_dim = 128
