@@ -332,7 +332,7 @@ class PPOAgent:
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 			
 			entropy_weights = -torch.mean(torch.sum(weights_value* torch.log(torch.clamp(weights_value, 1e-10,1.0)), dim=2))
-			critic_loss = torch.max(critic_loss_1, critic_loss_2) - 8e-3*entropy_weights
+			critic_loss = torch.max(critic_loss_1, critic_loss_2) - entropy_weights
 			
 
 			# take gradient step
