@@ -23,6 +23,7 @@ class PPOAgent:
 		self.policy_lr = dictionary["policy_lr"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
+		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
 		self.gae_lambda = dictionary["gae_lambda"]
 		self.top_k = dictionary["top_k"]
 		self.norm_adv = dictionary["norm_adv"]
@@ -332,7 +333,7 @@ class PPOAgent:
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 			
 			entropy_weights = -torch.mean(torch.sum(weights_value* torch.log(torch.clamp(weights_value, 1e-10,1.0)), dim=2))
-			critic_loss = torch.max(critic_loss_1, critic_loss_2) + entropy_weights
+			critic_loss = torch.max(critic_loss_1, critic_loss_2) + self.critic_weight_entropy_pen*entropy_weights
 			
 
 			# take gradient step
