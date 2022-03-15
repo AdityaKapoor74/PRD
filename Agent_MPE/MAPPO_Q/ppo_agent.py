@@ -80,7 +80,7 @@ class PPOAgent:
 			elif i >= 8 and i < 12:
 				self.relevant_set[0][i][8:12] = torch.ones(4)
 
-		self.non_relevant_set = torch.ones(1,12,12) - self.relevant_set
+		self.non_relevant_set = torch.ones(1,12,12).to(self.device) - self.relevant_set
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
