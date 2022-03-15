@@ -223,7 +223,7 @@ class PPOAgent:
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
 
-			self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',self.plotting_dict["num_relevant_agents_in_relevant_set"],episode)
+			self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
 
 
 		if "prd_top" in self.experiment_type:
