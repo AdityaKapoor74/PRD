@@ -17,6 +17,7 @@ class PPOAgent:
 		):
 
 		self.env = env
+		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
 		self.test_num = dictionary["test_num"]
 		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
@@ -400,6 +401,10 @@ class PPOAgent:
 		if "prd" in self.experiment_type:
 			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
 			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
+			if self.update_learning_rate_with_prd:
+				for g in self.policy_optimizer.param_groups:
+					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
+
 		else:
 			num_relevant_agents_in_relevant_set = None
 			num_non_relevant_agents_in_relevant_set = None
