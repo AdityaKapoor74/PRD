@@ -394,7 +394,10 @@ class PPOAgent:
 		avg_agent_group_over_episode_batch /= self.n_epochs
 		threshold_batch /= self.n_epochs
 
-		num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
+		if "prd" in self.experiment_type:
+			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
+		else:
+			num_relevant_agents_in_relevant_set = None
 
 		self.update_parameters()
 
