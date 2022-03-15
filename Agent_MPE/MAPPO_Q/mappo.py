@@ -189,7 +189,6 @@ class MAPPO:
 				states_critic, states_actor = next_states_critic, next_states_actor
 				states = next_states
 
-
 				if self.learn:
 					if all(dones):
 

@@ -1,4 +1,4 @@
-from mappo import MAPPO
+from maa2c_q import MAA2C_Q
 
 from multiagent.environment import MultiAgentEnv
 import multiagent.scenarios as scenarios
@@ -22,7 +22,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 
 	for i in range(1,2):
-		extension = "MAPPO_Q_run_"+str(i)
+		extension = "MAA2C_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
 		experiment_type = "prd_above_threshold_ascend"
@@ -36,9 +36,6 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.05,
-				"value_clip": 0.05,
-				"n_epochs": 5,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
@@ -46,7 +43,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, #1e-3
 				"policy_lr": 7e-4, #prd 1e-4
 				"entropy_pen": 0.0, #8e-3
-				"critic_weight_entropy_pen": 0.0,
+				"critic_weight_entropy_pen": 1.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
@@ -55,12 +52,12 @@ if __name__ == '__main__':
 				"threshold_max": 0.03,
 				"steps_to_take": 1000,
 				"top_k": 0,
-				"gif": True,
+				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
-				"eval_policy": False,
+				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,

@@ -136,14 +136,6 @@ class PopArt(torch.nn.Module):
 
 		return out
 
-
-class Identity(nn.Module):
-	def __init__(self):
-		super(Identity, self).__init__()
-		
-	def forward(self, x):
-		return x
-
 class LSTM_Policy(nn.Module):
 	def __init__(self, obs_input_dim, num_actions, num_agents, lstm_hidden_dim, lstm_num_layers, lstm_sequence_length, device):
 		super(LSTM_Policy, self).__init__()
@@ -158,16 +150,16 @@ class LSTM_Policy(nn.Module):
 		self.lstm_sequence_length = lstm_sequence_length
 
 		self.Policy_FCL = nn.Sequential(
-			nn.Linear(obs_input_dim, 128),
-			nn.LeakyReLU()
+			nn.Linear(obs_input_dim, 64),
+			nn.Tanh()
 			)
 
-		self.Policy_LSTM = nn.LSTM(input_size = 128, hidden_size = self.lstm_hidden_dim, num_layers=self.lstm_num_layers, batch_first=True)
+		self.Policy_LSTM = nn.LSTM(input_size = 64, hidden_size = self.lstm_hidden_dim, num_layers=self.lstm_num_layers, batch_first=True)
 			
 
 		self.Policy_MLP = nn.Sequential(
 			nn.Linear(self.lstm_hidden_dim, 64),
-			nn.LeakyReLU(),
+			nn.Tanh(),
 			nn.Linear(64, num_actions),
 			nn.Softmax(dim=-1)
 			)
@@ -175,18 +167,18 @@ class LSTM_Policy(nn.Module):
 		self.reset_parameters()
 
 	def reset_parameters(self):
-		gain_leaky = nn.init.calculate_gain('leaky_relu')
-		gain_leaky_last_layer = nn.init.calculate_gain('leaky_relu', 0.01)
+		gain = nn.init.calculate_gain('tanh')
+		gain_last_layer = nn.init.calculate_gain('tanh', 0.01)
 
-		nn.init.orthogonal_(self.Policy_FCL[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.Policy_FCL[0].weight, gain=gain)
 
 		for layer_p in self.Policy_LSTM._all_weights:
 			for p in layer_p:
 				if 'weight' in p:
 					nn.init.orthogonal_(self.Policy_LSTM.__getattr__(p))
 
-		nn.init.orthogonal_(self.Policy_MLP[0].weight, gain=gain_leaky)
-		nn.init.orthogonal_(self.Policy_MLP[2].weight, gain=gain_leaky_last_layer)
+		nn.init.orthogonal_(self.Policy_MLP[0].weight, gain=gain)
+		nn.init.orthogonal_(self.Policy_MLP[2].weight, gain=gain_last_layer)
 
 
 	def forward(self, local_observations, hidden_state, cell_state, no_batch=False):
@@ -225,30 +217,30 @@ class LSTM_Q_network(nn.Module):
 		self.lstm_sequence_length = lstm_sequence_length
 		self.value_normalization = value_normalization
 
-		obs_output_dim = 128
+		obs_output_dim = 256
 		obs_act_input_dim = obs_input_dim+self.num_actions
-		obs_act_output_dim = 128
-		curr_agent_output_dim = 64
+		obs_act_output_dim = 256
+		curr_agent_output_dim = 128
 
 		self.state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 128, bias=True), 
-			nn.LeakyReLU()
+			nn.Linear(obs_input_dim, 256, bias=True), 
+			nn.Tanh()
 			)
-		self.key = nn.Linear(128, obs_output_dim, bias=True)
-		self.query = nn.Linear(128, obs_output_dim, bias=True)
+		self.key = nn.Linear(256, obs_output_dim, bias=True)
+		self.query = nn.Linear(256, obs_output_dim, bias=True)
 		
 		self.state_act_embed = nn.Sequential(
 			nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=True), 
-			nn.LeakyReLU()
+			nn.Tanh()
 			)
 		self.attention_value = nn.Sequential(
 			nn.Linear(obs_act_output_dim, 128, bias=True), 
-			nn.LeakyReLU()
+			nn.Tanh()
 			)
 
 		self.curr_agent_state_embed = nn.Sequential(
 			nn.Linear(obs_input_dim, curr_agent_output_dim, bias=True), 
-			nn.LeakyReLU()
+			nn.Tanh()
 			)
 
 		# dimesion of key
@@ -263,13 +255,13 @@ class LSTM_Q_network(nn.Module):
 		if value_normalization:
 			self.final_value_layers = nn.Sequential(
 				nn.Linear(self.lstm_hidden_dim*self.lstm_num_layers, 64, bias=True), 
-				nn.LeakyReLU(),
+				nn.Tanh(),
 				)
 			self.pop_art = PopArt(64, self.num_actions, norm_axes=1, device=self.device)
 		else:
 			self.final_value_layers = nn.Sequential(
 				nn.Linear(self.lstm_hidden_dim*self.lstm_num_layers, 64, bias=True), 
-				nn.LeakyReLU(),
+				nn.Tanh(),
 				nn.Linear(64, self.num_actions, bias=True)
 				)
 			
@@ -279,10 +271,10 @@ class LSTM_Q_network(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain_leaky = nn.init.calculate_gain('leaky_relu')
+		gain = nn.init.calculate_gain('tanh')
 
-		nn.init.orthogonal_(self.state_embed[0].weight, gain=gain_leaky)
-		nn.init.orthogonal_(self.state_act_embed[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.state_embed[0].weight, gain=gain)
+		nn.init.orthogonal_(self.state_act_embed[0].weight, gain=gain)
 
 		nn.init.orthogonal_(self.key.weight)
 		nn.init.orthogonal_(self.query.weight)
@@ -293,13 +285,13 @@ class LSTM_Q_network(nn.Module):
 				if 'weight' in p:
 					nn.init.orthogonal_(self.LSTM.__getattr__(p))
 
-		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight, gain=gain)
 
-		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain)
 		if self.value_normalization:
-			nn.init.orthogonal_(self.pop_art.weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.pop_art.weight, gain=gain)
 		else:
-			nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain_leaky)
+			nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain)
 
 
 	def remove_self_loops(self, states_key, no_batch):

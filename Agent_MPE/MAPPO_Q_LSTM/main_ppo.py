@@ -40,7 +40,7 @@ if __name__ == '__main__':
 				"value_clip": 0.05,
 				"n_epochs": 5,
 				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
-				"lstm_hidden_dim": 256,
+				"lstm_hidden_dim": 128,
 				"lstm_num_layers": 1,
 				"lstm_update_sequence_length": 10,
 				"env": env_name, 
