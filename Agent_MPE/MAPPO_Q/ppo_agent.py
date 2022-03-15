@@ -68,6 +68,18 @@ class PPOAgent:
 		else:
 			self.device = "cpu"
 
+
+		self.num_teams = self.num_agents//4 # team size is 4
+		self.relevant_set = torch.zeros(1,12,12).to(self.device)
+		team_counter = 0
+		for i in range(self.num_agents):
+			if i < 4:
+				self.relevant_set[0][i][:4] = torch.ones(4)
+			elif i >= 4 and i < 8:
+				self.relevant_set[0][i][4:8] = torch.ones(4)
+			elif i >= 8 and i < 12:
+				self.relevant_set[0][i][8:12] = torch.ones(4)
+
 		print("EXPERIMENT TYPE", self.experiment_type)
 
 		self.critic_network = Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
@@ -210,6 +222,8 @@ class PPOAgent:
 				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
+
+			self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',self.plotting_dict["num_relevant_agents_in_relevant_set"],episode)
 
 
 		if "prd_top" in self.experiment_type:
@@ -380,6 +394,8 @@ class PPOAgent:
 		avg_agent_group_over_episode_batch /= self.n_epochs
 		threshold_batch /= self.n_epochs
 
+		num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
+
 		self.update_parameters()
 
 
@@ -391,6 +407,7 @@ class PPOAgent:
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_value": value_weights_batch,
 		"threshold": threshold_batch,
+		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set
 		}
 
 		if "threshold" in self.experiment_type:
