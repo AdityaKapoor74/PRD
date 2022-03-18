@@ -32,7 +32,6 @@ class MAPPO:
 		self.experiment_type = dictionary["experiment_type"]
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
 
-		self.batch_size = self.num_agents
 		self.lstm_num_layers = dictionary["lstm_num_layers"]
 		self.lstm_hidden_dim = dictionary["lstm_hidden_dim"]
 
@@ -139,26 +138,25 @@ class MAPPO:
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
 
-		# h_policy = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
-		# cell_policy = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+		# h_policy = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
+		# cell_policy = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
 
-		# h_critic = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
-		# cell_critic = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+		# h_critic = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
+		# cell_critic = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
 
 		for episode in range(1,self.max_episodes+1):
 
 			states = self.env.reset()
 
 			# if the episode should always start with 0 hidden and cell states
-			h_policy = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
-			cell_policy = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+			h_policy = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
+			cell_policy = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
 
-			h_critic = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
-			cell_critic = torch.zeros(self.lstm_num_layers, self.batch_size, self.lstm_hidden_dim).to(self.device)
+			# h_critic = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
+			# cell_critic = torch.zeros(self.lstm_num_layers, self.num_agents, self.lstm_hidden_dim).to(self.device)
+			
 
 			images = []
-
-			states_critic, states_actor = self.split_states(states)
 
 			trajectory = []
 			episode_reward = 0
@@ -166,6 +164,13 @@ class MAPPO:
 			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
+
+				states_critic, states_actor = self.split_states(states)
+
+				self.agents.buffer.h_out_pol.append(h_policy)
+				self.agents.buffer.cell_out_pol.append(cell_policy)
+				# self.agents.buffer.h_out_critic.append(h_critic)
+				# self.agents.buffer.cell_out_critic.append(cell_critic)
 
 				if self.gif:
 					# At each step, append an image to list
@@ -181,10 +186,9 @@ class MAPPO:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				h_critic, cell_critic = self.agents.get_values(states_critic, h_critic, cell_critic, policy.detach(), one_hot_actions)
+				# h_critic, cell_critic = self.agents.get_values(states_critic, h_critic, cell_critic, policy.detach(), one_hot_actions)
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				next_states_critic, next_states_actor = self.split_states(next_states)
 
 				collision_rate = [value[1] for value in rewards]
 				goal_reached = [value[2] for value in rewards]
@@ -205,7 +209,6 @@ class MAPPO:
 
 				episode_reward += np.sum(rewards)
 
-				states_critic, states_actor = next_states_critic, next_states_actor
 				states = next_states
 
 

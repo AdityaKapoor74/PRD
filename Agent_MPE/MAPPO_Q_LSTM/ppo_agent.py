@@ -17,6 +17,7 @@ class PPOAgent:
 		):
 
 		self.env = env
+		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
 		self.test_num = dictionary["test_num"]
 		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
@@ -71,10 +72,23 @@ class PPOAgent:
 		else:
 			self.device = "cpu"
 
+		self.num_teams = self.num_agents//4 # team size is 4
+		self.relevant_set = torch.zeros(1,12,12).to(self.device)
+		team_counter = 0
+		for i in range(self.num_agents):
+			if i < 4:
+				self.relevant_set[0][i][:4] = torch.ones(4)
+			elif i >= 4 and i < 8:
+				self.relevant_set[0][i][4:8] = torch.ones(4)
+			elif i >= 8 and i < 12:
+				self.relevant_set[0][i][8:12] = torch.ones(4)
+
+		self.non_relevant_set = torch.ones(1,12,12).to(self.device) - self.relevant_set
+
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		self.critic_network = LSTM_Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, lstm_sequence_length=self.lstm_update_sequence_length, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.critic_network_old = LSTM_Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, lstm_hidden_dim=self.lstm_hidden_dim, lstm_num_layers=self.lstm_num_layers, lstm_sequence_length=self.lstm_update_sequence_length, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network = Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network_old = Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -135,8 +149,6 @@ class PPOAgent:
 
 			self.buffer.probs.append(dists.detach().cpu())
 			self.buffer.logprobs.append(action_logprob.detach().cpu())
-			self.buffer.h_out_pol.append(h)
-			self.buffer.cell_out_pol.append(cell)
 
 			return actions, dists.cpu(), h, cell
 
@@ -146,8 +158,6 @@ class PPOAgent:
 
 		self.buffer.values.append(Value)
 		self.buffer.qvalues.append(Q_value)
-		self.buffer.h_out_critic.append(h)
-		self.buffer.cell_out_critic.append(cell)
 
 		return h_critic, cell_critic
 
@@ -227,6 +237,9 @@ class PPOAgent:
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
 
+			self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
+			self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)
+
 
 		if "prd_top" in self.experiment_type:
 			self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
@@ -281,61 +294,90 @@ class PPOAgent:
 
 	def update(self,episode):
 		# convert list to tensor
+		# Num_eps_len x Num_agents x Dimension
 		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).to(self.device)
 		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).to(self.device)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
 		hidden_state_pol = torch.stack(self.buffer.h_out_pol, dim=0).to(self.device).permute(1,0,2,3)
 		cell_state_pol = torch.stack(self.buffer.cell_out_pol, dim=0).to(self.device).permute(1,0,2,3)
-		hidden_state_critic = torch.stack(self.buffer.h_out_critic, dim=0).to(self.device).permute(1,0,2,3)
-		cell_state_critic = torch.stack(self.buffer.cell_out_critic, dim=0).to(self.device).permute(1,0,2,3)
+		# hidden_state_critic = torch.stack(self.buffer.h_out_critic, dim=0).to(self.device).permute(1,0,2,3)
+		# cell_state_critic = torch.stack(self.buffer.cell_out_critic, dim=0).to(self.device).permute(1,0,2,3)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
 		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
 		old_logprobs = torch.stack(self.buffer.logprobs, dim=0).to(self.device)
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).to(self.device)
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
 
-		Values_old = torch.stack(self.buffer.values, dim=0).to(self.device)
+		# Values_old = torch.stack(self.buffer.values, dim=0).to(self.device)
+		# Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
+		# Q_values_old = torch.stack(self.buffer.qvalues, dim=0).to(self.device)
+
+		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
-		Q_values_old = torch.stack(self.buffer.qvalues, dim=0).to(self.device)
-
-		print("old_states_critic", old_states_critic.shape)
-		print("old_states_actor", old_states_actor.shape)
-		print("old_actions", old_actions.shape)
-		print("hidden_state_pol", hidden_state_pol.shape)
-		print("cell_state_pol", cell_state_pol.shape)
-		print("hidden_state_critic", hidden_state_critic.shape)
-		print("old_one_hot_actions", old_one_hot_actions.shape)
-		print("old_probs", old_probs.shape)
-		print("old_logprobs", old_logprobs.shape)
-		print("rewards", rewards.shape)
-		print("dones", dones.shape)
-
-		if self.lstm_update_sequence_length > 1:
-			old_states_actor_ = []
-			hidden_state_pol_ = []
-			cell_state_pol_ = []
-			L = 0
-			while L < old_states_actor.shape[0]:
-				if L+self.lstm_update_sequence_length < old_states_actor.shape[0]:
-					seq_len = self.lstm_update_sequence_length
-				else:
-					seq_len = old_states_actor.shape[0] - L
-				
-				old_states_actor_.append(old_states_actor[L:L+seq_len])
-				hidden_state_pol_.append(hidden_state_pol[L:L+seq_len])
-				cell_state_pol_.append(cell_state_pol[L:L+seq_len])
-				L += seq_len
-
-			old_states_actor_ = torch.stack(old_states_actor_, dim=0).to(self.device)
-			hidden_state_pol_ = torch.stack(hidden_state_pol_, dim=0).to(self.device)
-			cell_state_pol_ = torch.stack(cell_state_pol_, dim=0).to(self.device)
-
-			print(cell_state_pol_.shape)
-
 		if self.value_normalization:
 			Q_values_old = torch.sum(self.critic_network_old.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)
-		
 		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+
+		# print("old_states_critic", old_states_critic.shape)
+		# print("old_states_actor", old_states_actor.shape)
+		# print("old_actions", old_actions.shape)
+		# print("hidden_state_pol", hidden_state_pol.shape)
+		# print("cell_state_pol", cell_state_pol.shape)
+		# print("hidden_state_critic", hidden_state_critic.shape)
+		# print("old_one_hot_actions", old_one_hot_actions.shape)
+		# print("old_probs", old_probs.shape)
+		# print("old_logprobs", old_logprobs.shape)
+		# print("rewards", rewards.shape)
+		# print("dones", dones.shape)
+
+		# Prepare LSTM POLICY INPUTS
+		# Num_agents x Num_eps_len x Dimension
+		old_states_actor = old_states_actor.permute(1,0,2)
+		old_states_actor_ = []
+		for i in range(self.num_agents):
+			actor_states = [old_states_actor[i,j:j+self.lstm_update_sequence_length,:] for j in range(0,old_states_actor.shape[1],self.lstm_update_sequence_length)]
+			lengths = [actor_state.shape[1] for actor_state in actor_states]
+			actor_states = torch.nn.utils.rnn.pad_sequence(actor_states, batch_first=True, padding_value=-5.0) # padding_value is set to be negative because positions beyong -1 are illegal
+			actor_states = torch.nn.utils.rnn.pack_padded_sequence(actor_states, batch_first=True, lengths=lengths).data # optimises matrix multiplication
+			old_states_actor_.append(actor_states)
+		old_states_actor_ = torch.stack(old_states_actor_, dim=0).to(self.device)
+
+		hidden_state_pol = hidden_state_pol.permute(2,0,1,3)
+		cell_state_pol = cell_state_pol.permute(2,0,1,3)
+		# Num_agents x Num_lstm_layers x Num_batch x Dimension
+		hidden_state_pol_ = torch.stack([hidden_state_pol[:,:,j,:] for j in range(0,hidden_state_pol.shape[2],self.lstm_update_sequence_length)], dim=0).permute(1,2,0,3).to(self.device)
+		cell_state_pol_ = torch.stack([cell_state_pol[:,:,j,:] for j in range(0,cell_state_pol.shape[2],self.lstm_update_sequence_length)], dim=0).permute(1,2,0,3).to(self.device)
+
+
+
+		# MIGHT NOT BE RIGHT **********************************
+		# if self.lstm_update_sequence_length > 1:
+		# 	old_states_actor_ = []
+		# 	hidden_state_pol_ = []
+		# 	cell_state_pol_ = []
+		# 	L = 0
+		# 	while L < old_states_actor.shape[0]:
+		# 		if L+self.lstm_update_sequence_length < old_states_actor.shape[0]:
+		# 			seq_len = self.lstm_update_sequence_length
+		# 		else:
+		# 			seq_len = old_states_actor.shape[0] - L
+				
+		# 		old_states_actor_.append(old_states_actor[L:L+seq_len])
+		# 		hidden_state_pol_.append(hidden_state_pol[L:L+seq_len])
+		# 		cell_state_pol_.append(cell_state_pol[L:L+seq_len])
+		# 		L += seq_len
+
+		# 	old_states_actor_ = torch.stack(old_states_actor_, dim=0).to(self.device)
+		# 	hidden_state_pol_ = torch.stack(hidden_state_pol_, dim=0).to(self.device)
+		# 	cell_state_pol_ = torch.stack(cell_state_pol_, dim=0).to(self.device)
+
+		# 	print(cell_state_pol_.shape)
+		# MIGHT NOT BE RIGHT **********************************
+
+		# if self.value_normalization:
+		# 	Q_values_old = torch.sum(self.critic_network_old.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)
+		
+		# Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
 
 		value_loss_batch = 0
 		policy_loss_batch = 0
@@ -351,7 +393,10 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value, h, cell = self.critic_network(old_states_critic, hidden_state_critic, cell_state_critic, old_probs.squeeze(-2), old_one_hot_actions)
+			# Value, Q_value, weights_value, h, cell = self.critic_network(old_states_critic, hidden_state_critic, cell_state_critic, old_probs.squeeze(-2), old_one_hot_actions)
+			# Value = Value.reshape(-1,self.num_agents,self.num_agents)
+			
+			Value, Q_value, weights_value = self.critic_network(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
@@ -433,6 +478,17 @@ class PPOAgent:
 		avg_agent_group_over_episode_batch /= self.n_epochs
 		threshold_batch /= self.n_epochs
 
+		if "prd" in self.experiment_type:
+			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
+			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
+			if self.update_learning_rate_with_prd:
+				for g in self.policy_optimizer.param_groups:
+					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
+
+		else:
+			num_relevant_agents_in_relevant_set = None
+			num_non_relevant_agents_in_relevant_set = None
+
 		self.update_parameters()
 
 
@@ -444,6 +500,8 @@ class PPOAgent:
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_value": value_weights_batch,
 		"threshold": threshold_batch,
+		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
+		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set
 		}
 
 		if "threshold" in self.experiment_type:
