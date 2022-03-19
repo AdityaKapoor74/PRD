@@ -141,7 +141,7 @@ class PPOAgent:
 	def get_action(self, state_policy, h_policy, cell_policy):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(np.array(state_policy)).unsqueeze(1).to(self.device)
-			dists, (h, cell) = self.policy_network_old(state_policy, h_policy, cell_policy, no_batch=True)
+			dists, (h, cell) = self.policy_network_old(state_policy, h_policy, cell_policy)
 			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 			probs = Categorical(dists)
@@ -341,12 +341,14 @@ class PPOAgent:
 			actor_states = torch.nn.utils.rnn.pack_padded_sequence(actor_states, batch_first=True, lengths=lengths).data # optimises matrix multiplication
 			old_states_actor_.append(actor_states)
 		old_states_actor_ = torch.stack(old_states_actor_, dim=0).to(self.device)
+		# Num_agents x Num_lstm_layers x Num_batch x Dimension
+		old_states_actor_ = torch.stack([old_states_actor_[:,j:j+self.lstm_update_sequence_length,:] for j in range(0,old_states_actor_.shape[1],self.lstm_update_sequence_length)], dim=0).permute(1,0,2,3).to(self.device)
 
 		hidden_state_pol = hidden_state_pol.permute(2,0,1,3)
 		cell_state_pol = cell_state_pol.permute(2,0,1,3)
 		# Num_agents x Num_lstm_layers x Num_batch x Dimension
-		hidden_state_pol_ = torch.stack([hidden_state_pol[:,:,j,:] for j in range(0,hidden_state_pol.shape[2],self.lstm_update_sequence_length)], dim=0).permute(1,2,0,3).to(self.device)
-		cell_state_pol_ = torch.stack([cell_state_pol[:,:,j,:] for j in range(0,cell_state_pol.shape[2],self.lstm_update_sequence_length)], dim=0).permute(1,2,0,3).to(self.device)
+		hidden_state_pol_ = torch.stack([hidden_state_pol[:,:,j,:] for j in range(0,hidden_state_pol.shape[2],self.lstm_update_sequence_length)], dim=0).permute(1,2,0,3).contiguous().to(self.device)
+		cell_state_pol_ = torch.stack([cell_state_pol[:,:,j,:] for j in range(0,cell_state_pol.shape[2],self.lstm_update_sequence_length)], dim=0).permute(1,2,0,3).contiguous().to(self.device)
 
 
 
@@ -395,7 +397,7 @@ class PPOAgent:
 
 			# Value, Q_value, weights_value, h, cell = self.critic_network(old_states_critic, hidden_state_critic, cell_state_critic, old_probs.squeeze(-2), old_one_hot_actions)
 			# Value = Value.reshape(-1,self.num_agents,self.num_agents)
-			
+
 			Value, Q_value, weights_value = self.critic_network(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
@@ -407,8 +409,18 @@ class PPOAgent:
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
-			dists, (h_out, cell_out) = self.policy_network(old_states_actor, hidden_state_pol, cell_state_pol)
-			probs = Categorical(dists.squeeze(0))
+			dists = []
+			# h_out = []
+			# cell_out = []
+			for i in range(self.num_agents):
+				dist, (h, cell) = self.policy_network(old_states_actor_[i,:,:,:], hidden_state_pol_[i,:,:,:], cell_state_pol_[i,:,:,:])
+				dists.append(dist)
+				# h_out.append(h)
+				# cell_out.append(cell)
+			dists = torch.stack(dists, dim=0).to(self.device).permute(1,0,2)
+			# h_out = torch.stack(h_out, dim=0).to(self.device)
+			# cell_out = torch.stack(cell_out, dim=0).to(self.device)
+			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions)
 
 			if self.value_normalization:

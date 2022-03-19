@@ -150,11 +150,11 @@ class LSTM_Policy(nn.Module):
 		self.lstm_sequence_length = lstm_sequence_length
 
 		self.Policy_FCL = nn.Sequential(
-			nn.Linear(obs_input_dim, 64),
+			nn.Linear(obs_input_dim, 128),
 			nn.Tanh()
 			)
 
-		self.Policy_LSTM = nn.LSTM(input_size = 64, hidden_size = self.lstm_hidden_dim, num_layers=self.lstm_num_layers, batch_first=True)
+		self.Policy_LSTM = nn.LSTM(input_size = 128, hidden_size = self.lstm_hidden_dim, num_layers=self.lstm_num_layers, batch_first=True)
 			
 
 		self.Policy_MLP = nn.Sequential(
@@ -181,23 +181,10 @@ class LSTM_Policy(nn.Module):
 		nn.init.orthogonal_(self.Policy_MLP[2].weight, gain=gain_last_layer)
 
 
-	def forward(self, local_observations, hidden_state, cell_state, no_batch=False):
-		if no_batch:
-			features = self.Policy_FCL(local_observations)
-		else:
-			features = self.Policy_FCL(local_observations)
-			features = features.reshape(-1,features.shape[-1]).unsqueeze(1)
-			hidden_state = hidden_state.reshape(1, -1, hidden_state.shape[-1])
-			cell_state = cell_state.reshape(1, -1, cell_state.shape[-1])
-
+	def forward(self, local_observations, hidden_state, cell_state):
+		features = self.Policy_FCL(local_observations)
 		output, (h, cell) = self.Policy_LSTM(features, (hidden_state, cell_state))
-		if no_batch:
-			output = output.reshape(-1, output.shape[-1])
-		else:
-			output = output.reshape(-1, self.num_agents, output.shape[-1])
-
-		Policy = self.Policy_MLP(output)
-
+		Policy = self.Policy_MLP(output.reshape(-1,output.shape[-1]))
 		return Policy, (h,cell)
 
 
