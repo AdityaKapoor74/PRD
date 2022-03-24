@@ -47,7 +47,7 @@ if __name__ == '__main__':
 				"model_path_value": "../../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
 				"model_path_policy": "../../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
 				"eval_policy": False,
-				"save_model": False,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
