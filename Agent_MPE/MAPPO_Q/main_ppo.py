@@ -25,14 +25,14 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold_descend"
+		experiment_type = "prd_above_threshold_ascend_adj_lr"
 
 		dictionary = {
 				"iteration": i,
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"device": "gpu",
-				"update_learning_rate_with_prd": False,
+				"update_learning_rate_with_prd": True,
 				"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
@@ -51,9 +51,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.05,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.05,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"gif": False,
