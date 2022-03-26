@@ -10,6 +10,7 @@ class RolloutBuffer:
 	def __init__(self):
 		self.states = []
 		self.agent_global_positions = []
+		self.agent_ids = []
 		self.probs = []
 		self.logprobs = []
 		self.actions = []
@@ -27,6 +28,7 @@ class RolloutBuffer:
 		del self.actions[:]
 		del self.states[:]
 		del self.agent_global_positions[:]
+		del self.agent_ids[:]
 		del self.probs[:]
 		del self.one_hot_actions[:]
 		del self.logprobs[:]
@@ -150,7 +152,7 @@ class Policy(nn.Module):
 			nn.LeakyReLU()
 			)
 		self.Policy_MLP = nn.Sequential(
-			nn.Linear(32+obs_input_dim, 128),
+			nn.Linear(32+obs_input_dim*self.num_agents, 128),
 			nn.Tanh(),
 			nn.Linear(128, 64),
 			nn.Tanh(),
@@ -172,13 +174,16 @@ class Policy(nn.Module):
 		nn.init.orthogonal_(self.Policy_MLP[4].weight, gain=gain_last_layer)
 
 
-	def forward(self, local_observations, agent_global_positions):
+	def forward(self, local_observations, agent_global_positions, agent_one_hot_encoding):
+		agent_locs_ids = torch.cat([agent_global_positions, agent_one_hot_encoding], dim=-1)
 		agent_states_shape = local_observations.shape
 		intermediate_output = self.Policy_CNN(local_observations.reshape(-1,agent_states_shape[-3],agent_states_shape[-2],agent_states_shape[-1])).reshape(local_observations.shape[0], -1)
 		if agent_states_shape[0] == self.num_agents:
-			intermediate_output = torch.cat([intermediate_output.reshape(self.num_agents,-1), agent_global_positions], dim=-1).to(self.device)
+			states_aug = torch.stack([torch.roll(agent_locs_ids,-i,0) for i in range(self.num_agents)], dim=0).transpose(1,0)
+			intermediate_output = torch.cat([intermediate_output.reshape(self.num_agents,-1), states_aug.reshape(self.num_agents, -1)], dim=-1).to(self.device)
 		else:
-			intermediate_output = torch.cat([intermediate_output.reshape(agent_states_shape[0],agent_states_shape[1],-1), agent_global_positions], dim=-1).to(self.device)
+			states_aug = torch.stack([torch.roll(agent_locs_ids,-i,1) for i in range(self.num_agents)], dim=0).transpose(1,0)
+			intermediate_output = torch.cat([intermediate_output.reshape(agent_states_shape[0],agent_states_shape[1],-1), states_aug.reshape(agent_locs_ids.shape[0],self.num_agents,-1)], dim=-1).to(self.device)
 		return self.Policy_MLP(intermediate_output)
 
 
@@ -192,9 +197,9 @@ class Q_network(nn.Module):
 		self.device = device
 		self.value_normalization = value_normalization
 
-		obs_output_dim = 256
+		obs_output_dim = 128
 		obs_act_input_dim = obs_input_dim+self.num_actions
-		obs_act_output_dim = 256
+		obs_act_output_dim = 128
 		curr_agent_output_dim = 128
 
 		self.CNN = nn.Sequential(
@@ -205,18 +210,18 @@ class Q_network(nn.Module):
 			)
 
 		self.state_embed = nn.Sequential(
-			nn.Linear(32+obs_input_dim, 256, bias=True), 
+			nn.Linear(32+obs_input_dim, 128, bias=True), 
 			nn.Tanh()
 			)
-		self.key = nn.Linear(256, obs_output_dim, bias=True)
-		self.query = nn.Linear(256, obs_output_dim, bias=True)
+		self.key = nn.Linear(128, obs_output_dim, bias=True)
+		self.query = nn.Linear(128, obs_output_dim, bias=True)
 		
 		self.state_act_embed = nn.Sequential(
 			nn.Linear(32+obs_act_input_dim, obs_act_output_dim, bias=True), 
 			nn.Tanh()
 			)
 		self.attention_value = nn.Sequential(
-			nn.Linear(obs_act_output_dim, 256, bias=True), 
+			nn.Linear(obs_act_output_dim, 128, bias=True), 
 			nn.Tanh()
 			)
 
@@ -231,19 +236,19 @@ class Q_network(nn.Module):
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
-		final_input_dim = obs_act_output_dim + curr_agent_output_dim
+		final_input_dim = 128 + curr_agent_output_dim
 		# FCN FINAL LAYER TO GET VALUES
 		if value_normalization:
 			self.final_value_layers = nn.Sequential(
-				nn.Linear(final_input_dim, 128, bias=True), 
+				nn.Linear(final_input_dim, 64, bias=True), 
 				nn.Tanh(),
 				)
-			self.pop_art = PopArt(128, self.num_actions, norm_axes=1, device=self.device)
+			self.pop_art = PopArt(64, self.num_actions, norm_axes=1, device=self.device)
 		else:
 			self.final_value_layers = nn.Sequential(
-				nn.Linear(final_input_dim, 128, bias=True), 
+				nn.Linear(final_input_dim, 64, bias=True), 
 				nn.Tanh(),
-				nn.Linear(128, self.num_actions, bias=True)
+				nn.Linear(64, self.num_actions, bias=True)
 				)
 			
 		# ********************************************************************************************************
@@ -303,10 +308,11 @@ class Q_network(nn.Module):
 		return weights_new
 
 
-	def forward(self, agent_states, agent_global_positions, policies, actions):
+	def forward(self, agent_states, agent_global_positions, agent_one_hot_encoding, policies, actions):
+		agent_pose_id = torch.cat([agent_global_positions, agent_one_hot_encoding], dim=-1).to(self.device)
 		agent_states_shape = agent_states.shape
 		states = self.CNN(agent_states.reshape(-1,agent_states_shape[-3],agent_states_shape[-2],agent_states_shape[-1]))
-		states = torch.cat([states.reshape(agent_states_shape[0], agent_states_shape[1],-1), agent_global_positions], dim=-1).to(self.device)
+		states = torch.cat([states.reshape(agent_states_shape[0], agent_states_shape[1],-1), agent_pose_id], dim=-1).to(self.device)
 		states_query = states.unsqueeze(-2)
 		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1)
 		actions_ = actions.unsqueeze(1).repeat(1,self.num_agents,1,1)

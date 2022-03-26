@@ -70,8 +70,8 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		self.critic_network = Q_network(in_channels=5, obs_input_dim=2, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.critic_network_old = Q_network(in_channels=5, obs_input_dim=2, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network = Q_network(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network_old = Q_network(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -81,8 +81,8 @@ class PPOAgent:
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
 		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
-		self.policy_network = Policy(in_channels=5, obs_input_dim=2, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.policy_network_old = Policy(in_channels=5, obs_input_dim=2, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network = Policy(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old = Policy(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -121,11 +121,12 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy, agent_global_positions):
+	def get_action(self, state_policy, agent_global_positions, agent_ids):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
 			agent_global_positions = torch.FloatTensor(agent_global_positions).to(self.device)
-			dists = self.policy_network_old(state_policy, agent_global_positions)
+			agent_ids = torch.Tensor(agent_ids).to(self.device)
+			dists = self.policy_network_old(state_policy, agent_global_positions, agent_ids)
 			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 			probs = Categorical(dists)
@@ -271,6 +272,7 @@ class PPOAgent:
 		# convert list to tensor
 		old_states = torch.FloatTensor(np.array(self.buffer.states)).to(self.device)
 		old_agent_global_positions = torch.FloatTensor(np.array(self.buffer.agent_global_positions)).to(self.device)
+		agent_ids = torch.FloatTensor(np.array(self.buffer.agent_ids)).to(self.device)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
 		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
@@ -279,7 +281,7 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
 
 
-		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_agent_global_positions, old_probs.squeeze(-2), old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 
@@ -302,7 +304,7 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value = self.critic_network(old_states, old_agent_global_positions, old_probs.squeeze(-2), old_one_hot_actions)
+			Value, Q_value, weights_value = self.critic_network(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
@@ -313,7 +315,7 @@ class PPOAgent:
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
-			dists = self.policy_network(old_states, old_agent_global_positions)
+			dists = self.policy_network(old_states, old_agent_global_positions, agent_ids)
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions)
 

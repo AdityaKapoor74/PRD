@@ -122,7 +122,7 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-			states, agent_global_positions = self.env.reset()
+			states, agent_global_positions, agent_ids = self.env.reset()
 
 			images = []
 
@@ -137,16 +137,17 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, agent_global_positions)
+						actions = self.agents.get_action(states, agent_global_positions, agent_ids)
 				else:
-					actions = self.agents.get_action(states, agent_global_positions)
+					actions = self.agents.get_action(states, agent_global_positions, agent_ids)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
 				obs, rewards, dones, info = self.env.step(actions)
-				next_states, next_agent_global_positions = obs
+				next_states, next_agent_global_positions, agent_ids = obs
+				
 
 				episode_goal_reached += np.sum(dones)
 
@@ -156,6 +157,7 @@ class MAPPO:
 
 				self.agents.buffer.states.append(states)
 				self.agents.buffer.agent_global_positions.append(agent_global_positions)
+				self.agents.buffer.agent_ids.append(agent_ids)
 				self.agents.buffer.actions.append(actions)
 				self.agents.buffer.one_hot_actions.append(one_hot_actions)
 				self.agents.buffer.dones.append(dones)
@@ -165,6 +167,9 @@ class MAPPO:
 
 				states = next_states
 				agent_global_positions = next_agent_global_positions
+
+				# import time
+				# time.sleep(10.0)
 
 				if self.learn:
 					if all(dones):
