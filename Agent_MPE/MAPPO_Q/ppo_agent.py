@@ -48,9 +48,9 @@ class PPOAgent:
 
 		self.value_normalization = dictionary["value_normalization"]
 
-		self.error_rate = []
-		self.average_relevant_set = []
-
+		self.num_relevant_agents_in_relevant_set = []
+		self.num_non_relevant_agents_in_relevant_set = []
+		self.false_positive_rate = []
 		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
 
@@ -228,7 +228,12 @@ class PPOAgent:
 
 			self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
 			self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)
-
+			self.num_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]).item())
+			self.num_non_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item())
+			# FPR = FP / (FP+TN)
+			FP = torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item()*self.num_agents
+			TN = torch.mean(self.plotting_dict["true_negatives"]).item()*self.num_agents
+			self.false_positive_rate.append(FP/(FP+TN))
 
 		if "prd_top" in self.experiment_type:
 			self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
@@ -291,6 +296,7 @@ class PPOAgent:
 		old_logprobs = torch.stack(self.buffer.logprobs, dim=0).to(self.device)
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).to(self.device)
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
+
 
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
@@ -401,6 +407,7 @@ class PPOAgent:
 		if "prd" in self.experiment_type:
 			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
 			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
+			true_negatives = self.non_relevant_set*(1-masking_advantage)
 			if self.update_learning_rate_with_prd:
 				for g in self.policy_optimizer.param_groups:
 					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
@@ -421,7 +428,8 @@ class PPOAgent:
 		"weights_value": value_weights_batch,
 		"threshold": threshold_batch,
 		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
-		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set
+		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
+		"true_negatives": true_negatives,
 		}
 
 		if "threshold" in self.experiment_type:

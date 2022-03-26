@@ -1,4 +1,5 @@
 import os
+import time
 from comet_ml import Experiment
 import numpy as np
 from ppo_agent import PPOAgent
@@ -189,6 +190,8 @@ class MAPPO:
 				states_critic, states_actor = next_states_critic, next_states_actor
 				states = next_states
 
+				# time.sleep(1.0)
+
 				if self.learn:
 					if all(dones):
 
@@ -237,5 +240,6 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
 				if "prd" in self.experiment_type:
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_relevant_agents_in_relevant_set"), np.array(self.agents.num_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_non_relevant_agents_in_relevant_set"), np.array(self.agents.num_non_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"false_positive_rate"), np.array(self.agents.false_positive_rate), allow_pickle=True, fix_imports=True)

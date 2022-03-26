@@ -21,22 +21,22 @@ def run_file(dictionary):
 
 if __name__ == '__main__':
 
-	for i in range(1,2):
+	for i in range(1,6):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
-		env_name = "crossing_team_greedy" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "prd_above_threshold_descend"
+		env_name = "crossing_team_greedy"
+		experiment_type = "shared"
 
 		dictionary = {
 				"iteration": i,
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"device": "gpu",
-				"update_learning_rate_with_prd": True,
-				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
-				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
-				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
+				"update_learning_rate_with_prd": False,
+				"critic_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
+				"actor_dir": '../../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
+				"gif_dir": '../../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
+				"policy_eval_dir":'../../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.05,
 				"value_clip": 0.05,
 				"n_epochs": 5,
@@ -59,9 +59,9 @@ if __name__ == '__main__':
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
-				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
-				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
-				"eval_policy": False,
+				"model_path_value": "../../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
+				"model_path_policy": "../../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
+				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
