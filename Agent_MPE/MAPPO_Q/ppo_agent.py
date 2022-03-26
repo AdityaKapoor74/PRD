@@ -415,6 +415,7 @@ class PPOAgent:
 		else:
 			num_relevant_agents_in_relevant_set = None
 			num_non_relevant_agents_in_relevant_set = None
+			true_negatives = None
 
 		self.update_parameters()
 
