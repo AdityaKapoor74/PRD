@@ -256,7 +256,7 @@ class PPOAgent:
 		elif "top" in self.experiment_type:
 			if episode < self.steps_to_take:
 				advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones),dim=-2)
-				masking_advantage = torch.ones(advantage.shape).to(self.device)
+				masking_advantage = torch.ones(weights_prd.shape).to(self.device)
 				min_weight_values, _ = torch.min(weights_prd, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
 			else:
