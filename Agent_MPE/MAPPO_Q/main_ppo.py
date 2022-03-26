@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold_ascend"
+		experiment_type = "prd_above_threshold_descend"
 
 		dictionary = {
 				"iteration": i,
@@ -51,9 +51,9 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.0,
+				"select_above_threshold": 0.05,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.05,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"gif": False,
