@@ -25,7 +25,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold_descend_adj_lr"
+		experiment_type = "prd_top_5"
 
 		dictionary = {
 				"iteration": i,
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
-				"top_k": 0,
+				"top_k": 5,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
