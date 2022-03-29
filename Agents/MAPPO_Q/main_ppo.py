@@ -24,7 +24,7 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.2,
 				"value_clip": 0.2,
-				"n_epochs": 5,
+				"n_epochs": 10,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
