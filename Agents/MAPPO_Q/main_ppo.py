@@ -24,7 +24,7 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.2,
 				"value_clip": 0.2,
-				"n_epochs": 10,
+				"n_epochs": 5,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 200000,
-				"max_time_steps": 100,
+				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
