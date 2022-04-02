@@ -169,7 +169,7 @@ class MAPPO:
 				agent_global_positions = next_agent_global_positions
 
 				# import time
-				# time.sleep(10.0)
+				# time.sleep(0.2)
 
 				if self.learn:
 					if all(dones):
