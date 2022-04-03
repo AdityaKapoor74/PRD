@@ -14,8 +14,8 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"grad_clip_critic": 1.0,
+				"grad_clip_actor": 1.0,
 				"device": "gpu",
 				"update_learning_rate_with_prd": True,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -29,8 +29,8 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 7e-4, #1e-3
-				"policy_lr": 7e-4, #prd 1e-4
+				"value_lr": 1e-3, #1e-3
+				"policy_lr": 1e-3, #prd 1e-4
 				"entropy_pen": 1e-1, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
