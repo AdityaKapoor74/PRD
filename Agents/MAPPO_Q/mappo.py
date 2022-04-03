@@ -152,8 +152,8 @@ class MAPPO:
 				episode_goal_reached += np.sum(dones)
 
 
-				if step == self.max_time_steps:
-					dones = [True for _ in range(self.num_agents)]
+				# if step == self.max_time_steps:
+				# 	dones = [True for _ in range(self.num_agents)]
 
 				self.agents.buffer.states.append(states)
 				self.agents.buffer.agent_global_positions.append(agent_global_positions)
