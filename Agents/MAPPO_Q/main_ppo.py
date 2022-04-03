@@ -25,12 +25,12 @@ if __name__ == '__main__':
 				"policy_clip": 0.05,
 				"value_clip": 0.05,
 				"n_epochs": 5,
-				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 1e-1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-4, #1e-3
-				"policy_lr": 1e-4, #prd 1e-4
+				"value_lr": 1e-3, #1e-3
+				"policy_lr": 1e-3, #prd 1e-4
 				"entropy_pen": 1, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
