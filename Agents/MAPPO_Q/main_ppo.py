@@ -47,7 +47,7 @@ if __name__ == '__main__':
 				"model_path_value": "../../../tests/PRD_2_MPE/models/pressureplate-linear-6p-v0_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode1000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/pressureplate-linear-6p-v0_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode1000.pt",
 				"eval_policy": False,
-				"save_model": False,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
