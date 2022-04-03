@@ -182,7 +182,7 @@ class MAPPO:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', final_timestep, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Num Agents Goal Reached', episode_goal_reached, episode)
+							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
 						break
 
