@@ -172,7 +172,7 @@ class MAPPO:
 				# time.sleep(0.2)
 
 				if self.learn:
-					if all(dones):
+					if all(dones) or step == self.max_time_steps:
 						final_timestep = step
 
 						print("*"*100)
