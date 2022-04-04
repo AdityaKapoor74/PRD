@@ -69,9 +69,9 @@ class PPOAgent:
 			self.device = "cpu"
 
 		print("EXPERIMENT TYPE", self.experiment_type)
-
-		self.critic_network = Q_network(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.critic_network_old = Q_network(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		obs_input_dim = self.num_agents+2
+		self.critic_network = Q_network(in_channels=5, obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network_old = Q_network(in_channels=5, obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -80,9 +80,8 @@ class PPOAgent:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
-		self.policy_network = Policy(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.policy_network_old = Policy(in_channels=5, obs_input_dim=8, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network = Policy(in_channels=5, obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old = Policy(in_channels=5, obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
