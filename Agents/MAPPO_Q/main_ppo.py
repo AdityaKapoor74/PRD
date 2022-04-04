@@ -10,7 +10,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "pressureplate-linear-4p-v0" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "shared" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
 
 		dictionary = {
 				"iteration": i,
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"gif": False,
