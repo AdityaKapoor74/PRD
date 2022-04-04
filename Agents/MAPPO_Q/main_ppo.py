@@ -14,16 +14,16 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.05,
-				"value_clip": 0.05,
+				"policy_clip": 0.2,
+				"value_clip": 0.2,
 				"n_epochs": 5,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
