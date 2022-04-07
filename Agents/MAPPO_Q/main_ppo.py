@@ -38,7 +38,7 @@ if __name__ == '__main__':
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.05,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"gif": False,
