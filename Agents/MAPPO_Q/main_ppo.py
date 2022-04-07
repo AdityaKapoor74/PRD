@@ -6,7 +6,7 @@ from mappo import MAPPO
 
 if __name__ == '__main__':
 
-	for i in range(1,2):
+	for i in range(1,6):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "pressureplate-linear-4p-v0" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
@@ -31,14 +31,14 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 7e-4, #1e-3
 				"policy_lr": 7e-4, #prd 1e-4
-				"entropy_pen": 0.5, #8e-3
+				"entropy_pen": 0.4, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.05,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"gif": False,
