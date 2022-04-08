@@ -155,9 +155,11 @@ class MAPPO:
 					# At each step, append an image to list
 					if not(episode%self.gif_checkpoint):
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
+					import time
+					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states_actor)
+						actions = self.agents.get_action(states_actor, greedy=True)
 				else:
 					actions = self.agents.get_action(states_actor)
 
@@ -175,8 +177,8 @@ class MAPPO:
 				episode_goal_reached += np.sum(goal_reached)
 
 
-				if step == self.max_time_steps:
-					dones = [True for _ in range(self.num_agents)]
+				# if step == self.max_time_steps:
+				# 	dones = [True for _ in range(self.num_agents)]
 
 				self.agents.buffer.states_critic.append(states_critic)
 				self.agents.buffer.states_actor.append(states_actor)
@@ -190,24 +192,21 @@ class MAPPO:
 				states_critic, states_actor = next_states_critic, next_states_actor
 				states = next_states
 
-				# time.sleep(1.0)
+				if all(dones) or step == self.max_time_steps:
 
-				if self.learn:
-					if all(dones):
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
+					print("*"*100)
 
-						print("*"*100)
-						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
-						print("*"*100)
+					final_timestep = step
 
-						final_timestep = step
+					if self.save_comet_ml_plot:
+						self.comet_ml.log_metric('Episode_Length', step, episode)
+						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
-						if self.save_comet_ml_plot:
-							self.comet_ml.log_metric('Episode_Length', step, episode)
-							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
-							self.comet_ml.log_metric('Num Agents Goal Reached', episode_goal_reached, episode)
-
-						break
+					break
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)

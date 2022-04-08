@@ -136,11 +136,14 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy):
+	def get_action(self, state_policy, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
 			dists = self.policy_network_old(state_policy)
-			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+			if greedy:
+				actions = [dist.argmax().detach().cpu().item() for dist in dists]
+			else:
+				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 			probs = Categorical(dists)
 			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
