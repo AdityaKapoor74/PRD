@@ -70,8 +70,8 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 		obs_input_dim = 150
-		self.critic_network = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.critic_network_old = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network = Q_network(in_channels = 6, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network_old = Q_network(in_channels = 6, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -81,8 +81,8 @@ class PPOAgent:
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
 		obs_input_dim = 150
-		self.policy_network = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.policy_network_old = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network = Policy(in_channels = 6, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old = Policy(in_channels = 6, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -121,11 +121,14 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy):
+	def get_action(self, state_policy, greedy=False):
 		with torch.no_grad():
-			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			dists = self.policy_network_old(state_policy)
-			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+			state_policy = torch.from_numpy(state_policy).float().to(self.device).unsqueeze(0)
+			dists = self.policy_network_old(state_policy).squeeze(0)
+			if greedy:
+				actions = [dist.argmax().detach().cpu().item() for dist in dists]
+			else:
+				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 			probs = Categorical(dists)
 			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))

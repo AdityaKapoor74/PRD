@@ -137,7 +137,11 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states)
+						actions = self.agents.get_action(states, greedy=True)
+					import random
+					actions = [random.randint(0,5) for _ in range(self.num_agents)]
+					import time
+					time.sleep(0.1)
 				else:
 					actions = self.agents.get_action(states)
 
@@ -149,10 +153,6 @@ class MAPPO:
 
 				episode_goal_reached += np.sum(dones)
 
-
-				if step == self.max_time_steps:
-					dones = [True for _ in range(self.num_agents)]
-
 				self.agents.buffer.states.append(states)
 				self.agents.buffer.actions.append(actions)
 				self.agents.buffer.one_hot_actions.append(one_hot_actions)
@@ -163,20 +163,23 @@ class MAPPO:
 
 				states = next_states
 
-				if self.learn:
-					if all(dones):
-						final_timestep = step
+				if all(dones):
+					final_timestep = step
 
-						print("*"*100)
-						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
-						print("*"*100)
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+					print("NUM AGENTS ALIVE: {} | AGENTS HEALTH: {} | NUM OPPONENTS ALIVE: {} | OPPONENTS HEALTH: {} \n".format(info["num_agents_alive"],info["total_agents_health"],info["num_opp_agents_alive"],info["total_opp_agents_health"]))
+					print("*"*100)
 
-						if self.save_comet_ml_plot:
-							self.comet_ml.log_metric('Episode_Length', final_timestep, episode)
-							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Num Agents Goal Reached', episode_goal_reached, episode)
+					if self.save_comet_ml_plot:
+						self.comet_ml.log_metric('Episode_Length', final_timestep, episode)
+						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Num Agents Alive', info["num_agents_alive"], episode)
+						self.comet_ml.log_metric('Num Opponents Alive', info["num_opp_agents_alive"], episode)
+						self.comet_ml.log_metric('Agents Health', info["total_agents_health"], episode)
+						self.comet_ml.log_metric('Opponents Health', info["total_opp_agents_health"], episode)
 
-						break
+					break
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
