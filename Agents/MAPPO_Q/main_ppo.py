@@ -30,7 +30,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, #1e-3
-				"policy_lr": 1e-3, #prd 1e-4
+				"policy_lr": 7e-4, #prd 1e-4
 				"entropy_pen": 3e-2, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 1000000,
 				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
