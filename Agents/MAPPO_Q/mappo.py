@@ -139,7 +139,7 @@ class MAPPO:
 					with torch.no_grad():
 						actions = self.agents.get_action(states, greedy=True)
 					import random
-					actions = [random.randint(0,5) for _ in range(self.num_agents)]
+					actions = [4 for _ in range(self.num_agents)]
 					import time
 					time.sleep(0.1)
 				else:
