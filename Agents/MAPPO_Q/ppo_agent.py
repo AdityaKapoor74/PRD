@@ -47,8 +47,7 @@ class PPOAgent:
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
 		self.value_normalization = dictionary["value_normalization"]
-
-		self.error_rate = []
+		self.avg_agent_group = []
 
 		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
@@ -211,6 +210,7 @@ class PPOAgent:
 				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
+			self.avg_agent_group.append(self.plotting_dict["avg_agent_group_over_episode"].item())
 
 			# self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
 			# self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)

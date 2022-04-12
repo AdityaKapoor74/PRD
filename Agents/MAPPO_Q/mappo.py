@@ -211,6 +211,6 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+
 				if "prd" in self.experiment_type:
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"avg_agent_group"), np.array(self.agents.avg_agent_group), allow_pickle=True, fix_imports=True)
