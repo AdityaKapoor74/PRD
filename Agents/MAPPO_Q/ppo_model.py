@@ -345,7 +345,7 @@ class Policy(nn.Module):
 			nn.LeakyReLU()
 			)
 		self.Policy_MLP = nn.Sequential(
-			nn.Linear(32, 128),
+			nn.Linear(32*self.num_agents, 128),
 			nn.Tanh(),
 			nn.Linear(128, 64),
 			nn.Tanh(),
@@ -369,7 +369,8 @@ class Policy(nn.Module):
 
 	def forward(self, local_observations):
 		intermediate_output = self.Policy_CNN(local_observations.reshape(-1,local_observations.shape[-3],local_observations.shape[-2],local_observations.shape[-1])).reshape(local_observations.shape[0],self.num_agents, -1)
-		return self.Policy_MLP(intermediate_output)
+		states_aug = torch.stack([torch.roll(intermediate_output,-i,1) for i in range(self.num_agents)], dim=0).transpose(1,0).reshape(local_observations.shape[0],self.num_agents,-1)
+		return self.Policy_MLP(states_aug)
 
 
 # using Q network of MAAC
