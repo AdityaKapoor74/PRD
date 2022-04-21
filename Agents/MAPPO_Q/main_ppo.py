@@ -36,7 +36,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.0,
+				"select_above_threshold": 0.05,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.05,
 				"steps_to_take": 1000,
