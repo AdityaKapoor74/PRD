@@ -31,7 +31,7 @@ if __name__ == '__main__':
 				"iteration": i,
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
-				"device": "gpu",
+				"device": "cpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
