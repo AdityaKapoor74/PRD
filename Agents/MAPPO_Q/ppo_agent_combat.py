@@ -243,7 +243,7 @@ class PPOAgent_COMBAT:
 		self.comet_ml.log_metric('Shared Entropy',self.plotting_dict["shared_entropy"].item(),episode)
 
 		if "threshold" in self.prd_type:
-			for i in range(self.num_agents):
+			for i in range(self.prd_num_agents):
 				agent_name = "agent"+str(i)
 				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["prd_agent_groups_over_episode"][i].item(), episode)
 
