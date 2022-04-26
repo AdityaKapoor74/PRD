@@ -230,26 +230,6 @@ class PPOAgent_COMBAT:
 
 
 	def plot(self, episode):
-		self.plotting_dict = {
-		"prd_value_loss": prd_value_loss_batch,
-		"shared_value_loss": shared_value_loss_batch,
-		"prd_policy_loss": prd_policy_loss_batch,
-		"shared_policy_loss": shared_policy_loss,
-		"prd_entropy": prd_entropy_batch,
-		"shared_entropy": shared_entropy_batch,
-		"prd_grad_norm_value":prd_grad_norm_value_batch,
-		"shared_grad_norm_value":shared_grad_norm_value_batch,
-		"prd_grad_norm_policy": prd_grad_norm_policy_batch,
-		"shared_grad_norm_policy": shared_grad_norm_policy_batch,
-		"prd_weights_value": prd_value_weights_batch,
-		"shared_weights_value": shared_value_weights_batch,
-		}
-
-		if "threshold" in self.prd_type:
-			self.plotting_dict["prd_agent_groups_over_episode"] = prd_agent_groups_over_episode_batch
-			self.plotting_dict["prd_avg_agent_group_over_episode"] = prd_avg_agent_group_over_episode_batch
-		if "prd_top" in self.prd_type:
-			self.plotting_dict["prd_mean_min_weight_value"] = prd_mean_min_weight_value
 
 		self.comet_ml.log_metric('PRD Value_Loss',self.plotting_dict["prd_value_loss"].item(),episode)
 		self.comet_ml.log_metric('Shared Value_Loss',self.plotting_dict["shared_value_loss"].item(),episode)
