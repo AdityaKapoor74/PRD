@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"prd_value_clip": 0.05,
 				"prd_value_lr": 1e-3, #1e-3
 				"prd_policy_lr": 1e-3, #prd 1e-4
-				"prd_entropy_pen": 5e-2, #8e-3
+				"prd_entropy_pen": 8e-3, #8e-3
 				"prd_critic_weight_entropy_pen": 0.0,
 				"select_above_threshold": 0.2,
 				"threshold_min": 0.0, 
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 				"shared_value_clip": 0.05,
 				"shared_value_lr": 1e-3, #1e-3
 				"shared_policy_lr": 1e-3, #prd 1e-4
-				"shared_entropy_pen": 5e-2, #8e-3
+				"shared_entropy_pen": 8e-3, #8e-3
 				"shared_critic_weight_entropy_pen": 0.0,
 				"shared_model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
 				"shared_model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
