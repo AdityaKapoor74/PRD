@@ -151,7 +151,7 @@ class MAPPO_COMBAT:
 				shared_one_hot_actions = np.zeros((self.shared_num_agents,self.num_actions))
 				for i,act in enumerate(shared_actions):
 					shared_one_hot_actions[i][act] = 1
-					
+
 				prd_next_states, shared_next_states, prd_rewards, shared_rewards, prd_dones, shared_dones, info = self.env.step(prd_actions, shared_actions)
 
 				self.agents.buffer.shared_states.append(shared_states)
@@ -176,7 +176,7 @@ class MAPPO_COMBAT:
 					final_timestep = step
 
 					print("*"*100)
-					print("EPISODE: {} | TIME TAKEN: {} / {} | PRD WIN: {} | SHARED WIN: {} | DRAW: {} \n".format(episode,np.round(shared_episode_reward,decimals=4),final_timestep,self.max_time_steps,info["agent_win"],info["opp_agent_win"],info["draw"]))
+					print("EPISODE: {} | TIME TAKEN: {} / {} | PRD WIN: {} | SHARED WIN: {} | DRAW: {} \n".format(episode,final_timestep,self.max_time_steps,info["agent_win"],info["opp_agent_win"],info["draw"]))
 					print("SHARED REWARD: {} | NUM SHARED AGENTS ALIVE: {} | SHARED AGENTS HEALTH: {} \n".format(np.round(shared_episode_reward,decimals=4),info["num_opp_agents_alive"],info["total_opp_agents_health"]))
 					print("PRD REWARD: {} | NUM PRD AGENTS ALIVE: {} | PRD AGENTS HEALTH: {} \n".format(np.round(prd_episode_reward,decimals=4),info["num_agents_alive"],info["total_agents_health"]))
 					print("*"*100)
