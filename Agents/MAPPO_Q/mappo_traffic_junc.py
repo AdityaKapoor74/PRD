@@ -137,9 +137,9 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, greedy=True)
-					import time
-					time.sleep(0.1)
+						actions = self.agents.get_action(states, greedy=False)
+					# import time
+					# time.sleep(0.1)
 				else:
 					actions = self.agents.get_action(states)
 
@@ -199,6 +199,6 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				if "prd" in self.experiment_type:
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)
+				# if "prd" in self.experiment_type:
+				# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
+				# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)
