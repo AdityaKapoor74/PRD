@@ -127,6 +127,7 @@ class MAPPO:
 			images = []
 
 			episode_reward = 0
+			episode_collisions = 0
 			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
@@ -149,7 +150,8 @@ class MAPPO:
 
 				next_states, rewards, dones, info = self.env.step(actions)
 
-				episode_goal_reached += np.sum(dones)
+				episode_goal_reached += np.sum(info['step_reached_destination'])
+				episode_collisions += np.sum(info['step_collisions'])
 
 				self.agents.buffer.states.append(states)
 				self.agents.buffer.actions.append(actions)
@@ -171,6 +173,8 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', final_timestep, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Goal Reached', episode_goal_reached, episode)
+						self.comet_ml.log_metric('Collisions', episode_collisions, episode)
 
 					break
 
