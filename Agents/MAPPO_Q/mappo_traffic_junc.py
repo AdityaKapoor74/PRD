@@ -145,6 +145,7 @@ class MAPPO:
 					# time.sleep(0.1)
 				else:
 					actions = self.agents.get_action(states)
+					actions = [0 for i in range(self.num_agents)]
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
