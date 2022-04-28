@@ -31,7 +31,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 1e-3, #1e-3
 				"policy_lr": 1e-3, #prd 1e-4
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 1e-2, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 10000,
-				"max_time_steps": 100,
+				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
