@@ -132,7 +132,7 @@ class MAPPO:
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
-				# print(states[:,11:13])
+				print(states[0,11:13])
 
 				if self.gif:
 					# At each step, append an image to list
