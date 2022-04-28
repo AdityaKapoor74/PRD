@@ -10,7 +10,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "ma_gym:TrafficJunction10-v0"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
 		dictionary = {
 				"iteration": i,
@@ -29,8 +29,8 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, #1e-3
-				"policy_lr": 1e-3, #prd 1e-4
+				"value_lr": 7e-4, #1e-3
+				"policy_lr": 7e-4, #prd 1e-4
 				"entropy_pen": 1e-2, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
@@ -46,10 +46,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 10000,
 				"max_time_steps": 40,
