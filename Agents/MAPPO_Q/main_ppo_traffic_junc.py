@@ -30,8 +30,8 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, #1e-3
-				"policy_lr": 1e-3, #prd 1e-4
-				"entropy_pen": 8e-3, #8e-3
+				"policy_lr": 7e-4, #prd 1e-4
+				"entropy_pen": 5e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
