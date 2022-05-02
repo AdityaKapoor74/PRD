@@ -169,7 +169,8 @@ class Policy(nn.Module):
 
 	def forward(self, state_agents, state_opponents):
 		state_agents_aug = torch.stack([torch.roll(state_agents,-i,1) for i in range(self.num_agents)], dim=0).transpose(1,0).reshape(state_agents.shape[0],self.num_agents,-1)
-		observations = torch.cat([state_agents_aug, state_opponents.unsqueeze(1).repeat(1,self.num_agents,1)], dim=-1)
+		# observations = torch.cat([state_agents_aug, state_opponents.unsqueeze(1).repeat(1,self.num_agents,1)], dim=-1)
+		observations = torch.cat([state_agents_aug, state_opponents], dim=-1)
 		return self.Policy_MLP(observations)
 
 
@@ -285,7 +286,8 @@ class Q_network(nn.Module):
 
 
 	def forward(self, state_agents, state_opponents, policies, actions):
-		states = torch.cat([state_agents, state_opponents.unsqueeze(1).repeat(1,self.num_agents,1)], dim=-1)
+		# states = torch.cat([state_agents, state_opponents.unsqueeze(1).repeat(1,self.num_agents,1)], dim=-1)
+		states = torch.cat([state_agents, state_opponents], dim=-1)
 		states_query = states.unsqueeze(-2)
 		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1)
 		actions_ = actions.unsqueeze(1).repeat(1,self.num_agents,1,1)
