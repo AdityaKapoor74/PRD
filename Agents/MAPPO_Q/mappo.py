@@ -122,7 +122,7 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-			states = self.env.reset()
+			state_agents, state_opponents = self.env.reset()
 
 			images = []
 
@@ -137,23 +137,25 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, greedy=True)
-					import random
-					actions = [4 for _ in range(self.num_agents)]
+						actions = self.agents.get_action(state_agents, state_opponents, greedy=True)
+					# import random
+					# actions = [4 for _ in range(self.num_agents)]
 					import time
 					time.sleep(0.1)
 				else:
-					actions = self.agents.get_action(states)
+					actions = self.agents.get_action(state_agents, state_opponents)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				next_state_agents, next_state_opponents = next_states
 
 				episode_goal_reached += np.sum(dones)
 
-				self.agents.buffer.states.append(states)
+				self.agents.buffer.state_agents.append(state_agents)
+				self.agents.buffer.state_opponents.append(state_opponents)
 				self.agents.buffer.actions.append(actions)
 				self.agents.buffer.one_hot_actions.append(one_hot_actions)
 				self.agents.buffer.dones.append(dones)
@@ -161,7 +163,8 @@ class MAPPO:
 
 				episode_reward += np.sum(rewards)
 
-				states = next_states
+				state_agents = next_state_agents
+				state_opponents = next_state_opponents
 
 				if all(dones):
 					final_timestep = step

@@ -8,7 +8,8 @@ import math
 
 class RolloutBuffer:
 	def __init__(self):
-		self.states = []
+		self.state_agents = []
+		self.state_opponents = []
 		self.probs = []
 		self.logprobs = []
 		self.actions = []
@@ -24,7 +25,8 @@ class RolloutBuffer:
 
 	def clear(self):
 		del self.actions[:]
-		del self.states[:]
+		del self.state_agents[:]
+		del self.state_opponents[:]
 		del self.probs[:]
 		del self.one_hot_actions[:]
 		del self.logprobs[:]
@@ -165,8 +167,10 @@ class Policy(nn.Module):
 		nn.init.orthogonal_(self.Policy_MLP[4].weight, gain=gain_last_layer)
 
 
-	def forward(self, local_states):
-		return self.Policy_MLP(local_states)
+	def forward(self, state_agents, state_opponents):
+		state_agents_aug = torch.stack([torch.roll(state_agents,-i,1) for i in range(self.num_agents)], dim=0).transpose(1,0).reshape(state_agents.shape[0],self.num_agents,-1)
+		observations = torch.cat([state_agents_aug, state_opponents.unsqueeze(1).repeat(1,self.num_agents,1)], dim=-1)
+		return self.Policy_MLP(observations)
 
 
 # using Q network of MAAC
@@ -280,7 +284,8 @@ class Q_network(nn.Module):
 		return weights_new
 
 
-	def forward(self, states, policies, actions):
+	def forward(self, state_agents, state_opponents, policies, actions):
+		states = torch.cat([state_agents, state_opponents.unsqueeze(1).repeat(1,self.num_agents,1)], dim=-1)
 		states_query = states.unsqueeze(-2)
 		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1)
 		actions_ = actions.unsqueeze(1).repeat(1,self.num_agents,1,1)
@@ -328,6 +333,7 @@ class Q_network(nn.Module):
 
 '''
 CNN
+'''
 '''
 class Policy(nn.Module):
 	def __init__(self, in_channels, num_actions, num_agents, device):
@@ -540,3 +546,5 @@ class Q_network(nn.Module):
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1)
 
 		return Value, Q_value, weights
+
+'''
