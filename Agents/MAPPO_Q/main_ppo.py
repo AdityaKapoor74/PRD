@@ -6,7 +6,7 @@ from mappo import MAPPO
 
 if __name__ == '__main__':
 
-	for i in range(1,2):
+	for i in range(1,6):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "ma_gym:Combat-v0"
