@@ -73,7 +73,7 @@ class PPOAgent:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 
-		obs_input_dim = 5
+		obs_input_dim = 4
 		self.critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		self.critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
@@ -82,7 +82,7 @@ class PPOAgent:
 		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
 		
 		# POLICY
-		obs_input_dim = 5*self.num_agents
+		obs_input_dim = 4*self.num_agents
 		self.policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		self.policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():
