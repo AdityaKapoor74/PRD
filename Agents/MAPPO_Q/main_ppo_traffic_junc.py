@@ -14,8 +14,8 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -41,7 +41,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
 				"top_k": 0,
-				"gif": False,
+				"gif": True,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 200000,
 				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"norm_adv": False,

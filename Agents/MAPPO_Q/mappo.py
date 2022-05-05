@@ -199,7 +199,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode) 
-			elif self.gif and not(episode%self.gif_checkpoint):
+			if self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
 

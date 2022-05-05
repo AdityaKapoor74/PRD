@@ -145,7 +145,6 @@ class MAPPO:
 					# time.sleep(0.1)
 				else:
 					actions = self.agents.get_action(states)
-					actions = [0 for i in range(self.num_agents)]
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
@@ -196,7 +195,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode) 
-			elif self.gif and not(episode%self.gif_checkpoint):
+			if self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
 
