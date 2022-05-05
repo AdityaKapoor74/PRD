@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 import ma_gym
-from mappo import MAPPO
+from mappo_traffic_junc import MAPPO
 
 
 if __name__ == '__main__':
@@ -9,13 +9,13 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
-		env_name = "ma_gym:Combat-v0"
+		env_name = "ma_gym:TrafficJunction10-v0"
 		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 0.5,
-				"grad_clip_actor": 0.5,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -29,14 +29,14 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 3e-4, #1e-3
-				"policy_lr": 3e-4, #prd 1e-4
-				"entropy_pen": 8e-3, #8e-3
+				"value_lr": 1e-3, #1e-3
+				"policy_lr": 7e-4, #prd 1e-4
+				"entropy_pen": 3e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.2,
+				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 20000,
 				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"norm_adv": False,

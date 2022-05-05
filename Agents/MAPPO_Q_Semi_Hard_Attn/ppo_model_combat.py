@@ -199,6 +199,12 @@ class Q_network(nn.Module):
 			)
 		self.key = nn.Linear(256, obs_output_dim, bias=True)
 		self.query = nn.Linear(256, obs_output_dim, bias=True)
+
+		self.hard_attention = nn.Sequential(
+			nn.Linear(obs_output_dim*2, 64),
+			nn.Tanh(),
+			nn.Linear(64, 2)
+			)
 		
 		self.state_act_embed = nn.Sequential(
 			nn.Linear(obs_act_input_dim, obs_act_output_dim, bias=True), 
@@ -249,6 +255,9 @@ class Q_network(nn.Module):
 		nn.init.orthogonal_(self.key.weight)
 		nn.init.orthogonal_(self.query.weight)
 		nn.init.orthogonal_(self.attention_value[0].weight)
+
+		nn.init.orthogonal_(self.hard_attention[0].weight, gain=gain)
+		nn.init.orthogonal_(self.hard_attention[2].weight, gain=gain)
 
 		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight, gain=gain)
 
@@ -310,8 +319,12 @@ class Q_network(nn.Module):
 		query_obs = self.query(states_query_embed)
 		# print(query_obs.shape)
 		# WEIGHT
-		weight = F.softmax(torch.matmul(query_obs,key_obs.transpose(2,3))/math.sqrt(self.d_k),dim=-1)
-		# print(weight.shape)
+		query_vector = torch.cat([query_obs.repeat(1,1,self.num_agents-1,1), key_obs], dim=-1)
+		hard_weights = nn.functional.gumbel_softmax(self.hard_attention(query_vector), hard=True, dim=-1)
+		prop = hard_weights[:,:,:,1]
+		hard_score = -10000*(1-prop) + prop
+		score = (torch.matmul(query_obs,key_obs.transpose(2,3))/math.sqrt(self.d_k)) + hard_score.unsqueeze(-2)
+		weight = F.softmax(score ,dim=-1)
 		weights = self.weight_assignment(weight.squeeze(-2))
 
 		# EMBED STATE ACTION POLICY

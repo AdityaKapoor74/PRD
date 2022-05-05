@@ -1,7 +1,7 @@
 import os
 from comet_ml import Experiment
 import numpy as np
-from ppo_agent import PPOAgent
+from ppo_agent_traffic_junc import PPOAgent
 import torch
 import datetime
 
@@ -122,14 +122,17 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-			state_agents, state_opponents = self.env.reset()
+			states = self.env.reset()
 
 			images = []
 
 			episode_reward = 0
+			episode_collisions = 0
 			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
+
+				# print(states[0,11:13])
 
 				if self.gif:
 					# At each step, append an image to list
@@ -137,25 +140,23 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(state_agents, state_opponents, greedy=True)
-					# import random
-					# actions = [4 for _ in range(self.num_agents)]
-					import time
-					time.sleep(0.1)
+						actions = self.agents.get_action(states, greedy=False)
+					# import time
+					# time.sleep(0.1)
 				else:
-					actions = self.agents.get_action(state_agents, state_opponents)
+					actions = self.agents.get_action(states)
+					actions = [0 for i in range(self.num_agents)]
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				next_state_agents, next_state_opponents = next_states
 
-				episode_goal_reached += np.sum(dones)
+				episode_goal_reached += np.sum(info['step_reached_destination'])
+				episode_collisions += np.sum(info['step_collisions'])
 
-				self.agents.buffer.state_agents.append(state_agents)
-				self.agents.buffer.state_opponents.append(state_opponents)
+				self.agents.buffer.states.append(states)
 				self.agents.buffer.actions.append(actions)
 				self.agents.buffer.one_hot_actions.append(one_hot_actions)
 				self.agents.buffer.dones.append(dones)
@@ -163,24 +164,20 @@ class MAPPO:
 
 				episode_reward += np.sum(rewards)
 
-				state_agents = next_state_agents
-				state_opponents = next_state_opponents
+				states = next_states
 
 				if all(dones):
 					final_timestep = step
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
-					print("NUM AGENTS ALIVE: {} | AGENTS HEALTH: {} | NUM OPPONENTS ALIVE: {} | OPPONENTS HEALTH: {} \n".format(info["num_agents_alive"],info["total_agents_health"],info["num_opp_agents_alive"],info["total_opp_agents_health"]))
 					print("*"*100)
 
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', final_timestep, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Agents Alive', info["num_agents_alive"], episode)
-						self.comet_ml.log_metric('Num Opponents Alive', info["num_opp_agents_alive"], episode)
-						self.comet_ml.log_metric('Agents Health', info["total_agents_health"], episode)
-						self.comet_ml.log_metric('Opponents Health', info["total_opp_agents_health"], episode)
+						self.comet_ml.log_metric('Goal Reached', episode_goal_reached, episode)
+						self.comet_ml.log_metric('Collisions', episode_collisions, episode)
 
 					break
 

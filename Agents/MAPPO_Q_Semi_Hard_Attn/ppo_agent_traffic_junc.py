@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.multiprocessing as mp
 from torch.distributions import Categorical
-from ppo_model import *
+from ppo_model_traffic_junc import *
 import torch.nn.functional as F
 
 class PPOAgent:
@@ -51,7 +51,6 @@ class PPOAgent:
 		self.error_rate = []
 
 		self.num_agents = self.env.n_agents
-		self.num_opponents = self.env._n_opponents
 		self.num_actions = self.env.action_space[0].n
 
 		# episode track
@@ -70,7 +69,7 @@ class PPOAgent:
 			self.device = "cpu"
 
 		print("EXPERIMENT TYPE", self.experiment_type)
-		obs_input_dim = 6 + 8*self.num_opponents
+		obs_input_dim = 15
 		self.critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		self.critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
@@ -81,7 +80,7 @@ class PPOAgent:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 6*self.num_agents+8*self.num_opponents
+		obs_input_dim = 150
 		self.policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		self.policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():
@@ -122,11 +121,10 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_agents, state_opponents, greedy=False):
+	def get_action(self, state_policy, greedy=False):
 		with torch.no_grad():
-			state_agents = torch.from_numpy(state_agents).float().to(self.device).unsqueeze(0)
-			state_opponents = torch.from_numpy(state_opponents).float().to(self.device).unsqueeze(0)
-			dists = self.policy_network_old(state_agents, state_opponents).squeeze(0)
+			state_policy = torch.from_numpy(state_policy).float().to(self.device).unsqueeze(0)
+			dists = self.policy_network_old(state_policy).squeeze(0)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 			else:
@@ -207,7 +205,6 @@ class PPOAgent:
 		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
-		self.comet_ml.log_metric('Threshold_pred',self.plotting_dict["threshold"],episode)
 
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
@@ -273,8 +270,7 @@ class PPOAgent:
 
 	def update(self,episode):
 		# convert list to tensor
-		old_state_agents = torch.FloatTensor(np.array(self.buffer.state_agents)).to(self.device)
-		old_state_opponents = torch.FloatTensor(np.array(self.buffer.state_opponents)).to(self.device)
+		old_states = torch.FloatTensor(np.array(self.buffer.states)).to(self.device)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
 		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
@@ -283,7 +279,7 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
 
 
-		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 
@@ -300,13 +296,12 @@ class PPOAgent:
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
-		threshold_batch = 0
 
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
+			Value, Q_value, weights_value = self.critic_network(old_states, old_probs.squeeze(-2), old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
@@ -317,7 +312,7 @@ class PPOAgent:
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
-			dists = self.policy_network(old_state_agents, old_state_opponents)
+			dists = self.policy_network(old_states)
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions)
 
@@ -387,7 +382,6 @@ class PPOAgent:
 		value_weights_batch /= self.n_epochs
 		agent_groups_over_episode_batch /= self.n_epochs
 		avg_agent_group_over_episode_batch /= self.n_epochs
-		threshold_batch /= self.n_epochs
 
 		# if "prd" in self.experiment_type:
 		# 	num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
@@ -410,7 +404,6 @@ class PPOAgent:
 		"grad_norm_value":grad_norm_value_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_value": value_weights_batch,
-		"threshold": threshold_batch,
 		# "num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
 		# "num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set
 		}
