@@ -7,7 +7,7 @@ from mappo_combat import MAPPO_COMBAT
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_Q_run_"+str(i)
+		extension = "MAPPO_Q_Semi_Hard_Attn_run_"+str(i)
 		test_num = "Combat_PRD_vs_Shared"
 		env_name = "ma_gym:Combat-v0"
 		experiment_type = "prd_vs_shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
@@ -54,7 +54,7 @@ if __name__ == '__main__':
 				"prd_policy_lr": 7e-4, #prd 1e-4
 				"prd_entropy_pen": 4e-2, #8e-3
 				"prd_critic_weight_entropy_pen": 0.0,
-				"select_above_threshold": 0.2,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,

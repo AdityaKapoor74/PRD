@@ -7,7 +7,7 @@ from mappo_traffic_junc import MAPPO
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_Q_run_"+str(i)
+		extension = "MAPPO_Q_Semi_Hard_Attn_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "ma_gym:TrafficJunction10-v0"
 		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.1,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
