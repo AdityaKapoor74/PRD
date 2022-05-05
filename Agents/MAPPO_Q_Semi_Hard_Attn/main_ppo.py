@@ -7,7 +7,7 @@ from mappo import MAPPO
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_Q_run_"+str(i)
+		extension = "MAPPO_Q_Semi_Hard_Attn_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "ma_gym:Combat-v0"
 		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
