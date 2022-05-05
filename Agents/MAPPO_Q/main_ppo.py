@@ -10,7 +10,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "ma_gym:Combat-v0"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
 		dictionary = {
 				"iteration": i,
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 500000,
 				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
