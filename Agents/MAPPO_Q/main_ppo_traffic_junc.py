@@ -41,7 +41,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
 				"top_k": 0,
-				"gif": True,
+				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
