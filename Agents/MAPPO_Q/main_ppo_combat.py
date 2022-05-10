@@ -29,12 +29,12 @@ if __name__ == '__main__':
 				"update_ppo_agents": 1, # update ppo agent after every update_ppo_agent episodes
 				"gif": False,
 				"gif_checkpoint":1,
-				"load_models": True,
-				"eval_policy": True,
-				"save_model": True,
+				"load_models": False,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
-				"learn":True,
+				"save_comet_ml_plot": False,
+				"learn":False,
 				"max_episodes": 100000,
 				"max_time_steps": 40,
 				"experiment_type": experiment_type,
@@ -76,4 +76,5 @@ if __name__ == '__main__':
 			}
 		env = gym.make(env_name)
 		ma_controller = MAPPO_COMBAT(env,dictionary)
-		ma_controller.run()
+		# ma_controller.run()
+		ma_controller.test()

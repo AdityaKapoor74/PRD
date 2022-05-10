@@ -81,32 +81,41 @@ class PPOAgent_COMBAT:
 
 		# SHARED AGENT
 		print("EXPERIMENT TYPE", self.experiment_type)
-		self.shared_critic_network = Q_network(in_channels = 6, num_agents=self.shared_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.shared_critic_network_old = Q_network(in_channels = 6, num_agents=self.shared_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		obs_input_dim = 6 + 8*self.num_opponents
+		self.shared_critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.shared_critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.shared_critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
 		self.shared_critic_network_old.load_state_dict(self.shared_critic_network.state_dict())
 		
+		self.seeds = [42, 142, 242, 342, 442]
+		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		self.shared_policy_network = Policy(in_channels = 6, num_agents=self.shared_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.shared_policy_network_old = Policy(in_channels = 6, num_agents=self.shared_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		obs_input_dim = 6*self.num_agents+8*self.num_opponents
+		self.shared_policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.shared_policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.shared_policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
 		self.shared_policy_network_old.load_state_dict(self.shared_policy_network.state_dict())
 
+
 		# PRD AGENT
-		self.prd_critic_network = Q_network(in_channels = 6, num_agents=self.prd_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.prd_critic_network_old = Q_network(in_channels = 6, num_agents=self.prd_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		obs_input_dim = 6 + 8*self.num_opponents
+		self.prd_critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.prd_critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.prd_critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
 		self.prd_critic_network_old.load_state_dict(self.prd_critic_network.state_dict())
 		
+		self.seeds = [42, 142, 242, 342, 442]
+		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		self.prd_policy_network = Policy(in_channels = 6, num_agents=self.prd_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.prd_policy_network_old = Policy(in_channels = 6, num_agents=self.prd_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		obs_input_dim = 6*self.num_agents+8*self.num_opponents
+		self.prd_policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.prd_policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.prd_policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY

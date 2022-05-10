@@ -226,3 +226,67 @@ class MAPPO_COMBAT:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"_"+self.prd_type+"_mean_rewards_per_1000_eps"), np.array(self.prd_rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"_timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"_mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+
+	def test(self):
+		self.prd_success_rate = []
+		self.shared_success_rate = []
+		self.prd_rewards = []
+		self.shared_rewards = []
+
+		shared_model_path = "../../../tests/COMBAT/models/ma_gym:Combat-v0_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode"
+		prd_model_path = "../../../tests/COMBAT/models/ma_gym:Combat-v0_prd_above_threshold_MAPPO_Q_run_1/actor_networks/actor_epsiode"
+		save_file_path = "../../../tests/COMBAT/shared_vs_prd/"
+
+		for i in range(1000, 200000, 1000):
+			self.agents.shared_policy_network.load_state_dict(torch.load(shared_model_path+str(i)+'.pt',map_location=self.device))
+			self.agents.prd_policy_network.load_state_dict(torch.load(dictionary["shared_model_path_policy"],map_location=self.device))
+
+			prd_episode_reward = 0
+			shared_episode_reward = 0
+			prd_succes_rate = 0
+			shared_success_rate = 0
+
+			for episode in range(1,101):
+				final_timestep = self.max_time_steps
+				prd_states, shared_states = self.env.reset()
+
+				for step in range(1, self.max_time_steps+1):
+
+					with torch.no_grad():
+						prd_actions, shared_actions = self.agents.get_action(prd_states, shared_states)
+
+					prd_next_states, shared_next_states, prd_rewards, shared_rewards, prd_dones, shared_dones, info = self.env.step(prd_actions, shared_actions)
+
+					shared_episode_reward += np.sum(shared_rewards)
+					prd_episode_reward += np.sum(prd_rewards)
+
+					shared_states = shared_next_states
+					prd_states = prd_next_states
+
+					if all(prd_dones) or all(shared_dones):
+						final_timestep = step
+
+						print("*"*100)
+						print("EPISODE: {} | TIME TAKEN: {} / {} | PRD WIN: {} | SHARED WIN: {} | DRAW: {} \n".format(episode,final_timestep,self.max_time_steps,info["agent_win"],info["opp_agent_win"],info["draw"]))
+						print("SHARED REWARD: {} | NUM SHARED AGENTS ALIVE: {} | SHARED AGENTS HEALTH: {} \n".format(np.round(shared_episode_reward,decimals=4),info["num_opp_agents_alive"],info["total_opp_agents_health"]))
+						print("PRD REWARD: {} | NUM PRD AGENTS ALIVE: {} | PRD AGENTS HEALTH: {} \n".format(np.round(prd_episode_reward,decimals=4),info["num_agents_alive"],info["total_agents_health"]))
+						print("*"*100)
+
+						break
+
+			shared_episode_reward /= 100
+			prd_episode_reward /= 100
+			shared_success_rate /= 100
+			prd_succes_rate /= 100
+
+			self.shared_rewards.append(shared_episode_reward)
+			self.prd_rewards.append(prd_episode_reward)
+			self.prd_success_rate.append(prd_succes_rate)
+			self.shared_success_rate.append(shared_success_rate)
+
+		np.save(os.path.join(save_file_path+"_shared_reward_list"), np.array(self.shared_rewards), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(save_file_path+"_prd_reward_list"), np.array(self.prd_rewards), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(save_file_path+"_prd_success_rate_list"), np.array(self.prd_success_rate), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(save_file_path+"_shared_success_rate_list"), np.array(self.shared_success_rate), allow_pickle=True, fix_imports=True)
+
+				
