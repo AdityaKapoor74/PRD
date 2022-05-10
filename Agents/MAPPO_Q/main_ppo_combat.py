@@ -29,7 +29,7 @@ if __name__ == '__main__':
 				"update_ppo_agents": 1, # update ppo agent after every update_ppo_agent episodes
 				"gif": False,
 				"gif_checkpoint":1,
-				"load_models": False,
+				"load_models": True,
 				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
@@ -59,8 +59,8 @@ if __name__ == '__main__':
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
 				"top_k": 0,
-				"prd_model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
-				"prd_model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
+				"prd_model_path_value": "../../../tests/COMBAT/models/ma_gym:Combat-v0_prd_above_threshold_MAPPO_Q_run_1/critic_networks/critic_epsiode200000.pt",
+				"prd_model_path_policy": "../../../tests/COMBAT/models/ma_gym:Combat-v0_prd_above_threshold_MAPPO_Q_run_1/actor_networks/actor_epsiode200000.pt",
 				
 				# SHARED
 				"shared_grad_clip_critic": 10.0,
@@ -71,8 +71,8 @@ if __name__ == '__main__':
 				"shared_policy_lr": 7e-4, #prd 1e-4
 				"shared_entropy_pen": 4e-2, #8e-3
 				"shared_critic_weight_entropy_pen": 0.0,
-				"shared_model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode11000.pt",
-				"shared_model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
+				"shared_model_path_value": "../../../tests/COMBAT/models/ma_gym:Combat-v0_shared_MAPPO_Q_run_1/critic_networks/critic_epsiode200000.pt",
+				"shared_model_path_policy": "../../../tests/COMBAT/models/ma_gym:Combat-v0_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode200000.pt",
 			}
 		env = gym.make(env_name)
 		ma_controller = MAPPO_COMBAT(env,dictionary)
