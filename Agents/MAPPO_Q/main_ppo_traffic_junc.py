@@ -10,7 +10,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_2_MPE"
 		env_name = "ma_gym:TrafficJunction10-v0"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
 		dictionary = {
 				"iteration": i,
@@ -31,12 +31,12 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 5e-4, #1e-3
 				"policy_lr": 5e-4, #prd 1e-4
-				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.1,
+				"select_above_threshold": 0.05,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
