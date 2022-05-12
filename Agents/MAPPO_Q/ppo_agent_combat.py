@@ -81,9 +81,9 @@ class PPOAgent_COMBAT:
 
 		# SHARED AGENT
 		print("EXPERIMENT TYPE", self.experiment_type)
-		obs_input_dim = 6 + 8*self.num_opponents
-		self.shared_critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.shared_critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		obs_input_dim = 6 + 8*self.prd_num_agents
+		self.shared_critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.shared_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.shared_critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.shared_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.shared_critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -92,9 +92,9 @@ class PPOAgent_COMBAT:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 6*self.num_agents+8*self.num_opponents
-		self.shared_policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.shared_policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		obs_input_dim = 6*self.shared_num_agents+8*self.prd_num_agents
+		self.shared_policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.shared_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.shared_policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.shared_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.shared_policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -102,9 +102,9 @@ class PPOAgent_COMBAT:
 
 
 		# PRD AGENT
-		obs_input_dim = 6 + 8*self.num_opponents
-		self.prd_critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.prd_critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		obs_input_dim = 6 + 8*self.shared_num_agents
+		self.prd_critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.prd_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.prd_critic_network_old = Q_network(obs_input_dim = obs_input_dim, num_agents=self.prd_num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.prd_critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -113,9 +113,9 @@ class PPOAgent_COMBAT:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 6*self.num_agents+8*self.num_opponents
-		self.prd_policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.prd_policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		obs_input_dim = 6*self.prd_num_agents+8*self.shared_num_agents
+		self.prd_policy_network = Policy(obs_input_dim = obs_input_dim, num_agents=self.prd_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.prd_policy_network_old = Policy(obs_input_dim = obs_input_dim, num_agents=self.prd_num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.prd_policy_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -147,7 +147,7 @@ class PPOAgent_COMBAT:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, prd_states, shared_states, greedy=False):
+	def get_action(self, prd_states, prd_opp_state, shared_states, shared_opp_state, greedy=False):
 		with torch.no_grad():
 			shared_states = torch.from_numpy(shared_states).float().to(self.device).unsqueeze(0)
 			dists = self.shared_policy_network_old(shared_states).squeeze(0)

@@ -6,7 +6,7 @@ from mappo_combat import MAPPO_COMBAT
 
 if __name__ == '__main__':
 
-	for i in range(1,6):
+	for i in range(1,5):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "Combat_PRD_vs_Shared"
 		env_name = "ma_gym:Combat-v0"
@@ -77,4 +77,4 @@ if __name__ == '__main__':
 		env = gym.make(env_name)
 		ma_controller = MAPPO_COMBAT(env,dictionary)
 		# ma_controller.run()
-		ma_controller.test()
+		ma_controller.test(dictionary['iteration'])

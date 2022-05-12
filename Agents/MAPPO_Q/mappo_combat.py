@@ -4,6 +4,7 @@ import numpy as np
 from ppo_agent_combat import PPOAgent_COMBAT
 import torch
 import datetime
+from torch.distributions import Categorical
 
 
 class MAPPO_COMBAT:
@@ -227,11 +228,12 @@ class MAPPO_COMBAT:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"_timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"_mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
-	def test(self):
+	def test(self, iteration):
 		self.prd_success_rate = []
 		self.shared_success_rate = []
 		self.prd_rewards = []
 		self.shared_rewards = []
+		self.draw_rate = []
 
 		shared_model_path = "../../../tests/COMBAT/models/ma_gym:Combat-v0_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode"
 		prd_model_path = "../../../tests/COMBAT/models/ma_gym:Combat-v0_prd_above_threshold_MAPPO_Q_run_1/actor_networks/actor_epsiode"
@@ -239,32 +241,52 @@ class MAPPO_COMBAT:
 
 		for i in range(1000, 200000, 1000):
 			self.agents.shared_policy_network.load_state_dict(torch.load(shared_model_path+str(i)+'.pt',map_location=self.device))
-			self.agents.prd_policy_network.load_state_dict(torch.load(dictionary["shared_model_path_policy"],map_location=self.device))
+			self.agents.prd_policy_network.load_state_dict(torch.load(prd_model_path+str(i)+'.pt',map_location=self.device))
 
-			prd_episode_reward = 0
-			shared_episode_reward = 0
 			prd_succes_rate = 0
 			shared_success_rate = 0
+			draw_rate = 0
+			shared_cumm_episode_reward = 0
+			prd_cumm_episode_reward = 0
 
 			for episode in range(1,101):
 				final_timestep = self.max_time_steps
-				prd_states, shared_states = self.env.reset()
+				prd_episode_reward = 0
+				shared_episode_reward = 0
+				prd_agent_state, prd_opponent_state, shared_agent_state, shared_opponent_state = self.env.reset()
 
 				for step in range(1, self.max_time_steps+1):
 
 					with torch.no_grad():
-						prd_actions, shared_actions = self.agents.get_action(prd_states, shared_states)
+						prd_agent = torch.from_numpy(prd_agent_state).float().to(self.device).unsqueeze(0)
+						prd_opponent = torch.from_numpy(prd_opponent_state).float().to(self.device).unsqueeze(0)
+						dists = self.agents.prd_policy_network(prd_agent, prd_opponent).squeeze(0)
+						prd_actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
-					prd_next_states, shared_next_states, prd_rewards, shared_rewards, prd_dones, shared_dones, info = self.env.step(prd_actions, shared_actions)
+						shared_agent = torch.from_numpy(shared_agent_state).float().to(self.device).unsqueeze(0)
+						shared_opponent = torch.from_numpy(shared_opponent_state).float().to(self.device).unsqueeze(0)
+						dists = self.agents.shared_policy_network(shared_agent, shared_opponent).squeeze(0)
+						shared_actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+
+					prd_agent_next_state, prd_opponent_next_state, shared_agent_next_state, shared_opponent_next_state, prd_rewards, shared_rewards, prd_dones, shared_dones, info = self.env.step(prd_actions, shared_actions)
 
 					shared_episode_reward += np.sum(shared_rewards)
 					prd_episode_reward += np.sum(prd_rewards)
 
-					shared_states = shared_next_states
-					prd_states = prd_next_states
+					prd_agent_state, prd_opponent_state, shared_agent_state, shared_opponent_state = prd_agent_next_state, prd_opponent_next_state, shared_agent_next_state, shared_opponent_next_state
 
 					if all(prd_dones) or all(shared_dones):
 						final_timestep = step
+
+						shared_cumm_episode_reward += shared_episode_reward
+						prd_cumm_episode_reward += prd_episode_reward
+
+						if shared_episode_reward>prd_episode_reward:
+							shared_success_rate += 1
+						elif prd_episode_reward>shared_episode_reward:
+							prd_succes_rate += 1
+						else:
+							draw_rate += 1
 
 						print("*"*100)
 						print("EPISODE: {} | TIME TAKEN: {} / {} | PRD WIN: {} | SHARED WIN: {} | DRAW: {} \n".format(episode,final_timestep,self.max_time_steps,info["agent_win"],info["opp_agent_win"],info["draw"]))
@@ -274,19 +296,29 @@ class MAPPO_COMBAT:
 
 						break
 
-			shared_episode_reward /= 100
-			prd_episode_reward /= 100
+			shared_cumm_episode_reward /= 100
+			prd_cumm_episode_reward /= 100
 			shared_success_rate /= 100
 			prd_succes_rate /= 100
+			draw_rate /= 100
 
-			self.shared_rewards.append(shared_episode_reward)
-			self.prd_rewards.append(prd_episode_reward)
+			print("#"*100)
+			print("SHARED CUMM EPISODE REW", shared_cumm_episode_reward)
+			print("PRD CUMM EPISODE REW", prd_cumm_episode_reward)
+			print("SHARED SUCCESS RATE", shared_success_rate)
+			print("PRD SUCCESS RATE", prd_succes_rate)
+			print("DRAW RATE", draw_rate)
+			print("#"*100)
+
+			self.shared_rewards.append(shared_cumm_episode_reward)
+			self.prd_rewards.append(prd_cumm_episode_reward)
 			self.prd_success_rate.append(prd_succes_rate)
 			self.shared_success_rate.append(shared_success_rate)
+			self.draw_rate.append(draw_rate)
 
-		np.save(os.path.join(save_file_path+"_shared_reward_list"), np.array(self.shared_rewards), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(save_file_path+"_prd_reward_list"), np.array(self.prd_rewards), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(save_file_path+"_prd_success_rate_list"), np.array(self.prd_success_rate), allow_pickle=True, fix_imports=True)
-		np.save(os.path.join(save_file_path+"_shared_success_rate_list"), np.array(self.shared_success_rate), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(save_file_path+"_shared_reward_list_"+str(iteration)), np.array(self.shared_rewards), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(save_file_path+"_prd_reward_list_"+str(iteration)), np.array(self.prd_rewards), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(save_file_path+"_prd_success_rate_list_"+str(iteration)), np.array(self.prd_success_rate), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join(save_file_path+"_shared_success_rate_list_"+str(iteration)), np.array(self.shared_success_rate), allow_pickle=True, fix_imports=True)
 
 				
