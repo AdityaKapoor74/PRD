@@ -70,8 +70,8 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		# self.seeds = [42, 142, 242, 342, 442]
-		# torch.manual_seed(self.seeds[dictionary["iteration"]-1])
+		self.seeds = [42, 142, 242, 342, 442]
+		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 
 		obs_input_dim = 4
 		self.critic_network = Q_network(obs_input_dim = obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
