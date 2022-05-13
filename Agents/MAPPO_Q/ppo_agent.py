@@ -96,6 +96,7 @@ class PPOAgent:
 
 
 		if dictionary["load_models"]:
+			print("LOADING MODELS")
 			# Loading models
 			if torch.cuda.is_available() is False:
 				# For CPU
@@ -119,13 +120,16 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy, agent_global_positions, agent_ids):
+	def get_action(self, state_policy, agent_global_positions, agent_ids, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
 			agent_global_positions = torch.FloatTensor(agent_global_positions).to(self.device)
 			agent_ids = torch.Tensor(agent_ids).to(self.device)
 			dists = self.policy_network_old(state_policy, agent_global_positions, agent_ids)
-			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+			if greedy:
+				actions = [dist.argmax().detach().cpu().item() for dist in dists]
+			else:
+				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 			probs = Categorical(dists)
 			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
@@ -282,6 +286,10 @@ class PPOAgent:
 
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
+
+		# print(weights_value_old[:,-1,:])
+		# import os
+		# np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/gifs/"+"agent3_weight_dist"), weights_value_old[:,-1,:].cpu().numpy(), allow_pickle=True, fix_imports=True)
 		
 
 		if self.value_normalization:

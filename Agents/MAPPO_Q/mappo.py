@@ -4,6 +4,7 @@ import numpy as np
 from ppo_agent import PPOAgent
 import torch
 import datetime
+from torch.distributions import Categorical
 
 
 
@@ -31,6 +32,10 @@ class MAPPO:
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
+
+		self.model_path_value = dictionary["model_path_value"]
+		self.model_path_policy = dictionary["model_path_policy"]
+
 
 
 		self.comet_ml = None
@@ -137,7 +142,7 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, agent_global_positions, agent_ids)
+						actions = self.agents.get_action(states, agent_global_positions, agent_ids, greedy=False)
 				else:
 					actions = self.agents.get_action(states, agent_global_positions, agent_ids)
 
@@ -169,22 +174,24 @@ class MAPPO:
 				agent_global_positions = next_agent_global_positions
 
 				# import time
-				# time.sleep(0.2)
+				# time.sleep(0.05)
+				# from PIL import Image
+				# im = Image.fromarray(images[-1])
+				# im.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/gifs/"+"pp_4p_"+str(step))+".jpeg")
+				
+				if all(dones) or step == self.max_time_steps:
+					final_timestep = step
 
-				if self.learn:
-					if all(dones) or step == self.max_time_steps:
-						final_timestep = step
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+					print("*"*100)
 
-						print("*"*100)
-						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
-						print("*"*100)
+					if self.save_comet_ml_plot:
+						self.comet_ml.log_metric('Episode_Length', final_timestep, episode)
+						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
-						if self.save_comet_ml_plot:
-							self.comet_ml.log_metric('Episode_Length', final_timestep, episode)
-							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
-
-						break
+					break
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
@@ -201,7 +208,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode) 
-			elif self.gif and not(episode%self.gif_checkpoint):
+			if self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
 
@@ -214,3 +221,90 @@ class MAPPO:
 
 				if "prd" in self.experiment_type:
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"avg_agent_group"), np.array(self.agents.avg_agent_group), allow_pickle=True, fix_imports=True)
+
+
+	def test(self):
+		self.reward_data_points = []
+		num_data_points = 100
+		num_episodes = 1
+		num_evals = 1000
+
+		for i in range(1, num_data_points+1):
+
+			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
+			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
+			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
+
+			for episode in range(1, num_episodes+1):
+				episode_reward = 0
+
+				states, agent_global_positions, agent_ids = self.env.reset()
+
+				for step in range(1, self.max_time_steps+1):
+
+					actions = self.agents.get_action(states, agent_global_positions, agent_ids)
+
+					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+					for i,act in enumerate(actions):
+						one_hot_actions[i][act] = 1
+
+					obs, rewards, dones, info = self.env.step(actions)
+					next_states, next_agent_global_positions, agent_ids = obs
+
+					self.agents.buffer.states.append(states)
+					self.agents.buffer.agent_global_positions.append(agent_global_positions)
+					self.agents.buffer.agent_ids.append(agent_ids)
+					self.agents.buffer.actions.append(actions)
+					self.agents.buffer.one_hot_actions.append(one_hot_actions)
+					self.agents.buffer.dones.append(dones)
+					self.agents.buffer.rewards.append(rewards)
+
+					episode_reward += np.sum(rewards)
+
+					states = next_states
+					agent_global_positions = next_agent_global_positions
+				
+					if all(dones) or step == self.max_time_steps:
+						final_timestep = step
+						print("*"*100)
+						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+						print("*"*100)
+						break
+
+				self.agents.update(episode)
+
+			eval_reward = 0
+			for num_eval in range(1, num_evals+1):
+				episode_reward = 0
+
+				states, agent_global_positions, agent_ids = self.env.reset()
+				for step in range(1, self.max_time_steps+1):
+
+					with torch.no_grad():
+						state_policy = torch.FloatTensor(states).to(self.device)
+						agent_global_positions_policy = torch.FloatTensor(agent_global_positions).to(self.device)
+						agent_ids_policy = torch.Tensor(agent_ids).to(self.device)
+						dists = self.agents.policy_network(state_policy, agent_global_positions_policy, agent_ids_policy)
+						actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+
+					obs, rewards, dones, info = self.env.step(actions)
+					next_states, next_agent_global_positions, agent_ids = obs
+
+					episode_reward += np.sum(rewards)
+
+					states = next_states
+					agent_global_positions = next_agent_global_positions
+				
+					if all(dones) or step == self.max_time_steps:
+						eval_reward += episode_reward
+						final_timestep = step
+						print("*"*100)
+						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(num_eval,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+						print("*"*100)
+						break
+
+			self.reward_data_points.append(eval_reward/num_evals)
+
+		np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/evaluate/"+self.experiment_type+"_18000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
+
+				
