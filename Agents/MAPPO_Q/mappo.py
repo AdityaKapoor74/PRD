@@ -229,6 +229,12 @@ class MAPPO:
 		num_episodes = 1
 		num_evals = 1000
 
+		try: 
+			os.makedirs("../../../tests/PRD_PRESSURE_PLATE/evaluate/", exist_ok = True) 
+			print("Eval Directory created successfully") 
+		except OSError as error: 
+			print("Eval Directory can not be created")
+
 		for i in range(1, num_data_points+1):
 
 			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
@@ -305,6 +311,6 @@ class MAPPO:
 
 			self.reward_data_points.append(eval_reward/num_evals)
 
-		np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/evaluate/"+self.experiment_type+"_18000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/evaluate/"+self.experiment_type+"_2000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
 
 				
