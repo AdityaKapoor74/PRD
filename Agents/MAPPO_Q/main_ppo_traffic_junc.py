@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"grad_clip_critic": 10.0,
+				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 1e-3, #1e-3
 				"policy_lr": 1e-3, #prd 1e-4
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 0.0, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
