@@ -29,8 +29,8 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, #1e-3
-				"policy_lr": 1e-3, #prd 1e-4
+				"value_lr": 7e-4, #1e-3
+				"policy_lr": 7e-4, #prd 1e-4
 				"entropy_pen": 0.0, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
