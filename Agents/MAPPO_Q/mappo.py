@@ -226,8 +226,8 @@ class MAPPO:
 	def test(self):
 		self.reward_data_points = []
 		num_data_points = 100
-		num_episodes = 1
-		num_evals = 1000
+		num_episodes = 100
+		num_evals = 100
 
 		try: 
 			os.makedirs("../../../tests/PRD_PRESSURE_PLATE/evaluate/", exist_ok = True) 
@@ -277,6 +277,7 @@ class MAPPO:
 						print("*"*100)
 						break
 
+				# print("update")
 				self.agents.update(episode)
 
 			eval_reward = 0
@@ -309,7 +310,11 @@ class MAPPO:
 						print("*"*100)
 						break
 
+			# print(eval_reward/num_evals)
 			self.reward_data_points.append(eval_reward/num_evals)
+
+		print("DATA POINTS")
+		print(self.reward_data_points)
 
 		np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/evaluate/"+self.experiment_type+"_1000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
 
