@@ -267,6 +267,7 @@ class MAPPO:
 			for episode in range(1, num_episodes+1):
 				episode_reward = 0
 
+				states = self.env.reset()
 				states_critic, states_actor = self.split_states(states)
 
 				for step in range(1, self.max_time_steps+1):
@@ -305,6 +306,7 @@ class MAPPO:
 			for num_eval in range(1, num_evals+1):
 				episode_reward = 0
 
+				states = self.env.reset()
 				states_critic, states_actor = self.split_states(states)
 				for step in range(1, self.max_time_steps+1):
 
