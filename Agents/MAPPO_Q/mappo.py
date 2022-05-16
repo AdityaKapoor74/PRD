@@ -316,6 +316,6 @@ class MAPPO:
 		print("DATA POINTS")
 		print(self.reward_data_points)
 
-		np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/evaluate/"+self.experiment_type+"_2000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/evaluate/"+self.experiment_type+"_3000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
 
 				
