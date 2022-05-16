@@ -280,6 +280,7 @@ class MAPPO:
 
 					next_states, rewards, dones, info = self.env.step(actions)
 					next_states_critic, next_states_actor = self.split_states(next_states)
+					rewards = [value[0] for value in rewards]
 
 					self.agents.buffer.states_critic.append(states_critic)
 					self.agents.buffer.states_actor.append(states_actor)
@@ -318,6 +319,7 @@ class MAPPO:
 
 					next_states, rewards, dones, info = self.env.step(actions)
 					next_states_critic, next_states_actor = self.split_states(next_states)
+					rewards = [value[0] for value in rewards]
 
 					episode_reward += np.sum(rewards)
 
