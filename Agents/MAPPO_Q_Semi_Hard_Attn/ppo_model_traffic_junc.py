@@ -8,7 +8,8 @@ import math
 
 class RolloutBuffer:
 	def __init__(self):
-		self.states = []
+		self.states_critic = []
+		self.states_actor = []
 		self.probs = []
 		self.logprobs = []
 		self.actions = []
@@ -24,7 +25,8 @@ class RolloutBuffer:
 
 	def clear(self):
 		del self.actions[:]
-		del self.states[:]
+		del self.states_critic[:]
+		del self.states_actor[:]
 		del self.probs[:]
 		del self.one_hot_actions[:]
 		del self.logprobs[:]
