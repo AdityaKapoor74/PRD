@@ -279,6 +279,7 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 					next_states, rewards, dones, info = self.env.step(actions)
+					next_states_critic, next_states_actor = self.split_states(next_states)
 
 					self.agents.buffer.states_critic.append(states_critic)
 					self.agents.buffer.states_actor.append(states_actor)
@@ -316,6 +317,7 @@ class MAPPO:
 						actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 					next_states, rewards, dones, info = self.env.step(actions)
+					next_states_critic, next_states_actor = self.split_states(next_states)
 
 					episode_reward += np.sum(rewards)
 
