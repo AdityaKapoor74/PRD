@@ -166,8 +166,8 @@ class Policy(nn.Module):
 
 
 	def forward(self, local_states):
-		states_aug = torch.stack([torch.roll(local_states,-i,1) for i in range(self.num_agents)], dim=0).transpose(1,0).reshape(local_states.shape[0], self.num_agents, -1)
-		return self.Policy_MLP(states_aug)
+		# states_aug = torch.stack([torch.roll(local_states,-i,1) for i in range(self.num_agents)], dim=0).transpose(1,0).reshape(local_states.shape[0], self.num_agents, -1)
+		return self.Policy_MLP(local_states)
 
 
 # using Q network of MAAC
