@@ -314,7 +314,7 @@ class MAPPO:
 
 					with torch.no_grad():
 						state_policy = torch.FloatTensor(states_actor).to(self.device)
-						dists = self.policy_network(state_policy)
+						dists = self.agents.policy_network(state_policy)
 						actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 					next_states, rewards, dones, info = self.env.step(actions)
