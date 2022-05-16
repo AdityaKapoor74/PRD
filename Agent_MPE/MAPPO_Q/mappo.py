@@ -32,6 +32,8 @@ class MAPPO:
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
+		self.model_path_value = dictionary["model_path_value"]
+		self.model_path_policy = dictionary["model_path_policy"]
 
 
 		self.comet_ml = None
@@ -242,3 +244,94 @@ class MAPPO:
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_relevant_agents_in_relevant_set"), np.array(self.agents.num_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_non_relevant_agents_in_relevant_set"), np.array(self.agents.num_non_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"false_positive_rate"), np.array(self.agents.false_positive_rate), allow_pickle=True, fix_imports=True)
+
+
+	def test(self):
+		self.reward_data_points = []
+		num_data_points = 100
+		num_episodes = 100
+		num_evals = 100
+
+		try: 
+			os.makedirs("../../../tests/Crossing/evaluate/", exist_ok = True) 
+			print("Eval Directory created successfully") 
+		except OSError as error: 
+			print("Eval Directory can not be created")
+
+		for i in range(1, num_data_points+1):
+
+			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
+			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
+			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
+
+			for episode in range(1, num_episodes+1):
+				episode_reward = 0
+
+				states_critic, states_actor = self.split_states(states)
+
+				for step in range(1, self.max_time_steps+1):
+
+					actions = self.agents.get_action(states_actor)
+
+					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+					for i,act in enumerate(actions):
+						one_hot_actions[i][act] = 1
+
+					next_states, rewards, dones, info = self.env.step(actions)
+
+					self.agents.buffer.states_critic.append(states_critic)
+					self.agents.buffer.states_actor.append(states_actor)
+					self.agents.buffer.actions.append(actions)
+					self.agents.buffer.one_hot_actions.append(one_hot_actions)
+					self.agents.buffer.dones.append(dones)
+					self.agents.buffer.rewards.append(rewards)
+
+					episode_reward += np.sum(rewards)
+
+					states_critic, states_actor = next_states_critic, next_states_actor
+					states = next_states
+				
+					if all(dones) or step == self.max_time_steps:
+						final_timestep = step
+						print("*"*100)
+						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+						print("*"*100)
+						break
+
+				# print("update")
+				self.agents.update(episode)
+
+			eval_reward = 0
+			for num_eval in range(1, num_evals+1):
+				episode_reward = 0
+
+				states_critic, states_actor = self.split_states(states)
+				for step in range(1, self.max_time_steps+1):
+
+					with torch.no_grad():
+						state_policy = torch.FloatTensor(states_actor).to(self.device)
+						dists = self.policy_network(state_policy)
+						actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+
+					next_states, rewards, dones, info = self.env.step(actions)
+
+					episode_reward += np.sum(rewards)
+
+					states_critic, states_actor = next_states_critic, next_states_actor
+					states = next_states
+				
+					if all(dones) or step == self.max_time_steps:
+						eval_reward += episode_reward
+						final_timestep = step
+						print("*"*100)
+						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(num_eval,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+						print("*"*100)
+						break
+
+			# print(eval_reward/num_evals)
+			self.reward_data_points.append(eval_reward/num_evals)
+
+		# print("DATA POINTS")
+		# print(self.reward_data_points)
+
+		np.save(os.path.join("../../../tests/Crossing/evaluate/"+self.experiment_type+"_2000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)

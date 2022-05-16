@@ -59,8 +59,8 @@ if __name__ == '__main__':
 				"gif": True,
 				"gif_checkpoint":1,
 				"load_models": True,
-				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
-				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
+				"model_path_value": "./critic_epsiode5000.pt", #"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
+				"model_path_policy": "./actor_epsiode5000.pt",#"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,
@@ -76,4 +76,5 @@ if __name__ == '__main__':
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
 		ma_controller = MAPPO(env,dictionary)
-		ma_controller.run()
+		# ma_controller.run()
+		ma_controller.test()
