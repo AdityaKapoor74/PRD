@@ -10,7 +10,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "PRD_PRESSURE_PLATE"
 		env_name = "pressureplate-linear-4p-v0" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "shared" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
+		experiment_type = "prd_above_threshold" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
 
 		dictionary = {
 				"iteration": i,
@@ -44,8 +44,8 @@ if __name__ == '__main__':
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": True,
-				"model_path_value": "./critic_epsiode5000.pt", #"../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_1/critic_networks/critic_epsiode6000.pt",
-				"model_path_policy": "./actor_epsiode5000.pt",#"../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_1/actor_networks/actor_epsiode6000.pt",
+				"model_path_value": "./critic_epsiode1000.pt", #"../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_1/critic_networks/critic_epsiode6000.pt",
+				"model_path_policy": "./actor_epsiode1000.pt",#"../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_1/actor_networks/actor_epsiode6000.pt",
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,
