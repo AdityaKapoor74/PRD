@@ -123,6 +123,7 @@ class MAPPO:
 		for episode in range(1,self.max_episodes+1):
 
 			states = self.env.reset()
+			states_critic, states_actor = states
 
 			images = []
 
@@ -140,23 +141,25 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, greedy=False)
-					# import time
-					# time.sleep(0.1)
+						actions = self.agents.get_action(states_actor, greedy=False)
+					import time
+					time.sleep(0.1)
 				else:
-					actions = self.agents.get_action(states)
-					actions = [0 for i in range(self.num_agents)]
+					actions = self.agents.get_action(states_actor)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				next_states_critic, next_states_actor = next_states
+
 
 				episode_goal_reached += np.sum(info['step_reached_destination'])
 				episode_collisions += np.sum(info['step_collisions'])
 
-				self.agents.buffer.states.append(states)
+				self.agents.buffer.states_critic.append(states_critic)
+				self.agents.buffer.states_actor.append(states_actor)
 				self.agents.buffer.actions.append(actions)
 				self.agents.buffer.one_hot_actions.append(one_hot_actions)
 				self.agents.buffer.dones.append(dones)
@@ -164,7 +167,7 @@ class MAPPO:
 
 				episode_reward += np.sum(rewards)
 
-				states = next_states
+				states_critic, states_actor = next_states_critic, next_states_actor
 
 				if all(dones):
 					final_timestep = step
@@ -196,7 +199,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode) 
-			elif self.gif and not(episode%self.gif_checkpoint):
+			if self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
 
@@ -206,6 +209,3 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				# if "prd" in self.experiment_type:
-				# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
-				# 	np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)
