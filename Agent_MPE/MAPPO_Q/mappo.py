@@ -5,6 +5,7 @@ import numpy as np
 from ppo_agent import PPOAgent
 import torch
 import datetime
+from torch.distributions import Categorical
 
 
 
@@ -260,9 +261,12 @@ class MAPPO:
 
 		for i in range(1, num_data_points+1):
 
-			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
-			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
-			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
+			# self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
+			# self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
+			# self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
+			self.agents.critic_network.reset_parameters()
+			self.agents.policy_network.reset_parameters()
+			self.agents.policy_network_old.reset_parameters()
 
 			for episode in range(1, num_episodes+1):
 				episode_reward = 0
@@ -337,7 +341,7 @@ class MAPPO:
 			# print(eval_reward/num_evals)
 			self.reward_data_points.append(eval_reward/num_evals)
 
-		# print("DATA POINTS")
-		# print(self.reward_data_points)
+		print("DATA POINTS")
+		print(self.reward_data_points)
 
-		np.save(os.path.join("../../../tests/Crossing/evaluate/"+self.experiment_type+"_2000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
+		np.save(os.path.join("../../../tests/Crossing/evaluate/"+self.experiment_type+"_1000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
