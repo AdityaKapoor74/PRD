@@ -48,7 +48,7 @@ if __name__ == '__main__':
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_shared_MAPPO_Q_run_1/actor_networks/actor_epsiode11000.pt",
 				"eval_policy": True,
 				"save_model": True,
-				"save_model_checkpoint": 1000,
+				"save_model_checkpoint": 10,
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 2000,
