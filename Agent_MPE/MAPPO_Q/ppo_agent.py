@@ -471,8 +471,6 @@ class PPOAgent:
 		if "threshold" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-			agent_groups_over_episode_batch += agent_groups_over_episode
-			avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
 		dists = self.policy_network(old_states_actor)
 		probs = Categorical(dists.squeeze(0))
