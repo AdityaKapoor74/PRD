@@ -537,7 +537,7 @@ class PPOAgent:
 		"entropy": entropy,
 		"grad_norm_value":grad_norm_value,
 		"grad_norm_policy": grad_norm_policy,
-		"weights_value": value_weights,
+		"weights_value": weights_value,
 		"threshold": threshold,
 		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
 		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
