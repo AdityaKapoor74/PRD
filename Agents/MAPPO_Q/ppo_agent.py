@@ -428,3 +428,111 @@ class PPOAgent:
 
 		if self.comet_ml is not None:
 			self.plot(episode)
+
+
+	def a2c_update(self,episode):
+		# convert list to tensor
+		old_states = torch.FloatTensor(np.array(self.buffer.states)).to(self.device)
+		old_agent_global_positions = torch.FloatTensor(np.array(self.buffer.agent_global_positions)).to(self.device)
+		agent_ids = torch.FloatTensor(np.array(self.buffer.agent_ids)).to(self.device)
+		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
+		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
+		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
+		old_logprobs = torch.stack(self.buffer.logprobs, dim=0).to(self.device)
+		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).to(self.device)
+		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
+
+		# torch.autograd.set_detect_anomaly(True)
+		# Optimize policy for n epochs
+
+		Value, Q_value, weights_value = self.critic_network(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
+		Value = Value.reshape(-1,self.num_agents,self.num_agents)
+
+		Q_value_target = self.nstep_returns(Q_value, rewards, dones).detach()
+
+		advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
+
+		if "threshold" in self.experiment_type:
+			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+
+		dists = self.policy_network(old_states, old_agent_global_positions, agent_ids)
+		probs = Categorical(dists.squeeze(0))
+
+		entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
+		policy_loss = -probs.log_prob(old_actions) * advantage.detach()
+		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
+
+		entropy_weights = -torch.mean(torch.sum(weights_value* torch.log(torch.clamp(weights_value, 1e-10,1.0)), dim=2))
+
+		if self.value_normalization:
+			self.critic_network.pop_art.update(Q_value_target)
+			Q_value_target_normalized = torch.sum(self.critic_network.pop_art.normalize(Q_value_target)*old_one_hot_actions, dim=-1).unsqueeze(-1) # gives for all possible actions
+			critic_loss = F.smooth_l1_loss(Q_value,Q_value_target_normalized) + self.critic_weight_entropy_pen*entropy_weights
+		else:
+			critic_loss = F.smooth_l1_loss(Q_value,Q_value_target) + self.critic_weight_entropy_pen*entropy_weights
+		
+
+		# take gradient step
+		self.critic_optimizer.zero_grad()
+		critic_loss.backward()
+		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
+		self.critic_optimizer.step()
+
+		self.policy_optimizer.zero_grad()
+		policy_loss.backward()
+		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
+		self.policy_optimizer.step()
+
+
+			
+		# Copy new weights into old policy
+		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+
+		# Copy new weights into old critic
+		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+
+		# self.scheduler.step()
+		# print("learning rate of policy", self.scheduler.get_lr())
+
+		# clear buffer
+		self.buffer.clear()
+
+
+		# if "prd" in self.experiment_type:
+		# 	num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
+		# 	num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
+		# 	true_negatives = self.non_relevant_set*(1-masking_advantage)
+		# 	if self.update_learning_rate_with_prd:
+		# 		for g in self.policy_optimizer.param_groups:
+		# 			g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
+
+		# else:
+		# 	num_relevant_agents_in_relevant_set = None
+		# 	num_non_relevant_agents_in_relevant_set = None
+		# 	true_negatives = None
+
+		self.update_parameters()
+
+		threshold = self.select_above_threshold
+		self.plotting_dict = {
+		"value_loss": critic_loss,
+		"policy_loss": policy_loss,
+		"entropy": entropy,
+		"grad_norm_value":grad_norm_value,
+		"grad_norm_policy": grad_norm_policy,
+		"weights_value": weights_value,
+		"threshold": threshold,
+		# "num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
+		# "num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
+		# "true_negatives": true_negatives,
+		}
+
+		if "threshold" in self.experiment_type:
+			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode
+			self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode
+		if "prd_top" in self.experiment_type:
+			self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
+
+		if self.comet_ml is not None:
+			self.plot(episode)

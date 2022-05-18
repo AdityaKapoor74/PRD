@@ -14,6 +14,7 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
+				"update_type": "a2c",
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",
