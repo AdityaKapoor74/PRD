@@ -35,6 +35,7 @@ class MAPPO:
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
 		self.model_path_value = dictionary["model_path_value"]
 		self.model_path_policy = dictionary["model_path_policy"]
+		self.update_type = dictionary["update_type"]
 
 
 		self.comet_ml = None
@@ -227,7 +228,10 @@ class MAPPO:
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
-				self.agents.update(episode) 
+				if self.update_type == "ppo":
+					self.agents.update(episode) 
+				elif self.update_type == "a2c":
+					self.agents.a2c_update(episode) 
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
