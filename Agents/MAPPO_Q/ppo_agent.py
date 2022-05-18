@@ -427,8 +427,8 @@ class PPOAgent:
 
 	def a2c_update(self,episode):
 		# convert list to tensor
-		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).to(self.device)
-		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).to(self.device)
+		old_state_agents = torch.FloatTensor(np.array(self.buffer.state_agents)).to(self.device)
+		old_state_opponents = torch.FloatTensor(np.array(self.buffer.state_opponents)).to(self.device)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
 		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
@@ -439,7 +439,7 @@ class PPOAgent:
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 
-		Value, Q_value, weights_value = self.critic_network(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
+		Value, Q_value, weights_value = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
 		Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 		Q_value_target = self.nstep_returns(Q_value, rewards, dones).detach()
@@ -450,7 +450,7 @@ class PPOAgent:
 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 
-		dists = self.policy_network(old_states_actor)
+		dists = self.policy_network(old_state_agents, old_state_opponents)
 		probs = Categorical(dists.squeeze(0))
 
 		entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
