@@ -6,11 +6,11 @@ from mappo import MAPPO
 
 if __name__ == '__main__':
 
-	for i in range(1,2):
-		extension = "MAPPO_Q_run_"+str(i)
-		test_num = "PRD_PRESSURE_PLATE"
+	for i in range(1,6):
+		extension = "MAA2C_Q_run_"+str(i)
+		test_num = "pressure_plate"
 		env_name = "pressureplate-linear-4p-v0" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
-		experiment_type = "shared" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
+		experiment_type = "prd_above_threshold" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
 
 		dictionary = {
 				"iteration": i,
@@ -44,13 +44,13 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"gif": False,
 				"gif_checkpoint":1,
-				"load_models": True,
+				"load_models": False,
 				"model_path_value": "./critic_epsiode2000.pt", #"../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_1/critic_networks/critic_epsiode6000.pt",
 				"model_path_policy": "./actor_epsiode2000.pt",#"../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_1/actor_networks/actor_epsiode6000.pt",
-				"eval_policy": False,
-				"save_model": False,
+				"eval_policy": True,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
 				"max_time_steps": 70,
@@ -62,5 +62,5 @@ if __name__ == '__main__':
 			}
 		env = gym.make(env_name)
 		ma_controller = MAPPO(env,dictionary)
-		# ma_controller.run()
-		ma_controller.test()
+		ma_controller.run()
+		# ma_controller.test()
