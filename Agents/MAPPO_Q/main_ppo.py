@@ -7,13 +7,14 @@ from mappo import MAPPO
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_Q_run_"+str(i)
-		test_num = "PRD_2_MPE"
+		extension = "MAA2C_Q_run_"+str(i)
+		test_num = "combat"
 		env_name = "ma_gym:Combat-v0"
-		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
+		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
 		dictionary = {
 				"iteration": i,
+				"update_type": "a2c",
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",
@@ -51,7 +52,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 500000,
+				"max_episodes": 120000,
 				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
