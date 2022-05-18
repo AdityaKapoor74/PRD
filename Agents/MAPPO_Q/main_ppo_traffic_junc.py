@@ -7,13 +7,14 @@ from mappo_traffic_junc import MAPPO
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_Q_run_"+str(i)
-		test_num = "PRD_2_MPE"
+		extension = "MAA2C_Q_run_"+str(i)
+		test_num = "traffic_junction"
 		env_name = "ma_gym:TrafficJunction10-v0"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
 		dictionary = {
 				"iteration": i,
+				"update_type": "a2c",
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"device": "gpu",
