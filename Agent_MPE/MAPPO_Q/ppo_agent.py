@@ -532,7 +532,7 @@ class PPOAgent:
 
 		threshold = self.select_above_threshold
 		self.plotting_dict = {
-		"value_loss": value_loss,
+		"value_loss": critic_loss,
 		"policy_loss": policy_loss,
 		"entropy": entropy,
 		"grad_norm_value":grad_norm_value,
