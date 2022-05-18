@@ -493,18 +493,18 @@ class PPOAgent:
 		self.buffer.clear()
 
 
-		if "prd" in self.experiment_type:
-			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
-			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
-			true_negatives = self.non_relevant_set*(1-masking_advantage)
-			if self.update_learning_rate_with_prd:
-				for g in self.policy_optimizer.param_groups:
-					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
+		# if "prd" in self.experiment_type:
+		# 	num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
+		# 	num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
+		# 	true_negatives = self.non_relevant_set*(1-masking_advantage)
+		# 	if self.update_learning_rate_with_prd:
+		# 		for g in self.policy_optimizer.param_groups:
+		# 			g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
 
-		else:
-			num_relevant_agents_in_relevant_set = None
-			num_non_relevant_agents_in_relevant_set = None
-			true_negatives = None
+		# else:
+		# 	num_relevant_agents_in_relevant_set = None
+		# 	num_non_relevant_agents_in_relevant_set = None
+		# 	true_negatives = None
 
 		self.update_parameters()
 
@@ -517,9 +517,9 @@ class PPOAgent:
 		"grad_norm_policy": grad_norm_policy,
 		"weights_value": weights_value,
 		"threshold": threshold,
-		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
-		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
-		"true_negatives": true_negatives,
+		# "num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
+		# "num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
+		# "true_negatives": true_negatives,
 		}
 
 		if "threshold" in self.experiment_type:
