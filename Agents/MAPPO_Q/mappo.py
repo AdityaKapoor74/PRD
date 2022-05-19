@@ -128,6 +128,10 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
+			if self.gif:
+				import time
+				time.sleep(1.0)
+
 			states, agent_global_positions, agent_ids = self.env.reset()
 
 			images = []
@@ -176,9 +180,15 @@ class MAPPO:
 
 				# import time
 				# time.sleep(0.05)
-				# from PIL import Image
-				# im = Image.fromarray(images[-1])
-				# im.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/gifs/"+"pp_4p_"+str(step))+".jpeg")
+				try: 
+					os.makedirs("../../../tests/PRD_PRESSURE_PLATE/relevant_set/", exist_ok = True) 
+					print("Relevant Set Directory created successfully") 
+				except OSError as error: 
+					print("Relevant Set Directory can not be created")
+				from PIL import Image
+				im = Image.fromarray(images[-1])
+				im.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/relevant_set/"+"pp_4p_"+str(step))+".pdf")
+
 				
 				if all(dones) or step == self.max_time_steps:
 					final_timestep = step
@@ -322,4 +332,74 @@ class MAPPO:
 
 		np.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/evaluate/"+self.experiment_type+"_2000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
 
+
+	def run_gradvar_exp(self, episode):
+		policy_grads = []
+
+		if torch.cuda.is_available() is False:
+			# For CPU
+			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value,map_location=torch.device('cpu')))
+			self.agents.critic_network_old.load_state_dict(torch.load(self.model_path_value,map_location=torch.device('cpu')))
+			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy,map_location=torch.device('cpu')))
+			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy,map_location=torch.device('cpu')))
+		else:
+			# For GPU
+			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
+			self.agents.critic_network_old.load_state_dict(torch.load(self.model_path_value))
+			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
+			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
+
+		for episode in range(1, self.max_episodes+1):
+			episode_reward = 0
+
+			states, agent_global_positions, agent_ids = self.env.reset()
+
+			for step in range(1, self.max_time_steps+1):
+
+				actions = self.agents.get_action(states_actor)
+
+				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+				for i,act in enumerate(actions):
+					one_hot_actions[i][act] = 1
+
+				obs, rewards, dones, info = self.env.step(actions)
+				next_states, next_agent_global_positions, agent_ids = obs
+				
+
+				episode_goal_reached += np.sum(dones)
+
+
+				# if step == self.max_time_steps:
+				# 	dones = [True for _ in range(self.num_agents)]
+
+				self.agents.buffer.states.append(states)
+				self.agents.buffer.agent_global_positions.append(agent_global_positions)
+				self.agents.buffer.agent_ids.append(agent_ids)
+				self.agents.buffer.actions.append(actions)
+				self.agents.buffer.one_hot_actions.append(one_hot_actions)
+				self.agents.buffer.dones.append(dones)
+				self.agents.buffer.rewards.append(rewards)
+
+				episode_reward += np.sum(rewards)
+
+				states = next_states
+				agent_global_positions = next_agent_global_positions
+			
+				if all(dones) or step == self.max_time_steps:
+					final_timestep = step
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+					print("*"*100)
+					break
+
+			policy_grad = self.agents.get_policy_grad(episode)
+			policy_grads.append(policy_grad)
+
+		policy_grad_mat = torch.stack(policy_grads)
+		mean = torch.mean(policy_grad_mat,dim=0)
+		sse = torch.sum((policy_grad_mat - mean)**2,dim=-1)
+		std = torch.std(sse)
+		policy_grad_var = torch.var(policy_grad_mat,dim=0)
+
+		return torch.sum(policy_grad_var).item(), std.item()
 				
