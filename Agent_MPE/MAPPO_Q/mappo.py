@@ -413,6 +413,9 @@ class MAPPO:
 			policy_grads.append(policy_grad)
 
 		policy_grad_mat = torch.stack(policy_grads)
+		mean = torch.mean(policy_grad_mat,dim=0)
+		sse = torch.sum((policy_grad_mat - mean)**2,dim=-1)
+		std = torch.std(sse)
 		policy_grad_var = torch.var(policy_grad_mat,dim=0)
 
-		return torch.sum(policy_grad_var).item()
+		return torch.sum(policy_grad_var).item(),std.item()
