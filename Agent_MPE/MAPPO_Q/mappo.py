@@ -265,12 +265,12 @@ class MAPPO:
 
 		for i in range(1, num_data_points+1):
 
-			# self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
-			# self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
-			# self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
-			self.agents.critic_network.reset_parameters()
-			self.agents.policy_network.reset_parameters()
-			self.agents.policy_network_old.reset_parameters()
+			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
+			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
+			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
+			# self.agents.critic_network.reset_parameters()
+			# self.agents.policy_network.reset_parameters()
+			# self.agents.policy_network_old.reset_parameters()
 
 			for episode in range(1, num_episodes+1):
 				episode_reward = 0
@@ -349,3 +349,70 @@ class MAPPO:
 		print(self.reward_data_points)
 
 		np.save(os.path.join("../../../tests/Crossing/evaluate/"+self.experiment_type+"_1000"), np.array(self.reward_data_points), allow_pickle=True, fix_imports=True)
+
+
+	def run_gradvar_exp(self, episode):
+		self.reward_data_points = []
+		num_data_points = 100
+		num_episodes = 100
+		num_evals = 100
+
+		policy_grads = []
+
+		if torch.cuda.is_available() is False:
+			# For CPU
+			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value,map_location=torch.device('cpu')))
+			self.agents.critic_network_old.load_state_dict(torch.load(self.model_path_value,map_location=torch.device('cpu')))
+			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy,map_location=torch.device('cpu')))
+			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy,map_location=torch.device('cpu')))
+		else:
+			# For GPU
+			self.agents.critic_network.load_state_dict(torch.load(self.model_path_value))
+			self.agents.critic_network_old.load_state_dict(torch.load(self.model_path_value))
+			self.agents.policy_network.load_state_dict(torch.load(self.model_path_policy))
+			self.agents.policy_network_old.load_state_dict(torch.load(self.model_path_policy))
+
+		for episode in range(1, self.max_episodes+1):
+			episode_reward = 0
+
+			states = self.env.reset()
+			states_critic, states_actor = self.split_states(states)
+
+			for step in range(1, self.max_time_steps+1):
+
+				actions = self.agents.get_action(states_actor)
+
+				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+				for i,act in enumerate(actions):
+					one_hot_actions[i][act] = 1
+
+				next_states, rewards, dones, info = self.env.step(actions)
+				next_states_critic, next_states_actor = self.split_states(next_states)
+				rewards = [value[0] for value in rewards]
+
+				self.agents.buffer.states_critic.append(states_critic)
+				self.agents.buffer.states_actor.append(states_actor)
+				self.agents.buffer.actions.append(actions)
+				self.agents.buffer.one_hot_actions.append(one_hot_actions)
+				self.agents.buffer.dones.append(dones)
+				self.agents.buffer.rewards.append(rewards)
+
+				episode_reward += np.sum(rewards)
+
+				states_critic, states_actor = next_states_critic, next_states_actor
+				states = next_states
+			
+				if all(dones) or step == self.max_time_steps:
+					final_timestep = step
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),final_timestep,self.max_time_steps))
+					print("*"*100)
+					break
+
+			policy_grad = self.agents.get_policy_grad(episode)
+			policy_grads.append(policy_grad)
+
+		policy_grad_mat = torch.stack(policy_grads)
+		policy_grad_var = torch.var(policy_grad_mat,dim=0)
+
+		return torch.sum(policy_grad_var).item()

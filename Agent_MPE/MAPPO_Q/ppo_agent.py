@@ -114,6 +114,8 @@ class PPOAgent:
 
 		if dictionary["load_models"]:
 			# Loading models
+			# critic_network_checkpoint = torch.load(dictionary["model_path_value"])
+			# policy_network_checkpoint = torch.load(dictionary["model_path_policy"])
 			if torch.cuda.is_available() is False:
 				# For CPU
 				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"],map_location=torch.device('cpu')))
@@ -552,3 +554,84 @@ class PPOAgent:
 
 		if self.comet_ml is not None:
 			self.plot(episode)
+
+
+
+	def get_policy_grad(self,episode):
+		# convert list to tensor
+		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).to(self.device)
+		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).to(self.device)
+		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).to(self.device)
+		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).to(self.device)
+		old_probs = torch.stack(self.buffer.probs, dim=0).to(self.device)
+		old_logprobs = torch.stack(self.buffer.logprobs, dim=0).to(self.device)
+		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).to(self.device)
+		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
+
+
+		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
+		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
+		
+
+		if self.value_normalization:
+			Q_values_old = torch.sum(self.critic_network_old.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)
+		
+		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+
+		policy_grad_batch = []
+		# torch.autograd.set_detect_anomaly(True)
+		# Optimize policy for n epochs
+		for _ in range(self.n_epochs):
+
+			Value, Q_value, weights_value = self.critic_network(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
+			Value = Value.reshape(-1,self.num_agents,self.num_agents)
+
+			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
+
+			if "threshold" in self.experiment_type:
+				agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+
+			dists = self.policy_network(old_states_actor)
+			probs = Categorical(dists.squeeze(0))
+			logprobs = probs.log_prob(old_actions)
+
+			if self.value_normalization:
+				self.critic_network.pop_art.update(Q_value_target)
+				Q_value_target_normalized = torch.sum(self.critic_network.pop_art.normalize(Q_value_target)*old_one_hot_actions, dim=-1).unsqueeze(-1) # gives for all possible actions
+				critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target_normalized)
+				critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target_normalized)
+			else:
+				critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target)
+				critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target)
+
+
+			# Finding the ratio (pi_theta / pi_theta__old)
+			ratios = torch.exp(logprobs - old_logprobs)
+			# Finding Surrogate Loss
+			surr1 = ratios * advantage.detach()
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
+
+			# final loss of clipped objective PPO
+			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
+			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
+			
+			entropy_weights = -torch.mean(torch.sum(weights_value* torch.log(torch.clamp(weights_value, 1e-10,1.0)), dim=2))
+			critic_loss = torch.max(critic_loss_1, critic_loss_2) + self.critic_weight_entropy_pen*entropy_weights
+			
+
+			self.policy_optimizer.zero_grad()
+			policy_loss.backward()
+			policy_grad = []
+			for name,param in self.policy_network.named_parameters():
+				if param.requires_grad:
+					policy_grad.append(param.grad.flatten())
+			policy_grad_batch.append(torch.cat(policy_grad))
+
+
+		# clear buffer
+		self.buffer.clear()
+
+		self.update_parameters()
+
+		return torch.mean(torch.stack(policy_grad_batch), dim=0)
