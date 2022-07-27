@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import os
 import pressureplate
 from mappo import MAPPO
 
@@ -81,13 +82,13 @@ if __name__ == '__main__':
 		print("Eval Directory can not be created")
 
 	for episode in episode_list:
-		extension = "MAPPO_Q_run_"+str(i)
+		extension = "MAPPO_Q_run"
 		test_num = "Pressure Plate"
 		env_name = "pressureplate-linear-4p-v0" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
 		experiment_type = "shared" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
 
 		dictionary = {
-				"iteration": i,
+				"iteration": 3,
 				"update_type": "ppo",
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
@@ -119,8 +120,8 @@ if __name__ == '__main__':
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": True,
-				"model_path_value": "../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_"+experiment_type+"_MAPPO_Q_run_3/critic_networks/critic_epsiode"+episode+".pt",
-				"model_path_policy": "../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_"+experiment_type+"_MAPPO_Q_run_3/actor_networks/actor_epsiode"+episode+".pt",
+				"model_path_value": "../../../tests/Pressure Plate/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_3/critic_networks/critic_epsiode"+episode+".pt",
+				"model_path_policy": "../../../tests/Pressure Plate/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_3/actor_networks/actor_epsiode"+episode+".pt",
 				"eval_policy": False,
 				"save_model": False,
 				"save_model_checkpoint": 1000,

@@ -180,14 +180,14 @@ class MAPPO:
 
 				# import time
 				# time.sleep(0.05)
-				try: 
-					os.makedirs("../../../tests/PRD_PRESSURE_PLATE/relevant_set/", exist_ok = True) 
-					print("Relevant Set Directory created successfully") 
-				except OSError as error: 
-					print("Relevant Set Directory can not be created")
-				from PIL import Image
-				im = Image.fromarray(images[-1])
-				im.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/relevant_set/"+"pp_4p_"+str(step))+".pdf")
+				# try: 
+				# 	os.makedirs("../../../tests/PRD_PRESSURE_PLATE/relevant_set/", exist_ok = True) 
+				# 	print("Relevant Set Directory created successfully") 
+				# except OSError as error: 
+				# 	print("Relevant Set Directory can not be created")
+				# from PIL import Image
+				# im = Image.fromarray(images[-1])
+				# im.save(os.path.join("../../../tests/PRD_PRESSURE_PLATE/relevant_set/"+"pp_4p_"+str(step))+".pdf")
 
 				
 				if all(dones) or step == self.max_time_steps:
@@ -351,12 +351,13 @@ class MAPPO:
 
 		for episode in range(1, self.max_episodes+1):
 			episode_reward = 0
+			episode_goal_reached = 0
 
 			states, agent_global_positions, agent_ids = self.env.reset()
 
 			for step in range(1, self.max_time_steps+1):
 
-				actions = self.agents.get_action(states_actor)
+				actions = self.agents.get_action(states, agent_global_positions, agent_ids)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):

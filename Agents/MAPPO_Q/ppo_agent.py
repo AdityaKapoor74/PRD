@@ -324,8 +324,7 @@ class PPOAgent:
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 
-		torch. set_printoptions(profile="full")
-		print(weights_value_old)
+		torch.set_printoptions(profile="full")
 		self.identify_relevant_set(weights_value_old)
 		
 
@@ -594,10 +593,6 @@ class PPOAgent:
 
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
-
-		torch. set_printoptions(profile="full")
-		print(weights_value_old)
-		self.identify_relevant_set(weights_value_old)
 		
 
 		if self.value_normalization:
@@ -605,18 +600,9 @@ class PPOAgent:
 		
 		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
 
-		value_loss_batch = 0
-		policy_loss_batch = 0
-		entropy_batch = 0
-		value_weights_batch = None
-		grad_norm_value_batch = 0
-		grad_norm_policy_batch = 0
-		agent_groups_over_episode_batch = 0
-		avg_agent_group_over_episode_batch = 0
-		threshold_batch = 0
-
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
+		policy_grad_batch = []
 		for _ in range(self.n_epochs):
 
 			Value, Q_value, weights_value = self.critic_network(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
@@ -665,8 +651,6 @@ class PPOAgent:
 				if param.requires_grad:
 					policy_grad.append(param.grad.flatten())
 			policy_grad_batch.append(torch.cat(policy_grad))
-			# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
-			# self.policy_optimizer.step()
 
 
 
