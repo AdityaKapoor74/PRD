@@ -24,13 +24,9 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_run"+str(i)
 		test_num = "COMA"
-		env_name = "crossing_partially_coop"
+		env_name = "crossing_team_greedy"
 
 		dictionary = {
-				"policy_type": "MLP", # MLP/ GAT
-				"policy_attention_heads": 0,
-				"critic_type": "Transformer", # Transformer/ DualTransformer
-				"critic_attention_heads": 0,
 				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
 				"actor_dir": "../../../tests/COMA_"+env_name+"/models/actor_networks/run"+str(i)+"/",
 				"gif_dir": "../../../tests/COMA_"+env_name+"/gif_dir/run"+str(i)+"/",
@@ -39,8 +35,10 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"iteration": i,
-				"value_lr": 5e-4, 
-				"policy_lr": 5e-4,
+				"value_lr": 1e-3, 
+				"policy_lr": 7e-4,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"critic_entropy_pen": 0.0,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.02,
@@ -58,8 +56,8 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
-				"max_time_steps": 100,
+				"max_episodes": 80000,
+				"max_time_steps": 50,
 				"norm_adv": False,
 				"norm_rew": False,
 			}

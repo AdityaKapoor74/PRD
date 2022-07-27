@@ -11,10 +11,6 @@ class MACOMA:
 
 	def __init__(self, env, dictionary):
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self.policy_type = dictionary["policy_type"]
-		self.critic_type = dictionary["critic_type"]
-		self.critic_attention_heads = dictionary["critic_attention_heads"]
-		self.policy_attention_heads = dictionary["policy_attention_heads"]
 		# self.device = "cpu"
 		self.env = env
 		self.gif = dictionary["gif"]
@@ -86,18 +82,18 @@ class MACOMA:
 
 	def update(self,trajectory,episode):
 
-		states_critic = torch.FloatTensor([sars[0] for sars in trajectory]).to(self.device)
-		next_states_critic = torch.FloatTensor([sars[1] for sars in trajectory]).to(self.device)
+		states_critic = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
+		next_states_critic = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
 
-		one_hot_actions = torch.FloatTensor([sars[2] for sars in trajectory]).to(self.device)
-		one_hot_next_actions = torch.FloatTensor([sars[3] for sars in trajectory]).to(self.device)
-		actions = torch.FloatTensor([sars[4] for sars in trajectory]).to(self.device)
+		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
+		one_hot_next_actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
 
-		states_actor = torch.FloatTensor([sars[5] for sars in trajectory]).to(self.device)
-		next_states_actor = torch.FloatTensor([sars[6] for sars in trajectory]).to(self.device)
+		states_actor = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
+		next_states_actor = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
 
-		rewards = torch.FloatTensor([sars[7] for sars in trajectory]).to(self.device)
-		dones = torch.FloatTensor([sars[8] for sars in trajectory]).to(self.device)
+		rewards = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[8] for sars in trajectory])).to(self.device)
 
 		self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
 		
@@ -199,7 +195,7 @@ class MACOMA:
 					one_hot_next_actions[i][act] = 1
 
 
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
 					collision_rate = [value[1] for value in rewards]
 					rewards = [value[0] for value in rewards]
 					episode_collision_rate += np.sum(collision_rate)
@@ -207,13 +203,13 @@ class MACOMA:
 				episode_reward += np.sum(rewards)
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
-				rewards = [np.sum(rewards)]*self.num_agents
+				rewards_ = [np.sum(rewards)]*self.num_agents
 
 
 				if self.learn:
 					if all(dones) or step == self.max_time_steps:
 
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
+						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards_,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
