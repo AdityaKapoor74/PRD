@@ -418,4 +418,4 @@ class MAPPO:
 		std = torch.std(sse)
 		policy_grad_var = torch.var(policy_grad_mat,dim=0)
 
-		return torch.sum(policy_grad_var).item(),std.item()
+		return torch.sum(policy_grad_var).item(), std.item()

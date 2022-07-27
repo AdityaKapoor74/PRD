@@ -1,4 +1,4 @@
-from mappo import MAPPO
+from maa2c import MAA2C
 
 from multiagent.environment import MultiAgentEnv
 import multiagent.scenarios as scenarios
@@ -20,60 +20,59 @@ def run_file(dictionary):
 
 
 if __name__ == '__main__':
-
+	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,6):
-		extension = "MAPPO_Q_Semi_Hard_Attn_run_"+str(i)
-		test_num = "PRD_2_MPE"
+		extension = "MAA2C_run_"+str(i)
+		test_num = "PRD_MAA2C" 
 		env_name = "crossing_team_greedy"
-		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "prd_above_threshold" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
-				"iteration": i,
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
-				"device": "gpu",
-				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.05,
-				"value_clip": 0.05,
-				"n_epochs": 5,
-				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, #1e-3
+				"iteration": i,
+				"device": "gpu",
+				"value_lr": 1e-3, #1e-3 
 				"policy_lr": 7e-4, #prd 1e-4
-				"entropy_pen": 0.0, #8e-3
-				"critic_weight_entropy_pen": 0.0,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
+				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen_min": 8e-3, #8e-3
+				"critic_entropy_pen": 0.0,
+				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
-				"gae_lambda": 0.95,
-				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.0,
+				"trace_decay": 0.98,
+				"lambda": 0.8, #0.8
+				"select_above_threshold": 0.05,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
-				"steps_to_take": 1000,
+				"threshold_max": 0.05,
+				"steps_to_take": 1000, 
+				"l1_pen": 0.0,
+				"l1_pen_min": 0.0,
+				"l1_pen_steps_to_take": 0,
 				"top_k": 0,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
-				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
-				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"model_path_value": " ",
+				"model_path_policy": " ",
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 80000,
 				"max_time_steps": 50,
 				"experiment_type": experiment_type,
+				"gae": True,
 				"norm_adv": False,
-				"norm_returns": False,
-				"value_normalization": False,
-				"parallel_training": False,
+				"norm_rew": False,
 			}
 		env = make_env(scenario_name=dictionary["env"],benchmark=False)
-		ma_controller = MAPPO(env,dictionary)
+		ma_controller = MAA2C(env,dictionary)
 		ma_controller.run()

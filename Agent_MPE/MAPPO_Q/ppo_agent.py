@@ -618,6 +618,13 @@ class PPOAgent:
 			
 			entropy_weights = -torch.mean(torch.sum(weights_value* torch.log(torch.clamp(weights_value, 1e-10,1.0)), dim=2))
 			critic_loss = torch.max(critic_loss_1, critic_loss_2) + self.critic_weight_entropy_pen*entropy_weights
+
+
+			# take gradient step
+			# self.critic_optimizer.zero_grad()
+			# critic_loss.backward()
+			# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
+			# self.critic_optimizer.step()
 			
 
 			self.policy_optimizer.zero_grad()
@@ -627,6 +634,9 @@ class PPOAgent:
 				if param.requires_grad:
 					policy_grad.append(param.grad.flatten())
 			policy_grad_batch.append(torch.cat(policy_grad))
+			# grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
+			# self.policy_optimizer.step()
+
 
 
 		# clear buffer

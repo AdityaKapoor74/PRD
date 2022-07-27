@@ -21,8 +21,6 @@ class RolloutBuffer:
 
 		
 		self.states_critic = []
-		self.values = []
-		self.qvalues = []
 	
 
 	def clear(self):
