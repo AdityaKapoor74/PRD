@@ -19,12 +19,12 @@ if __name__ == '__main__':
 				"extension":extension,
 				"iteration": i,
 				"device": "gpu",
-				"value_lr": 1e-3, #1e-3 
-				"policy_lr": 5e-4, #prd 1e-4
+				"value_lr": 7e-4, #1e-3 
+				"policy_lr": 7e-4, #prd 1e-4
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
-				"entropy_pen": 0.5, #8e-3
-				"entropy_pen_min": 0.5, #8e-3
+				"entropy_pen": 1.0, #8e-3
+				"entropy_pen_min": 1.0, #8e-3
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
