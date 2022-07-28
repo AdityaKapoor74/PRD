@@ -80,52 +80,6 @@ class A2CAgent:
 		# POLICY
 		self.policy_network = MLPPolicy(5, obs_dim, self.num_actions, self.num_agents, self.device).to(self.device)
 
-		if self.env_name == "paired_by_sharing_goals":
-			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
-			for i in range(self.num_agents):
-				self.relevant_set[i][self.num_agents-i-1] = 0
-
-			# here the relevant set is given value=0
-			self.relevant_set = torch.transpose(self.relevant_set,0,1)
-		elif self.env_name == "crossing_partially_coop":
-			team_size = 8
-			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
-			for i in range(self.num_agents):
-				for j in range(self.num_agents):
-					if i<team_size and j<team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=team_size and i<2*team_size and j>=team_size and j<2*team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=2*team_size and i<3*team_size and j>=2*team_size and j<3*team_size:
-						self.relevant_set[i][j] = 0
-					else:
-						break
-
-			# here the relevant set is given value=0
-			self.relevant_set = torch.transpose(self.relevant_set,0,1)
-		elif self.env_name == "crossing_team_greedy":
-			team_size = 4
-			self.relevant_set = torch.ones(self.num_agents,self.num_agents).to(self.device)
-			for i in range(self.num_agents):
-				for j in range(self.num_agents):
-					if i<team_size and j<team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=team_size and i<2*team_size and j>=team_size and j<2*team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=2*team_size and i<3*team_size and j>=2*team_size and j<3*team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=3*team_size and i<4*team_size and j>=3*team_size and j<4*team_size:
-						self.relevant_set[i][j] = 0
-					elif i>=4*team_size and i<5*team_size and j>=4*team_size and j<5*team_size:
-						self.relevant_set[i][j] = 0
-					else:
-						break
-
-
-		self.greedy_policy = torch.zeros(self.num_agents,self.num_agents).to(self.device)
-		for i in range(self.num_agents):
-			self.greedy_policy[i][i] = 1
-
 
 		if dictionary["load_models"]:
 			# Loading models
@@ -237,11 +191,6 @@ class A2CAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
 
-		if self.env_name in ["crossing_partially_coop", "paired_by_sharing_goals", "crossing_team_greedy"]:
-			self.comet_ml.log_metric('Relevant Set Error Rate',self.plotting_dict["relevant_set_error_rate"].item(),episode)
-			self.comet_ml.log_metric('Relevant Set Error Percentage',self.plotting_dict["relevant_set_error_rate"].item()*100.0,episode)
-			self.error_rate.append(self.plotting_dict["relevant_set_error_rate"].item())
-
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
 				agent_name = "agent"+str(i)
@@ -259,7 +208,7 @@ class A2CAgent:
 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, V_values, target_V_values, rewards, dones, weights):
+	def calculate_value_loss(self, V_values, target_V_values, rewards, dones, weights, next_states, next_agent_global_positions, agent_ids, one_hot_next_actions):
 		discounted_rewards = None
 		next_probs = None
 
@@ -269,8 +218,8 @@ class A2CAgent:
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 			Value_target = discounted_rewards
 		elif self.critic_loss_type == "TD_1":
-			next_probs, _ = self.policy_network.forward(next_states_actor)
-			V_values_next, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			next_probs, _ = self.policy_network(next_states, next_agent_global_positions, agent_ids)
+			V_values_next, _ = self.target_critic_network.forward(next_states, next_agent_global_positions, agent_ids, next_probs.detach(), one_hot_next_actions)
 			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 			Value_target = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 		elif self.critic_loss_type == "TD_lambda":
@@ -328,11 +277,7 @@ class A2CAgent:
 				mean_min_weight_value = torch.mean(min_weight_values)
 				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
-		elif "greedy" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
-		elif "relevant_set" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.relevant_set ,dim=-2)
-
+		
 		if "scaled" in self.experiment_type and episode > self.steps_to_take:
 			if "prd_soft_adv" in self.experiment_type:
 				advantage = advantage*self.num_agents
@@ -383,7 +328,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value, next_states, next_agent_global_positions, agent_ids, one_hot_next_actions)
 	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
@@ -415,11 +360,6 @@ class A2CAgent:
 
 		self.update_parameters()
 
-		if "prd" in self.experiment_type and self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop", "crossing_team_greedy"]:
-			relevant_set_error_rate = torch.mean(masking_advantage*self.relevant_set)
-		else:
-			relevant_set_error_rate = -1
-
 
 		self.plotting_dict = {
 		"value_loss": value_loss,
@@ -428,7 +368,6 @@ class A2CAgent:
 		"grad_norm_value":grad_norm_value,
 		"grad_norm_policy": grad_norm_policy,
 		"weights_value": weights_value,
-		"relevant_set_error_rate":relevant_set_error_rate,
 		}
 
 		if "threshold" in self.experiment_type:

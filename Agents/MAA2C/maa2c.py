@@ -186,8 +186,6 @@ class MAA2C:
 
 		for episode in range(1,self.max_episodes+1):
 
-			states = self.env.reset()
-
 			images = []
 
 			states, agent_global_positions, agent_ids = self.env.reset()
@@ -226,9 +224,6 @@ class MAA2C:
 
 				episode_reward += np.sum(rewards)
 
-				states = next_states
-				agent_global_positions = next_agent_global_positions
-
 
 				if self.learn:
 					trajectory.append([states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones])
@@ -245,6 +240,9 @@ class MAA2C:
 							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
 						break
+
+				states = next_states
+				agent_global_positions = next_agent_global_positions
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)

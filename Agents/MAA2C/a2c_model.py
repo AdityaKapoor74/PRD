@@ -124,10 +124,11 @@ class TransformerCritic(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
+		gain_leaky_relu = nn.init.calculate_gain('leaky_relu')
 		gain = nn.init.calculate_gain('tanh')
 
-		nn.init.orthogonal_(self.CNN[0].weight, gain=gain)
-		nn.init.orthogonal_(self.CNN[2].weight, gain=gain)
+		nn.init.orthogonal_(self.CNN[0].weight, gain=gain_leaky_relu)
+		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_leaky_relu)
 
 		nn.init.orthogonal_(self.state_embed[0].weight, gain=gain)
 		nn.init.orthogonal_(self.state_act_pol_embed[0].weight, gain=gain)
