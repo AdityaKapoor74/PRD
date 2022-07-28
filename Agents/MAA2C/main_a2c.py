@@ -21,8 +21,8 @@ if __name__ == '__main__':
 				"device": "gpu",
 				"value_lr": 3e-4, #1e-3 
 				"policy_lr": 3e-4, #prd 1e-4
-				"grad_clip_critic": 0.5,
-				"grad_clip_actor": 0.5,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"entropy_pen": 8e-1, #8e-3
 				"entropy_pen_min": 8e-1, #8e-3
 				"critic_entropy_pen": 0.0,
