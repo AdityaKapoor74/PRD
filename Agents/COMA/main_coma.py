@@ -20,7 +20,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"iteration": i,
 				"value_lr": 1e-3, 
-				"policy_lr": 7e-4,
+				"policy_lr": 1e-3,
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"critic_entropy_pen": 0.0,
