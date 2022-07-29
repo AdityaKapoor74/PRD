@@ -24,7 +24,7 @@ if __name__ == '__main__':
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"critic_entropy_pen": 0.0,
-				"epsilon_start": 1.0,
+				"epsilon_start": 0.5,
 				"epsilon_end": 0.1,
 				"epsilon_episode_steps": 20000,
 				"target_critic_update": 50,
