@@ -19,7 +19,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"iteration": i,
-				"value_lr": 1e-3, 
+				"value_lr": 7e-4, 
 				"policy_lr": 7e-4,
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
