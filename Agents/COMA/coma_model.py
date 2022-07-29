@@ -8,15 +8,21 @@ import math
 
 
 class MLPPolicy(nn.Module):
-	def __init__(self,obs_input_dim, num_agents, num_actions, device):
+	def __init__(self, in_channels, obs_input_dim, num_actions, num_agents, device):
 		super(MLPPolicy,self).__init__()
 
 		self.name = "MLPPolicy"
 		self.num_agents = num_agents		
 		self.device = device
 
+		self.Policy_CNN = nn.Sequential(
+			nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=0, bias=True),
+			nn.LeakyReLU(),
+			nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=0, bias=True),
+			nn.LeakyReLU()
+			)
 		self.Policy_MLP = nn.Sequential(
-			nn.Linear(obs_input_dim, 128),
+			nn.Linear(32+obs_input_dim*self.num_agents, 128),
 			nn.Tanh(),
 			nn.Linear(128, 64),
 			nn.Tanh(),
@@ -30,13 +36,25 @@ class MLPPolicy(nn.Module):
 		gain = nn.init.calculate_gain('tanh')
 		gain_last_layer = nn.init.calculate_gain('tanh', 0.01)
 
+		nn.init.orthogonal_(self.Policy_CNN[0].weight, gain=gain)
+		nn.init.orthogonal_(self.Policy_CNN[2].weight, gain=gain)
+
 		nn.init.orthogonal_(self.Policy_MLP[0].weight, gain=gain)
 		nn.init.orthogonal_(self.Policy_MLP[2].weight, gain=gain)
 		nn.init.orthogonal_(self.Policy_MLP[4].weight, gain=gain_last_layer)
 
 
-	def forward(self, local_observations):
-		return self.Policy_MLP(local_observations)
+	def forward(self, local_observations, agent_global_positions, agent_one_hot_encoding):
+		agent_locs_ids = torch.cat([agent_global_positions, agent_one_hot_encoding], dim=-1)
+		agent_states_shape = local_observations.shape
+		intermediate_output = self.Policy_CNN(local_observations.reshape(-1,agent_states_shape[-3],agent_states_shape[-2],agent_states_shape[-1])).reshape(local_observations.shape[0], -1)
+		if agent_states_shape[0] == self.num_agents:
+			states_aug = torch.stack([torch.roll(agent_locs_ids,-i,0) for i in range(self.num_agents)], dim=0).transpose(1,0)
+			intermediate_output = torch.cat([intermediate_output.reshape(self.num_agents,-1), states_aug.reshape(self.num_agents, -1)], dim=-1).to(self.device)
+		else:
+			states_aug = torch.stack([torch.roll(agent_locs_ids,-i,1) for i in range(self.num_agents)], dim=0).transpose(1,0)
+			intermediate_output = torch.cat([intermediate_output.reshape(agent_states_shape[0],agent_states_shape[1],-1), states_aug.reshape(agent_locs_ids.shape[0],self.num_agents,-1)], dim=-1).to(self.device)
+		return self.Policy_MLP(intermediate_output)
 
 
 '''
@@ -47,7 +65,7 @@ class TransformerCritic(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, device):
+	def __init__(self, in_channels, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, device):
 		super(TransformerCritic, self).__init__()
 		
 		self.name = "TransformerCritic"
@@ -56,8 +74,21 @@ class TransformerCritic(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 
-		self.state_act_embed_attn = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
-		self.state_embed_attn = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
+		self.CNN = nn.Sequential(
+			nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=0, bias=True),
+			nn.LeakyReLU(),
+			nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=0, bias=True),
+			nn.LeakyReLU()
+			)
+
+		self.state_act_embed_attn = nn.Sequential(
+			nn.Linear(32+obs_act_input_dim, 128), 
+			nn.LeakyReLU()
+			)
+		self.state_embed_attn = nn.Sequential(
+			nn.Linear(32+obs_input_dim, 128), 
+			nn.LeakyReLU()
+			)
 		self.key_layer = nn.Linear(128, obs_act_output_dim, bias=True)
 		self.query_layer = nn.Linear(128, obs_output_dim, bias=True)
 		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=True)
@@ -76,34 +107,41 @@ class TransformerCritic(nn.Module):
 
 		# ********************************************************************************************************
 		# EMBED S of agent whose Q value is being est
-		self.state_embed_q = nn.Sequential(nn.Linear(obs_input_dim, obs_output_dim), nn.LeakyReLU())
+		self.state_embed_q = nn.Sequential(nn.Linear(32+obs_input_dim, obs_output_dim), nn.LeakyReLU())
 		# FCN FINAL LAYER TO GET VALUES
 		self.final_value_layers = nn.Sequential(
-												nn.Linear(final_input_dim, 64, bias=True),
-												nn.LeakyReLU(),
-												nn.Linear(64, final_output_dim, bias=True)
-												)
+			nn.Linear(final_input_dim, 64, bias=True),
+			nn.LeakyReLU(),
+			nn.Linear(64, final_output_dim, bias=True)
+			)
 		# ********************************************************************************************************
 		self.reset_parameters()
 
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain_leaky = nn.init.calculate_gain('leaky_relu')
+		gain_leaky_relu = nn.init.calculate_gain('leaky_relu')
 
-		nn.init.xavier_uniform_(self.state_act_embed_attn[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.state_embed_attn[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.state_embed_q[0].weight, gain=gain_leaky)
+		nn.init.orthogonal_(self.CNN[0].weight, gain=gain_leaky_relu)
+		nn.init.orthogonal_(self.CNN[2].weight, gain=gain_leaky_relu)
+
+		nn.init.xavier_uniform_(self.state_act_embed_attn[0].weight, gain=gain_leaky_relu)
+		nn.init.xavier_uniform_(self.state_embed_attn[0].weight, gain=gain_leaky_relu)
+		nn.init.xavier_uniform_(self.state_embed_q[0].weight, gain=gain_leaky_relu)
 
 		nn.init.xavier_uniform_(self.key_layer.weight)
 		nn.init.xavier_uniform_(self.query_layer.weight)
 		nn.init.xavier_uniform_(self.attention_value_layer.weight)
 
-		nn.init.xavier_uniform_(self.final_value_layers[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_value_layers[2].weight, gain=gain_leaky)
+		nn.init.xavier_uniform_(self.final_value_layers[0].weight, gain=gain_leaky_relu)
+		nn.init.xavier_uniform_(self.final_value_layers[2].weight, gain=gain_leaky_relu)
 
 
-	def forward(self, states, actions):
+	def forward(self, agent_states, agent_global_positions, agent_one_hot_encoding, policies, actions):
+		agent_pose_id = torch.cat([agent_global_positions, agent_one_hot_encoding], dim=-1).to(self.device)
+		agent_states_shape = agent_states.shape
+		states = self.CNN(agent_states.reshape(-1,agent_states_shape[-3],agent_states_shape[-2],agent_states_shape[-1]))
+		states = torch.cat([states.reshape(agent_states_shape[0], agent_states_shape[1],-1), agent_pose_id], dim=-1).to(self.device)
 		state_actions = torch.cat([states, actions], dim=-1)
 		state_embed_attn = self.state_embed_attn(states)
 		state_act_embed_attn = self.state_act_embed_attn(state_actions)

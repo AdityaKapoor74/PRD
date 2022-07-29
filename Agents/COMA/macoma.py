@@ -20,7 +20,7 @@ class MACOMA:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = env.n
+		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -52,9 +52,8 @@ class MACOMA:
 				print("Actor Directory can not be created")
 
 			
-			self.critic_model_path = critic_dir+str(self.date_time)+'VN_ATN_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_critic_entropy_pen'+str(self.agents.critic_entropy_pen)
-			self.actor_model_path = actor_dir+str(self.date_time)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_GradNorm0.5_critic_entropy_pen'+str(self.agents.critic_entropy_pen)
-			
+			self.critic_model_path = critic_dir+"critic"
+			self.actor_model_path = actor_dir+"actor"
 
 		if self.gif:
 			gif_dir = dictionary["gif_dir"]
@@ -63,7 +62,7 @@ class MACOMA:
 				print("Gif Directory created successfully") 
 			except OSError as error: 
 				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+str(self.date_time)+'VN_SAT_FCN_lr'+str(self.agents.value_lr)+'_PN_ATN_FCN_lr'+str(self.agents.policy_lr)+'_GradNorm0.5_critic_entropy_pen'+str(self.agents.critic_entropy_pen)+'.gif'
+			self.gif_path = gif_dir+self.env_name+'.gif'
 
 
 		if self.eval_policy:
@@ -75,40 +74,23 @@ class MACOMA:
 				print("Policy Eval Directory can not be created")
 
 
-	def get_actions(self,states):
-		actions = self.agents.get_action(states)
-		return actions
-
-
 	def update(self,trajectory,episode):
 
-		states_critic = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
-		next_states_critic = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		states = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
+		agent_global_positions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		agent_ids = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
 
-		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
-		one_hot_next_actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		next_states = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
+		next_agent_global_positions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
 
-		states_actor = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
-		next_states_actor = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
+		one_hot_actions = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
+		one_hot_next_actions = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
 
-		rewards = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[8] for sars in trajectory])).to(self.device)
+		rewards = torch.FloatTensor(np.array([sars[8] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[9] for sars in trajectory])).to(self.device)
 
-		self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
-		
-
-	def split_states(self,states):
-		states_critic = []
-		states_actor = []
-		for i in range(self.num_agents):
-			states_critic.append(states[i][0])
-			states_actor.append(states[i][1])
-
-		states_critic = np.asarray(states_critic)
-		states_actor = np.asarray(states_actor)
-
-		return states_critic,states_actor
+		self.agents.update(states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode)
 
 
 
@@ -157,11 +139,9 @@ class MACOMA:
 
 		for episode in range(1,self.max_episodes+1):
 
-			states = self.env.reset()
+			states, agent_global_positions, agent_ids = self.env.reset()
 
 			images = []
-
-			states_critic,states_actor = self.split_states(states)
 
 			trajectory = []
 			episode_reward = 0
@@ -175,41 +155,34 @@ class MACOMA:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.get_actions(states_actor)
+						actions = self.agents.get_action(states, agent_global_positions, agent_ids, greedy=True)
 				else:
-					actions = self.get_actions(states_actor)
+					actions = self.agents.get_action(states, agent_global_positions, agent_ids)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				next_states,rewards,dones,info = self.env.step(actions)
-				next_states_critic,next_states_actor = self.split_states(next_states)
+				obs,rewards,dones,info = self.env.step(actions)
+				next_states, next_agent_global_positions, agent_ids = obs
 
 				# next actions
-				next_actions = self.get_actions(next_states_actor)
+				with torch.no_grad():
+					next_actions = self.agents.get_action(next_states, next_agent_global_positions, agent_ids)
 
 
 				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(next_actions):
 					one_hot_next_actions[i][act] = 1
 
-
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
-					collision_rate = [value[1] for value in rewards]
-					rewards = [value[0] for value in rewards]
-					episode_collision_rate += np.sum(collision_rate)
-
 				episode_reward += np.sum(rewards)
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
 				rewards_ = [np.sum(rewards)]*self.num_agents
 
-
 				if self.learn:
+					trajectory.append([states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones])
 					if all(dones) or step == self.max_time_steps:
-
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards_,dones])
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
@@ -219,18 +192,12 @@ class MACOMA:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop"]:
-								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
 						break
-					else:
-						trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
-						states_critic,states_actor = next_states_critic,next_states_actor
-						states = next_states
 
-				else:
-					states_critic,states_actor = next_states_critic,next_states_actor
-					states = next_states
+				states = next_states
+				agent_global_positions = next_agent_global_positions
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
@@ -241,9 +208,6 @@ class MACOMA:
 				if self.eval_policy:
 					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
-						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-
 
 			if not(episode%self.save_model_checkpoint) and self.save_model:	
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')

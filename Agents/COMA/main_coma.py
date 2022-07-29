@@ -1,22 +1,6 @@
 from macoma import MACOMA
-
-from multiagent.environment import MultiAgentEnv
-import multiagent.scenarios as scenarios
-
-def make_env(scenario_name, benchmark=False):
-	scenario = scenarios.load(scenario_name + ".py").Scenario()
-	world = scenario.make_world()
-	if benchmark:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
-	else:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env
-
-
-def run_file(dictionary):
-	env = make_env(scenario_name=dictionary["env"],benchmark=False)
-	ma_controller = MAA2C(env,dictionary)
-	ma_controller.run()
+import pressureplate
+import gym
 
 
 if __name__ == '__main__':
@@ -24,7 +8,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_run"+str(i)
 		test_num = "COMA"
-		env_name = "crossing_team_greedy"
+		env_name = "pressureplate-linear-4p-v0"
 
 		dictionary = {
 				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
@@ -54,13 +38,13 @@ if __name__ == '__main__':
 				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": True
 				"learn":True,
 				"max_episodes": 80000,
 				"max_time_steps": 50,
 				"norm_adv": False,
 				"norm_rew": False,
 			}
-		env = make_env(scenario_name=dictionary["env"],benchmark=False)
+		env = gym.make(env_name)
 		ma_controller = MACOMA(env,dictionary)
 		ma_controller.run()

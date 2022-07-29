@@ -30,7 +30,7 @@ class COMAAgent:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		
-		self.num_agents = self.env.n
+		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
 
 		self.epsilon_start = dictionary["epsilon_start"]
@@ -43,31 +43,16 @@ class COMAAgent:
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
-		obs_dim = 2*3 + 1
-		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
-		self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
+		obs_dim = self.num_agents+2
+		self.critic_network = TransformerCritic(5, obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
+		self.target_critic_network = TransformerCritic(5, obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
 
 		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		# MLP POLICY
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
-		self.policy_network = MLPPolicy(obs_input_dim, self.num_agents, self.num_actions, self.device).to(self.device)
-
-		if self.env_name == "color_social_dilemma":
-			self.relevant_set = torch.zeros(self.num_agents, self.num_agents).to(self.device)
-			for i in range(self.num_agents):
-				self.relevant_set[i][i] = 1
-				if i < self.num_agents//2:
-					for j in range(self.num_agents//2, self.num_agents):
-						self.relevant_set[i][j] = 1
-				else:
-					for j in range(0,self.num_agents//2):
-						self.relevant_set[i][j] = 1
-
-			self.relevant_set = torch.transpose(self.relevant_set,0,1)
-
+		self.policy_network = MLPPolicy(5, obs_dim, self.num_actions, self.num_agents, self.device).to(self.device)
 
 		if dictionary["load_models"]:
 			# Loading models
@@ -91,12 +76,18 @@ class COMAAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self,state):
-		state = torch.FloatTensor(state).to(self.device)
-		dists = self.policy_network.forward(state)
-		dists = (1-self.epsilon)*dists + self.epsilon/self.num_actions
-		index = [Categorical(dist).sample().cpu().detach().item() for dist in dists]
-		return index
+	def get_action(self, state_policy, agent_global_positions, agent_ids, greedy=False):
+		with torch.no_grad():
+			state_policy = torch.FloatTensor(state_policy).to(self.device)
+			agent_global_positions = torch.FloatTensor(agent_global_positions).to(self.device)
+			agent_ids = torch.Tensor(agent_ids).to(self.device)
+			dists = self.policy_network(state_policy, agent_global_positions, agent_ids)
+			if greedy:
+				actions = [dist.argmax().detach().cpu().item() for dist in dists]
+			else:
+				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+
+			return actions
 
 
 	def calculate_advantages(self, Q_values, baseline):
@@ -187,17 +178,17 @@ class COMAAgent:
 			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):		
+	def update(self, states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode):		
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		probs = self.policy_network.forward(states_actor)
+		probs = self.policy_network(states, agent_global_positions, agent_ids)
 
-		Q_values, weights_value = self.critic_network.forward(states_critic, one_hot_actions)
+		Q_values, weights_value = self.critic_network(states, agent_global_positions, agent_ids, probs.detach(), one_hot_actions)
 		Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 		V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
 	
-		target_Q_values, target_weights_value = self.target_critic_network.forward(states_critic, one_hot_actions)
+		target_Q_values, target_weights_value = self.target_critic_network(states, agent_global_positions, agent_ids, probs.detach(), one_hot_actions)
 		target_Q_values_act_chosen = torch.sum(target_Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 
 		value_loss = self.calculate_value_loss(Q_values_act_chosen, target_Q_values_act_chosen, rewards, dones, weights_value)
