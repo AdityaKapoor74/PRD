@@ -23,16 +23,16 @@ if __name__ == '__main__':
 				"policy_lr": 3e-4, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
-				"entropy_pen": 5e-1, #8e-3
-				"entropy_pen_min": 5e-1, #8e-3
+				"entropy_pen": 4e-1, #8e-3
+				"entropy_pen_min": 4e-1, #8e-3
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.07,
+				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.07,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000, 
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
