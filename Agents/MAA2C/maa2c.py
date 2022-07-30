@@ -145,7 +145,6 @@ class MAA2C:
 
 			trajectory = []
 			episode_reward = 0
-			episode_collision_rate = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
@@ -200,7 +199,6 @@ class MAA2C:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.collision_rates.append(episode_collision_rate)
 
 			if episode > self.save_model_checkpoint and episode%self.save_model_checkpoint:
 				if self.eval_policy:
