@@ -54,7 +54,7 @@ class COMAAgent:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		obs_input_dim = 6*self.num_agents+8*self.num_opponents
-		self.policy_network = MLPPolicy(obs_input_dim, self.num_agents, self.num_actions, self.device).to(self.device)
+		self.policy_network = MLPPolicy(obs_input_dim, self.num_actions, self.num_agents, self.device).to(self.device)
 
 
 		if dictionary["load_models"]:
