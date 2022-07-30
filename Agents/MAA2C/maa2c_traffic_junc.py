@@ -31,19 +31,6 @@ class MAA2C:
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
-		self.weight_dictionary = {}
-
-		for i in range(self.num_agents):
-			agent_name = 'agent %d' % i
-			self.weight_dictionary[agent_name] = {}
-			for j in range(self.num_agents):
-				agent_name_ = 'agent %d' % j
-				self.weight_dictionary[agent_name][agent_name_] = 0
-
-		self.agent_group = {}
-		for i in range(self.num_agents):
-			agent_name = 'agent'+str(i)
-			self.agent_group[agent_name] = 0
 
 		self.comet_ml = None
 		if self.save_comet_ml_plot:
