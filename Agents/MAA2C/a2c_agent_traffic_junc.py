@@ -218,7 +218,7 @@ class A2CAgent:
 			Value_target = discounted_rewards
 		elif self.critic_loss_type == "TD_1":
 			next_probs, _ = self.policy_network(next_states_actor)
-			V_values_next, _ = self.target_critic_network(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			V_values_next, _ = self.critic_network(next_states_critic, next_probs.detach(), one_hot_next_actions)
 			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 			Value_target = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 		elif self.critic_loss_type == "TD_lambda":
