@@ -23,25 +23,25 @@ def run_file(dictionary):
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAA2C_Q_run_"+str(i)
+		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "crossing_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
-				"update_type": "a2c",
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"update_type": "ppo",
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.05,
-				"value_clip": 0.05,
-				"n_epochs": 5,
+				"policy_clip": 0.2,
+				"value_clip": 0.2,
+				"n_epochs": 10,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
