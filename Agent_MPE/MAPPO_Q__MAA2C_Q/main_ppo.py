@@ -25,7 +25,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAA2C_Q_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_team_greedy"
+		env_name = "crossing_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
@@ -57,19 +57,19 @@ if __name__ == '__main__':
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
-				"top_k": 5,
+				"top_k": 0,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path_value": "./critic_epsiode1000.pt", #"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "./actor_epsiode1000.pt",#"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
 				"eval_policy": True,
-				"save_model": False,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 80000,
-				"max_time_steps": 50,
+				"max_episodes": 20000,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
