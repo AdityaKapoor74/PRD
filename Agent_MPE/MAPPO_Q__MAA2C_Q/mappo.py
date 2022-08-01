@@ -174,11 +174,12 @@ class MAPPO:
 				next_states, rewards, dones, info = self.env.step(actions)
 				next_states_critic, next_states_actor = self.split_states(next_states)
 
-				collision_rate = [value[1] for value in rewards]
-				goal_reached = [value[2] for value in rewards]
-				rewards = [value[0] for value in rewards]
-				episode_collision_rate += np.sum(collision_rate)
-				episode_goal_reached += np.sum(goal_reached)
+				if "crossing" in self.env_name:
+					collision_rate = [value[1] for value in rewards]
+					goal_reached = [value[2] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
+					episode_goal_reached += np.sum(goal_reached)
 
 
 				# if step == self.max_time_steps:
@@ -207,20 +208,23 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+						if "crossing" in self.env_name:
+							self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
 					break
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.collision_rates.append(episode_collision_rate)
+				if "crossing" in self.env_name:
+					self.collision_rates.append(episode_collision_rate)
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				if "crossing" in self.env_name:
+					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
@@ -242,10 +246,11 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+				if "crossing" in self.env_name:
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
-				if "prd" in self.experiment_type:
+				if "prd" in self.experiment_type and "crossing" in self.env_name:
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_relevant_agents_in_relevant_set"), np.array(self.agents.num_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_non_relevant_agents_in_relevant_set"), np.array(self.agents.num_non_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"false_positive_rate"), np.array(self.agents.false_positive_rate), allow_pickle=True, fix_imports=True)
