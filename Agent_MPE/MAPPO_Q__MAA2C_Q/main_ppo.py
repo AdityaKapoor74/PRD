@@ -22,7 +22,7 @@ def run_file(dictionary):
 '''
 crossing_greedy
 PRD_MAA2C_Q: value_lr = 1e-3; policy_lr = 7e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5
-PRD_MAPPO_Q: value_lr = 1e-3; policy_lr = 7e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.2; policy_clip = 0.2
+PRD_MAPPO_Q: value_lr = 1e-3; policy_lr = 7e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05
 '''
 
 
@@ -69,10 +69,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "./critic_epsiode1000.pt", #"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "./actor_epsiode1000.pt",#"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": False,
-				"save_model": False,
+				"eval_policy": True,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
 				"max_time_steps": 100,
