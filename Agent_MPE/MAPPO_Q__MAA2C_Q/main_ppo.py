@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
 		dictionary = {
 				"iteration": i,
-				"update_type": "a2c",
+				"update_type": "ppo",
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"device": "gpu",
