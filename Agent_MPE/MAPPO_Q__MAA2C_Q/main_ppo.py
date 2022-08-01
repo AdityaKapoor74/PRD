@@ -22,21 +22,21 @@ def run_file(dictionary):
 '''
 crossing_greedy
 PRD_MAA2C_Q: value_lr = 1e-3; policy_lr = 7e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5
-PRD_MAPPO_Q: value_lr = 1e-3; policy_lr = 7e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05
+PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; threshold = 0.1
 '''
 
 
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAA2C_Q_run_"+str(i)
+		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "crossing_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
-				"update_type": "a2c",
+				"update_type": "ppo",
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",
@@ -52,8 +52,8 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, #1e-3
-				"policy_lr": 7e-4, #prd 1e-4
+				"value_lr": 5e-4, #1e-3
+				"policy_lr": 3e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
