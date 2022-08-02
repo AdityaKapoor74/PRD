@@ -18,13 +18,21 @@ def run_file(dictionary):
 	ma_controller = MAA2C(env,dictionary)
 	ma_controller.run()
 
+'''
+crossing_team_greedy
+value_lr = 1e-3; policy_lr = 7e-4; policy_clip = 0.05; value_clip = 0.05; entropy_pen = 0.0; grad_clip_actor = 10.0; grad_clip_critic = 10.0
+
+crossing_greedy
+value_lr = 5e-4; policy_lr = 3e-4; policy_clip = 0.05; value_clip = 0.05; entropy_pen = 1e-3; grad_clip_actor = 10.0; grad_clip_critic = 10.0
+'''
+
 
 if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "MAPPO_Q_Semi_Hard_Attn_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_team_greedy"
+		env_name = "crossing_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
@@ -44,8 +52,8 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 1e-3, #1e-3
-				"policy_lr": 7e-4, #prd 1e-4
+				"value_lr": 5e-4, #1e-3
+				"policy_lr": 3e-4, #prd 1e-4
 				"entropy_pen": 0.0, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 

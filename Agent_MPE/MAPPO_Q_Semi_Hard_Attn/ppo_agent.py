@@ -84,9 +84,10 @@ class PPOAgent:
 		self.non_relevant_set = torch.ones(1,12,12).to(self.device) - self.relevant_set
 
 		print("EXPERIMENT TYPE", self.experiment_type)
-
-		self.critic_network = Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
-		self.critic_network_old = Q_network(obs_input_dim=2*3+1, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		# obs_input_dim = 2*3+1 # crossing_team_greedy
+		obs_input_dim = 2*3 # crossing_greedy
+		self.critic_network = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
+		self.critic_network_old = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
 			param.requires_grad_(False)
 		# COPY
@@ -95,7 +96,8 @@ class PPOAgent:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
+		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
+		obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
 		self.policy_network = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		self.policy_network_old = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():
@@ -229,14 +231,15 @@ class PPOAgent:
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
 
-			self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
-			self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)
-			self.num_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]).item())
-			self.num_non_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item())
-			# FPR = FP / (FP+TN)
-			FP = torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item()*self.num_agents
-			TN = torch.mean(self.plotting_dict["true_negatives"]).item()*self.num_agents
-			self.false_positive_rate.append(FP/(FP+TN))
+			if "crossing_team_greedy" == self.env_name:
+				self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
+				self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)
+				self.num_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]).item())
+				self.num_non_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item())
+				# FPR = FP / (FP+TN)
+				FP = torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item()*self.num_agents
+				TN = torch.mean(self.plotting_dict["true_negatives"]).item()*self.num_agents
+				self.false_positive_rate.append(FP/(FP+TN))
 
 		if "prd_top" in self.experiment_type:
 			self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
@@ -408,18 +411,19 @@ class PPOAgent:
 		avg_agent_group_over_episode_batch /= self.n_epochs
 		threshold_batch /= self.n_epochs
 
-		if "prd" in self.experiment_type:
+		if "prd" in self.experiment_type and "crossing_team_greedy" == self.env_name:
 			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
 			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
 			true_negatives = self.non_relevant_set*(1-masking_advantage)
-			if self.update_learning_rate_with_prd:
-				for g in self.policy_optimizer.param_groups:
-					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
-
 		else:
 			num_relevant_agents_in_relevant_set = None
 			num_non_relevant_agents_in_relevant_set = None
 			true_negatives = None
+
+		if "prd" in self.experiment_type:
+			if self.update_learning_rate_with_prd:
+				for g in self.policy_optimizer.param_groups:
+					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
 
 		self.update_parameters()
 
