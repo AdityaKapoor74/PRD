@@ -45,8 +45,8 @@ if __name__ == '__main__':
 		dictionary = {
 				"iteration": i,
 				"update_type": "ppo",
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
