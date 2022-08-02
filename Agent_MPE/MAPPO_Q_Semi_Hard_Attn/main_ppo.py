@@ -23,7 +23,7 @@ crossing_team_greedy
 value_lr = 1e-3; policy_lr = 7e-4; policy_clip = 0.05; value_clip = 0.05; entropy_pen = 0.0; grad_clip_actor = 10.0; grad_clip_critic = 10.0
 
 crossing_greedy
-value_lr = 5e-4; policy_lr = 3e-4; policy_clip = 0.05; value_clip = 0.05; entropy_pen = 1e-3; grad_clip_actor = 10.0; grad_clip_critic = 10.0
+value_lr = 5e-4; policy_lr = 3e-4; policy_clip = 0.05; value_clip = 0.05; entropy_pen = 0.0; grad_clip_actor = 10.0; grad_clip_critic = 10.0
 '''
 
 
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 80000,
+				"max_episodes": 20000,
 				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
