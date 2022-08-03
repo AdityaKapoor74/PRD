@@ -45,7 +45,7 @@ if __name__ == '__main__':
 				"iteration": i,
 				"device": "gpu",
 				"value_lr": 1e-3, #1e-3 
-				"policy_lr": 7e-4, #prd 1e-4
+				"policy_lr": 3e-4, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"entropy_pen": 0.0, #8e-3
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 				"lambda": 0.8, #0.8
 				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.05,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000, 
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
