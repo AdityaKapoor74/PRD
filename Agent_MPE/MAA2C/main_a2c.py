@@ -55,7 +55,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"trace_decay": 0.98,
 				"lambda": 0.8, #0.8
-				"select_above_threshold": 0.05,
+				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.05,
 				"steps_to_take": 1000, 
