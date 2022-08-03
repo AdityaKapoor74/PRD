@@ -67,18 +67,20 @@ class A2CAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		obs_dim = 2*3 + 1
+		# obs_input_dim = 2*3 + 1 # crossing team greedy
+		obs_input_dim = 2*3 # crossing_greedy
 		obs_output_dim = 128
-		obs_act_input_dim = obs_dim+self.num_actions
+		obs_act_input_dim = obs_input_dim+self.num_actions
 		obs_act_output_dim = 128
 		final_input_dim = 128
 		final_output_dim = 1
-		self.critic_network = TransformerCritic(obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.device).to(self.device)
+		self.critic_network = TransformerCritic(obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.device).to(self.device)
 
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
+		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing team greedy
+		obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
 		self.policy_network = MLPPolicy(obs_input_dim, self.num_agents, self.num_actions, self.device).to(self.device)
 
 		if self.env_name == "paired_by_sharing_goals":
