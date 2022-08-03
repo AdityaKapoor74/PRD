@@ -39,14 +39,14 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_greedy"
+		env_name = "crossing_team_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
 				"update_type": "ppo",
-				"grad_clip_critic": 0.5,
-				"grad_clip_actor": 0.5,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -55,13 +55,13 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.05,
 				"value_clip": 0.05,
-				"n_epochs": 5,
-				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 10,
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
 				"value_lr": 1e-3, #1e-3
-				"policy_lr": 3e-4, #prd 1e-4
+				"policy_lr": 7e-4, #prd 1e-4
 				"entropy_pen": 0.0, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
@@ -77,13 +77,13 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "./critic_epsiode1000.pt", #"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "./actor_epsiode1000.pt",#"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 100,
+				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
