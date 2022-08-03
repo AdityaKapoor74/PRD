@@ -23,7 +23,7 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,6):
 		extension = "MAA2C_run_"+str(i)
-		test_num = "PRD_MAA2C" 
+		test_num = "MPE" 
 		env_name = "crossing_team_greedy"
 		experiment_type = "prd_above_threshold" # prd_above_threshold_ascend, greedy, shared
 
