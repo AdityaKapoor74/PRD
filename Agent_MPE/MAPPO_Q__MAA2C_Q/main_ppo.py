@@ -36,7 +36,7 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 
-	for i in range(1,6):
+	for i in range(1,2):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "crossing_team_greedy"
@@ -45,8 +45,8 @@ if __name__ == '__main__':
 		dictionary = {
 				"iteration": i,
 				"update_type": "ppo",
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 100,
 				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
