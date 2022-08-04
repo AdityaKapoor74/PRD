@@ -83,6 +83,10 @@ class MAPPO:
 			except OSError as error: 
 				print("Policy Eval Directory can not be created")
 
+		import time
+		self.environment_time = 0.0
+		self.update_time = 0.0
+
 
 	def split_states(self,states):
 		states_critic = []
