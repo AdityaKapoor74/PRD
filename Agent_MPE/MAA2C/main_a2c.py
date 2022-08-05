@@ -70,7 +70,7 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": " ",
 				"model_path_policy": " ",
-				"eval_policy": True
+				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
