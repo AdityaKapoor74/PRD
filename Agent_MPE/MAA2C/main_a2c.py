@@ -55,8 +55,8 @@ if __name__ == '__main__':
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
-				"trace_decay": 0.98,
-				"lambda": 0.8, #0.8
+				"trace_decay": 0.95,
+				"lambda": 0.95, #0.8
 				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.1,
