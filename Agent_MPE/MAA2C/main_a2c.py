@@ -30,7 +30,7 @@ PRD_MAA2C_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
-	for i in range(1,2):
+	for i in range(1,3):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "MPE" 
 		env_name = "crossing_greedy"
@@ -70,12 +70,12 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": " ",
 				"model_path_policy": " ",
-				"eval_policy": False,
-				"save_model": False,
+				"eval_policy": True
+				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 100,
+				"max_episodes": 20000,
 				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"gae": True,
