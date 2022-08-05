@@ -50,7 +50,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"gif": True,
 				"gif_checkpoint":1,
-				"load_models": True,
+				"load_models": False,
 				"model_path_value": "../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_3/critic_networks/critic_epsiode20000.pt",
 				"model_path_policy": "../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_3/actor_networks/actor_epsiode20000.pt",
 				"eval_policy": True,
