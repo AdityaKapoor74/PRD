@@ -205,6 +205,7 @@ class PPOAgent:
 	def nstep_returns(self,values, rewards, dones):
 		deltas = self.calculate_deltas(values, rewards, dones)
 		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+		print(deltas.shape, advs.shape)
 		target_Vs = advs+values
 		return target_Vs
 
@@ -315,12 +316,11 @@ class PPOAgent:
 
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
-		
 
 		if self.value_normalization:
 			Q_values_old = torch.sum(self.critic_network_old.pop_art.denormalize(Q_values_old)*old_one_hot_actions, dim=-1).unsqueeze(-1)
 		
-		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+		Q_value_target = self.nstep_returns(torch.diagonal(Values_old, offset=0, dim1=-2, dim2=-1).unsqueeze(-1), rewards, dones).detach()
 
 		value_loss_batch = 0
 		policy_loss_batch = 0
