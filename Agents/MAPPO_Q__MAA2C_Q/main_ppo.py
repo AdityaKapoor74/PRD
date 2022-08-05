@@ -48,7 +48,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.05,
 				"steps_to_take": 1000,
 				"top_k": 0,
-				"gif": True,
+				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_PRESSURE_PLATE/models/pressureplate-linear-4p-v0_prd_above_threshold_MAPPO_Q_run_3/critic_networks/critic_epsiode20000.pt",
