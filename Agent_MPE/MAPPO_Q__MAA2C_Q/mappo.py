@@ -84,8 +84,6 @@ class MAPPO:
 				print("Policy Eval Directory can not be created")
 
 		self.environment_time = 0.0
-		self.update_time = 0.0
-
 
 	def split_states(self,states):
 		states_critic = []
@@ -132,8 +130,6 @@ class MAPPO:
 		clip.write_gif(fname, fps=fps)
 
 
-
-
 	def run(self):  
 		if self.eval_policy:
 			self.rewards = []
@@ -143,14 +139,8 @@ class MAPPO:
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
 
-		start_env_time = 0.0
-		end_env_time = 0.0
-		start_update_time = 0.0
-		end_update_time = 0.0
-
 		for episode in range(1,self.max_episodes+1):
 
-			# start_env_time = time.process_time()
 			states = self.env.reset()
 
 			images = []
@@ -178,7 +168,13 @@ class MAPPO:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
+				# start_env_time = time.process_time()
+
 				next_states, rewards, dones, info = self.env.step(actions)
+				
+				# end_env_time = time.process_time()
+				# self.environment_time += end_env_time - start_env_time
+
 				next_states_critic, next_states_actor = self.split_states(next_states)
 
 				if "crossing" in self.env_name:
@@ -205,10 +201,6 @@ class MAPPO:
 				states = next_states
 
 				if all(dones) or step == self.max_time_steps:
-
-					# end_env_time = time.process_time()
-					# self.environment_time += end_env_time - start_env_time
-
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 					print("*"*100)
@@ -245,10 +237,7 @@ class MAPPO:
 				if self.update_type == "ppo":
 					self.agents.update(episode) 
 				elif self.update_type == "a2c":
-					# start_update_time = time.process_time()
-					self.agents.a2c_update(episode) 
-					# end_update_time = time.process_time()
-					# self.update_time += end_update_time - start_update_time
+					self.agents.a2c_update(episode)
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -269,7 +258,8 @@ class MAPPO:
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"false_positive_rate"), np.array(self.agents.false_positive_rate), allow_pickle=True, fix_imports=True)
 
 		# print("Environment Time:", self.environment_time/self.max_episodes)
-		# print("Update Time:", self.update_time/self.max_episodes)
+		# print("Update Time:", self.agents.update_time/self.max_episodes)
+		# print("Forward Time:", self.agents.forward_time/self.max_episodes)
 
 	def test(self):
 		self.reward_data_points = []

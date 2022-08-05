@@ -47,7 +47,7 @@ if __name__ == '__main__':
 				"update_type": "ppo",
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
-				"device": "gpu",
+				"device": "cpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
@@ -55,8 +55,8 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.1,
 				"value_clip": 0.1,
-				"n_epochs": 10,
-				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 1,
+				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,

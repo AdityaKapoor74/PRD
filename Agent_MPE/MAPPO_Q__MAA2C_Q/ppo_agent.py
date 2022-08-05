@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -85,8 +86,8 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		obs_input_dim = 2*3+1 # crossing_team_greedy
-		# obs_input_dim = 2*3 # crossing_greedy
+		# obs_input_dim = 2*3+1 # crossing_team_greedy
+		obs_input_dim = 2*3 # crossing_greedy
 		# obs_input_dim = 2*4 # paired_agent
 		self.critic_network = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		self.critic_network_old = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
@@ -98,8 +99,8 @@ class PPOAgent:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
-		# obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
+		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
+		obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
 		# obs_input_dim = 2*3*self.num_agents # paired_agent
 		self.policy_network = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		self.policy_network_old = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
@@ -141,6 +142,9 @@ class PPOAgent:
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
+
+		self.update_time = 0.0
+		self.forward_time = 0.0
 
 
 	def get_action(self, state_policy, greedy=False):
@@ -295,7 +299,6 @@ class PPOAgent:
 
 		if self.threshold_max >= self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
-
 
 
 	def update(self,episode):
@@ -454,7 +457,6 @@ class PPOAgent:
 		if self.comet_ml is not None:
 			self.plot(episode)
 
-
 	def a2c_update(self,episode):
 		# convert list to tensor
 		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).to(self.device)
@@ -468,9 +470,17 @@ class PPOAgent:
 
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
+		# start_forward_time = time.process_time()
+		# print(torch.cuda.memory_stats())
+		# print("before forward pass", torch.cuda.memory_allocated()/1000000)
+		dists = self.policy_network(old_states_actor)
 
 		Value, Q_value, weights_value = self.critic_network(old_states_critic, old_probs.squeeze(-2), old_one_hot_actions)
 		Value = Value.reshape(-1,self.num_agents,self.num_agents)
+		# print("after forward pass", torch.cuda.memory_allocated()/1000000)
+
+		# end_forward_time = time.process_time()
+		# self.forward_time += end_forward_time - start_forward_time
 
 		Q_value_target = self.nstep_returns(Q_value, rewards, dones).detach()
 
@@ -480,7 +490,7 @@ class PPOAgent:
 			agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 
-		dists = self.policy_network(old_states_actor)
+		
 		probs = Categorical(dists.squeeze(0))
 
 		entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
@@ -497,16 +507,26 @@ class PPOAgent:
 			critic_loss = F.smooth_l1_loss(Q_value,Q_value_target) + self.critic_weight_entropy_pen*entropy_weights
 		
 
+		
+		# start_update_time = time.process_time()
+
+		# print("before backprop", torch.cuda.memory_allocated()/1000000)
 		# take gradient step
 		self.critic_optimizer.zero_grad()
 		critic_loss.backward()
 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
 		self.critic_optimizer.step()
 
+
 		self.policy_optimizer.zero_grad()
 		policy_loss.backward()
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
 		self.policy_optimizer.step()
+
+		# print("after backprop", torch.cuda.memory_allocated()/1000000)
+
+		# end_update_time = time.process_time()
+		# self.update_time += end_update_time - start_update_time
 
 
 			
