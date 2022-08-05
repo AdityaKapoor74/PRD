@@ -26,7 +26,7 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 0.0; grad_clip_cri
 
 crossing_team_greedy
 PRD_MAA2C_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; threshold = 0.05
-PRD_MAPPO_Q: value_lr = 1e-3; policy_lr = 7e-4; entropy_pen = 0.0; grad_clip_critic = 10.0; grad_clip_actor = 10.0; value_clip = 0.05; policy_clip = 0.05; ppo_epochs = 5; threshold = 0.05
+PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.1; policy_clip = 0.1; ppo_epochs = 1; threshold = 0.1; ppo_update_batch_size = 1
 
 paired_agent
 PRD_MAA2C_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; threshold = 0.1
@@ -36,7 +36,7 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 
-	for i in range(1,2):
+	for i in range(1,3):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "crossing_team_greedy"
@@ -55,8 +55,8 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_clip": 0.1,
 				"value_clip": 0.1,
-				"n_epochs": 2,
-				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 1,
+				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
@@ -77,12 +77,12 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "./critic_epsiode1000.pt", #"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "./actor_epsiode1000.pt",#"../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": False,
-				"save_model": False,
+				"eval_policy": True,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 80000,
 				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
