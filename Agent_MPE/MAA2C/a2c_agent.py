@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import torch
 import torch.optim as optim
 from torch.distributions import Categorical
@@ -149,6 +150,10 @@ class A2CAgent:
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
+
+
+		self.update_time = 0.0
+		self.forward_time = 0.0
 
 
 	def get_action(self,state):
@@ -365,6 +370,8 @@ class A2CAgent:
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
+		start_forward_time = time.process_time()
+
 		probs = self.policy_network.forward(states_actor)
 
 		'''
@@ -372,6 +379,9 @@ class A2CAgent:
 		'''
 		V_values, weights_value = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+
+		end_forward_time = time.process_time()
+		self.forward_time += end_forward_time - start_forward_time
 
 		target_V_values = V_values.clone()
 
@@ -397,7 +407,9 @@ class A2CAgent:
 	
 		policy_loss = self.calculate_policy_loss(probs, actions, entropy, advantage)
 		# # ***********************************************************************************
-			
+		
+		start_update_time = time.process_time()
+
 		# **********************************
 		self.critic_optimizer.zero_grad()
 		value_loss.backward(retain_graph=False)
@@ -409,6 +421,9 @@ class A2CAgent:
 		policy_loss.backward(retain_graph=False)
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
 		self.policy_optimizer.step()
+
+		end_update_time = time.process_time()
+		self.update_time += end_update_time - start_update_time
 
 
 		self.update_parameters()

@@ -3,6 +3,8 @@ from maa2c import MAA2C
 from multiagent.environment import MultiAgentEnv
 import multiagent.scenarios as scenarios
 
+import time
+
 def make_env(scenario_name, benchmark=False):
 	scenario = scenarios.load(scenario_name + ".py").Scenario()
 	world = scenario.make_world()
@@ -28,7 +30,7 @@ PRD_MAA2C_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
-	for i in range(1,6):
+	for i in range(1,2):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "MPE" 
 		env_name = "crossing_greedy"
@@ -44,8 +46,8 @@ if __name__ == '__main__':
 				"extension":extension,
 				"iteration": i,
 				"device": "gpu",
-				"value_lr": 1e-3, #1e-3 
-				"policy_lr": 3e-4, #prd 1e-4
+				"value_lr": 5e-4, #1e-3 
+				"policy_lr": 5e-4, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"entropy_pen": 0.0, #8e-3
@@ -68,13 +70,13 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": " ",
 				"model_path_policy": " ",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
-				"max_episodes": 20000,
-				"max_time_steps": 100,
+				"max_episodes": 100,
+				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"gae": True,
 				"norm_adv": False,
