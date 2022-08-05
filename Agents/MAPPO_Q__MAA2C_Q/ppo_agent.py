@@ -324,8 +324,8 @@ class PPOAgent:
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 
-		torch.set_printoptions(profile="full")
-		self.identify_relevant_set(weights_value_old)
+		# torch.set_printoptions(profile="full")
+		# self.identify_relevant_set(weights_value_old)
 		
 
 		if self.value_normalization:
