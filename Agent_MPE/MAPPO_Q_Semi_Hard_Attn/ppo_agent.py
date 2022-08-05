@@ -84,8 +84,8 @@ class PPOAgent:
 		self.non_relevant_set = torch.ones(1,12,12).to(self.device) - self.relevant_set
 
 		print("EXPERIMENT TYPE", self.experiment_type)
-		# obs_input_dim = 2*3+1 # crossing_team_greedy
-		obs_input_dim = 2*3 # crossing_greedy
+		obs_input_dim = 2*3+1 # crossing_team_greedy
+		# obs_input_dim = 2*3 # crossing_greedy
 		self.critic_network = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		self.critic_network_old = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		for param in self.critic_network_old.parameters():
@@ -96,8 +96,8 @@ class PPOAgent:
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
-		obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
+		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
+		# obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
 		self.policy_network = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		self.policy_network_old = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		for param in self.policy_network_old.parameters():

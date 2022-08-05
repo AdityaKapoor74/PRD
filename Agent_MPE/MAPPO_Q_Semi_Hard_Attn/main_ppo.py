@@ -20,10 +20,10 @@ def run_file(dictionary):
 
 '''
 crossing_team_greedy
-value_lr = 1e-3; policy_lr = 7e-4; policy_clip = 0.05; value_clip = 0.05; entropy_pen = 0.0; grad_clip_actor = 10.0; grad_clip_critic = 10.0
+PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.1; policy_clip = 0.1; ppo_epochs = 1; ppo_update_batch_size = 1
 
 crossing_greedy
-value_lr = 5e-4; policy_lr = 3e-4; policy_clip = 0.05; value_clip = 0.05; entropy_pen = 0.0; grad_clip_actor = 10.0; grad_clip_critic = 10.0
+PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.1; policy_clip = 0.1; ppo_epochs = 1; ppo_update_batch_size = 1
 '''
 
 
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAPPO_Q_Semi_Hard_Attn_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_greedy"
+		env_name = "crossing_team_greedy"
 		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
