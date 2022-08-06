@@ -508,7 +508,7 @@ class PPOAgent:
 
 		if "MAAC" in self.extension:
 			# regularizing the attention scores
-			critic_loss += 1e-3*torch.mean(scores)
+			critic_loss += 1e-3*torch.mean(scores**2)
 		
 
 		
