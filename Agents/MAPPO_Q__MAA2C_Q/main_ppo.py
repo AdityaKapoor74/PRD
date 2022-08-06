@@ -7,7 +7,7 @@ from mappo import MAPPO
 
 if __name__ == '__main__':
 
-	for i in range(1,6):
+	for i in range(1,3):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "combat"
 		env_name = "ma_gym:Combat-v0"
@@ -31,8 +31,8 @@ if __name__ == '__main__':
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 5e-4, #1e-3
-				"policy_lr": 5e-4, #prd 1e-4
+				"value_lr": 3e-4, #1e-3
+				"policy_lr": 3e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
