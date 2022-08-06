@@ -17,6 +17,7 @@ class PPOAgent:
 		):
 
 		self.env = env
+		self.extension = dictionary["extension"]
 		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
 		self.test_num = dictionary["test_num"]
 		self.env_name = dictionary["env"]
@@ -279,7 +280,7 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
 
 
-		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old, scores_old = self.critic_network_old(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 
@@ -302,7 +303,7 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
+			Value, Q_value, weights_value, scores = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
@@ -435,7 +436,7 @@ class PPOAgent:
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 
-		Value, Q_value, weights_value = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
+		Value, Q_value, weights_value, scores = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
 		Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 		Q_value_target = self.nstep_returns(Q_value, rewards, dones).detach()
@@ -461,6 +462,11 @@ class PPOAgent:
 			critic_loss = F.smooth_l1_loss(Q_value,Q_value_target_normalized) + self.critic_weight_entropy_pen*entropy_weights
 		else:
 			critic_loss = F.smooth_l1_loss(Q_value,Q_value_target) + self.critic_weight_entropy_pen*entropy_weights
+
+		if "MAAC" in self.extension:
+			# regularizing the attention scores
+			critic_loss += 1e-3*torch.mean(scores**2)
+
 		
 
 		# take gradient step
@@ -540,7 +546,7 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
 
 
-		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old, scores_old = self.critic_network_old(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 
@@ -554,7 +560,7 @@ class PPOAgent:
 		policy_grad_batch = []
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
+			Value, Q_value, weights_value, scores = self.critic_network(old_state_agents, old_state_opponents, old_probs.squeeze(-2), old_one_hot_actions)
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
