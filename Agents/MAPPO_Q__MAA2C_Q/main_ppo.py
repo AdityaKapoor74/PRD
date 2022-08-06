@@ -13,14 +13,14 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.4; grad_clip_cri
 if __name__ == '__main__':
 
 	for i in range(1,3):
-		extension = "MAPPO_Q_run_"+str(i)
+		extension = "MAAC_Q_run_"+str(i)
 		test_num = "Pressure Plate"
 		env_name = "pressureplate-linear-4p-v0" # paired_by_sharing_goals, color_social_dilemma, crossing_team_greedy, crossing_greedy, crossing_partially_coop, crossing_fully_coop
 		experiment_type = "shared" # prd_above_threshold_decay, prd_above_threshold_ascend, shared
 
 		dictionary = {
 				"iteration": i,
-				"update_type": "ppo",
+				"update_type": "a2c",
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",
