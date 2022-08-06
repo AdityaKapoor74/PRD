@@ -39,7 +39,7 @@ if __name__ == '__main__':
 	for i in range(1,3):
 		extension = "MAAC_Q_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_greedy"
+		env_name = "crossing_team_greedy"
 		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
