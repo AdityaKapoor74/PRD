@@ -3,7 +3,7 @@ import pressureplate
 import gym
 
 if __name__ == '__main__':
-	for i in range(1,6):
+	for i in range(1,3):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "PRD_MAA2C" 
 		env_name = "pressureplate-linear-4p-v0"
