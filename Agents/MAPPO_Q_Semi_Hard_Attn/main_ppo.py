@@ -6,9 +6,9 @@ from mappo import MAPPO
 
 if __name__ == '__main__':
 
-	for i in range(1,6):
+	for i in range(1,3):
 		extension = "MAPPO_Q_Semi_Hard_Attn_run_"+str(i)
-		test_num = "PRD_2_MPE"
+		test_num = "combat"
 		env_name = "ma_gym:Combat-v0"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
@@ -22,15 +22,15 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.05,
-				"value_clip": 0.05,
-				"n_epochs": 5,
+				"policy_clip": 0.1,
+				"value_clip": 0.1,
+				"n_epochs": 1,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 3e-4, #1e-3
-				"policy_lr": 3e-4, #prd 1e-4
+				"value_lr": 5e-4, #1e-3
+				"policy_lr": 5e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
