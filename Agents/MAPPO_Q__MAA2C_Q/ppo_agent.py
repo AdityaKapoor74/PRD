@@ -594,7 +594,7 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().to(self.device)
 
 
-		Values_old, Q_values_old, weights_value_old scores_old = self.critic_network_old(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old, scores_old = self.critic_network_old(old_states, old_agent_global_positions, agent_ids, old_probs.squeeze(-2), old_one_hot_actions)
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 
