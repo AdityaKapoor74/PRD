@@ -424,7 +424,7 @@ class PPOAgent:
 		avg_agent_group_over_episode_batch /= self.n_epochs
 		threshold_batch /= self.n_epochs
 
-		if "prd" in self.experiment_type and "crossing_team_greedy" == self.env_name:
+		if "prd" in self.experiment_type and "prd_top" not in self.experiment_type and "crossing_team_greedy" == self.env_name:
 			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
 			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
 			true_negatives = self.non_relevant_set*(1-masking_advantage)
