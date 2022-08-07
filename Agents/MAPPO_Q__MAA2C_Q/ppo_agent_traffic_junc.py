@@ -463,7 +463,7 @@ class PPOAgent:
 			critic_loss = F.smooth_l1_loss(Q_value,Q_value_target) + self.critic_weight_entropy_pen*entropy_weights
 		
 		if "MAAC" in self.extension:
-			critic += 1e-3 * torch.mean(scores**2)
+			critic_loss += 1e-3 * torch.mean(scores**2)
 
 		# take gradient step
 		self.critic_optimizer.zero_grad()
