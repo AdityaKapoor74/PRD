@@ -304,7 +304,7 @@ class Q_network(nn.Module):
 		query_obs = self.query(states_query_embed)
 		# print(query_obs.shape)
 		# SCORE
-		socres = torch.matmul(query_obs,key_obs.transpose(2,3))/math.sqrt(self.d_k)
+		scores = torch.matmul(query_obs,key_obs.transpose(2,3))/math.sqrt(self.d_k)
 		# WEIGHT
 		weight = F.softmax(scores,dim=-1)
 		# print(weight.shape)
