@@ -40,7 +40,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_soft_adv" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "prd_top_4" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
@@ -71,7 +71,7 @@ if __name__ == '__main__':
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
-				"top_k": 0,
+				"top_k": 4,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
