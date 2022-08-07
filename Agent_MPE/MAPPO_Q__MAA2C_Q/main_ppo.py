@@ -36,11 +36,11 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 
-	for i in range(1,2):
+	for i in range(1,3):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_team_greedy"
-		experiment_type = "prd_soft" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		env_name = "paired_by_sharing_goals"
+		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 50,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
