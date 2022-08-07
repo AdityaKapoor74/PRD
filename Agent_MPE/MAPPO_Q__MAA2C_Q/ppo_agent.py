@@ -283,9 +283,9 @@ class PPOAgent:
 				advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
 			if episode < self.steps_to_take:
-				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones),dim=-2)
 			else:
-				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
+				advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
 		elif "greedy" in self.experiment_type:
 			advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 		elif "relevant_set" in self.experiment_type:
