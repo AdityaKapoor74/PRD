@@ -170,11 +170,12 @@ class MAPPO:
 				next_states, rewards, dones, info = self.env.step(actions)
 				next_states_critic, next_states_actor = self.split_states(next_states)
 
-				collision_rate = [value[1] for value in rewards]
-				goal_reached = [value[2] for value in rewards]
-				rewards = [value[0] for value in rewards]
-				episode_collision_rate += np.sum(collision_rate)
-				episode_goal_reached += np.sum(goal_reached)
+				if "crossing" in self.env_name:
+					collision_rate = [value[1] for value in rewards]
+					goal_reached = [value[2] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
+					episode_goal_reached += np.sum(goal_reached)
 
 
 				# if step == self.max_time_steps:
