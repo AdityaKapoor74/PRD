@@ -36,11 +36,11 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 
-	for i in range(1,2):
+	for i in range(1,3):
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_team_greedy"
-		experiment_type = "prd_top_4" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		env_name = "paired_by_sharing_goals"
+		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 5e-4, #1e-3
 				"policy_lr": 5e-4, #prd 1e-4
-				"entropy_pen": 0.0, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
