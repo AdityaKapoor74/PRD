@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 200000,
+				"max_episodes": 120000,
 				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
