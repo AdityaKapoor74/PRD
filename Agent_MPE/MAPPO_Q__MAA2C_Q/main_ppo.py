@@ -37,14 +37,14 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 if __name__ == '__main__':
 
 	for i in range(1,3):
-		extension = "MAPPO_Q_run_"+str(i)
+		extension = "MAA2C_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "paired_by_sharing_goals"
 		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
-				"update_type": "ppo",
+				"update_type": "a2c",
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",
