@@ -48,7 +48,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.1,
 				"value_clip": 0.1,
 				"n_epochs": 1,
-				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 2, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
