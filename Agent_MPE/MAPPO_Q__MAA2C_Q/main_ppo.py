@@ -40,7 +40,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "paired_by_sharing_goals"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				"iteration": i,
@@ -53,25 +53,25 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_clip": 0.05,
-				"value_clip": 0.05,
+				"policy_clip": 0.1,
+				"value_clip": 0.1,
 				"n_epochs": 1,
 				"update_ppo_agent": 2, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
-				"value_lr": 7e-4, #1e-3
-				"policy_lr": 7e-4, #prd 1e-4
+				"value_lr": 5e-4, #1e-3
+				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 1e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.1,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000,
-				"top_k": 4,
+				"top_k": 0,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
