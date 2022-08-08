@@ -45,8 +45,8 @@ if __name__ == '__main__':
 		dictionary = {
 				"iteration": i,
 				"update_type": "ppo",
-				"grad_clip_critic": 0.5,
-				"grad_clip_actor": 0.5,
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"device": "gpu",
 				"update_learning_rate_with_prd": False,
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.1,
 				"value_clip": 0.1,
 				"n_epochs": 1,
-				"update_ppo_agent": 4, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 2, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
