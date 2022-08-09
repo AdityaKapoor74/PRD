@@ -62,12 +62,12 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 5e-4, #1e-3
 				"policy_lr": 5e-4, #prd 1e-4
-				"entropy_pen": 0.0, #8e-3
+				"entropy_pen": 1e-3, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.05,
+				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
