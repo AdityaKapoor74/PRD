@@ -168,12 +168,12 @@ class MAPPO:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				# start_env_time = time.process_time()
+				start_env_time = time.process_time()
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				
-				# end_env_time = time.process_time()
-				# self.environment_time += end_env_time - start_env_time
+				end_env_time = time.process_time()
+				self.environment_time += end_env_time - start_env_time
 
 				next_states_critic, next_states_actor = self.split_states(next_states)
 
@@ -236,6 +236,8 @@ class MAPPO:
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				if self.update_type == "ppo":
 					self.agents.update(episode) 
+				if self.update_type == "ppo_V":
+					self.agents.V_update(episode) 
 				elif self.update_type == "a2c":
 					self.agents.a2c_update(episode)
 			elif self.gif and not(episode%self.gif_checkpoint):
@@ -257,9 +259,10 @@ class MAPPO:
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_non_relevant_agents_in_relevant_set"), np.array(self.agents.num_non_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"false_positive_rate"), np.array(self.agents.false_positive_rate), allow_pickle=True, fix_imports=True)
 
-		# print("Environment Time:", self.environment_time/self.max_episodes)
-		# print("Update Time:", self.agents.update_time/self.max_episodes)
-		# print("Forward Time:", self.agents.forward_time/self.max_episodes)
+		print("Environment Time:", self.environment_time/(self.max_episodes*self.max_time_steps))
+		print("Total Update Time:", (self.agents.update_time+self.agents.forward_time)/self.max_episodes)
+		print("Update Time:", self.agents.update_time/self.max_episodes)
+		print("Forward Time:", self.agents.forward_time/self.max_episodes)
 
 	def test(self):
 		self.reward_data_points = []
