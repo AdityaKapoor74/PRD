@@ -8,14 +8,14 @@ from mappo import MAPPO
 if __name__ == '__main__':
 
 	for i in range(1,3):
-		extension = "MAAC_Q_run_"+str(i)
+		extension = "MAPPO_V_run_"+str(i)
 		test_num = "combat"
 		env_name = "ma_gym:Combat-v0"
-		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
+		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold_decay, prd_above_threshold
 
 		dictionary = {
 				"iteration": i,
-				"update_type": "a2c",
+				"update_type": "ppo_V", # a2c, ppo, ppo_V
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"device": "gpu",

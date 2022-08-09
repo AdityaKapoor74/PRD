@@ -202,7 +202,9 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				if self.update_type == "ppo":
-					self.agents.update(episode) 
+					self.agents.update(episode)
+				elif self.update_type == "ppo_V":
+					self.agents.V_update(episode) 
 				elif self.update_type == "a2c":
 					self.agents.a2c_update(episode)
 			if self.gif and not(episode%self.gif_checkpoint):
