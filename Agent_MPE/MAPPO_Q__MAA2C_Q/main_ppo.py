@@ -39,7 +39,7 @@ if __name__ == '__main__':
 	for i in range(1,3):
 		extension = "MAPPO_V_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_team_greedy"
+		env_name = "crossing_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
