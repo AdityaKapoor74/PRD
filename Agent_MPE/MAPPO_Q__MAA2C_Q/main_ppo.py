@@ -39,7 +39,7 @@ if __name__ == '__main__':
 	for i in range(1,3):
 		extension = "MAPPO_V_run_"+str(i)
 		test_num = "MPE"
-		env_name = "crossing_greedy"
+		env_name = "crossing_team_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.1,
+				"select_above_threshold": 0.05,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
