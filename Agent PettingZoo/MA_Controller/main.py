@@ -16,7 +16,7 @@ if __name__ == '__main__':
 			"attention_type": "soft", # [semi-hard, soft]
 			"grad_clip_critic": 10.0,
 			"grad_clip_actor": 10.0,
-			"device": "gpu",
+			"device": "cpu",
 			"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
 			"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 			"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 			"save_comet_ml_plot": False,
 			"learn":True,
 			"max_episodes": 100000,
-			"max_time_steps": 75,
+			"max_time_steps": 500,
 			"experiment_type": experiment_type,
 		}
 	parallel_env = battle_v2.parallel_env(map_size=28, attack_opponent_reward=5)
