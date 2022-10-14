@@ -245,7 +245,7 @@ class Agent:
 
 			dists = self.policy_network(old_observations.to(self.device))
 			probs = Categorical(dists)
-			logprobs = probs.log_prob(old_actions)
+			logprobs = probs.log_prob(old_actions.to(self.device))
 
 			critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target)
 			critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target)
