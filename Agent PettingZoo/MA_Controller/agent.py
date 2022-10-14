@@ -205,16 +205,16 @@ class Agent:
 
 	def update(self,episode):
 		# convert list to tensor
-		old_observations = torch.from_numpy(np.array(self.buffer.observations).astype(np.float32)).to(self.device)
-		old_actions = torch.from_numpy(np.vstack(self.buffer.actions).astype(np.int)).to(self.device)
-		old_one_hot_actions = torch.from_numpy(np.array(self.buffer.one_hot_actions).astype(np.int)).to(self.device)
-		old_probs = torch.from_numpy(np.array(self.buffer.probs).astype(np.float32)).to(self.device)
-		old_logprobs = torch.from_numpy(np.array(self.buffer.logprobs).astype(np.float32)).to(self.device).squeeze(-1)
-		rewards = torch.from_numpy(np.vstack(self.buffer.rewards).astype(np.float32)).to(self.device)
-		dones = torch.from_numpy(np.vstack(self.buffer.dones).astype(np.int)).long().to(self.device)
+		old_observations = torch.from_numpy(np.array(self.buffer.observations).astype(np.float32))
+		old_actions = torch.from_numpy(np.vstack(self.buffer.actions).astype(np.int))
+		old_one_hot_actions = torch.from_numpy(np.array(self.buffer.one_hot_actions).astype(np.int))
+		old_probs = torch.from_numpy(np.array(self.buffer.probs).astype(np.float32))
+		old_logprobs = torch.from_numpy(np.array(self.buffer.logprobs).astype(np.float32)).squeeze(-1)
+		rewards = torch.from_numpy(np.vstack(self.buffer.rewards).astype(np.float32))
+		dones = torch.from_numpy(np.vstack(self.buffer.dones).astype(np.int)).long()
 
 
-		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_observations, old_probs.squeeze(-2), old_one_hot_actions)
+		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_observations.to(self.device), old_probs.squeeze(-2).to(self.device), old_one_hot_actions.to(self.device))
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
 		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
@@ -232,7 +232,7 @@ class Agent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value = self.critic_network(old_observations, old_probs.squeeze(-2), old_one_hot_actions)
+			Value, Q_value, weights_value = self.critic_network(old_observations.to(self.device), old_probs.squeeze(-2).to(self.device), old_one_hot_actions.to(self.device))
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
 			advantage, masking_advantage = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
@@ -243,7 +243,7 @@ class Agent:
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
-			dists = self.policy_network(old_observations)
+			dists = self.policy_network(old_observations.to(self.device))
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions)
 
@@ -252,7 +252,7 @@ class Agent:
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
-			ratios = torch.exp(logprobs - old_logprobs)
+			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
 			# Finding Surrogate Loss
 			surr1 = ratios * advantage.detach()
 			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
@@ -261,7 +261,7 @@ class Agent:
 			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 			
-			entropy_weights = -torch.mean(torch.sum(weights_value* torch.log(torch.clamp(weights_value, 1e-10,1.0)), dim=2))
+			entropy_weights = -torch.mean(torch.sum(weights_value.detach().cpu()* torch.log(torch.clamp(weights_value.detach().cpu(), 1e-10,1.0)), dim=2))
 			critic_loss = torch.max(critic_loss_1, critic_loss_2)
 			
 
