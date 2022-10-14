@@ -305,15 +305,6 @@ class Agent:
 		agent_groups_over_episode_batch /= self.n_epochs
 		avg_agent_group_over_episode_batch /= self.n_epochs
 
-		if "prd" in self.experiment_type:
-			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
-			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
-			true_negatives = self.non_relevant_set*(1-masking_advantage)
-		else:
-			num_relevant_agents_in_relevant_set = None
-			num_non_relevant_agents_in_relevant_set = None
-			true_negatives = None
-
 
 		self.plotting_dict = {
 		"value_loss": value_loss_batch,
