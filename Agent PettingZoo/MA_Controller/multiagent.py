@@ -208,7 +208,7 @@ class MultiAgent:
 					team_size = self.env.team_size()
 
 					print("*"*100)
-					print("EPISODE: {} | REWARD TEAM 1: {} | REWARD TEAM 2: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward[0],decimals=4),np.round(episode_reward[0],decimals=4),step,self.max_time_steps))
+					print("EPISODE: {} | REWARD TEAM 1: {} | REWARD TEAM 2: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward[0],decimals=4),np.round(episode_reward[1],decimals=4),step,self.max_time_steps))
 					print("NUM AGENTS ALIVE TEAM 1: {} | NUM AGENTS ALIVE TEAM 2: {} \n".format(team_size[0], team_size[1]))
 					print("*"*100)
 
