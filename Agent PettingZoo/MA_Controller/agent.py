@@ -235,7 +235,7 @@ class Agent:
 			Value, Q_value, weights_value = self.critic_network(old_observations.to(self.device), old_probs.squeeze(-2).to(self.device), old_one_hot_actions.to(self.device))
 			Value = Value.reshape(-1,self.num_agents,self.num_agents)
 
-			advantage, masking_advantage = self.calculate_advantages_based_on_exp(Value, rewards, dones, weights_value, episode)
+			advantage, masking_advantage = self.calculate_advantages_based_on_exp(Value, rewards.to(self.device), dones.to(self.device), weights_value, episode)
 
 			if "threshold" in self.experiment_type:
 				agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
