@@ -23,7 +23,7 @@ if __name__ == '__main__':
 			"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 			"policy_clip": 0.05,
 			"value_clip": 0.05,
-			"n_epochs": 1,
+			"n_epochs": 5,
 			"update_ppo_agent": 1, # update ppo agent after every 'update_ppo_agent' episodes
 			"env": env_name, 
 			"test_num":test_num,
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 			"save_comet_ml_plot": False,
 			"learn":True,
 			"max_episodes": 100000,
-			"max_time_steps": 150,
+			"max_time_steps": 100,
 			"experiment_type": experiment_type,
 		}
 	parallel_env = battle_v2.parallel_env(map_size=28, attack_opponent_reward=5)
