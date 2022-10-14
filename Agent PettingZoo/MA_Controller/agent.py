@@ -217,7 +217,7 @@ class Agent:
 		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_observations.to(self.device), old_probs.squeeze(-2).to(self.device), old_one_hot_actions.to(self.device))
 		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
 		
-		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+		Q_value_target = self.nstep_returns(Q_values_old, rewards.to(self.device), dones.to(self.device)).detach()
 
 		value_loss_batch = 0
 		policy_loss_batch = 0
