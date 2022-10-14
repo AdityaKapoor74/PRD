@@ -8,7 +8,7 @@ if __name__ == '__main__':
 	extension = "MAPPO_Q" # [MAPPO_Q, MAA2C_Q, MAPPO_Q_Semi_Hard_Attn, MAA2C_Q_Semi_Hard_Attn]
 	test_num = "PettingZoo"
 	env_name = "Battle"
-	experiment_type = "prd_above_threshold" # shared, prd_above_threshold
+	experiment_type = "shared" # shared, prd_above_threshold
 
 	dictionary = {
 			"iteration": seed_num,
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 			"gamma": 0.99, 
 			"gae_lambda": 0.95,
 			"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-			"select_above_threshold": 0.05, # [0.05: 'soft', 0.0: 'semi-hard' --> attention_type]
+			"select_above_threshold": 0.0, # [0.05: 'soft', 0.0: 'semi-hard' --> attention_type]
 			"gif": False,
 			"gif_checkpoint":1,
 			"load_models": False,
