@@ -322,9 +322,7 @@ class Agent:
 		"grad_norm_value":grad_norm_value_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_value": value_weights_batch,
-		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
-		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
-		"true_negatives": true_negatives,
+		"threshold": self.select_above_threshold
 		}
 
 		if "threshold" in self.experiment_type:
