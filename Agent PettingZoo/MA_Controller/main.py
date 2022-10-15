@@ -46,7 +46,7 @@ if __name__ == '__main__':
 			"save_comet_ml_plot": True,
 			"learn":True,
 			"max_episodes": 100000,
-			"max_time_steps": 5,
+			"max_time_steps": 75,
 			"experiment_type": experiment_type,
 		}
 	parallel_env = battle_v2.parallel_env(map_size=28, attack_opponent_reward=5)
