@@ -28,8 +28,8 @@ if __name__ == '__main__':
 			"env": env_name, 
 			"test_num":test_num,
 			"extension":extension,
-			"value_lr": 1e-4,
-			"policy_lr": 1e-4,
+			"value_lr": 3e-4,
+			"policy_lr": 3e-4,
 			"entropy_pen": 1e-3,
 			"gamma": 0.99, 
 			"gae_lambda": 0.95,
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 			"save_comet_ml_plot": True,
 			"learn":True,
 			"max_episodes": 100000,
-			"max_time_steps": 75,
+			"max_time_steps": 5,
 			"experiment_type": experiment_type,
 		}
 	parallel_env = battle_v2.parallel_env(map_size=28, attack_opponent_reward=5)

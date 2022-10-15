@@ -53,22 +53,38 @@ class Agent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		self.critic_network = Q_network(obs_input_dim=6929, num_agents=self.num_agents, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
-		self.critic_network_old = Q_network(obs_input_dim=6929, num_agents=self.num_agents, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
-		for param in self.critic_network_old.parameters():
+		# RED AGENTS
+		self.critic_network_red = Q_network(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
+		self.critic_network_old_red = Q_network(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
+		for param in self.critic_network_old_red.parameters():
 			param.requires_grad_(False)
 		# COPY
-		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+		self.critic_network_old_red.load_state_dict(self.critic_network_red.state_dict())
+		# BLUE AGENTS
+		self.critic_network_blue = Q_network(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
+		self.critic_network_old_blue = Q_network(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
+		for param in self.critic_network_old_blue.parameters():
+			param.requires_grad_(False)
+		# COPY
+		self.critic_network_old_blue.load_state_dict(self.critic_network_blue.state_dict())
 		
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		self.policy_network = Policy(obs_input_dim=6929, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.policy_network_old = Policy(obs_input_dim=6929, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		for param in self.policy_network_old.parameters():
+		# RED AGENTS
+		self.policy_network_red = Policy(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old_red = Policy(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, device=self.device).to(self.device)
+		for param in self.policy_network_old_red.parameters():
 			param.requires_grad_(False)
 		# COPY
-		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+		self.policy_network_old_red.load_state_dict(self.policy_network_red.state_dict())
+		# BLUE AGENTS
+		self.policy_network_blue = Policy(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old_blue = Policy(obs_input_dim=6929, num_agents=self.num_agents//2, num_actions=self.num_actions, device=self.device).to(self.device)
+		for param in self.policy_network_old_blue.parameters():
+			param.requires_grad_(False)
+		# COPY
+		self.policy_network_old_blue.load_state_dict(self.policy_network_blue.state_dict())
 
 
 		self.buffer = RolloutBuffer()
@@ -81,8 +97,11 @@ class Agent:
 			self.policy_network_old.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 		
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr, weight_decay=1e-5)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=1e-5)
+		self.critic_optimizer_red = optim.Adam(self.critic_network_red.parameters(),lr=self.value_lr, weight_decay=1e-3)
+		self.policy_optimizer_red = optim.Adam(self.policy_network_red.parameters(),lr=self.policy_lr, weight_decay=1e-3)
+
+		self.critic_optimizer_blue = optim.Adam(self.critic_network_blue.parameters(),lr=self.value_lr, weight_decay=1e-3)
+		self.policy_optimizer_blue = optim.Adam(self.policy_network_blue.parameters(),lr=self.policy_lr, weight_decay=1e-3)
 
 
 		self.comet_ml = None
@@ -90,10 +109,13 @@ class Agent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy, greedy=False):
+	def get_action(self, state_policy, agent_color, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			dists = self.policy_network_old(state_policy)
+			if "blue" in agent_color:
+				dists = self.policy_network_old_blue(state_policy)
+			elif "red" in agent_color:
+				dists = self.policy_network_old_red(state_policy)
 			if greedy:
 				# actions = [dist.argmax().detach().cpu().item() for dist in dists]
 				actions = dists.argmax().detach().cpu().item()
@@ -162,23 +184,42 @@ class Agent:
 
 
 	def plot(self, episode):
-		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"].item(),episode)
-		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
-		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
-		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
-		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
-		self.comet_ml.log_metric('Threshold_pred',self.plotting_dict["threshold"],episode)
+		self.comet_ml.log_metric('Value_Loss Red',self.plotting_dict["value_loss_red"],episode)
+		self.comet_ml.log_metric('Grad_Norm_Value Red',self.plotting_dict["grad_norm_value_red"],episode)
+		self.comet_ml.log_metric('Policy_Loss Red',self.plotting_dict["policy_loss_red"],episode)
+		self.comet_ml.log_metric('Grad_Norm_Policy Red',self.plotting_dict["grad_norm_policy_red"],episode)
+		self.comet_ml.log_metric('Entropy Red',self.plotting_dict["entropy_red"],episode)
+		self.comet_ml.log_metric('Threshold_pred Red',self.plotting_dict["threshold_red"],episode)
 
 		if "threshold" in self.experiment_type:
-			for i in range(self.num_agents):
+			for i in range(self.num_agents//2):
 				agent_name = "agent"+str(i)
-				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
+				self.comet_ml.log_metric('Group_Size_Red_'+agent_name, self.plotting_dict["agent_groups_over_episode_red"][i].item(), episode)
 
-			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
+			self.comet_ml.log_metric('Avg_Group_Size_Red_', self.plotting_dict["avg_agent_group_over_episode_red"], episode)
 
 		# ENTROPY OF WEIGHTS
-		entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"]* torch.log(torch.clamp(self.plotting_dict["weights_value"], 1e-10,1.0)), dim=2))
-		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
+		entropy_weights_red = -torch.mean(torch.sum(self.plotting_dict["weights_value_red"]* torch.log(torch.clamp(self.plotting_dict["weights_value_red"], 1e-10,1.0)), dim=2)).item()
+		self.comet_ml.log_metric('Critic_Weight_Entropy_Red', entropy_weights_red, episode)
+
+
+		self.comet_ml.log_metric('Value_Loss Blue',self.plotting_dict["value_loss_blue"],episode)
+		self.comet_ml.log_metric('Grad_Norm_Value Blue Blue',self.plotting_dict["grad_norm_value_blue"],episode)
+		self.comet_ml.log_metric('Policy_Loss Blue',self.plotting_dict["policy_loss_blue"],episode)
+		self.comet_ml.log_metric('Grad_Norm_Policy Blue',self.plotting_dict["grad_norm_policy_blue"],episode)
+		self.comet_ml.log_metric('Entropy Blue',self.plotting_dict["entropy_blue"],episode)
+		self.comet_ml.log_metric('Threshold_pred Blue',self.plotting_dict["threshold_blue"],episode)
+
+		if "threshold" in self.experiment_type:
+			for i in range(self.num_agents//2):
+				agent_name = "agent"+str(i)
+				self.comet_ml.log_metric('Group_Size_Blue_'+agent_name, self.plotting_dict["agent_groups_over_episode_blue"][i].item(), episode)
+
+			self.comet_ml.log_metric('Avg_Group_Size_Blue_', self.plotting_dict["avg_agent_group_over_episode_blue"], episode)
+
+		# ENTROPY OF WEIGHTS
+		entropy_weights_blue = -torch.mean(torch.sum(self.plotting_dict["weights_value_blue"]* torch.log(torch.clamp(self.plotting_dict["weights_value_blue"], 1e-10,1.0)), dim=2)).item()
+		self.comet_ml.log_metric('Critic_Weight_Entropy_Blue', entropy_weights_blue, episode)
 
 
 	def calculate_advantages_based_on_exp(self, V_values, rewards, dones, weights_prd, episode):
@@ -195,120 +236,214 @@ class Agent:
 
 	def update(self,episode):
 		# convert list to tensor
-		old_observations = torch.from_numpy(np.array(self.buffer.observations).astype(np.float32))
-		old_actions = torch.from_numpy(np.vstack(self.buffer.actions).astype(np.int))
-		old_one_hot_actions = torch.from_numpy(np.array(self.buffer.one_hot_actions).astype(np.int))
-		old_probs = torch.from_numpy(np.array(self.buffer.probs).astype(np.float32))
-		old_logprobs = torch.from_numpy(np.array(self.buffer.logprobs).astype(np.float32)).squeeze(-1)
-		rewards = torch.from_numpy(np.vstack(self.buffer.rewards).astype(np.float32))
-		dones = torch.from_numpy(np.vstack(self.buffer.dones).astype(np.int)).long()
+		old_observations_red = torch.from_numpy(np.array(self.buffer.observations_red).astype(np.float32))
+		old_actions_red = torch.from_numpy(np.vstack(self.buffer.actions_red).astype(np.int))
+		old_one_hot_actions_red = torch.from_numpy(np.array(self.buffer.one_hot_actions_red).astype(np.int))
+		old_probs_red = torch.from_numpy(np.array(self.buffer.probs_red).astype(np.float32))
+		old_logprobs_red = torch.from_numpy(np.array(self.buffer.logprobs_red).astype(np.float32)).squeeze(-1)
+		rewards_red = torch.from_numpy(np.vstack(self.buffer.rewards_red).astype(np.float32))
+		dones_red = torch.from_numpy(np.vstack(self.buffer.dones_red).astype(np.int)).long()
+
+		old_observations_blue = torch.from_numpy(np.array(self.buffer.observations_blue).astype(np.float32))
+		old_actions_blue = torch.from_numpy(np.vstack(self.buffer.actions_blue).astype(np.int))
+		old_one_hot_actions_blue = torch.from_numpy(np.array(self.buffer.one_hot_actions_blue).astype(np.int))
+		old_probs_blue = torch.from_numpy(np.array(self.buffer.probs_blue).astype(np.float32))
+		old_logprobs_blue = torch.from_numpy(np.array(self.buffer.logprobs_blue).astype(np.float32)).squeeze(-1)
+		rewards_blue = torch.from_numpy(np.vstack(self.buffer.rewards_blue).astype(np.float32))
+		dones_blue = torch.from_numpy(np.vstack(self.buffer.dones_blue).astype(np.int)).long()
 
 
-		Values_old, Q_values_old, weights_value_old = self.critic_network_old(old_observations.to(self.device), old_probs.squeeze(-2).to(self.device), old_one_hot_actions.to(self.device))
-		Values_old = Values_old.reshape(-1,self.num_agents,self.num_agents)
-		
-		Q_value_target = self.nstep_returns(Q_values_old, rewards.to(self.device), dones.to(self.device)).detach()
+		Values_old_red, Q_values_old_red, weights_value_old_red = self.critic_network_old_red(old_observations_red.to(self.device), old_probs_red.squeeze(-2).to(self.device), old_one_hot_actions_red.to(self.device))
+		Values_old_red = Values_old_red.reshape(-1,self.num_agents//2,self.num_agents//2)
+		Q_value_target_red = self.nstep_returns(Q_values_old_red, rewards_red.to(self.device), dones_red.to(self.device)).detach()
 
-		value_loss_batch = 0
-		policy_loss_batch = 0
-		entropy_batch = 0
-		value_weights_batch = None
-		grad_norm_value_batch = 0
-		grad_norm_policy_batch = 0
-		agent_groups_over_episode_batch = 0
-		avg_agent_group_over_episode_batch = 0
+		Values_old_blue, Q_values_old_blue, weights_value_old_blue = self.critic_network_old_blue(old_observations_blue.to(self.device), old_probs_blue.squeeze(-2).to(self.device), old_one_hot_actions_blue.to(self.device))
+		Values_old_blue = Values_old_blue.reshape(-1,self.num_agents//2,self.num_agents//2)
+		Q_value_target_blue = self.nstep_returns(Q_values_old_blue, rewards_blue.to(self.device), dones_blue.to(self.device)).detach()
+
+		value_loss_batch_red = 0
+		policy_loss_batch_red = 0
+		entropy_batch_red = 0
+		value_weights_batch_red = None
+		grad_norm_value_batch_red = 0
+		grad_norm_policy_batch_red = 0
+		agent_groups_over_episode_batch_red = 0
+		avg_agent_group_over_episode_batch_red = 0
+
+		value_loss_batch_blue = 0
+		policy_loss_batch_blue = 0
+		entropy_batch_blue = 0
+		value_weights_batch_blue = None
+		grad_norm_value_batch_blue = 0
+		grad_norm_policy_batch_blue = 0
+		agent_groups_over_episode_batch_blue = 0
+		avg_agent_group_over_episode_batch_blue = 0
 
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Value, Q_value, weights_value = self.critic_network(old_observations.to(self.device), old_probs.squeeze(-2).to(self.device), old_one_hot_actions.to(self.device))
-			Value = Value.reshape(-1,self.num_agents,self.num_agents)
+			Value_red, Q_value_red, weights_value_red = self.critic_network_red(old_observations_red.to(self.device), old_probs_red.squeeze(-2).to(self.device), old_one_hot_actions_red.to(self.device))
+			Value_red = Value_red.reshape(-1,self.num_agents//2,self.num_agents//2)
 
-			advantage, masking_advantage = self.calculate_advantages_based_on_exp(Value, rewards.to(self.device), dones.to(self.device), weights_value, episode)
+			Value_blue, Q_value_blue, weights_value_blue = self.critic_network_blue(old_observations_blue.to(self.device), old_probs_blue.squeeze(-2).to(self.device), old_one_hot_actions_blue.to(self.device))
+			Value_blue = Value_blue.reshape(-1,self.num_agents//2,self.num_agents//2)
+
+			advantage_red, masking_advantage_red = self.calculate_advantages_based_on_exp(Value_red, rewards_red.to(self.device), dones_red.to(self.device), weights_value_red, episode)
+
+			advantage_blue, masking_advantage_blue = self.calculate_advantages_based_on_exp(Value_blue, rewards_blue.to(self.device), dones_blue.to(self.device), weights_value_blue, episode)
 
 			if "threshold" in self.experiment_type:
-				agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
-				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-				agent_groups_over_episode_batch += agent_groups_over_episode
-				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
+				agent_groups_over_episode_red = torch.sum(torch.sum(masking_advantage_red.float(), dim=-2),dim=0)/masking_advantage_red.shape[0]
+				avg_agent_group_over_episode_red = torch.mean(agent_groups_over_episode_red)
+				agent_groups_over_episode_batch_red += agent_groups_over_episode_red
+				avg_agent_group_over_episode_batch_red += avg_agent_group_over_episode_red.item()
 
-			dists = self.policy_network(old_observations.to(self.device))
-			probs = Categorical(dists)
-			logprobs = probs.log_prob(old_actions.to(self.device))
+				agent_groups_over_episode_blue = torch.sum(torch.sum(masking_advantage_blue.float(), dim=-2),dim=0)/masking_advantage_blue.shape[0]
+				avg_agent_group_over_episode_blue = torch.mean(agent_groups_over_episode_blue)
+				agent_groups_over_episode_batch_blue += agent_groups_over_episode_blue
+				avg_agent_group_over_episode_batch_blue += avg_agent_group_over_episode_blue.item()
 
-			critic_loss_1 = F.smooth_l1_loss(Q_value,Q_value_target)
-			critic_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip),Q_value_target)
+			dists_red = self.policy_network_red(old_observations_red.to(self.device))
+			probs_red = Categorical(dists_red)
+			logprobs_red = probs_red.log_prob(old_actions_red.to(self.device))
+
+			dists_blue = self.policy_network_blue(old_observations_blue.to(self.device))
+			probs_blue = Categorical(dists_blue)
+			logprobs_blue = probs_blue.log_prob(old_actions_blue.to(self.device))
+
+			critic_loss_1_red = F.smooth_l1_loss(Q_value_red,Q_value_target_red)
+			critic_loss_2_red = F.smooth_l1_loss(torch.clamp(Q_value_red, Q_values_old_red-self.value_clip, Q_values_old_red+self.value_clip),Q_value_target_red)
+
+			critic_loss_1_blue = F.smooth_l1_loss(Q_value_blue,Q_value_target_blue)
+			critic_loss_2_blue = F.smooth_l1_loss(torch.clamp(Q_value_blue, Q_values_old_blue-self.value_clip, Q_values_old_blue+self.value_clip),Q_value_target_blue)
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
-			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
+			ratios_red = torch.exp(logprobs_red - old_logprobs_red.to(self.device))
 			# Finding Surrogate Loss
-			surr1 = ratios * advantage.detach()
-			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
+			surr1_red = ratios_red * advantage_red.detach()
+			surr2_red = torch.clamp(ratios_red, 1-self.policy_clip, 1+self.policy_clip) * advantage_red.detach()
 
 			# final loss of clipped objective PPO
-			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
-			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
+			entropy_red = -torch.mean(torch.sum(dists_red * torch.log(torch.clamp(dists_red, 1e-10,1.0)), dim=2))
+			policy_loss_red = -torch.min(surr1_red, surr2_red).mean() - self.entropy_pen*entropy_red
 			
-			entropy_weights = -torch.mean(torch.sum(weights_value.detach().cpu()* torch.log(torch.clamp(weights_value.detach().cpu(), 1e-10,1.0)), dim=2))
-			critic_loss = torch.max(critic_loss_1, critic_loss_2)
+			entropy_weights_red = -torch.mean(torch.sum(weights_value_red.detach().cpu()* torch.log(torch.clamp(weights_value_red.detach().cpu(), 1e-10,1.0)), dim=2))
+			critic_loss_red = torch.max(critic_loss_1_red, critic_loss_2_red)
+
+			# Finding the ratio (pi_theta / pi_theta__old)
+			ratios_blue = torch.exp(logprobs_blue - old_logprobs_blue.to(self.device))
+			# Finding Surrogate Loss
+			surr1_blue = ratios_blue * advantage_blue.detach()
+			surr2_blue = torch.clamp(ratios_blue, 1-self.policy_clip, 1+self.policy_clip) * advantage_blue.detach()
+
+			# final loss of clipped objective PPO
+			entropy_blue = -torch.mean(torch.sum(dists_blue * torch.log(torch.clamp(dists_blue, 1e-10,1.0)), dim=2))
+			policy_loss_blue = -torch.min(surr1_blue, surr2_blue).mean() - self.entropy_pen*entropy_blue
+			
+			entropy_weights_blue = -torch.mean(torch.sum(weights_value_blue.detach().cpu()* torch.log(torch.clamp(weights_value_blue.detach().cpu(), 1e-10,1.0)), dim=2))
+			critic_loss_blue = torch.max(critic_loss_1_blue, critic_loss_2_blue)
 			
 
 			# take gradient step
-			self.critic_optimizer.zero_grad()
-			critic_loss.backward()
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
-			self.critic_optimizer.step()
+			self.critic_optimizer_red.zero_grad()
+			critic_loss_red.backward()
+			grad_norm_value_red = torch.nn.utils.clip_grad_norm_(self.critic_network_red.parameters(),self.grad_clip_critic)
+			self.critic_optimizer_red.step()
 
-			self.policy_optimizer.zero_grad()
-			policy_loss.backward()
-			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
-			self.policy_optimizer.step()
+			self.policy_optimizer_red.zero_grad()
+			policy_loss_red.backward()
+			grad_norm_policy_red = torch.nn.utils.clip_grad_norm_(self.policy_network_red.parameters(),self.grad_clip_actor)
+			self.policy_optimizer_red.step()
 
-			value_loss_batch += critic_loss
-			policy_loss_batch += policy_loss
-			entropy_batch += entropy
-			grad_norm_value_batch += grad_norm_value
-			grad_norm_policy_batch += grad_norm_policy
-			if value_weights_batch is None:
-				value_weights_batch = torch.zeros_like(weights_value.cpu())
-			value_weights_batch += weights_value.detach().cpu()
+			# take gradient step
+			self.critic_optimizer_blue.zero_grad()
+			critic_loss_blue.backward()
+			grad_norm_value_blue = torch.nn.utils.clip_grad_norm_(self.critic_network_blue.parameters(),self.grad_clip_critic)
+			self.critic_optimizer_blue.step()
+
+			self.policy_optimizer_blue.zero_grad()
+			policy_loss_blue.backward()
+			grad_norm_policy_blue = torch.nn.utils.clip_grad_norm_(self.policy_network_blue.parameters(),self.grad_clip_actor)
+			self.policy_optimizer_blue.step()
+
+			value_loss_batch_red += critic_loss_red.item()
+			policy_loss_batch_red += policy_loss_red.item()
+			entropy_batch_red += entropy_red.item()
+			grad_norm_value_batch_red += grad_norm_value_red.item()
+			grad_norm_policy_batch_red += grad_norm_policy_red.item()
+			if value_weights_batch_red is None:
+				value_weights_batch_red = torch.zeros_like(weights_value_red.cpu())
+			else:
+				value_weights_batch_red += weights_value_red.detach().cpu()
+
+			value_loss_batch_blue += critic_loss_blue.item()
+			policy_loss_batch_blue += policy_loss_blue.item()
+			entropy_batch_blue += entropy_blue.item()
+			grad_norm_value_batch_blue += grad_norm_value_blue.item()
+			grad_norm_policy_batch_blue += grad_norm_policy_blue.item()
+			if value_weights_batch_blue is None:
+				value_weights_batch_blue = torch.zeros_like(weights_value_blue.cpu())
+			else:
+				value_weights_batch_blue += weights_value_blue.detach().cpu()
 
 
 			
 		# Copy new weights into old policy
-		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+		self.policy_network_old_red.load_state_dict(self.policy_network_red.state_dict())
+		self.policy_network_old_blue.load_state_dict(self.policy_network_blue.state_dict())
 
 		# Copy new weights into old critic
-		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+		self.critic_network_old_red.load_state_dict(self.critic_network_red.state_dict())
+		self.critic_network_old_blue.load_state_dict(self.critic_network_blue.state_dict())
 
 		# clear buffer
 		self.buffer.clear()
 
-		value_loss_batch /= self.n_epochs
-		policy_loss_batch /= self.n_epochs
-		entropy_batch /= self.n_epochs
-		grad_norm_value_batch /= self.n_epochs
-		grad_norm_policy_batch /= self.n_epochs
-		value_weights_batch /= self.n_epochs
-		agent_groups_over_episode_batch /= self.n_epochs
-		avg_agent_group_over_episode_batch /= self.n_epochs
+		value_loss_batch_red /= self.n_epochs
+		policy_loss_batch_red /= self.n_epochs
+		entropy_batch_red /= self.n_epochs
+		grad_norm_value_batch_red /= self.n_epochs
+		grad_norm_policy_batch_red /= self.n_epochs
+		value_weights_batch_red /= self.n_epochs
+		agent_groups_over_episode_batch_red /= self.n_epochs
+		avg_agent_group_over_episode_batch_red /= self.n_epochs
+
+		value_loss_batch_blue /= self.n_epochs
+		policy_loss_batch_blue /= self.n_epochs
+		entropy_batch_blue /= self.n_epochs
+		grad_norm_value_batch_blue /= self.n_epochs
+		grad_norm_policy_batch_blue /= self.n_epochs
+		value_weights_batch_blue /= self.n_epochs
+		agent_groups_over_episode_batch_blue /= self.n_epochs
+		avg_agent_group_over_episode_batch_blue /= self.n_epochs
 
 
 		self.plotting_dict = {
-		"value_loss": value_loss_batch,
-		"policy_loss": policy_loss_batch,
-		"entropy": entropy_batch,
-		"grad_norm_value":grad_norm_value_batch,
-		"grad_norm_policy": grad_norm_policy_batch,
-		"weights_value": value_weights_batch,
-		"threshold": self.select_above_threshold
+		"value_loss_red": value_loss_batch_red,
+		"policy_loss_red": policy_loss_batch_red,
+		"entropy_red": entropy_batch_red,
+		"grad_norm_value_red":grad_norm_value_batch_red,
+		"grad_norm_policy_red": grad_norm_policy_batch_red,
+		"weights_value_red": value_weights_batch_red,
+		"threshold_red": self.select_above_threshold,
+
+		"value_loss_blue": value_loss_batch_blue,
+		"policy_loss_blue": policy_loss_batch_blue,
+		"entropy_blue": entropy_batch_blue,
+		"grad_norm_value_blue":grad_norm_value_batch_blue,
+		"grad_norm_policy_blue": grad_norm_policy_batch_blue,
+		"weights_value_blue": value_weights_batch_blue,
+		"threshold_blue": self.select_above_threshold
 		}
 
 		if "threshold" in self.experiment_type:
-			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode_batch
-			self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode_batch
+			self.plotting_dict["agent_groups_over_episode_red"] = agent_groups_over_episode_batch_red
+			self.plotting_dict["avg_agent_group_over_episode_red"] = avg_agent_group_over_episode_batch_red
+
+			self.plotting_dict["agent_groups_over_episode_blue"] = agent_groups_over_episode_batch_blue
+			self.plotting_dict["avg_agent_group_over_episode_blue"] = avg_agent_group_over_episode_batch_blue
 
 		if self.comet_ml is not None:
 			self.plot(episode)

@@ -104,13 +104,12 @@ class MultiAgent:
 
 
 
-
 	def run(self):  
 		if self.eval_policy:
-			self.rewards = {0:[], 1:[]}
-			self.rewards_mean_per_1000_eps = {0:[], 1:[]}
-			self.num_agents_alive = {0:[], 1:[]}
-			self.num_agents_alive_mean_per_1000_eps = {0:[], 1:[]}
+			self.rewards = {"red":[], "blue":[]}
+			self.rewards_mean_per_1000_eps = {"red":[], "blue":[]}
+			self.num_agents_alive = {"red":[], "blue":[]}
+			self.num_agents_alive_mean_per_1000_eps = {"red":[], "blue":[]}
 
 		for episode in range(1,self.max_episodes+1):
 
@@ -122,11 +121,16 @@ class MultiAgent:
 			actions = {}
 			for step in range(1, self.max_time_steps+1):
 
-				observations_ = []
-				actions_ = []
-				probs_ = []
-				logprobs_ = []
-				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+				observations_red = []
+				observations_blue = []
+				actions_red = []
+				actions_blue = []
+				probs_red = []
+				probs_blue = []
+				logprobs_red = []
+				logprobs_blue = []
+				one_hot_actions_red = np.zeros((self.num_agents//2,self.num_actions))
+				one_hot_actions_blue = np.zeros((self.num_agents//2,self.num_actions))
 				# for agent_num, agent in enumerate(self.env.agents):
 				# 	agent_observation = self.change_observation(observations[agent])
 				# 	observations_.append(agent_observation)
@@ -145,7 +149,7 @@ class MultiAgent:
 				for agent_num, agent in enumerate(self.agent_names):
 					if agent in self.env.agents:
 						agent_observation = self.change_observation(observations[agent])
-						action, probs, action_logprob = self.agents.get_action(agent_observation, greedy=False)
+						action, probs, action_logprob = self.agents.get_action(agent_observation, agent, greedy=False)
 					else:
 						agent_observation = np.zeros(self.obs_dim)
 						action = 0
@@ -156,36 +160,59 @@ class MultiAgent:
 						action_logprob = probs.log_prob(torch.FloatTensor([action])).numpy()
 						probs = dists.numpy()
 
-					observations_.append(agent_observation)
-
 					actions[agent] = action
 
-					actions_.append(action)
-					probs_.append(probs)
-					logprobs_.append(action_logprob)
-					one_hot_actions[agent_num][action] = 1
+					if "red" in agent:
+						observations_red.append(agent_observation)
+						actions_red.append(action)
+						probs_red.append(probs)
+						logprobs_red.append(action_logprob)
+						one_hot_actions_red[int(agent[4:])][action] = 1
+					elif "blue" in agent:
+						observations_blue.append(agent_observation)
+						actions_blue.append(action)
+						probs_blue.append(probs)
+						logprobs_blue.append(action_logprob)
+						one_hot_actions_blue[int(agent[5:])][action] = 1
 
 				new_observations, rewards, dones, infos = self.env.step(actions)
 
-				rewards_ = []
-				dones_ = []
+				rewards_red = []
+				rewards_blue = []
+				dones_red = []
+				dones_blue = []
 				for agent_num, agent in enumerate(self.agent_names):
 					if agent in self.env.agents:
-						rewards_.append(rewards[agent])
-						dones_.append(dones[agent])
+						reward = rewards[agent]
+						done = dones[agent]
 					else:
-						rewards_.append(0)
-						dones_.append(True)
+						reward = 0.0
+						done = True
+
+					if "red" in agent:
+						rewards_red.append(reward)
+						dones_red.append(done)
+					elif "blue" in agent:
+						rewards_blue.append(reward)
+						dones_blue.append(done)
 				
 
 				# record data
-				self.agents.buffer.observations.append(observations_)
-				self.agents.buffer.actions.append(actions_)
-				self.agents.buffer.one_hot_actions.append(one_hot_actions)
-				self.agents.buffer.probs.append(probs_)
-				self.agents.buffer.logprobs.append(logprobs_)
-				self.agents.buffer.rewards.append(rewards_)
-				self.agents.buffer.dones.append(dones_)
+				self.agents.buffer.observations_red.append(observations_red)
+				self.agents.buffer.actions_red.append(actions_red)
+				self.agents.buffer.one_hot_actions_red.append(one_hot_actions_red)
+				self.agents.buffer.probs_red.append(probs_red)
+				self.agents.buffer.logprobs_red.append(logprobs_red)
+				self.agents.buffer.rewards_red.append(rewards_red)
+				self.agents.buffer.dones_red.append(dones_red)
+				
+				self.agents.buffer.observations_blue.append(observations_blue)
+				self.agents.buffer.actions_blue.append(actions_blue)
+				self.agents.buffer.one_hot_actions_blue.append(one_hot_actions_blue)
+				self.agents.buffer.probs_blue.append(probs_blue)
+				self.agents.buffer.logprobs_blue.append(logprobs_blue)
+				self.agents.buffer.rewards_blue.append(rewards_blue)
+				self.agents.buffer.dones_blue.append(dones_blue)
 
 
 				if not self.env.agents:  
@@ -203,40 +230,45 @@ class MultiAgent:
 				observations = new_observations
 
 			
-				if all(dones_) or step == self.max_time_steps:
+				if all(dones_red) or all(dones_blue) or step == self.max_time_steps:
 
 					team_size = self.env.team_size()
 
 					print("*"*100)
-					print("EPISODE: {} | REWARD TEAM 1: {} | REWARD TEAM 2: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward[0],decimals=4),np.round(episode_reward[1],decimals=4),step,self.max_time_steps))
-					print("NUM AGENTS ALIVE TEAM 1: {} | NUM AGENTS ALIVE TEAM 2: {} \n".format(team_size[0], team_size[1]))
+					print("EPISODE: {} | REWARD TEAM RED: {} | REWARD TEAM BLUE: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward[0],decimals=4),np.round(episode_reward[1],decimals=4),step,self.max_time_steps))
+					print("NUM AGENTS ALIVE TEAM RED: {} | NUM AGENTS ALIVE TEAM BLUE: {} \n".format(team_size[0], team_size[1]))
 					print("*"*100)
 
 					final_timestep = step
 
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
-						self.comet_ml.log_metric('Reward Team 1', episode_reward[0], episode)
-						self.comet_ml.log_metric('Reward Team 2', episode_reward[1], episode)
+						self.comet_ml.log_metric('Reward Team Red', episode_reward[0], episode)
+						self.comet_ml.log_metric('Reward Team Blue', episode_reward[1], episode)
+						self.comet_ml.log_metric('Team Red Size', team_size[0], episode)
+						self.comet_ml.log_metric('Team Blue Size', team_size[1], episode)
 
 					break
 
 			if self.eval_policy:
-				self.rewards[0].append(episode_reward[0])
-				self.rewards[1].append(episode_reward[1])
-				self.num_agents_alive[0].append(team_size[0])
-				self.num_agents_alive[0].append(team_size[1])
+				self.rewards["red"].append(episode_reward[0])
+				self.rewards["blue"].append(episode_reward[1])
+				self.num_agents_alive["red"].append(team_size[0])
+				self.num_agents_alive["blue"].append(team_size[1])
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
-				self.rewards_mean_per_1000_eps[0].append(sum(self.rewards[0][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.rewards_mean_per_1000_eps[1].append(sum(self.rewards[1][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.num_agents_alive_mean_per_1000_eps[0].append(sum(self.num_agents_alive[0][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.num_agents_alive_mean_per_1000_eps[1].append(sum(self.num_agents_alive[1][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				self.rewards_mean_per_1000_eps["red"].append(sum(self.rewards["red"][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				self.rewards_mean_per_1000_eps["blue"].append(sum(self.rewards["blue"][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				self.num_agents_alive_mean_per_1000_eps["red"].append(sum(self.num_agents_alive["red"][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				self.num_agents_alive_mean_per_1000_eps["blue"].append(sum(self.num_agents_alive["blue"][episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 	
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
-				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+				torch.save(self.agents.critic_network_red.state_dict(), self.critic_model_path+'_red_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.policy_network_red.state_dict(), self.actor_model_path+'_red_epsiode'+str(episode)+'.pt')
+
+				torch.save(self.agents.critic_network_blue.state_dict(), self.critic_model_path+'_blue_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.policy_network_blue.state_dict(), self.actor_model_path+'_blue_epsiode'+str(episode)+'.pt')  
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				if self.update_type == "ppo":
@@ -246,5 +278,12 @@ class MultiAgent:
 
 
 			if self.eval_policy and not(episode%self.save_model_checkpoint) and episode!=0:
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"red_reward"), np.array(self.rewards["red"]), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"red_mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps["red"]), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"blue_reward"), np.array(self.rewards["blue"]), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"blue_mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps["blue"]), allow_pickle=True, fix_imports=True)
+
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"red_num_agents_alive"), np.array(self.num_agents_alive["red"]), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"red_num_agents_alive_per_1000_eps"), np.array(self.num_agents_alive_mean_per_1000_eps["red"]), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"blue_num_agents_alive"), np.array(self.num_agents_alive["blue"]), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"blue_mean_rewards_per_1000_eps"), np.array(self.num_agents_alive_mean_per_1000_eps["blue"]), allow_pickle=True, fix_imports=True)

@@ -8,23 +8,39 @@ import math
 
 class RolloutBuffer:
 	def __init__(self):
-		self.observations = []
-		self.probs = []
-		self.logprobs = []
-		self.actions = []
-		self.one_hot_actions = []
-		self.rewards = []
-		self.dones = []
+		self.observations_red = []
+		self.probs_red = []
+		self.logprobs_red = []
+		self.actions_red = []
+		self.one_hot_actions_red = []
+		self.rewards_red = []
+		self.dones_red = []
+
+		self.observations_blue = []
+		self.probs_blue = []
+		self.logprobs_blue = []
+		self.actions_blue = []
+		self.one_hot_actions_blue = []
+		self.rewards_blue = []
+		self.dones_blue = []
 	
 
 	def clear(self):
-		del self.observations[:]
-		del self.probs[:]
-		del self.logprobs[:]
-		del self.actions[:]
-		del self.one_hot_actions[:]
-		del self.rewards[:]
-		del self.dones[:]
+		del self.observations_red[:]
+		del self.probs_red[:]
+		del self.logprobs_red[:]
+		del self.actions_red[:]
+		del self.one_hot_actions_red[:]
+		del self.rewards_red[:]
+		del self.dones_red[:]
+
+		del self.observations_blue[:]
+		del self.probs_blue[:]
+		del self.logprobs_blue[:]
+		del self.actions_blue[:]
+		del self.one_hot_actions_blue[:]
+		del self.rewards_blue[:]
+		del self.dones_blue[:]
 
 class Policy(nn.Module):
 	def __init__(self, obs_input_dim, num_actions, num_agents, device):
