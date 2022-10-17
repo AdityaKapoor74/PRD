@@ -30,7 +30,7 @@ if __name__ == '__main__':
 			"extension":extension,
 			"value_lr": 7e-4,
 			"policy_lr": 7e-4,
-			"entropy_pen": 1e-3,
+			"entropy_pen": 1e-2,
 			"gamma": 0.99, 
 			"gae_lambda": 0.95,
 			"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
