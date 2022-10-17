@@ -266,7 +266,7 @@ class Q_network(nn.Module):
 		obs_output_dim = 256
 		obs_act_input_dim = obs_input_dim+self.num_actions
 		obs_act_output_dim = 256
-		curr_agent_output_dim = 128
+		curr_agent_output_dim = 256
 
 		self.state_embed = nn.Sequential(
 			nn.Linear(obs_input_dim, 256, bias=True), 
@@ -308,7 +308,7 @@ class Q_network(nn.Module):
 			nn.Linear(256, 256, bias=True), 
 			nn.Tanh(),
 			)
-		self.layer_norm = nn.LayerNorm(obs_act_output_dim)
+		self.layer_norm_state_act_embed = nn.LayerNorm(obs_act_output_dim)
 
 		self.curr_agent_state_embed = nn.Sequential(
 			nn.Linear(obs_input_dim, 256, bias=True), 
@@ -316,6 +316,7 @@ class Q_network(nn.Module):
 			nn.Linear(256, curr_agent_output_dim, bias=True), 
 			nn.Tanh(),
 			)
+		self.layer_norm_state_embed = nn.LayerNorm(curr_agent_output_dim)
 
 		# dimesion of key
 		self.d_k = obs_output_dim
@@ -432,9 +433,10 @@ class Q_network(nn.Module):
 		obs_actions_embed = self.state_act_embed(obs_actions)
 		attention_values = self.attention_value(obs_actions_embed)
 		node_features = torch.matmul(weight, attention_values)
-		node_features = self.layer_norm(torch.mean(obs_actions_embed, dim=-2).unsqueeze(-2)+node_features)
+		node_features = self.layer_norm_state_act_embed(torch.mean(obs_actions_embed, dim=-2).unsqueeze(-2)+node_features)
 
 		curr_agent_state_embed = self.curr_agent_state_embed(states)
+		curr_agent_state_embed = self.layer_norm_state_embed(curr_agent_state_embed+torch.mean(states_key_embed, dim=-2).squeeze(-2)+states_query_embed.squeeze(-2))
 		curr_agent_node_features = torch.cat([curr_agent_state_embed, node_features.squeeze(-2)], dim=-1)
 		
 		Q_value = self.final_value_layers(curr_agent_node_features)
