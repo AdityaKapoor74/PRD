@@ -2,9 +2,9 @@ from pettingzoo.magent import battle_v2
 from multiagent import MultiAgent
 
 # PRD-MAPPO: actor_lr = 7e-4; critic_lr = 7e-4; entropy_pen = 1e-2
-# semi-hard PRD-MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-2
-# MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-2
-# semi-hard MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-2
+# semi-hard PRD-MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-1
+# MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-1
+# semi-hard MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-1
 
 if __name__ == '__main__':
 	seed_num = 0 # [0,1,2,3,4]
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 			"extension":extension,
 			"value_lr": 3e-4,
 			"policy_lr": 3e-4,
-			"entropy_pen": 1e-2,
+			"entropy_pen": 1e-1,
 			"gamma": 0.99, 
 			"gae_lambda": 0.95,
 			"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
