@@ -1,6 +1,10 @@
 from pettingzoo.magent import battle_v2
 from multiagent import MultiAgent
 
+# PRD-MAPPO: actor_lr = 7e-4; critic_lr = 7e-4; entropy_pen = 1e-2
+# semi-hard PRD-MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-2
+# MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-2
+# semi-hard MAPPO: actor_lr = 3e-4; critic_lr = 3e-4; entropy_pen = 1e-2
 
 if __name__ == '__main__':
 	seed_num = 0 # [0,1,2,3,4]
@@ -8,7 +12,7 @@ if __name__ == '__main__':
 	extension = "MAPPO_Q" # [MAPPO_Q, MAA2C_Q, MAPPO_Q_Semi_Hard_Attn, MAA2C_Q_Semi_Hard_Attn]
 	test_num = "PettingZoo"
 	env_name = "Battle"
-	experiment_type = "prd_above_threshold" # shared, prd_above_threshold
+	experiment_type = "shared" # shared, prd_above_threshold
 
 	dictionary = {
 			"iteration": seed_num,
@@ -28,13 +32,13 @@ if __name__ == '__main__':
 			"env": env_name, 
 			"test_num":test_num,
 			"extension":extension,
-			"value_lr": 7e-4,
-			"policy_lr": 7e-4,
+			"value_lr": 3e-4,
+			"policy_lr": 3e-4,
 			"entropy_pen": 1e-2,
 			"gamma": 0.99, 
 			"gae_lambda": 0.95,
 			"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-			"select_above_threshold": 0.05, # [0.05: 'soft', 0.0: 'semi-hard' --> attention_type]
+			"select_above_threshold": 0.0, # [0.05: 'soft', 0.0: 'semi-hard' --> attention_type]
 			"gif": False,
 			"gif_checkpoint":1,
 			"load_models": False,
