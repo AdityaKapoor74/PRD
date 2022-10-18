@@ -12,7 +12,7 @@ if __name__ == '__main__':
 	extension = "MAPPO_Q" # [MAPPO_Q, MAA2C_Q, MAPPO_Q_Semi_Hard_Attn, MAA2C_Q_Semi_Hard_Attn]
 	test_num = "PettingZoo"
 	env_name = "Battle"
-	experiment_type = "shared" # shared, prd_above_threshold
+	experiment_type = "prd_above_threshold" # shared, prd_above_threshold
 
 	dictionary = {
 			"iteration": seed_num,
