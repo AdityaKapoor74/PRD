@@ -17,7 +17,7 @@ if __name__ == '__main__':
 	dictionary = {
 			"iteration": seed_num,
 			"update_type": "ppo", # [ppo, a2c]
-			"attention_type": "semi-hard", # [semi-hard, soft]
+			"attention_type": "soft", # [semi-hard, soft]
 			"grad_clip_critic": 10.0,
 			"grad_clip_actor": 10.0,
 			"device": "gpu",
