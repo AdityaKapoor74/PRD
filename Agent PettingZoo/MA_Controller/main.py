@@ -12,12 +12,12 @@ if __name__ == '__main__':
 	extension = "MAPPO_Q" # [MAPPO_Q, MAA2C_Q, MAPPO_Q_Semi_Hard_Attn, MAA2C_Q_Semi_Hard_Attn]
 	test_num = "PettingZoo"
 	env_name = "Battle"
-	experiment_type = "prd_above_threshold" # shared, prd_above_threshold
+	experiment_type = "shared" # shared, prd_above_threshold
 
 	dictionary = {
 			"iteration": seed_num,
 			"update_type": "ppo", # [ppo, a2c]
-			"attention_type": "soft", # [semi-hard, soft]
+			"attention_type": "semi-hard", # [semi-hard, soft]
 			"grad_clip_critic": 10.0,
 			"grad_clip_actor": 10.0,
 			"device": "gpu",
@@ -32,9 +32,9 @@ if __name__ == '__main__':
 			"env": env_name, 
 			"test_num":test_num,
 			"extension":extension,
-			"value_lr": 7e-4,
-			"policy_lr": 7e-4,
-			"entropy_pen": 1e-1,
+			"value_lr": 3e-4,
+			"policy_lr": 3e-4,
+			"entropy_pen": 0.0,
 			"gamma": 0.99, 
 			"gae_lambda": 0.95,
 			"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
