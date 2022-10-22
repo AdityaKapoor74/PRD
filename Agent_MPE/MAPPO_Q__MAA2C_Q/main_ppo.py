@@ -36,8 +36,8 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 
-	for i in range(1,3):
-		extension = "MAPPO_V_run_"+str(i)
+	for i in range(1,5):
+		extension = "MAPPO_Q_run_"+str(i)
 		test_num = "MPE"
 		env_name = "crossing_team_greedy"
 		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.05,
 				"value_clip": 0.05,
 				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"env": env_name, 
 				"test_num":test_num,
 				"extension":extension,
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.1,
+				"select_above_threshold": 0.04,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
@@ -82,8 +82,8 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 30000,
-				"max_time_steps": 50,
+				"max_episodes": 20000,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
