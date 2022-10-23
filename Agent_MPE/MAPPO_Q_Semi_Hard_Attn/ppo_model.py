@@ -401,6 +401,14 @@ class Q_network(nn.Module):
 			nn.Linear(256, obs_output_dim, bias=True),
 			nn.Tanh(),
 			)
+
+		self.hard_attention = nn.Sequential(
+			nn.Linear(obs_output_dim*2, 256),
+			nn.Tanh(),
+			nn.Linear(256, 256),
+			nn.Tanh(),
+			nn.Linear(256, 2)
+			)
 		
 		self.state_act_embed = nn.Sequential(
 			nn.Linear(obs_act_input_dim, 256, bias=True), 
@@ -461,6 +469,10 @@ class Q_network(nn.Module):
 		nn.init.orthogonal_(self.attention_value[0].weight, gain=gain)
 		nn.init.orthogonal_(self.attention_value[2].weight, gain=gain)
 
+		nn.init.orthogonal_(self.hard_attention[0].weight, gain=gain)
+		nn.init.orthogonal_(self.hard_attention[2].weight, gain=gain)
+		nn.init.orthogonal_(self.hard_attention[4].weight, gain=gain)
+
 		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight, gain=gain)
 		nn.init.orthogonal_(self.curr_agent_state_embed[2].weight, gain=gain)
 
@@ -518,8 +530,12 @@ class Q_network(nn.Module):
 		# QUERIES
 		query_obs = self.query(states_query_embed)
 		# WEIGHT
-		scores = torch.matmul(query_obs,key_obs.transpose(2,3))/math.sqrt(self.d_k)
-		weight = F.softmax(scores,dim=-1)
+		comparison_vector = torch.cat([query_obs.repeat(1,1,self.num_agents-1,1), key_obs], dim=-1)
+		hard_weights = nn.functional.gumbel_softmax(self.hard_attention(comparison_vector), hard=True, dim=-1)
+		prop = hard_weights[:,:,:,1]
+		hard_score = -10000*(1-prop) + prop
+		score = (torch.matmul(query_obs,key_obs.transpose(2,3))/math.sqrt(self.d_k)) + hard_score.unsqueeze(-2)
+		weight = F.softmax(score ,dim=-1)
 		weights = self.weight_assignment(weight.squeeze(-2))
 
 		# EMBED STATE ACTION POLICY
