@@ -24,7 +24,7 @@ class MAPPO:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_actions = 5 #self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -132,7 +132,8 @@ class MAPPO:
 				import time
 				time.sleep(1.0)
 
-			states, agent_global_positions, agent_ids = self.env.reset()
+			# states, agent_global_positions, agent_ids = self.env.reset()
+			states = self.env.reset()
 
 			images = []
 
@@ -147,16 +148,18 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, agent_global_positions, agent_ids, greedy=False)
+						# actions = self.agents.get_action(states, agent_global_positions, agent_ids, greedy=False)
+						actions = self.agents.get_action(states, greedy=False)
 				else:
-					actions = self.agents.get_action(states, agent_global_positions, agent_ids)
+					# actions = self.agents.get_action(states, agent_global_positions, agent_ids)
+					actions = self.agents.get_action(states, greedy=False)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				obs, rewards, dones, info = self.env.step(actions)
-				next_states, next_agent_global_positions, agent_ids = obs
+				next_states, rewards, dones, info = self.env.step(actions)
+				# next_states, next_agent_global_positions, agent_ids = obs
 				
 
 				episode_goal_reached += np.sum(dones)
@@ -165,9 +168,10 @@ class MAPPO:
 				# if step == self.max_time_steps:
 				# 	dones = [True for _ in range(self.num_agents)]
 
+				# self.agents.buffer.states.append(states)
+				# self.agents.buffer.agent_global_positions.append(agent_global_positions)
+				# self.agents.buffer.agent_ids.append(agent_ids)
 				self.agents.buffer.states.append(states)
-				self.agents.buffer.agent_global_positions.append(agent_global_positions)
-				self.agents.buffer.agent_ids.append(agent_ids)
 				self.agents.buffer.actions.append(actions)
 				self.agents.buffer.one_hot_actions.append(one_hot_actions)
 				self.agents.buffer.dones.append(dones)
@@ -176,7 +180,7 @@ class MAPPO:
 				episode_reward += np.sum(rewards)
 
 				states = next_states
-				agent_global_positions = next_agent_global_positions
+				# agent_global_positions = next_agent_global_positions
 
 				# import time
 				# time.sleep(0.05)
@@ -220,7 +224,7 @@ class MAPPO:
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				if self.update_type == "ppo":
 					self.agents.update(episode)
-				if self.update_type == "ppo_V":
+				elif self.update_type == "ppo_V":
 					self.agents.V_update(episode) 
 				elif self.update_type == "a2c":
 					self.agents.a2c_update(episode)
