@@ -54,6 +54,8 @@ class PPOAgent:
 		self.num_agents = self.env.n_agents
 		self.num_actions = 5 #self.env.action_space[0].n
 
+		self.attention_type = dictionary["attention_type"]
+
 		# episode track
 		self.episode = 0
 
@@ -75,8 +77,8 @@ class PPOAgent:
 		# self.critic_network = Q_network(in_channels=5, obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		# self.critic_network_old = Q_network(in_channels=5, obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, value_normalization=self.value_normalization, device=self.device).to(self.device)
 		
-		self.critic_network = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.critic_network_old = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.critic_network = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
+		self.critic_network_old = Q_network(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, attention_type=self.attention_type, device=self.device).to(self.device)
 
 		################################### V Network #############################################
 		# obs_output_dim = 128
