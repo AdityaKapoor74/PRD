@@ -134,8 +134,8 @@ class PPOAgent:
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 		
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr, weight_decay=1e-3)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=1e-3)
 
 
 		# self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000], gamma=2)
