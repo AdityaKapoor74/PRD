@@ -71,7 +71,7 @@ class PPOAgent:
 
 
 		self.num_teams = self.num_agents//4 # team size is 4
-		self.relevant_set = torch.zeros(1,12,12).to(self.device)
+		self.relevant_set = torch.zeros(1,24,24).to(self.device)
 		team_counter = 0
 		for i in range(self.num_agents):
 			if i < 4:
@@ -80,8 +80,14 @@ class PPOAgent:
 				self.relevant_set[0][i][4:8] = torch.ones(4)
 			elif i >= 8 and i < 12:
 				self.relevant_set[0][i][8:12] = torch.ones(4)
+			elif i >= 12 and i < 16:
+				self.relevant_set[0][i][12:16] = torch.ones(4)
+			elif i >= 16 and i < 20:
+				self.relevant_set[0][i][16:20] = torch.ones(4)
+			elif i >= 20 and i < 24:
+				self.relevant_set[0][i][20:24] = torch.ones(4)
 
-		self.non_relevant_set = torch.ones(1,12,12).to(self.device) - self.relevant_set
+		self.non_relevant_set = torch.ones(1,24,24).to(self.device) - self.relevant_set
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 		obs_input_dim = 2*3+1 # crossing_team_greedy
