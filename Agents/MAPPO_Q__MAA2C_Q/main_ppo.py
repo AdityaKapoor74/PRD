@@ -39,12 +39,12 @@ if __name__ == '__main__':
 				"extension":extension,
 				"value_lr": 7e-4, #1e-3
 				"policy_lr": 7e-4, #prd 1e-4
-				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen": 0.5, #8e-3
 				"critic_weight_entropy_pen": 0.0,
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.2,
+				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 100,
+				"max_time_steps": 70,
 				"experiment_type": experiment_type,
 				"norm_adv": False,
 				"norm_returns": False,
