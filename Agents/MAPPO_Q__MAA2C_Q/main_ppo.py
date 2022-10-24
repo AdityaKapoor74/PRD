@@ -21,7 +21,7 @@ if __name__ == '__main__':
 		dictionary = {
 				"iteration": i,
 				"update_type": "ppo", # a2c, ppo, ppo_V
-				"attention_type": "semi-hard", # semi-hard, soft
+				"attention_type": "soft", # semi-hard, soft
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"device": "gpu",
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 				"gamma": 0.99, 
 				"gae_lambda": 0.95,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"select_above_threshold": 0.1,
+				"select_above_threshold": 0.2,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
