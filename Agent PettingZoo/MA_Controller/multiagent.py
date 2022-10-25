@@ -46,9 +46,13 @@ class MultiAgent:
 		self.update_type = dictionary["update_type"]
 
 		self.agent_names = []
-		for i in range(self.num_agents//2):
-			self.agent_names.append("red_"+str(i))
-			self.agent_names.append("blue_"+str(i))
+		if self.env_name == "Battle":
+			for i in range(self.num_agents//2):
+				self.agent_names.append("red_"+str(i))
+				self.agent_names.append("blue_"+str(i))
+		elif self.env_name == "Tiger_Deer":
+			for i in range(self.num_agents):
+				self.agent_names.append("tiger_"+str(i))
 
 		self.no_op_action_num = 0
 		if self.env_name == "Battle":
@@ -249,11 +253,12 @@ class MultiAgent:
 							observations_.append(agent_observation)
 							action, probs, action_logprob = self.agents.get_action(agent_observation, "tiger", greedy=False)
 							actions_.append(action)
-							actions[agent] = action
 
 							probs_.append(probs)
 							logprobs.append(action_logprob)
 							one_hot_actions[int(agent[6:])][action] = 1
+
+						actions[agent] = action
 
 					new_observations, rewards, dones, infos = self.env.step(actions)
 
