@@ -270,6 +270,7 @@ class MultiAgent:
 							logprobs.append(action_logprob)
 							one_hot_actions[int(agent[6:])][action] = 1
 
+					print(len(observations_))
 					new_observations, rewards, dones, infos = self.env.step(actions)
 
 					rewards_ = []
