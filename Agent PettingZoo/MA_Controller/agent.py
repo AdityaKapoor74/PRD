@@ -544,7 +544,7 @@ class Agent:
 				advantage, masking_advantage = self.calculate_advantages_based_on_exp(Value, rewards.to(self.device), dones.to(self.device), weights_value, episode)
 
 				if "threshold" in self.experiment_type:
-					agent_groups_over_episode(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+					agent_groups_over_episode = torch.sum(torch.sum(masking_advantage_red.float(), dim=-2),dim=0)/masking_advantage_red.shape[0]
 					avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 					agent_groups_over_episode_batch += agent_groups_over_episode
 					avg_agent_group_over_episode_batch += avg_agent_group_over_episode.item()
