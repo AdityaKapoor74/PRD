@@ -274,12 +274,16 @@ class MultiAgent:
 
 					rewards_ = []
 					dones_ = []
-					for agent in self.env.agents:
-						if "tiger" in agent:
-							reward = rewards[agent]
-							done = dones[agent]
-							rewards_.append(reward)
-							dones_.append(done)
+					for agent in self.agent_names:
+						if "tiger" in agent
+							if agent in self.env.agents:
+								reward = rewards[agent]
+								done = dones[agent]
+							else:
+								reward = 0.0
+								done = True
+						rewards_.append(reward)
+						dones_.append(done)
 
 							episode_reward += reward
 					
