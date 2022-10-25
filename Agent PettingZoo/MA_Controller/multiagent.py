@@ -248,7 +248,7 @@ class MultiAgent:
 					for agent_num, agent in enumerate(self.agent_names):
 						if "deer" in agent and agent in self.env.agents:
 							action = random.randint(0, (self.deer_n_actions-1))
-						else:
+						elif "tiger" in agent:
 							if agent in self.env.agents:
 								agent_observation = observations[agent]
 								agent_observation = self.change_observation(agent_observation)
@@ -270,7 +270,6 @@ class MultiAgent:
 							logprobs.append(action_logprob)
 							one_hot_actions[int(agent[6:])][action] = 1
 
-					print(len(observations_))
 					new_observations, rewards, dones, infos = self.env.step(actions)
 
 					rewards_ = []
