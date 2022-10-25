@@ -51,8 +51,10 @@ class MultiAgent:
 				self.agent_names.append("red_"+str(i))
 				self.agent_names.append("blue_"+str(i))
 		elif self.env_name == "Tiger_Deer":
-			for i in range(self.num_agents):
-				self.agent_names.append("tiger_"+str(i))
+			for agent in self.env.agents:
+				self.agent_names.append(agent)
+
+		print(self.agent_names)
 
 		self.no_op_action_num = 0
 		if self.env_name == "Battle":
@@ -162,6 +164,7 @@ class MultiAgent:
 						if agent in self.env.agents:
 							agent_observation = self.change_observation(observations[agent])
 							action, probs, action_logprob = self.agents.get_action(agent_observation, agent, greedy=False)
+							actions[agent] = action
 						else:
 							agent_observation = np.zeros(self.obs_dim)
 							action = 0
@@ -171,8 +174,6 @@ class MultiAgent:
 							probs = Categorical(dists)
 							action_logprob = probs.log_prob(torch.FloatTensor([action])).numpy()
 							probs = dists.numpy()
-
-						actions[agent] = action
 
 						if "red" in agent:
 							observations_red.append(agent_observation)
@@ -244,21 +245,30 @@ class MultiAgent:
 					logprobs = []
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 
-					for agent in self.env.agents:
-						if "deer" in agent:
+					for agent_num, agent in enumerate(self.agent_names):
+						if "deer" in agent and agent in self.env.agents:
 							action = random.randint(0, (self.deer_n_actions-1))
 						else:
-							agent_observation = observations[agent]
-							agent_observation = self.change_observation(agent_observation)
-							observations_.append(agent_observation)
-							action, probs, action_logprob = self.agents.get_action(agent_observation, "tiger", greedy=False)
-							actions_.append(action)
+							if agent in self.env.agents:
+								agent_observation = observations[agent]
+								agent_observation = self.change_observation(agent_observation)
+								action, probs, action_logprob = self.agents.get_action(agent_observation, "tiger", greedy=False)
+								actions[agent] = action
+							else:
+								agent_observation = np.zeros(self.obs_dim)
+								action = 0
+								dists = torch.zeros(self.num_actions)
+								# set no-op action with max prob
+								dists[0] = 1
+								probs = Categorical(dists)
+								action_logprob = probs.log_prob(torch.FloatTensor([action])).numpy()
+								probs = dists.numpy()
 
+							observations_.append(agent_observation)
+							actions_.append(action)
 							probs_.append(probs)
 							logprobs.append(action_logprob)
 							one_hot_actions[int(agent[6:])][action] = 1
-
-						actions[agent] = action
 
 					new_observations, rewards, dones, infos = self.env.step(actions)
 
