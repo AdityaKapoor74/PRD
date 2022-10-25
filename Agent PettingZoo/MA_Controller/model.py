@@ -6,7 +6,7 @@ import numpy as np
 import datetime
 import math
 
-class RolloutBuffer:
+class RolloutBuffer_Battle:
 	def __init__(self):
 		self.observations_red = []
 		self.probs_red = []
@@ -41,6 +41,26 @@ class RolloutBuffer:
 		del self.one_hot_actions_blue[:]
 		del self.rewards_blue[:]
 		del self.dones_blue[:]
+
+class RolloutBuffer_Tiger_Deer:
+	def __init__(self):
+		self.observations = []
+		self.probs = []
+		self.logprobs = []
+		self.actions = []
+		self.one_hot_actions = []
+		self.rewards = []
+		self.dones = []
+	
+
+	def clear(self):
+		del self.observations[:]
+		del self.probs[:]
+		del self.logprobs[:]
+		del self.actions[:]
+		del self.one_hot_actions[:]
+		del self.rewards[:]
+		del self.dones[:]
 
 class Policy(nn.Module):
 	def __init__(self, obs_input_dim, num_actions, num_agents, device):
@@ -271,7 +291,7 @@ class Q_network(nn.Module):
 		self.state_embed = nn.Sequential(
 			nn.Linear(obs_input_dim, 256, bias=True), 
 			nn.Tanh(),
-			nn.Linear(256, 256, bias=True), 
+			nn.Linear(256, 256, bias=True),
 			nn.Tanh()
 			)
 		self.key = nn.Sequential(

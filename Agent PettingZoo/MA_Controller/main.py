@@ -1,4 +1,4 @@
-from pettingzoo.magent import battle_v2
+from pettingzoo.magent import battle_v2, tiger_deer_v3
 from multiagent import MultiAgent
 
 # PRD-MAPPO: actor_lr = 7e-4; critic_lr = 7e-4; entropy_pen = 1e-2
@@ -11,13 +11,13 @@ if __name__ == '__main__':
 
 	extension = "MAPPO_Q" # [MAPPO_Q, MAA2C_Q, MAPPO_Q_Semi_Hard_Attn, MAA2C_Q_Semi_Hard_Attn]
 	test_num = "PettingZoo"
-	env_name = "Battle"
-	experiment_type = "prd_above_threshold" # shared, prd_above_threshold
+	env_name = "Tiger_Deer" # Battle, Tiger_Deer
+	experiment_type = "shared" # shared, prd_above_threshold
 
 	dictionary = {
 			"iteration": seed_num,
 			"update_type": "ppo", # [ppo, a2c]
-			"attention_type": "semi-hard", # [semi-hard, soft]
+			"attention_type": "soft", # [semi-hard, soft]
 			"grad_clip_critic": 10.0,
 			"grad_clip_actor": 10.0,
 			"device": "gpu",
@@ -53,7 +53,10 @@ if __name__ == '__main__':
 			"max_time_steps": 175,
 			"experiment_type": experiment_type,
 		}
-	parallel_env = battle_v2.parallel_env(map_size=28, attack_opponent_reward=5)
+	if env_name == "Tiger_Deer":
+		parallel_env = tiger_deer_v3.parallel_env(minimap_mode = True)
+	elif env_name == "Battle":
+		parallel_env = battle_v2.parallel_env(map_size=28, attack_opponent_reward=5)
 	parallel_env.seed(1)
 	ma_controller = MultiAgent(parallel_env, dictionary)
 	ma_controller.run()
