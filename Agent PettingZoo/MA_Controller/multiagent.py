@@ -54,8 +54,6 @@ class MultiAgent:
 			for agent in self.env.agents:
 				self.agent_names.append(agent)
 
-		print(self.agent_names)
-
 		self.no_op_action_num = 0
 		if self.env_name == "Battle":
 			self.obs_dim = 6929
@@ -282,7 +280,7 @@ class MultiAgent:
 							else:
 								reward = 0.0
 								done = True
-								
+
 							rewards_.append(reward)
 							dones_.append(done)
 
