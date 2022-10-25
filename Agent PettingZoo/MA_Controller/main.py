@@ -28,7 +28,7 @@ if __name__ == '__main__':
 			"policy_clip": 0.05,
 			"value_clip": 0.05,
 			"n_epochs": 5,
-			"update_ppo_agent": 1, # update ppo agent after every 'update_ppo_agent' episodes
+			"update_ppo_agent": 2, # update ppo agent after every 'update_ppo_agent' episodes
 			"env": env_name, 
 			"test_num":test_num,
 			"extension":extension,
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 			"save_comet_ml_plot": False,
 			"learn":True,
 			"max_episodes": 2000,
-			"max_time_steps": 500,
+			"max_time_steps": 400,
 			"experiment_type": experiment_type,
 		}
 	if env_name == "Tiger_Deer":
