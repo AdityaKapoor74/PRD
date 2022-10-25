@@ -515,11 +515,11 @@ class Agent:
 
 		elif self.env_name == "Tiger_Deer":
 			# convert list to tensor
-			old_observations = torch.from_numpy(np.array(self.buffer.observations).astype(np.float32))
+			old_observations = torch.from_numpy(np.vstack(self.buffer.observations).astype(np.float32))
 			old_actions = torch.from_numpy(np.vstack(self.buffer.actions).astype(np.int))
-			old_one_hot_actions = torch.from_numpy(np.array(self.buffer.one_hot_actions).astype(np.int))
-			old_probs = torch.from_numpy(np.array(self.buffer.probs).astype(np.float32))
-			old_logprobs = torch.from_numpy(np.array(self.buffer.logprobs).astype(np.float32)).squeeze(-1)
+			old_one_hot_actions = torch.from_numpy(np.vstack(self.buffer.one_hot_actions).astype(np.int))
+			old_probs = torch.from_numpy(np.vstack(self.buffer.probs).astype(np.float32))
+			old_logprobs = torch.from_numpy(np.vstack(self.buffer.logprobs).astype(np.float32)).squeeze(-1)
 			rewards = torch.from_numpy(np.vstack(self.buffer.rewards).astype(np.float32))
 			dones = torch.from_numpy(np.vstack(self.buffer.dones).astype(np.int)).long()
 
