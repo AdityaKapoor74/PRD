@@ -49,8 +49,8 @@ if __name__ == '__main__':
 			"save_model_checkpoint": 50,
 			"save_comet_ml_plot": True,
 			"learn":True,
-			"max_episodes": 10000,
-			"max_time_steps": 175,
+			"max_episodes": 2000,
+			"max_time_steps": 500,
 			"experiment_type": experiment_type,
 		}
 	if env_name == "Tiger_Deer":
