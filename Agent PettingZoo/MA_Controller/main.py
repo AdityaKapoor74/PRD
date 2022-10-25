@@ -12,12 +12,12 @@ if __name__ == '__main__':
 	extension = "MAPPO_Q" # [MAPPO_Q, MAA2C_Q, MAPPO_Q_Semi_Hard_Attn, MAA2C_Q_Semi_Hard_Attn]
 	test_num = "PettingZoo"
 	env_name = "Tiger_Deer" # Battle, Tiger_Deer
-	experiment_type = "prd_above_threshold" # shared, prd_above_threshold
+	experiment_type = "shared" # shared, prd_above_threshold
 
 	dictionary = {
 			"iteration": seed_num,
 			"update_type": "ppo", # [ppo, a2c]
-			"attention_type": "soft", # [semi-hard, soft]
+			"attention_type": "semi-hard", # [semi-hard, soft]
 			"grad_clip_critic": 10.0,
 			"grad_clip_actor": 10.0,
 			"device": "gpu",
