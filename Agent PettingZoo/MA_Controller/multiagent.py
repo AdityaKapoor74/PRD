@@ -285,7 +285,7 @@ class MultiAgent:
 						rewards_.append(reward)
 						dones_.append(done)
 
-							episode_reward += reward
+						episode_reward += reward
 					
 					# record data
 					self.agents.buffer.observations.append(observations_)
