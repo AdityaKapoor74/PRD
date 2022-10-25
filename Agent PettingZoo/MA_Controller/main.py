@@ -50,7 +50,7 @@ if __name__ == '__main__':
 			"save_comet_ml_plot": False,
 			"learn":True,
 			"max_episodes": 2000,
-			"max_time_steps": 400,
+			"max_time_steps": 450,
 			"experiment_type": experiment_type,
 		}
 	if env_name == "Tiger_Deer":
