@@ -32,9 +32,9 @@ if __name__ == '__main__':
 			"env": env_name, 
 			"test_num":test_num,
 			"extension":extension,
-			"value_lr": 1e-4,
-			"policy_lr": 1e-4,
-			"entropy_pen": 1e-3,
+			"value_lr": 1e-5,
+			"policy_lr": 1e-5,
+			"entropy_pen": 0.0,
 			"gamma": 0.99, 
 			"gae_lambda": 0.95,
 			"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
