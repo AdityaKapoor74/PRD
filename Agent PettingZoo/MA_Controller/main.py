@@ -32,7 +32,7 @@ if __name__ == '__main__':
 			"env": env_name, 
 			"test_num":test_num,
 			"extension":extension,
-			"value_lr": 1e-5,
+			"value_lr": 1e-3,
 			"policy_lr": 1e-5,
 			"entropy_pen": 1e-3,
 			"gamma": 0.99, 
