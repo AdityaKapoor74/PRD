@@ -30,10 +30,10 @@ PRD_MAA2C_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
-	for i in range(1,3):
+	for i in range(1,5):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "MPE" 
-		env_name = "crossing_greedy"
+		env_name = "crossing_team_greedy"
 		experiment_type = "prd_above_threshold" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
@@ -46,10 +46,10 @@ if __name__ == '__main__':
 				"extension":extension,
 				"iteration": i,
 				"device": "gpu",
-				"value_lr": 5e-4, #1e-3 
-				"policy_lr": 5e-4, #prd 1e-4
-				"grad_clip_critic": 0.5,
-				"grad_clip_actor": 0.5,
+				"value_lr": 3e-4, #1e-3 
+				"policy_lr": 3e-4, #prd 1e-4
+				"grad_clip_critic": 10.0,
+				"grad_clip_actor": 10.0,
 				"entropy_pen": 0.0, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 				"lambda": 0.95, #0.8
 				"select_above_threshold": 0.1,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.0,
 				"steps_to_take": 1000, 
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 50,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
 				"norm_adv": False,
