@@ -5,7 +5,7 @@ import gym
 if __name__ == '__main__':
 	for i in range(1,5):
 		extension = "MAA2C_run_"+str(i)
-		test_num = "PRD_MAA2C" 
+		test_num = "pressure_plate" 
 		env_name = "pressureplate-linear-6p-v0"
 		experiment_type = "prd_above_threshold" # prd_above_threshold_ascend, greedy, shared
 
