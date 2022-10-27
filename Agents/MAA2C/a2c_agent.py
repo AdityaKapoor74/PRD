@@ -62,23 +62,18 @@ class A2CAgent:
 		self.average_relevant_set = []
 		
 		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_actions = 5 #self.env.action_space[0].n
 		self.episode = 0
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		obs_dim = self.num_agents+2
-		obs_output_dim = 128
-		obs_act_input_dim = obs_dim+self.num_actions
-		obs_act_output_dim = 128
-		final_input_dim = 128
-		final_output_dim = 1
-		self.critic_network = TransformerCritic(5, obs_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, self.num_agents, self.num_actions, self.device).to(self.device)
+		obs_input_dim = 133
+		self.critic_network = TransformerCritic(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		self.policy_network = MLPPolicy(5, obs_dim, self.num_actions, self.num_agents, self.device).to(self.device)
+		self.policy_network = Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 
 
 		if dictionary["load_models"]:
@@ -93,20 +88,18 @@ class A2CAgent:
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 		
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr, weight_decay=1e-3)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=1e-3)
 
 
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
-	def get_action(self, state_policy, agent_global_positions, agent_ids, greedy=False):
+	def get_action(self, state_policy, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			agent_global_positions = torch.FloatTensor(agent_global_positions).to(self.device)
-			agent_ids = torch.Tensor(agent_ids).to(self.device)
-			dists = self.policy_network(state_policy, agent_global_positions, agent_ids)
+			dists = self.policy_network(state_policy)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 			else:
@@ -208,7 +201,7 @@ class A2CAgent:
 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, V_values, target_V_values, rewards, dones, weights, next_states, next_agent_global_positions, agent_ids, one_hot_next_actions):
+	def calculate_value_loss(self, V_values, target_V_values, rewards, dones, weights, next_states, one_hot_next_actions):
 		discounted_rewards = None
 		next_probs = None
 
@@ -218,8 +211,8 @@ class A2CAgent:
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 			Value_target = discounted_rewards
 		elif self.critic_loss_type == "TD_1":
-			next_probs, _ = self.policy_network(next_states, next_agent_global_positions, agent_ids)
-			V_values_next, _ = self.target_critic_network.forward(next_states, next_agent_global_positions, agent_ids, next_probs.detach(), one_hot_next_actions)
+			next_probs, _ = self.policy_network(next_states)
+			V_values_next, _ = self.target_critic_network.forward(next_states, next_probs.detach(), one_hot_next_actions)
 			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 			Value_target = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 		elif self.critic_loss_type == "TD_lambda":
@@ -307,17 +300,17 @@ class A2CAgent:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
 
-	def update(self, states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode):
+	def update(self, states, next_states, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode):
 
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		probs = self.policy_network(states, agent_global_positions, agent_ids)
+		probs = self.policy_network(states)
 
 		'''
 		Calculate V values
 		'''
-		V_values, weights_value = self.critic_network(states, agent_global_positions, agent_ids, probs.detach(), one_hot_actions)
+		V_values, weights_value = self.critic_network(states, probs.detach(), one_hot_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
 		target_V_values = V_values.clone()
@@ -328,7 +321,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value, next_states, next_agent_global_positions, agent_ids, one_hot_next_actions)
+		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value, next_states, one_hot_next_actions)
 	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))

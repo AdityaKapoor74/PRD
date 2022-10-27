@@ -24,7 +24,7 @@ class MAA2C:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_actions = 5 #self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -124,20 +124,17 @@ class MAA2C:
 	def update(self,trajectory,episode):
 		
 		states = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
-		agent_global_positions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
-		agent_ids = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
 
-		next_states = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		next_agent_global_positions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		next_states = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
 
-		one_hot_actions = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
-		one_hot_next_actions = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
+		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
+		one_hot_next_actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
 
-		rewards = torch.FloatTensor(np.array([sars[8] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[9] for sars in trajectory])).to(self.device)
+		rewards = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
 
-		self.agents.update(states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode)
+		self.agents.update(states, next_states, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode)
 
 
 
@@ -188,7 +185,7 @@ class MAA2C:
 
 			images = []
 
-			states, agent_global_positions, agent_ids = self.env.reset()
+			states = self.env.reset()
 
 			trajectory = []
 			episode_reward = 0
@@ -202,20 +199,19 @@ class MAA2C:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, agent_global_positions, agent_ids, greedy=True)
+						actions = self.agents.get_action(states, greedy=True)
 				else:
-					actions = self.agents.get_action(states, agent_global_positions, agent_ids)
+					actions = self.agents.get_action(states)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				obs,rewards,dones,info = self.env.step(actions)
-				next_states, next_agent_global_positions, agent_ids = obs
+				next_states,rewards,dones,info = self.env.step(actions)
 
 				# next actions
 				with torch.no_grad():
-					next_actions = self.agents.get_action(next_states, next_agent_global_positions, agent_ids)
+					next_actions = self.agents.get_action(next_states)
 
 
 				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
@@ -226,7 +222,7 @@ class MAA2C:
 
 
 				if self.learn:
-					trajectory.append([states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones])
+					trajectory.append([states, next_states, one_hot_actions, one_hot_next_actions, actions, rewards, dones])
 					if all(dones) or step == self.max_time_steps:
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
@@ -242,7 +238,6 @@ class MAA2C:
 						break
 
 				states = next_states
-				agent_global_positions = next_agent_global_positions
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
