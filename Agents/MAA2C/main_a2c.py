@@ -49,7 +49,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 100,
+				"max_time_steps": 70,
 				"experiment_type": experiment_type,
 				"gae": True,
 				"norm_adv": False,
