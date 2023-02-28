@@ -308,7 +308,7 @@ class PPOAgent:
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
 			advantage = advantage*(self.num_agents/self.top_k)
 
-		return advantage, masking_advantage, mean_min_weight_value
+		return advantage.detach(), masking_advantage.detach(), mean_min_weight_value.detach()
 
 	def update_parameters(self):
 		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
@@ -332,7 +332,7 @@ class PPOAgent:
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 
-		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).detach()
+		Q_value_target = self.nstep_returns(Q_values_old, rewards.to(self.device), dones.to(self.device)).detach()
 
 		q_value_loss_batch = 0
 		v_value_loss_batch = 0
@@ -348,13 +348,13 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_value, Value, history_states_critic, weights_prd = self.critic_network(old_states_critic, history_states_critic, old_one_hot_actions)
+			Q_value, Value, history_states_critic, weights_prd = self.critic_network(old_states_critic.to(self.device), history_states_critic.to(self.device), old_one_hot_actions.to(self.device))
 
-			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_Q_V(Q_value, Value, weights_prd, dones, episode)
+			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_Q_V(Q_value, Value, weights_prd, dones.to(self.device), episode)
 
-			dists = self.policy_network(old_states_actor)
+			dists = self.policy_network(old_states_actor.to(self.device))
 			probs = Categorical(dists.squeeze(0))
-			logprobs = probs.log_prob(old_actions)
+			logprobs = probs.log_prob(old_actions.to(self.device))
 
 			critic_q_loss_1 = F.smooth_l1_loss(Q_value, Q_value_target)
 			critic_q_loss_2 = F.smooth_l1_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip), Q_value_target)
@@ -368,17 +368,18 @@ class PPOAgent:
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2), dim=-1)
 				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).detach()
 			else:
-				Value_target = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).detach()
 
-			critic_v_loss_1 = F.smooth_l1_loss(Value, Value_target)
-			critic_v_loss_2 = F.smooth_l1_loss(torch.clamp(Value, Values_old-self.value_clip, Values_old+self.value_clip), Value_target)
+			critic_v_loss_1 = F.smooth_l1_loss(Value, Value_target.to(self.device))
+			critic_v_loss_2 = F.smooth_l1_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target.to(self.device))
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
-			ratios = torch.exp(logprobs - old_logprobs)
+			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
 			# Finding Surrogate Loss
-			surr1 = ratios * advantage.detach()
-			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.detach()
+			surr1 = ratios * advantage
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage
 
 			# final loss of clipped objective PPO
 			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
