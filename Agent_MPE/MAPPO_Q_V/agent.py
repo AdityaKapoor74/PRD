@@ -91,6 +91,8 @@ class PPOAgent:
 		# Disable updates for old network
 		for param in self.critic_network_old.parameters():
 			param.requires_grad_(False)
+
+		self.history_states_critic = None
 		
 		
 		# Policy Network
@@ -325,9 +327,9 @@ class PPOAgent:
 	def update(self,episode):
 		# convert list to tensor
 		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic))
-		history_states_critic = torch.stack(self.buffer.history_states_critic, dim=0)
-		Q_values_old = torch.stack(self.buffer.Q_values, dim=0)
-		Values_old = torch.stack(self.buffer.Values, dim=0)
+		# history_states_critic = torch.stack(self.buffer.history_states_critic, dim=0)
+		# Q_values_old = torch.stack(self.buffer.Q_values, dim=0)
+		# Values_old = torch.stack(self.buffer.Values, dim=0)
 		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor))
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions))
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions))
@@ -335,7 +337,16 @@ class PPOAgent:
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 
-		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).to(self.device)
+		if self.history_states_critic is None:
+			self.history_states_critic = torch.zeros(old_states_critic.shape[0], self.num_agents, 256)
+
+		Q_values_old, Values_old, self.history_states_critic, _ = self.critic_network_old(
+																old_states_critic.to(self.device),
+																self.history_states_critic.to(self.device),
+																old_one_hot_actions.to(self.device)
+																)
+
+		Q_value_target = self.nstep_returns(Q_values_old.detach().cpu(), rewards, dones).to(self.device)
 
 		q_value_loss_batch = 0
 		v_value_loss_batch = 0
@@ -351,7 +362,7 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_value, Value, new_history_states_critic, weights_prd = self.critic_network(old_states_critic.to(self.device), history_states_critic.to(self.device), old_one_hot_actions.to(self.device))
+			Q_value, Value, new_history_states_critic, weights_prd = self.critic_network(old_states_critic.to(self.device), self.history_states_critic.deatch().to(self.device), old_one_hot_actions.to(self.device))
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_Q_V(Q_value, Value, torch.mean(weights_prd.detach(), dim=1), dones.to(self.device), episode)
 
@@ -406,7 +417,7 @@ class PPOAgent:
 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
 			self.policy_optimizer.step()
 
-			history_states_critic = new_history_states_critic.detach().cpu()
+			self.history_states_critic = new_history_states_critic.detach().cpu()
 
 			q_value_loss_batch += critic_q_loss
 			v_value_loss_batch += critic_v_loss
@@ -482,4 +493,4 @@ class PPOAgent:
 		if self.comet_ml is not None:
 			self.plot(episode)
 
-		return history_states_critic[-1]
+		# return history_states_critic[-1]
