@@ -47,7 +47,7 @@ class MAPPO:
 
 
 		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
-		self.init_critic_hidden_state(np.zeros((1, self.num_agents, 256)))
+		# self.init_critic_hidden_state(np.zeros((1, self.num_agents, 256)))
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -99,8 +99,8 @@ class MAPPO:
 
 		return states_critic,states_actor
 
-	def init_critic_hidden_state(self, hidden_state):
-		self.critic_hidden_state = hidden_state
+	# def init_critic_hidden_state(self, hidden_state):
+	# 	self.critic_hidden_state = hidden_state
 
 
 	def make_gif(self,images,fname,fps=10, scale=1.0):
@@ -175,11 +175,11 @@ class MAPPO:
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
 
-					Q_value, V_value, critic_hidden_state, _ = self.agents.critic_network_old(
-																				torch.FloatTensor(np.array(states_critic)).unsqueeze(0).to(self.device),
-																				torch.from_numpy(self.critic_hidden_state).double().unsqueeze(0).to(self.device),
-																				torch.FloatTensor(np.array(one_hot_actions)).long().unsqueeze(0).to(self.device)
-																				)
+					# Q_value, V_value, critic_hidden_state, _ = self.agents.critic_network_old(
+					# 															torch.FloatTensor(np.array(states_critic)).unsqueeze(0).to(self.device),
+					# 															torch.from_numpy(self.critic_hidden_state).double().unsqueeze(0).to(self.device),
+					# 															torch.FloatTensor(np.array(one_hot_actions)).long().unsqueeze(0).to(self.device)
+					# 															)
 
 				
 
@@ -199,9 +199,9 @@ class MAPPO:
 
 				if not self.gif:
 					self.agents.buffer.states_critic.append(states_critic)
-					self.agents.buffer.history_states_critic.append(self.critic_hidden_state)
-					self.agents.buffer.Q_values.append(Q_value.squeeze(0).detach().cpu())
-					self.agents.buffer.Values.append(V_value.squeeze(0).detach().cpu())
+					# self.agents.buffer.history_states_critic.append(self.critic_hidden_state)
+					# self.agents.buffer.Q_values.append(Q_value.squeeze(0).detach().cpu())
+					# self.agents.buffer.Values.append(V_value.squeeze(0).detach().cpu())
 					self.agents.buffer.states_actor.append(states_actor)
 					self.agents.buffer.actions.append(actions)
 					self.agents.buffer.one_hot_actions.append(one_hot_actions)
@@ -247,8 +247,9 @@ class MAPPO:
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
-				history_states_critic = self.agents.update(episode)
-				self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu().numpy())
+				self.agents.update(episode)
+				# history_states_critic = self.agents.update(episode)
+				# self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu().numpy())
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
