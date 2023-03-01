@@ -297,16 +297,19 @@ class PPOAgent:
 			# No masking until warm-up period ends
 			if episode < self.steps_to_take:
 				masking_advantage = torch.ones(weights_prd.shape).to(self.device)
-				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				# advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) - V # B x N x 1
 			else:
 				masking_advantage = (weights_prd > self.select_above_threshold).int()
-				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
-	
+				# advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) - V # B x N x 1
+
 		elif "top" in self.experiment_type:
 			# No masking until warm-up period ends
 			if episode < self.steps_to_take:
-				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
 				masking_advantage = torch.ones(weights_prd.shape).to(self.device)
+				# advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) - V # B x N x 1
 				min_weight_values, _ = torch.min(weights_prd, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
 			else:
@@ -314,7 +317,8 @@ class PPOAgent:
 				min_weight_values, _ = torch.min(values, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
 				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				# advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) - V # B x N x 1
 		
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
 			advantage = advantage*(self.num_agents/self.top_k)
