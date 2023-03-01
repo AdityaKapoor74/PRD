@@ -293,8 +293,13 @@ class PPOAgent:
 			advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * (1-dones), dim=-2) # B x N x 1
 
 		elif "prd_above_threshold" in self.experiment_type:
-			masking_advantage = (weights_prd > self.select_above_threshold).int()
-			advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+			# No masking until warm-up period ends
+			if episode < self.steps_to_take:
+				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				masking_advantage = torch.ones(weights_prd.shape).to(self.device)
+			else:
+				masking_advantage = (weights_prd > self.select_above_threshold).int()
+				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
 	
 		elif "top" in self.experiment_type:
 			# No masking until warm-up period ends
