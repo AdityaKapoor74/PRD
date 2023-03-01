@@ -210,12 +210,12 @@ class PPOAgent:
 
 
 	def plot(self, episode):
-		self.comet_ml.log_metric('Q_Value_Loss',self.plotting_dict["q_value_loss"].item(),episode)
-		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["v_value_loss"].item(),episode)
+		self.comet_ml.log_metric('Q_Value_Loss',self.plotting_dict["q_value_loss"],episode)
+		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["v_value_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
-		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
+		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
-		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
+		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
 
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
@@ -420,10 +420,10 @@ class PPOAgent:
 
 			self.history_states_critic = new_history_states_critic.detach().cpu()
 
-			q_value_loss_batch += critic_q_loss
-			v_value_loss_batch += critic_v_loss
-			policy_loss_batch += policy_loss
-			entropy_batch += entropy
+			q_value_loss_batch += critic_q_loss.item()
+			v_value_loss_batch += critic_v_loss.item()
+			policy_loss_batch += policy_loss.item()
+			entropy_batch += entropy.item()
 			grad_norm_value_batch += grad_norm_value
 			grad_norm_policy_batch += grad_norm_policy
 			if weight_prd_batch is None:
@@ -493,5 +493,8 @@ class PPOAgent:
 
 		if self.comet_ml is not None:
 			self.plot(episode)
+
+		del q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_batch, grad_norm_policy_batch, weight_prd_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
+		torch.cuda.empty_cache()
 
 		# return history_states_critic[-1]
