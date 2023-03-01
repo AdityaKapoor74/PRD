@@ -208,7 +208,7 @@ class MAPPO:
 					self.agents.buffer.dones.append(dones)
 					self.agents.buffer.rewards.append(rewards)
 
-					self.init_critic_hidden_state(critic_hidden_state.detach().cpu().numpy())
+					# self.init_critic_hidden_state(critic_hidden_state.detach().cpu().numpy())
 
 				episode_reward += np.sum(rewards)
 
