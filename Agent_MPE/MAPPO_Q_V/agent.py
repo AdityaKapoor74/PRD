@@ -373,10 +373,10 @@ class PPOAgent:
 				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).to(self.device)
 
 			critic_v_loss_1 = F.mse_loss(Value, Value_target)
-			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old-self.value_clip, Values_old+self.value_clip), Value_target)
+			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target)
 
 			critic_q_loss_1 = F.mse_loss(Q_value, Q_value_target)
-			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old-self.value_clip, Q_values_old+self.value_clip), Q_value_target)
+			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_value_target)
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
