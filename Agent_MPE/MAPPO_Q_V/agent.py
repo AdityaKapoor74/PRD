@@ -336,7 +336,7 @@ class PPOAgent:
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 
-		Q_value_target = self.nstep_returns(Q_values_old, rewards.to(self.device), dones.to(self.device)).detach()
+		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).to(self.device)
 
 		q_value_loss_batch = 0
 		v_value_loss_batch = 0
@@ -367,10 +367,10 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage.detach().cpu(),-1,-2), dim=-1)
-				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).detach()
+				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).to(self.device)
 			else:
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).detach()
+				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).to(self.device)
 
 			critic_v_loss_1 = F.mse_loss(Value, Value_target.to(self.device))
 			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target.to(self.device))
