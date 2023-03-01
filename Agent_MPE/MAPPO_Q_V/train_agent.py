@@ -47,7 +47,7 @@ class MAPPO:
 
 
 		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
-		self.init_critic_hidden_state(np.zeros(1, self.num_agents, 256))
+		self.init_critic_hidden_state(np.zeros((1, self.num_agents, 256), dtype=float, order='C'))
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
