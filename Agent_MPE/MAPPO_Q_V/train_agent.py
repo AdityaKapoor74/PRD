@@ -47,7 +47,7 @@ class MAPPO:
 
 
 		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
-		self.init_critic_hidden_state(np.zeros((1, self.num_agents, 256), dtype=float, order='C'))
+		self.init_critic_hidden_state(np.zeros((1, self.num_agents, 256)))
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -177,7 +177,7 @@ class MAPPO:
 
 					Q_value, V_value, critic_hidden_state, _ = self.agents.critic_network_old(
 																				torch.FloatTensor(np.array(states_critic)).unsqueeze(0).to(self.device),
-																				torch.from_numpy(self.critic_hidden_state).unsqueeze(0).to(self.device),
+																				torch.from_numpy(self.critic_hidden_state).double().unsqueeze(0).to(self.device),
 																				torch.FloatTensor(np.array(one_hot_actions)).long().unsqueeze(0).to(self.device)
 																				)
 
