@@ -237,9 +237,9 @@ class PPOAgent:
 
 
 		# ENTROPY OF WEIGHTS
-		for i in range(1,self.num_heads+1):
+		for i in range(self.num_heads):
 			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_prd"][:,i]* torch.log(torch.clamp(self.plotting_dict["weights_prd"][:,i], 1e-10,1.0)), dim=2))
-			self.comet_ml.log_metric('Critic_Weight_Entropy_Head_'+str(i), entropy_weights.item(), episode)
+			self.comet_ml.log_metric('Critic_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
 
 
 	# def calculate_advantages_based_on_exp(self, V_values, rewards, dones, weights_prd, episode):
