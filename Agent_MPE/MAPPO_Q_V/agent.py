@@ -214,7 +214,6 @@ class PPOAgent:
 		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
-		self.comet_ml.log_metric('Threshold_pred',self.plotting_dict["threshold"],episode)
 
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
