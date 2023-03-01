@@ -47,7 +47,7 @@ class MAPPO:
 
 
 		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
-		self.init_critic_hidden_state(torch.zeros(1, self.num_agents, 256))
+		self.init_critic_hidden_state(np.zeros(1, self.num_agents, 256))
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -177,7 +177,7 @@ class MAPPO:
 
 					Q_value, V_value, critic_hidden_state, _ = self.agents.critic_network_old(
 																				torch.FloatTensor(np.array(states_critic)).unsqueeze(0).to(self.device),
-																				self.critic_hidden_state.unsqueeze(0).to(self.device),
+																				torch.from_numpy(self.critic_hidden_state).unsqueeze(0).to(self.device),
 																				torch.FloatTensor(np.array(one_hot_actions)).long().unsqueeze(0).to(self.device)
 																				)
 
@@ -208,7 +208,7 @@ class MAPPO:
 					self.agents.buffer.dones.append(dones)
 					self.agents.buffer.rewards.append(rewards)
 
-					self.init_critic_hidden_state(critic_hidden_state.detach().cpu())
+					self.init_critic_hidden_state(critic_hidden_state.detach().cpu().numpy())
 
 				episode_reward += np.sum(rewards)
 
@@ -248,7 +248,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				history_states_critic = self.agents.update(episode)
-				self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu())
+				self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu().numpy())
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
