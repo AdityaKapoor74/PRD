@@ -290,7 +290,8 @@ class PPOAgent:
 		dones = dones.unsqueeze(-1)
 
 		if "shared" in self.experiment_type:
-			advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * (1-dones), dim=-2) # B x N x 1
+			# advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * (1-dones), dim=-2) # B x N x 1
+			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * (1-dones), dim=-2) - V # B x N x 1
 
 		elif "prd_above_threshold" in self.experiment_type:
 			# No masking until warm-up period ends
