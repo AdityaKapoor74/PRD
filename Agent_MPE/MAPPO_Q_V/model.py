@@ -17,9 +17,9 @@ class MLP_Policy(nn.Module):
 		self.device = device
 		self.Policy_MLP = nn.Sequential(
 			nn.Linear(obs_input_dim, 256),
-			nn.GeLU(),
+			nn.GELU(),
 			nn.Linear(256, 256),
-			nn.GeLU(),
+			nn.GELU(),
 			nn.Linear(256, num_actions),
 			nn.Softmax(dim=-1)
 			)
@@ -33,7 +33,6 @@ class MLP_Policy(nn.Module):
 		nn.init.xavier_uniform_(self.Policy_MLP[0].weight)
 		nn.init.xavier_uniform_(self.Policy_MLP[2].weight)
 		nn.init.xavier_uniform_(self.Policy_MLP[4].weight)
-		nn.init.xavier_uniform_(self.Policy_MLP[6].weight)
 
 
 	def forward(self, local_observations):
@@ -53,33 +52,33 @@ class Q_V_network(nn.Module):
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
 			nn.Linear(obs_input_dim, 256, bias=True), 
-			nn.GeLU()
+			nn.GELU(),
 			)
 		self.state_act_embed = nn.Sequential(
 			nn.Linear(obs_input_dim+self.num_actions, 256, bias=True), 
-			nn.GeLU(),
+			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 256%self.num_heads == 0
 		self.key = [nn.Sequential(
 					nn.Linear(256, 256, bias=True), 
-					nn.GeLU()
+					nn.GELU()
 					) for _ in range(self.num_heads)]
 		self.query = [nn.Sequential(
 					nn.Linear(256, 256, bias=True), 
-					nn.GeLU()
+					nn.GELU()
 					) for _ in range(self.num_heads)]
 		self.attention_value = [nn.Sequential(
 					nn.Linear(256, 256//self.num_heads, bias=True), 
-					nn.GeLU()
+					nn.GELU()
 					) for _ in range(self.num_heads)]
 
 		self.attention_value_layer_norm = nn.LayerNorm(256)
 
 		self.attention_value_linear = nn.Sequential(
 			nn.Linear(256, 256),
-			nn.GeLU(),
+			nn.GELU(),
 			)
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(256)
@@ -87,7 +86,7 @@ class Q_V_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = [nn.Sequential(
 						nn.Linear(256*2, 256//self.num_heads),
-						nn.GeLU(),
+						nn.GELU(),
 						) for _ in range(self.num_heads)]
 
 			self.hard_attention_linear = nn.Sequential(
@@ -101,18 +100,18 @@ class Q_V_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			nn.Linear(256*2, 256, bias=True), 
-			nn.GeLU(),
+			nn.GELU(),
 			)
 		self.RNN = nn.GRUCell(256, 256)
 		self.q_value_layer = nn.Sequential(
 			nn.Linear(256, 256, bias=True),
-			nn.GeLU(),
+			nn.GELU(),
 			nn.Linear(256, self.num_actions)
 			)
 
 		self.v_value_layer = nn.Sequential(
 			nn.Linear(256, 256, bias=True),
-			nn.GeLU(),
+			nn.GELU(),
 			nn.Linear(256, 1)
 			)
 			
@@ -129,9 +128,9 @@ class Q_V_network(nn.Module):
 		nn.init.xavier_uniform_(self.state_act_embed[0].weight)
 
 		# Key, Query, Attention Value, Hard Attention Networks
-		for i in range(self.num_heads)
+		for i in range(self.num_heads):
 			nn.init.xavier_uniform_(self.key[i][0].weight)
-			nn.init.xavier_uniform_(self.query[[i]0].weight)
+			nn.init.xavier_uniform_(self.query[i][0].weight)
 			nn.init.xavier_uniform_(self.attention_value[i][0].weight)
 			if self.enable_hard_attention:
 				nn.init.xavier_uniform_(self.hard_attention[i][0].weight)
@@ -142,9 +141,9 @@ class Q_V_network(nn.Module):
 
 		nn.init.xavier_uniform_(self.common_layer[0].weight)
 		nn.init.xavier_uniform_(self.q_value_layer[0].weight)
-		nn.init.xavier_uniform_(self.q_value_layer[1].weight)
+		nn.init.xavier_uniform_(self.q_value_layer[2].weight)
 		nn.init.xavier_uniform_(self.v_value_layer[0].weight)
-		nn.init.xavier_uniform_(self.v_value_layer[1].weight)
+		nn.init.xavier_uniform_(self.v_value_layer[2].weight)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -164,8 +163,8 @@ class Q_V_network(nn.Module):
 
 	# Setting weight value as 1 for the diagonal elements in the weight matrix
 	def weight_assignment(self,weights):
-		weights_new = torch.zeros(self.num_heads, weights.shape[1], self.num_agents, self.num_agents).to(self.device)
-		one = torch.ones(self.num_heads, weights.shape[1],1).to(self.device)
+		weights_new = torch.zeros(weights.shape[0], self.num_heads, self.num_agents, self.num_agents).to(self.device)
+		one = torch.ones(weights.shape[0], self.num_heads, 1).to(self.device)
 		for i in range(self.num_agents):
 			if i == 0:
 				weight_vec = torch.cat([one,weights[:,:,i,:]], dim=-1)
@@ -173,57 +172,86 @@ class Q_V_network(nn.Module):
 				weight_vec = torch.cat([weights[:,:,i,:],one], dim=-1)
 			else:
 				weight_vec = torch.cat([weights[:,:,i,:i],one,weights[:,:,i,i:]], dim=-1)
-
-			weights_new[:,:,i] = weight_vec
+			weights_new[:,:,i,:] = weight_vec
 
 		return weights_new
 
 
 	def forward(self, states, history, actions):
 		states_query = states.unsqueeze(-2) # Batch_size, Num agents, sequence_length=1, dim
+		# print(states_query.shape)
 		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num Agents, dim
+		# print(states_key.shape)
 		actions_ = actions.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num_Agents, dim
+		# print(actions_.shape)
 
 		states_key = self.remove_self_loops(states_key) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key.shape)
 		actions_ = self.remove_self_loops(actions_) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(actions_.shape)
 
 		obs_actions = torch.cat([states_key,actions_],dim=-1).to(self.device) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(obs_actions.shape)
 
 		# EMBED STATES QUERY
 		states_query_embed = self.state_embed(states_query) # Batch_size, Num agents, 1, dim
+		# print(states_query_embed.shape)
 		# EMBED STATES QUERY
 		states_key_embed = self.state_embed(states_key) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key_embed.shape)
 		# KEYS
 		key_obs = torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		# print(key_obs.shape)
 		# QUERIES
 		query_obs = torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		# print(query_obs.shape)
 		# HARD ATTENTION
 		if self.enable_hard_attention:
 			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
-			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1).permute(0,2,3,1,4).reshape(states.shape[0], self.num_agents, self.num_agents-1,-1) # Batch_size, Num heads, Num agents, Num Agents - 1, dim//num_heads --> Batch_size, Num agents, Num agents-1, dim
-			hard_attention_weights = gumble_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# print(query_key_concat.shape)
+			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
+			# print(query_key_concat_intermediate.shape)
+			hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1)
+			# print(hard_attention_weights.shape)
 		# SOFT ATTENTION
-		score = torch.matmul(query_obs,(key_obs*hard_attention_weights.unsqueeze(-1).unsqueeze(0)).transpose(3,4))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, Num Agents - 1, 1
+		score = torch.matmul(query_obs,(key_obs*hard_attention_weights.unsqueeze(1)).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(score.shape)
 		weight = F.softmax(score ,dim=-1) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(weight.shape)
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
+		# print(weights.shape)
 
 		# EMBED STATE ACTION POLICY
 		obs_actions_embed = self.state_act_embed(obs_actions) # Batch_size, Num agents, Num agents - 1, dim
+		# print(obs_actions_embed.shape)
 		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
+		# print(attention_values.shape)
 		aggregated_node_features = torch.matmul(weight, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
-		aggregated_node_features = aggregated_node_features.permute(0,2,1,4).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
 		aggregated_node_features_ = self.attention_value_layer_norm(torch.sum(obs_actions_embed, dim=-2)+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features_.shape)
 		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
 		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
 
 		curr_agent_node_features = torch.cat([states_query_embed.squeeze(-2), aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
-		
-		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
-		curr_agent_node_features, curr_agent_history = self.RNN(curr_agent_node_features, history) # Batch_size, Num agents, dim
-		Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
-		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
-		V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
+		# print(curr_agent_node_features.shape)
 
-		return Q_value, V_value, curr_agent_history, weights
+		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
+		# print(Q_value.shape)
+		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
+		# print(Q_value.shape)
+		V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
+		# print(V_value.shape)
+
+		return Q_value.squeeze(-1), V_value.squeeze(-1), curr_agent_node_features, weights
