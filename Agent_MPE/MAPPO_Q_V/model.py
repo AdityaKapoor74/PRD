@@ -64,15 +64,15 @@ class Q_V_network(nn.Module):
 		self.key = [nn.Sequential(
 					nn.Linear(256, 256, bias=True), 
 					nn.GELU()
-					) for _ in range(self.num_heads)]
+					).to(self.device) for _ in range(self.num_heads)]
 		self.query = [nn.Sequential(
 					nn.Linear(256, 256, bias=True), 
 					nn.GELU()
-					) for _ in range(self.num_heads)]
+					).to(self.device) for _ in range(self.num_heads)]
 		self.attention_value = [nn.Sequential(
 					nn.Linear(256, 256//self.num_heads, bias=True), 
 					nn.GELU()
-					) for _ in range(self.num_heads)]
+					).to(self.device) for _ in range(self.num_heads)]
 
 		self.attention_value_layer_norm = nn.LayerNorm(256)
 
@@ -87,7 +87,7 @@ class Q_V_network(nn.Module):
 			self.hard_attention = [nn.Sequential(
 						nn.Linear(256*2, 256//self.num_heads),
 						nn.GELU(),
-						) for _ in range(self.num_heads)]
+						).to(self.device) for _ in range(self.num_heads)]
 
 			self.hard_attention_linear = nn.Sequential(
 				nn.Linear(256, 1)
@@ -174,7 +174,7 @@ class Q_V_network(nn.Module):
 				weight_vec = torch.cat([weights[:,:,i,:i],one,weights[:,:,i,i:]], dim=-1)
 			weights_new[:,:,i,:] = weight_vec
 
-		return weights_new
+		return weights_new.to(self.device)
 
 
 	def forward(self, states, history, actions):
