@@ -346,7 +346,7 @@ if __name__ == '__main__':
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 5e-3, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
