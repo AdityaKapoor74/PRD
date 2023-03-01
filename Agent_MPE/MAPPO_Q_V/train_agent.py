@@ -9,6 +9,8 @@ from agent import PPOAgent
 import torch
 import datetime
 
+torch.autograd.set_detect_anomaly(True)
+
 
 
 class MAPPO:
@@ -179,7 +181,6 @@ class MAPPO:
 																				torch.FloatTensor(np.array(one_hot_actions)).long().unsqueeze(0).to(self.device)
 																				)
 
-
 				
 
 				next_states, rewards, dones, info = self.env.step(actions)
@@ -199,18 +200,19 @@ class MAPPO:
 				if not self.gif:
 					self.agents.buffer.states_critic.append(states_critic)
 					self.agents.buffer.history_states_critic.append(self.critic_hidden_state)
-					self.agents.buffer.Q_values.append(Q_value.detach().cpu())
-					self.agents.buffer.Values.append(V_value.detach().cpu())
+					self.agents.buffer.Q_values.append(Q_value.squeeze(0).detach().cpu())
+					self.agents.buffer.Values.append(V_value.squeeze(0).detach().cpu())
 					self.agents.buffer.states_actor.append(states_actor)
 					self.agents.buffer.actions.append(actions)
 					self.agents.buffer.one_hot_actions.append(one_hot_actions)
 					self.agents.buffer.dones.append(dones)
 					self.agents.buffer.rewards.append(rewards)
 
+					self.init_critic_hidden_state(critic_hidden_state.detach().cpu())
+
 				episode_reward += np.sum(rewards)
 
 				states_critic, states_actor = next_states_critic, next_states_actor
-				self.critic_hidden_state = critic_hidden_state.detach().cpu()
 				states = next_states
 
 				if all(dones) or step == self.max_time_steps:
@@ -246,7 +248,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				history_states_critic = self.agents.update(episode)
-				self.init_critic_hidden_state(history_states_critic)
+				self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu())
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -288,10 +290,10 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_cri
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_Q_Hard_Soft_Attn_run_"+str(i)
-		test_num = "MPE"
+		extension = "MAPPO_run_"+str(i)
+		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				# TRAINING
@@ -317,18 +319,19 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 50000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
+				"scheduler_need": False,
 
 
 				# ENVIRONMENT
-				"team_size": 4,
+				"team_size": 8,
 				"env": env_name,
 
 				# CRITIC
-				"value_lr": 3e-4, #1e-3
+				"value_lr": 5e-4, #1e-3
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": True,
@@ -341,7 +344,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
-				"policy_lr": 3e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"entropy_pen": 0.0, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
