@@ -211,7 +211,7 @@ class Q_V_network(nn.Module):
 			# print(query_key_concat.shape)
 			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
 			# print(query_key_concat_intermediate.shape)
-			hard_attention_weights = gumbel_sigmoid(F.sigmoid(self.hard_attention_linear(query_key_concat_intermediate)), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			hard_attention_weights = gumbel_sigmoid(torch.sigmoid(self.hard_attention_linear(query_key_concat_intermediate)), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1)
