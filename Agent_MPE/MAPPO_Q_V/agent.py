@@ -378,10 +378,10 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage.detach().cpu(),-1,-2), dim=-1)
-				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).to(self.device)
+				Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones).to(self.device)
 			else:
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).to(self.device)
+				Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones).to(self.device)
 
 			critic_v_loss_1 = F.mse_loss(Value, Value_target)
 			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target)
