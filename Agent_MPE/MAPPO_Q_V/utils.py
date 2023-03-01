@@ -52,17 +52,17 @@ class RolloutBuffer:
 
 		
 		self.states_critic = []
-		self.history_states_critic = []
-		self.Q_values = []
-		self.Values = []
+		# self.history_states_critic = []
+		# self.Q_values = []
+		# self.Values = []
 	
 
 	def clear(self):
 		del self.actions[:]
 		del self.states_critic[:]
-		del self.history_states_critic[:]
-		del self.Q_values[:]
-		del self.Values[:]
+		# del self.history_states_critic[:]
+		# del self.Q_values[:]
+		# del self.Values[:]
 		del self.states_actor[:]
 		del self.one_hot_actions[:]
 		del self.logprobs[:]
