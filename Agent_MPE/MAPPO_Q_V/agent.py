@@ -199,7 +199,7 @@ class PPOAgent:
 			R = r + R * discount_factor
 			returns.insert(0, R)
 		
-		returns_tensor = torch.stack(returns).to(self.device)
+		returns_tensor = torch.stack(returns)
 		
 		if self.norm_returns:
 			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
