@@ -329,7 +329,7 @@ class PPOAgent:
 
 
 
-	def update(self,episode):
+	def update(self, episode):
 		# convert list to tensor
 		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic))
 		# history_states_critic = torch.stack(self.buffer.history_states_critic, dim=0)
