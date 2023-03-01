@@ -1,362 +1,485 @@
-from multiagent.environment import MultiAgentEnv
-import multiagent.scenarios as scenarios
-
-import os
-import time
-from comet_ml import Experiment
 import numpy as np
-from agent import PPOAgent
 import torch
-import datetime
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.distributions import Categorical
+from model import MLP_Policy, Q_V_network
+from utils import RolloutBuffer
 
-torch.autograd.set_detect_anomaly(True)
+class PPOAgent:
 
+	def __init__(
+		self, 
+		env, 
+		dictionary,
+		comet_ml,
+		):
 
+		# Environment Setup
+		self.env = env
+		self.team_size = dictionary["team_size"]
+		self.env_name = dictionary["env"]
+		self.num_agents = self.env.n
+		self.num_actions = self.env.action_space[0].n
 
-class MAPPO:
-
-	def __init__(self, env, dictionary):
-
+		# Training setup
+		self.test_num = dictionary["test_num"]
+		self.gif = dictionary["gif"]
+		self.experiment_type = dictionary["experiment_type"]
+		self.num_relevant_agents_in_relevant_set = []
+		self.num_non_relevant_agents_in_relevant_set = []
+		self.false_positive_rate = []
+		self.n_epochs = dictionary["n_epochs"]
+		self.scheduler_need = dictionary["scheduler_need"]
 		if dictionary["device"] == "gpu":
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
-		self.env = env
-		self.gif = dictionary["gif"]
-		self.save_model = dictionary["save_model"]
-		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
-		self.save_comet_ml_plot = dictionary["save_comet_ml_plot"]
-		self.learn = dictionary["learn"]
-		self.gif_checkpoint = dictionary["gif_checkpoint"]
-		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n
-		self.num_actions = self.env.action_space[0].n
-		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
-		self.env_name = dictionary["env"]
-		self.test_num = dictionary["test_num"]
-		self.max_episodes = dictionary["max_episodes"]
-		self.max_time_steps = dictionary["max_time_steps"]
-		self.experiment_type = dictionary["experiment_type"]
-		self.update_ppo_agent = dictionary["update_ppo_agent"]
+		assert self.num_agents%self.team_size == 0
+		self.num_teams = self.num_agents//self.team_size
+		self.relevant_set = torch.zeros(1,self.num_agents,self.num_agents).to(self.device)
 
+		for team_id in range(self.num_teams):
+			for i in range(self.num_agents):
+				if i >= team_id*self.team_size and i < (team_id+1)*self.team_size:
+					self.relevant_set[0][i][team_id*self.team_size:(team_id+1)*self.team_size] = torch.ones(self.team_size)
+
+		self.non_relevant_set = torch.ones(1,self.num_agents,self.num_agents).to(self.device) - self.relevant_set
+
+		# Critic Setup
+		self.value_lr = dictionary["value_lr"]
+		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
+		self.lambda_ = dictionary["lambda"] # TD lambda
+		self.value_clip = dictionary["value_clip"]
+		self.num_heads = dictionary["num_heads"]
+		self.enable_hard_attention = dictionary["enable_hard_attention"]
+		self.grad_clip_critic = dictionary["grad_clip_critic"]
+
+
+		# Actor Setup
+		self.policy_lr = dictionary["policy_lr"]
+		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
+		self.gamma = dictionary["gamma"]
+		self.entropy_pen = dictionary["entropy_pen"]
+		self.gae_lambda = dictionary["gae_lambda"]
+		self.top_k = dictionary["top_k"]
+		self.norm_adv = dictionary["norm_adv"]
+		self.norm_returns = dictionary["norm_returns"]
+		self.threshold_min = dictionary["threshold_min"]
+		self.threshold_max = dictionary["threshold_max"]
+		self.steps_to_take = dictionary["steps_to_take"]
+		self.policy_clip = dictionary["policy_clip"]
+		self.grad_clip_actor = dictionary["grad_clip_actor"]
+		if self.enable_hard_attention:
+			self.select_above_threshold = 0
+		else:
+			self.select_above_threshold = dictionary["select_above_threshold"]
+			if "prd_above_threshold_decay" in self.experiment_type:
+				self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
+			elif "prd_above_threshold_ascend" in self.experiment_type:
+				self.threshold_delta = (self.threshold_max - self.select_above_threshold)/self.steps_to_take
+
+
+		print("EXPERIMENT TYPE", self.experiment_type)
+		obs_input_dim = 2*3+1 # crossing_team_greedy
+		# Q-V Network
+		self.critic_network = Q_V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_old = Q_V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		# Copy network params
+		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+		# Disable updates for old network
+		for param in self.critic_network_old.parameters():
+			param.requires_grad_(False)
+		
+		
+		# Policy Network
+		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
+		self.policy_network = MLP_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old = MLP_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		# Copy network params
+		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+		# Disable updates for old network
+		for param in self.policy_network_old.parameters():
+			param.requires_grad_(False)
+		
+		self.buffer = RolloutBuffer()
+
+		# Loading models
+		if dictionary["load_models"]:
+			# For CPU
+			if torch.cuda.is_available() is False:
+				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"], map_location=torch.device('cpu')))
+				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"], map_location=torch.device('cpu')))
+			# For GPU
+			else:
+				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
+				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
+
+		
+		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+
+		if self.scheduler_need:
+			self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
+			self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
 
 		self.comet_ml = None
-		if self.save_comet_ml_plot:
-			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["test_num"])
-			self.comet_ml.log_parameters(dictionary)
+		if dictionary["save_comet_ml_plot"]:
+			self.comet_ml = comet_ml
 
 
-		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
-		self.init_critic_hidden_state(np.zeros(1, self.num_agents, 256))
+	def get_action(self, state_policy, greedy=False):
+		with torch.no_grad():
+			state_policy = torch.FloatTensor(state_policy).to(self.device)
+			dists = self.policy_network_old(state_policy)
+			if greedy:
+				actions = [dist.argmax().detach().cpu().item() for dist in dists]
+			else:
+				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
-		if self.save_model:
-			critic_dir = dictionary["critic_dir"]
-			try: 
-				os.makedirs(critic_dir, exist_ok = True) 
-				print("Critic Directory created successfully") 
-			except OSError as error: 
-				print("Critic Directory can not be created") 
-			actor_dir = dictionary["actor_dir"]
-			try: 
-				os.makedirs(actor_dir, exist_ok = True) 
-				print("Actor Directory created successfully") 
-			except OSError as error: 
-				print("Actor Directory can not be created")
+			probs = Categorical(dists)
+			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
+
+			self.buffer.logprobs.append(action_logprob.detach().cpu())
+
+			return actions
+
+
+	# def calculate_advantages(self, values, rewards, dones):
+	# 	advantages = []
+	# 	next_value = 0
+	# 	advantage = 0
+	# 	rewards = rewards.unsqueeze(-1)
+	# 	dones = dones.unsqueeze(-1)
+	# 	masks = 1 - dones
+	# 	for t in reversed(range(0, len(rewards))):
+	# 		td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+	# 		next_value = values.data[t]
+			
+	# 		advantage = td_error + (self.gamma * self.gae_lambda * advantage * masks[t])
+	# 		advantages.insert(0, advantage)
+
+	# 	advantages = torch.stack(advantages)
+		
+	# 	if self.norm_adv:
+	# 		advantages = (advantages - advantages.mean()) / advantages.std()
+		
+	# 	return advantages
+
+
+
+	def calculate_deltas(self, values, rewards, dones):
+		deltas = []
+		next_value = 0
+		# rewards = rewards.unsqueeze(-1)
+		# dones = dones.unsqueeze(-1)
+		masks = 1-dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			next_value = values.data[t]
+			deltas.insert(0,td_error)
+		deltas = torch.stack(deltas)
+
+		return deltas
+
+
+	def nstep_returns(self, values, rewards, dones):
+		deltas = self.calculate_deltas(values, rewards, dones)
+		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+		target_Vs = advs+values
+		return target_Vs
+
+
+	def calculate_returns(self, rewards, discount_factor):
+		returns = []
+		R = 0
+		
+		for r in reversed(rewards):
+			R = r + R * discount_factor
+			returns.insert(0, R)
+		
+		returns_tensor = torch.stack(returns)
+		
+		if self.norm_returns:
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			
+		return returns_tensor
+
+
+	def plot(self, episode):
+		self.comet_ml.log_metric('Q_Value_Loss',self.plotting_dict["q_value_loss"].item(),episode)
+		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["v_value_loss"].item(),episode)
+		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
+		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
+		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
+		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
+
+		if "threshold" in self.experiment_type:
+			for i in range(self.num_agents):
+				agent_name = "agent"+str(i)
+				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
+
+			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
+
+			if "crossing_team_greedy" == self.env_name:
+				self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
+				self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)
+				self.num_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]).item())
+				self.num_non_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item())
+				# FPR = FP / (FP+TN)
+				FP = torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item()*self.num_agents
+				TN = torch.mean(self.plotting_dict["true_negatives"]).item()*self.num_agents
+				self.false_positive_rate.append(FP/(FP+TN))
+
+		if "prd_top" in self.experiment_type:
+			self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
+
+
+		# ENTROPY OF WEIGHTS
+		for i in range(self.num_heads):
+			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_prd"][:,i]* torch.log(torch.clamp(self.plotting_dict["weights_prd"][:,i], 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('Critic_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
+
+
+	# def calculate_advantages_based_on_exp(self, V_values, rewards, dones, weights_prd, episode):
+	# 	advantage = None
+	# 	masking_advantage = None
+	# 	mean_min_weight_value = -1
+	# 	if "shared" in self.experiment_type:
+	# 		advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones),dim=-2)
+	# 	elif "prd_above_threshold" in self.experiment_type:
+	# 		masking_advantage = (weights_prd>self.select_above_threshold).int()
+	# 		advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+	# 	elif "top" in self.experiment_type:
+	# 		if episode < self.steps_to_take:
+	# 			advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones),dim=-2)
+	# 			masking_advantage = torch.ones(weights_prd.shape).to(self.device)
+	# 			min_weight_values, _ = torch.min(weights_prd, dim=-1)
+	# 			mean_min_weight_value = torch.mean(min_weight_values)
+	# 		else:
+	# 			values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
+	# 			min_weight_values, _ = torch.min(values, dim=-1)
+	# 			mean_min_weight_value = torch.mean(min_weight_values)
+	# 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+	# 			advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+	# 	elif "greedy" in self.experiment_type:
+	# 		advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+	# 	elif "relevant_set" in self.experiment_type:
+	# 		advantage = torch.sum(self.calculate_advantages(V_values, rewards, dones) * self.relevant_set ,dim=-2)
+
+	# 	if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
+	# 		advantage = advantage*(self.num_agents/self.top_k)
+
+	# 	return advantage, masking_advantage, mean_min_weight_value
+
+
+	def calculate_advantages_Q_V(self, Q, V, weights_prd, dones, episode):
+		'''
+		Q : B x N x 1
+		V : B x N x 1
+		weights_prd: B x N x N x 1
+		dones: B x N x 1
+		episode : int
+		'''
+		advantage = None
+		masking_advantage = None
+		mean_min_weight_value = -1
+		dones = dones.unsqueeze(-1)
+
+		if "shared" in self.experiment_type:
+			advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * (1-dones), dim=-2) # B x N x 1
+
+		elif "prd_above_threshold" in self.experiment_type:
+			masking_advantage = (weights_prd > self.select_above_threshold).int()
+			advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+	
+		elif "top" in self.experiment_type:
+			# No masking until warm-up period ends
+			if episode < self.steps_to_take:
+				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+				masking_advantage = torch.ones(weights_prd.shape).to(self.device)
+				min_weight_values, _ = torch.min(weights_prd, dim=-1)
+				mean_min_weight_value = torch.mean(min_weight_values)
+			else:
+				values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
+				min_weight_values, _ = torch.min(values, dim=-1)
+				mean_min_weight_value = torch.mean(min_weight_values)
+				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+				advantage = torch.sum((Q - V).unsqueeze(1).repeat(1, self.num_agents, 1, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-2) # B x N x 1
+		
+		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
+			advantage = advantage*(self.num_agents/self.top_k)
+
+		return advantage.detach(), masking_advantage, mean_min_weight_value
+
+	def update_parameters(self):
+		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
+
+		if self.threshold_max > self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
+			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
+
+
+
+	def update(self,episode):
+		# convert list to tensor
+		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic))
+		history_states_critic = torch.stack(self.buffer.history_states_critic, dim=0)
+		Q_values_old = torch.stack(self.buffer.Q_values, dim=0)
+		Values_old = torch.stack(self.buffer.Values, dim=0)
+		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor))
+		old_actions = torch.FloatTensor(np.array(self.buffer.actions))
+		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions))
+		old_logprobs = torch.stack(self.buffer.logprobs, dim=0)
+		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
+		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
+
+		Q_value_target = self.nstep_returns(Q_values_old, rewards, dones).to(self.device)
+
+		q_value_loss_batch = 0
+		v_value_loss_batch = 0
+		policy_loss_batch = 0
+		entropy_batch = 0
+		weight_prd_batch = None
+		grad_norm_value_batch = 0
+		grad_norm_policy_batch = 0
+		agent_groups_over_episode_batch = 0
+		avg_agent_group_over_episode_batch = 0
+
+		# torch.autograd.set_detect_anomaly(True)
+		# Optimize policy for n epochs
+		for _ in range(self.n_epochs):
+
+			Q_value, Value, new_history_states_critic, weights_prd = self.critic_network(old_states_critic.to(self.device), history_states_critic.to(self.device), old_one_hot_actions.to(self.device))
+
+			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_Q_V(Q_value, Value, torch.mean(weights_prd.detach(), dim=1), dones.to(self.device), episode)
+
+			dists = self.policy_network(old_states_actor.to(self.device))
+			probs = Categorical(dists.squeeze(0))
+			logprobs = probs.log_prob(old_actions.to(self.device))
+
+			if "threshold" in self.experiment_type:
+				agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
+				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+				agent_groups_over_episode_batch += agent_groups_over_episode
+				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
+
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage.detach().cpu(),-1,-2), dim=-1)
+				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).to(self.device)
+			else:
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+				Value_target = self.nstep_returns(Values_old, target_V_rewards, dones).to(self.device)
+
+			critic_v_loss_1 = F.mse_loss(Value, Value_target)
+			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target)
+
+			critic_q_loss_1 = F.mse_loss(Q_value, Q_value_target)
+			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_value_target)
+
+			# Finding the ratio (pi_theta / pi_theta__old)
+			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
+			# Finding Surrogate Loss
+			surr1 = ratios * advantage
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage
+
+			# final loss of clipped objective PPO
+			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
+			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
+			
+			entropy_weights = 0
+			for i in range(self.num_heads):
+				entropy_weights += -torch.mean(torch.sum(weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10,1.0)), dim=2))
+
+			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_weight_entropy_pen*entropy_weights
+			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2)
+			
+
+			# take gradient step
+			self.critic_optimizer.zero_grad()
+			(critic_q_loss + critic_v_loss).backward(retain_graph=True)
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
+			self.critic_optimizer.step()
+
+			self.policy_optimizer.zero_grad()
+			policy_loss.backward()
+			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
+			self.policy_optimizer.step()
+
+			history_states_critic = new_history_states_critic.detach().cpu()
+
+			q_value_loss_batch += critic_q_loss
+			v_value_loss_batch += critic_v_loss
+			policy_loss_batch += policy_loss
+			entropy_batch += entropy
+			grad_norm_value_batch += grad_norm_value
+			grad_norm_policy_batch += grad_norm_policy
+			if weight_prd_batch is None:
+				weight_prd_batch = weights_prd.detach().cpu()
+			weight_prd_batch += weights_prd.detach().cpu()
+
 
 			
-			self.critic_model_path = critic_dir+"critic"
-			self.actor_model_path = actor_dir+"actor"
-			
+		# Copy new weights into old policy
+		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
-		if self.gif:
-			gif_dir = dictionary["gif_dir"]
-			try: 
-				os.makedirs(gif_dir, exist_ok = True) 
-				print("Gif Directory created successfully") 
-			except OSError as error: 
-				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+self.env_name+'.gif'
+		# Copy new weights into old critic
+		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
 
+		# self.scheduler.step()
+		# print("learning rate of policy", self.scheduler.get_lr())
 
-		if self.eval_policy:
-			self.policy_eval_dir = dictionary["policy_eval_dir"]
-			try: 
-				os.makedirs(self.policy_eval_dir, exist_ok = True) 
-				print("Policy Eval Directory created successfully") 
-			except OSError as error: 
-				print("Policy Eval Directory can not be created")
+		# clear buffer
+		self.buffer.clear()
 
+		q_value_loss_batch /= self.n_epochs
+		v_value_loss_batch /= self.n_epochs
+		policy_loss_batch /= self.n_epochs
+		entropy_batch /= self.n_epochs
+		grad_norm_value_batch /= self.n_epochs
+		grad_norm_policy_batch /= self.n_epochs
+		weight_prd_batch /= self.n_epochs
+		agent_groups_over_episode_batch /= self.n_epochs
+		avg_agent_group_over_episode_batch /= self.n_epochs
 
-	def split_states(self,states):
-		states_critic = []
-		states_actor = []
-		for i in range(self.num_agents):
-			states_critic.append(states[i][0])
-			states_actor.append(states[i][1])
-
-		states_critic = np.asarray(states_critic)
-		states_actor = np.asarray(states_actor)
-
-		return states_critic,states_actor
-
-	def init_critic_hidden_state(self, hidden_state):
-		self.critic_hidden_state = hidden_state
+		if "prd" in self.experiment_type and "crossing_team_greedy" == self.env_name:
+			num_relevant_agents_in_relevant_set = self.relevant_set*masking_advantage
+			num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_advantage
+			true_negatives = self.non_relevant_set*(1-masking_advantage)
+		else:
+			num_relevant_agents_in_relevant_set = None
+			num_non_relevant_agents_in_relevant_set = None
+			true_negatives = None
 
 
-	def make_gif(self,images,fname,fps=10, scale=1.0):
-		from moviepy.editor import ImageSequenceClip
-		"""Creates a gif given a stack of images using moviepy
-		Notes
-		-----
-		works with current Github version of moviepy (not the pip version)
-		https://github.com/Zulko/moviepy/commit/d4c9c37bc88261d8ed8b5d9b7c317d13b2cdf62e
-		Usage
-		-----
-		>>> X = randn(100, 64, 64)
-		>>> gif('test.gif', X)
-		Parameters
-		----------
-		filename : string
-			The filename of the gif to write to
-		array : array_like
-			A numpy array that contains a sequence of images
-		fps : int
-			frames per second (default: 10)
-		scale : float
-			how much to rescale each image by (default: 1.0)
-		"""
+		if "prd" in self.experiment_type:
+			if self.update_learning_rate_with_prd:
+				for g in self.policy_optimizer.param_groups:
+					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
 
-		# copy into the color dimension if the images are black and white
-		if images.ndim == 3:
-			images = images[..., np.newaxis] * np.ones(3)
-
-		# make the moviepy clip
-		clip = ImageSequenceClip(list(images), fps=fps).resize(scale)
-		clip.write_gif(fname, fps=fps)
+		self.update_parameters()
 
 
+		self.plotting_dict = {
+		"q_value_loss": q_value_loss_batch,
+		"v_value_loss": v_value_loss_batch,
+		"policy_loss": policy_loss_batch,
+		"entropy": entropy_batch,
+		"grad_norm_value":grad_norm_value_batch,
+		"grad_norm_policy": grad_norm_policy_batch,
+		"weights_prd": weight_prd_batch,
+		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
+		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
+		"true_negatives": true_negatives,
+		}
 
+		if "threshold" in self.experiment_type:
+			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode_batch
+			self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode_batch
+		if "prd_top" in self.experiment_type:
+			self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
 
-	def run(self):  
-		if self.eval_policy:
-			self.rewards = []
-			self.rewards_mean_per_1000_eps = []
-			self.timesteps = []
-			self.timesteps_mean_per_1000_eps = []
-			self.collision_rates = []
-			self.collison_rate_mean_per_1000_eps = []
+		if self.comet_ml is not None:
+			self.plot(episode)
 
-		for episode in range(1,self.max_episodes+1):
-
-			states = self.env.reset()
-
-			images = []
-
-			states_critic, states_actor = self.split_states(states)
-
-			episode_reward = 0
-			episode_collision_rate = 0
-			episode_goal_reached = 0
-			final_timestep = self.max_time_steps
-			for step in range(1, self.max_time_steps+1):
-
-				if self.gif:
-					# At each step, append an image to list
-					if not(episode%self.gif_checkpoint):
-						images.append(np.squeeze(self.env.render(mode='rgb_array')))
-					import time
-					time.sleep(0.1)
-					# Advance a step and render a new image
-					with torch.no_grad():
-						actions = self.agents.get_action(states_actor, greedy=True)
-				else:
-					actions = self.agents.get_action(states_actor)
-					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
-					for i,act in enumerate(actions):
-						one_hot_actions[i][act] = 1
-
-					Q_value, V_value, critic_hidden_state, _ = self.agents.critic_network_old(
-																				torch.FloatTensor(np.array(states_critic)).unsqueeze(0).to(self.device),
-																				torch.from_numpy(self.critic_hidden_state).unsqueeze(0).to(self.device),
-																				torch.FloatTensor(np.array(one_hot_actions)).long().unsqueeze(0).to(self.device)
-																				)
-
-				
-
-				next_states, rewards, dones, info = self.env.step(actions)
-				next_states_critic, next_states_actor = self.split_states(next_states)
-
-				if "crossing" in self.env_name:
-					collision_rate = [value[1] for value in rewards]
-					goal_reached = [value[2] for value in rewards]
-					rewards = [value[0] for value in rewards] 
-					episode_collision_rate += np.sum(collision_rate)
-					episode_goal_reached += np.sum(goal_reached)
-
-
-				# if step == self.max_time_steps:
-				# 	dones = [True for _ in range(self.num_agents)]
-
-				if not self.gif:
-					self.agents.buffer.states_critic.append(states_critic)
-					self.agents.buffer.history_states_critic.append(self.critic_hidden_state)
-					self.agents.buffer.Q_values.append(Q_value.squeeze(0).detach().cpu())
-					self.agents.buffer.Values.append(V_value.squeeze(0).detach().cpu())
-					self.agents.buffer.states_actor.append(states_actor)
-					self.agents.buffer.actions.append(actions)
-					self.agents.buffer.one_hot_actions.append(one_hot_actions)
-					self.agents.buffer.dones.append(dones)
-					self.agents.buffer.rewards.append(rewards)
-
-					self.init_critic_hidden_state(critic_hidden_state.detach().cpu().numpy())
-
-				episode_reward += np.sum(rewards)
-
-				states_critic, states_actor = next_states_critic, next_states_actor
-				states = next_states
-
-				if all(dones) or step == self.max_time_steps:
-
-					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
-					print("*"*100)
-
-					final_timestep = step
-
-					if self.save_comet_ml_plot:
-						self.comet_ml.log_metric('Episode_Length', step, episode)
-						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
-
-					break
-
-			if self.eval_policy:
-				self.rewards.append(episode_reward)
-				self.timesteps.append(final_timestep)
-				self.collision_rates.append(episode_collision_rate)
-
-			if episode > self.save_model_checkpoint and self.eval_policy:
-				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-
-
-			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
-				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
-
-			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
-				history_states_critic = self.agents.update(episode)
-				self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu().numpy())
-			elif self.gif and not(episode%self.gif_checkpoint):
-				print("GENERATING GIF")
-				self.make_gif(np.array(images),self.gif_path)
-
-
-			if self.eval_policy and not(episode%self.save_model_checkpoint) and episode!=0:
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-
-				if "prd" in self.experiment_type:
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_relevant_agents_in_relevant_set"), np.array(self.agents.num_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_non_relevant_agents_in_relevant_set"), np.array(self.agents.num_non_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"false_positive_rate"), np.array(self.agents.false_positive_rate), allow_pickle=True, fix_imports=True)
-
-
-
-def make_env(scenario_name, benchmark=False):
-	scenario = scenarios.load(scenario_name + ".py").Scenario()
-	world = scenario.make_world()
-	if benchmark:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
-	else:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env
-
-'''
-crossing_team_greedy
-PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.1; policy_clip = 0.1; ppo_epochs = 1; ppo_update_batch_size = 1
-
-crossing_greedy
-PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.1; policy_clip = 0.1; ppo_epochs = 1; ppo_update_batch_size = 1
-'''
-
-
-if __name__ == '__main__':
-
-	for i in range(1,6):
-		extension = "MAPPO_Hard_Soft_Attn_run_"+str(i)
-		test_num = "TEAM COLLISION AVOIDANCE"
-		env_name = "crossing_team_greedy"
-		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
-
-		dictionary = {
-				# TRAINING
-				"iteration": i,
-				"device": "gpu",
-				"update_learning_rate_with_prd": False,
-				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
-				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
-				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
-				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
-				"test_num":test_num,
-				"extension":extension,
-				"gamma": 0.99,
-				"gif": False,
-				"gif_checkpoint":1,
-				"load_models": False,
-				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
-				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
-				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
-				"learn":True,
-				"max_episodes": 50000,
-				"max_time_steps": 100,
-				"experiment_type": experiment_type,
-				"parallel_training": False,
-				"scheduler_need": False,
-
-
-				# ENVIRONMENT
-				"team_size": 8,
-				"env": env_name,
-
-				# CRITIC
-				"value_lr": 5e-4, #1e-3
-				"grad_clip_critic": 10.0,
-				"value_clip": 0.05,
-				"enable_hard_attention": True,
-				"num_heads": 4,
-				"critic_weight_entropy_pen": 0.0,
-				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns": False,
-				
-
-				# ACTOR
-				"grad_clip_actor": 10.0,
-				"policy_clip": 0.05,
-				"policy_lr": 5e-4, #prd 1e-4
-				"entropy_pen": 0.0, #8e-3
-				"gae_lambda": 0.95,
-				"select_above_threshold": 0.0,
-				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
-				"steps_to_take": 1000,
-				"top_k": 0,
-				"norm_adv": False,
-			}
-
-		seeds = [42, 142, 242, 342, 442]
-		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = make_env(scenario_name=dictionary["env"],benchmark=False)
-		ma_controller = MAPPO(env,dictionary)
-		ma_controller.run()
+		return history_states_critic[-1]
