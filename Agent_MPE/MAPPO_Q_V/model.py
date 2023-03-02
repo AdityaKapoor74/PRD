@@ -51,68 +51,68 @@ class Q_V_network(nn.Module):
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 256, bias=True), 
+			nn.Linear(obs_input_dim, 64, bias=True), 
 			nn.GELU(),
 			)
 		self.state_act_embed = nn.Sequential(
-			nn.Linear(obs_input_dim+self.num_actions, 256, bias=True), 
+			nn.Linear(obs_input_dim+self.num_actions, 64, bias=True), 
 			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
-		assert 256%self.num_heads == 0
+		assert 64%self.num_heads == 0
 		self.key = [nn.Sequential(
-					nn.Linear(256, 256, bias=True), 
+					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)]
 		self.query = [nn.Sequential(
-					nn.Linear(256, 256, bias=True), 
+					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)]
 		self.attention_value = [nn.Sequential(
-					nn.Linear(256, 256//self.num_heads, bias=True), 
+					nn.Linear(64, 64//self.num_heads, bias=True), 
 					nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)]
 
-		self.attention_value_layer_norm = nn.LayerNorm(256)
+		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			nn.Linear(256, 256),
+			nn.Linear(64, 64),
 			nn.GELU(),
 			)
 
-		self.attention_value_linear_layer_norm = nn.LayerNorm(256)
+		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
 			self.hard_attention = [nn.Sequential(
-						nn.Linear(256*2, 256//self.num_heads),
+						nn.Linear(64*2, 64//self.num_heads),
 						nn.GELU(),
 						).to(self.device) for _ in range(self.num_heads)]
 
 			self.hard_attention_linear = nn.Sequential(
-				nn.Linear(256, 1)
+				nn.Linear(64, 1)
 				)
 
 
 		# dimesion of key
-		self.d_k = 256
+		self.d_k = 64
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			nn.Linear(256*2, 256, bias=True), 
+			nn.Linear(64*2, 64, bias=True), 
 			nn.GELU(),
 			)
-		self.RNN = nn.GRUCell(256, 256)
+		self.RNN = nn.GRUCell(64, 64)
 		self.q_value_layer = nn.Sequential(
-			nn.Linear(256, 256, bias=True),
+			nn.Linear(64, 64, bias=True),
 			nn.GELU(),
-			nn.Linear(256, self.num_actions)
+			nn.Linear(64, self.num_actions)
 			)
 
 		self.v_value_layer = nn.Sequential(
-			nn.Linear(256, 256, bias=True),
+			nn.Linear(64, 64, bias=True),
 			nn.GELU(),
-			nn.Linear(256, 1)
+			nn.Linear(64, 1)
 			)
 			
 		# ********************************************************************************************************
