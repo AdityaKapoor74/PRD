@@ -348,7 +348,7 @@ if __name__ == '__main__':
 				"policy_lr": 1e-4, #prd 1e-4
 				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.04,
+				"select_above_threshold": 0.05,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 1000,
