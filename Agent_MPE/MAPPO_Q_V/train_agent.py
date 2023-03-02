@@ -291,10 +291,10 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_cri
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "PRD_MAPPO_Hard_Soft_Attn_run_"+str(i)
+		extension = "MAPPO_Hard_Soft_Attn_run_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				# TRAINING
@@ -335,7 +335,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-4, #1e-3
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
@@ -346,7 +346,7 @@ if __name__ == '__main__':
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 1e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
