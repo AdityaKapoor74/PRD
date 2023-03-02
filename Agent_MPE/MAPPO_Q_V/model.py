@@ -16,9 +16,9 @@ class MLP_Policy(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.Policy_MLP = nn.Sequential(
-			nn.Linear(obs_input_dim, 64),
+			nn.Linear(obs_input_dim, 128),
 			nn.GELU(),
-			nn.Linear(64, 64),
+			nn.Linear(128, 64),
 			nn.GELU(),
 			nn.Linear(64, num_actions),
 			nn.Softmax(dim=-1)
