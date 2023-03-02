@@ -214,7 +214,7 @@ class Q_V_network(nn.Module):
 			hard_attention_weights = gumbel_sigmoid(torch.sigmoid(self.hard_attention_linear(query_key_concat_intermediate)), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
-			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1)
+			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
 			# print(hard_attention_weights.shape)
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs*hard_attention_weights.unsqueeze(1)).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
