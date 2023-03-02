@@ -118,8 +118,16 @@ class PPOAgent:
 				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
-		
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
+		params_to_update = []
+		for name, param in self.critic_network.named_parameters():
+			if param.requires_grad == True:
+				if "v_value_layer" in name:
+					continue
+				params_to_update.append(param)
+				# print("\t",name)
+
+		self.q_critic_optimizer = optim.Adam(params_to_update, lr=self.value_lr)
+		self.v_critic_optimizer = optim.Adam(self.critic_network.v_value_layer.parameters(), lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 		if self.scheduler_need:
@@ -413,10 +421,18 @@ class PPOAgent:
 			
 
 			# take gradient step
-			self.critic_optimizer.zero_grad()
-			(critic_q_loss + critic_v_loss).backward(retain_graph=True)
+			# self.critic_optimizer.zero_grad()
+			# (critic_q_loss + critic_v_loss).backward(retain_graph=True)
+			# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
+			# self.critic_optimizer.step()
+
+			self.v_critic_optimizer.zero_grad()
+			self.q_critic_optimizer.zero_grad()
+			critic_q_loss.backward(retain_graph=True)
+			critic_v_loss.backward()
 			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
-			self.critic_optimizer.step()
+			self.v_critic_optimizer.step()
+			self.q_critic_optimizer.step()
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward()
