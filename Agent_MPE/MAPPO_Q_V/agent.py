@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
-from model import MLP_Policy, Q_V_network
+from model import MLP_Policy, Q_V_network, Q_network, V_network
 from utils import RolloutBuffer
 
 class PPOAgent:
@@ -84,15 +84,25 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 		obs_input_dim = 2*3+1 # crossing_team_greedy
 		# Q-V Network
-		self.critic_network = Q_V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
-		self.critic_network_old = Q_V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_q = Q_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_q_old = Q_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
 		# Copy network params
-		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+		self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
 		# Disable updates for old network
-		for param in self.critic_network_old.parameters():
+		for param in self.critic_network_q_old.parameters():
 			param.requires_grad_(False)
 
-		self.history_states_critic = None
+		self.history_states_critic_q = None
+
+		self.critic_network_v = V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_v_old = V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		# Copy network params
+		self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
+		# Disable updates for old network
+		for param in self.critic_network_v_old.parameters():
+			param.requires_grad_(False)
+
+		self.history_states_critic_v = None
 		
 		
 		# Policy Network
@@ -118,16 +128,16 @@ class PPOAgent:
 				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
-		params_to_update = []
-		for name, param in self.critic_network.named_parameters():
-			if param.requires_grad == True:
-				if "v_value_layer" in name:
-					continue
-				params_to_update.append(param)
+		# params_to_update = []
+		# for name, param in self.critic_network.named_parameters():
+		# 	if param.requires_grad == True:
+		# 		if "v_value_layer" in name:
+		# 			continue
+		# 		params_to_update.append(param)
 				# print("\t",name)
 
-		self.q_critic_optimizer = optim.Adam(params_to_update, lr=self.value_lr)
-		self.v_critic_optimizer = optim.Adam(self.critic_network.v_value_layer.parameters(), lr=self.value_lr)
+		self.q_critic_optimizer = optim.Adam(self.critic_network_q.parameters(), lr=self.value_lr)
+		self.v_critic_optimizer = optim.Adam(self.critic_network_v.parameters(), lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 		if self.scheduler_need:
@@ -350,15 +360,24 @@ class PPOAgent:
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 
-		if self.history_states_critic is None:
-			self.history_states_critic = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
+		if self.history_states_critic_q is None:
+			self.history_states_critic_q = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
+
+		if self.history_states_critic_v is None:
+			self.history_states_critic_v = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
 
 		with torch.no_grad():
-			Q_values_old, Values_old, self.history_states_critic, _ = self.critic_network_old(
-																	old_states_critic.to(self.device),
-																	self.history_states_critic.to(self.device),
-																	old_one_hot_actions.to(self.device)
-																	)
+			Q_values_old, self.history_states_critic_q, _ = self.critic_network_q_old(
+																old_states_critic.to(self.device),
+																self.history_states_critic_q.to(self.device),
+																old_one_hot_actions.to(self.device)
+																)
+
+			Values_old, self.history_states_critic_v, _ = self.critic_network_v_old(
+																old_states_critic.to(self.device),
+																self.history_states_critic_v.to(self.device),
+																old_one_hot_actions.to(self.device)
+																)
 
 		Q_value_target = self.nstep_returns(Q_values_old.cpu(), rewards, dones).to(self.device)
 
@@ -376,7 +395,8 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_value, Value, new_history_states_critic, weights_prd = self.critic_network(old_states_critic.to(self.device), self.history_states_critic.to(self.device), old_one_hot_actions.to(self.device))
+			Q_value, new_history_states_critic_q, weights_prd = self.critic_network_q(old_states_critic.to(self.device), self.history_states_critic_q.to(self.device), old_one_hot_actions.to(self.device))
+			Value, new_history_states_critic_v, _ = self.critic_network_v(old_states_critic.to(self.device), self.history_states_critic_v.to(self.device), old_one_hot_actions.to(self.device))
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_Q_V(Q_value, Value, torch.mean(weights_prd.detach(), dim=1), dones.to(self.device), episode)
 
@@ -426,20 +446,25 @@ class PPOAgent:
 			# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
 			# self.critic_optimizer.step()
 
-			self.v_critic_optimizer.zero_grad()
+			
 			self.q_critic_optimizer.zero_grad()
-			critic_q_loss.backward(retain_graph=True)
-			critic_v_loss.backward()
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
-			self.v_critic_optimizer.step()
+			critic_q_loss.backward()
+			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
 			self.q_critic_optimizer.step()
+			
+			self.v_critic_optimizer.zero_grad()
+			critic_v_loss.backward()
+			grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
+			self.v_critic_optimizer.step()
+			
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward()
 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
 			self.policy_optimizer.step()
 
-			self.history_states_critic = new_history_states_critic.detach().cpu()
+			self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
+			self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
 
 			q_value_loss_batch += critic_q_loss.item()
 			v_value_loss_batch += critic_v_loss.item()
@@ -457,7 +482,8 @@ class PPOAgent:
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
 		# Copy new weights into old critic
-		self.critic_network_old.load_state_dict(self.critic_network.state_dict())
+		self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
+		self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
 
 		# self.scheduler.step()
 		# print("learning rate of policy", self.scheduler.get_lr())
