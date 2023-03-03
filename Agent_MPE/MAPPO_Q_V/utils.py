@@ -26,16 +26,21 @@ def gumbel_sigmoid(logits: Tensor, tau: float = 1, hard: bool = False, threshold
 	)  # ~Gumbel(0, 1)
 	gumbels = (logits + gumbels) / tau  # ~Gumbel(logits, tau)
 	y_soft = gumbels.sigmoid()
+	# print(y_soft)
 
 	if hard:
 		# Straight through.
 		indices = (y_soft > threshold).nonzero(as_tuple=True)
 		y_hard = torch.zeros_like(logits, memory_format=torch.legacy_contiguous_format)
-		y_hard[indices[0], indices[1]] = 1.0
+		y_hard[indices[0], indices[1], indices[2], indices[3]] = 1.0
 		ret = y_hard - y_soft.detach() + y_soft
 	else:
 		# Reparametrization trick.
 		ret = y_soft
+
+	# print("GUMBEL SIGMOID")
+	# print(ret)
+	
 	return ret
 
 
@@ -68,3 +73,10 @@ class RolloutBuffer:
 		del self.logprobs[:]
 		del self.rewards[:]
 		del self.dones[:]
+
+
+if __name__ == '__main__':
+
+	a = torch.tensor([[[[10.0], [-10.0]]]])
+
+	print(gumbel_sigmoid(a, hard=True))
