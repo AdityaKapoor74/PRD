@@ -61,18 +61,18 @@ class Q_V_network(nn.Module):
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 64%self.num_heads == 0
-		self.key = [nn.Sequential(
+		self.key = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
-		self.query = [nn.Sequential(
+					).to(self.device) for _ in range(self.num_heads)])
+		self.query = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
-		self.attention_value = [nn.Sequential(
+					).to(self.device) for _ in range(self.num_heads)])
+		self.attention_value = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64//self.num_heads, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
+					).to(self.device) for _ in range(self.num_heads)])
 
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
@@ -84,10 +84,10 @@ class Q_V_network(nn.Module):
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
-			self.hard_attention = [nn.Sequential(
+			self.hard_attention = nn.ModuleList([nn.Sequential(
 						nn.Linear(64*2, 64//self.num_heads),
 						nn.GELU(),
-						).to(self.device) for _ in range(self.num_heads)]
+						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
 				nn.Linear(64, 1)
@@ -279,18 +279,18 @@ class Q_network(nn.Module):
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 64%self.num_heads == 0
-		self.key = [nn.Sequential(
+		self.key = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
-		self.query = [nn.Sequential(
+					).to(self.device) for _ in range(self.num_heads)])
+		self.query = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
-		self.attention_value = [nn.Sequential(
+					).to(self.device) for _ in range(self.num_heads)])
+		self.attention_value = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64//self.num_heads, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
+					).to(self.device) for _ in range(self.num_heads)])
 
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
@@ -302,10 +302,10 @@ class Q_network(nn.Module):
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
-			self.hard_attention = [nn.Sequential(
+			self.hard_attention = nn.ModuleList([nn.Sequential(
 						nn.Linear(64*2, 64//self.num_heads),
 						nn.GELU(),
-						).to(self.device) for _ in range(self.num_heads)]
+						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
 				nn.Linear(64, 1)
@@ -487,18 +487,18 @@ class V_network(nn.Module):
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 64%self.num_heads == 0
-		self.key = [nn.Sequential(
+		self.key = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
-		self.query = [nn.Sequential(
+					).to(self.device) for _ in range(self.num_heads)])
+		self.query = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
-		self.attention_value = [nn.Sequential(
+					).to(self.device) for _ in range(self.num_heads)])
+		self.attention_value = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64//self.num_heads, bias=True), 
 					nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)]
+					).to(self.device) for _ in range(self.num_heads)])
 
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
@@ -510,10 +510,10 @@ class V_network(nn.Module):
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
-			self.hard_attention = [nn.Sequential(
+			self.hard_attention = nn.ModuleList([nn.Sequential(
 						nn.Linear(64*2, 64//self.num_heads),
 						nn.GELU(),
-						).to(self.device) for _ in range(self.num_heads)]
+						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
 				nn.Linear(64, 1)
