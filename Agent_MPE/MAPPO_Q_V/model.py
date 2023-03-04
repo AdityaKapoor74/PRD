@@ -90,7 +90,7 @@ class Q_V_network(nn.Module):
 						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
-				nn.Linear(64, 1)
+				nn.Linear(64, 2)
 				)
 
 
@@ -211,7 +211,10 @@ class Q_V_network(nn.Module):
 			# print(query_key_concat.shape)
 			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
 			# print(query_key_concat_intermediate.shape)
-			hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SIGMOID, did not work that well
+			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SOFTMAX
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=0.01)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
@@ -308,7 +311,7 @@ class Q_network(nn.Module):
 						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
-				nn.Linear(64, 1)
+				nn.Linear(64, 2)
 				)
 
 
@@ -421,7 +424,10 @@ class Q_network(nn.Module):
 			# print(query_key_concat.shape)
 			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
 			# print(query_key_concat_intermediate.shape)
-			hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SIGMOID, did not work that well
+			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SOFTMAX
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=0.01)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
@@ -516,7 +522,7 @@ class V_network(nn.Module):
 						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
-				nn.Linear(64, 1)
+				nn.Linear(64, 2)
 				)
 
 
@@ -630,7 +636,10 @@ class V_network(nn.Module):
 			# print(query_key_concat.shape)
 			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
 			# print(query_key_concat_intermediate.shape)
-			hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SIGMOID, did not work that well
+			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SOFTMAX
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=0.01)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
