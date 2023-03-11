@@ -50,6 +50,7 @@ class PPOAgent:
 		# Critic Setup
 		self.value_lr = dictionary["value_lr"]
 		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
+		self.critic_score_regularizer = dictionary["critic_score_regularizer"]
 		self.lambda_ = dictionary["lambda"] # TD lambda
 		self.value_clip = dictionary["value_clip"]
 		self.num_heads = dictionary["num_heads"]
@@ -256,10 +257,15 @@ class PPOAgent:
 			self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
 
 
-		# ENTROPY OF WEIGHTS
+		# ENTROPY OF Q WEIGHTS
 		for i in range(self.num_heads):
 			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_prd"][:,i]* torch.log(torch.clamp(self.plotting_dict["weights_prd"][:,i], 1e-10,1.0)), dim=2))
-			self.comet_ml.log_metric('Critic_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
+			self.comet_ml.log_metric('Q_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
+
+		# ENTROPY OF V WEIGHTS
+		for i in range(self.num_heads):
+			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_v"][:,i]* torch.log(torch.clamp(self.plotting_dict["weights_v"][:,i], 1e-10,1.0)), dim=2))
+			self.comet_ml.log_metric('V_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
 
 
 	# def calculate_advantages_based_on_exp(self, V_values, rewards, dones, weights_prd, episode):
@@ -367,13 +373,13 @@ class PPOAgent:
 			self.history_states_critic_v = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
 
 		with torch.no_grad():
-			Q_values_old, self.history_states_critic_q, _ = self.critic_network_q_old(
+			Q_values_old, self.history_states_critic_q, _, _ = self.critic_network_q_old(
 																old_states_critic.to(self.device),
 																self.history_states_critic_q.to(self.device),
 																old_one_hot_actions.to(self.device)
 																)
 
-			Values_old, self.history_states_critic_v, _ = self.critic_network_v_old(
+			Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
 																old_states_critic.to(self.device),
 																self.history_states_critic_v.to(self.device),
 																old_one_hot_actions.to(self.device)
@@ -386,6 +392,7 @@ class PPOAgent:
 		policy_loss_batch = 0
 		entropy_batch = 0
 		weight_prd_batch = None
+		weight_v_batch = None
 		grad_norm_value_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
@@ -395,8 +402,8 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_value, new_history_states_critic_q, weights_prd = self.critic_network_q(old_states_critic.to(self.device), self.history_states_critic_q.to(self.device), old_one_hot_actions.to(self.device))
-			Value, new_history_states_critic_v, _ = self.critic_network_v(old_states_critic.to(self.device), self.history_states_critic_v.to(self.device), old_one_hot_actions.to(self.device))
+			Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(old_states_critic.to(self.device), self.history_states_critic_q.to(self.device), old_one_hot_actions.to(self.device))
+			Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(old_states_critic.to(self.device), self.history_states_critic_v.to(self.device), old_one_hot_actions.to(self.device))
 
 			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_Q_V(Q_value, Value, torch.mean(weights_prd.detach(), dim=1), dones.to(self.device), episode)
 
@@ -433,12 +440,13 @@ class PPOAgent:
 			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
 			
 			entropy_weights = 0
+			entropy_weights_v = 0
 			for i in range(self.num_heads):
 				entropy_weights += -torch.mean(torch.sum(weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10,1.0)), dim=2))
+				entropy_weights_v += -torch.mean(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10,1.0)), dim=2))
 
-			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_weight_entropy_pen*entropy_weights
-			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2)
-			
+			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).mean() + self.critic_weight_entropy_pen*entropy_weights
+			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).mean() + self.critic_weight_entropy_pen*entropy_weights_v
 
 			# take gradient step
 			# self.critic_optimizer.zero_grad()
@@ -474,7 +482,13 @@ class PPOAgent:
 			grad_norm_policy_batch += grad_norm_policy
 			if weight_prd_batch is None:
 				weight_prd_batch = weights_prd.detach().cpu()
-			weight_prd_batch += weights_prd.detach().cpu()
+			else:
+				weight_prd_batch += weights_prd.detach().cpu()
+			if weight_v_batch is None:
+				weight_v_batch = weight_v.detach().cpu()
+			else:
+				weight_v_batch += weight_v.detach().cpu()
+			
 
 
 			
@@ -498,6 +512,7 @@ class PPOAgent:
 		grad_norm_value_batch /= self.n_epochs
 		grad_norm_policy_batch /= self.n_epochs
 		weight_prd_batch /= self.n_epochs
+		weight_v_batch /= self.n_epochs
 		agent_groups_over_episode_batch /= self.n_epochs
 		avg_agent_group_over_episode_batch /= self.n_epochs
 
@@ -527,6 +542,7 @@ class PPOAgent:
 		"grad_norm_value":grad_norm_value_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_prd": weight_prd_batch,
+		"weights_v": weight_v_batch,
 		"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
 		"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
 		"true_negatives": true_negatives,
