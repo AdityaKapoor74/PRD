@@ -405,7 +405,7 @@ class PPOAgent:
 			Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(old_states_critic.to(self.device), self.history_states_critic_q.to(self.device), old_one_hot_actions.to(self.device))
 			Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(old_states_critic.to(self.device), self.history_states_critic_v.to(self.device), old_one_hot_actions.to(self.device))
 
-			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards, dones, torch.mean(weights_prd.detach(), dim=1), episode)
+			advantage, masking_advantage, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), episode)
 
 			dists = self.policy_network(old_states_actor.to(self.device))
 			probs = Categorical(dists.squeeze(0))
