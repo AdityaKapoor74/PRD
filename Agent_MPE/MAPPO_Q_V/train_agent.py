@@ -292,7 +292,7 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_cri
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "PRD_MAPPO_Hard_Soft_Attn_run_"+str(i)
+		extension = "PRD_MAPPO_Soft_Attn_run_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
 		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
@@ -336,7 +336,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-4, #1e-3
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
@@ -352,7 +352,7 @@ if __name__ == '__main__':
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.125,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
