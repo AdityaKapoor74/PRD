@@ -646,9 +646,9 @@ class V_network(nn.Module):
 		# hard_score = -10000*(1-hard_attention_weights) + hard_attention_weights
 		# print(hard_attention_weights.unsqueeze(1).shape, key_obs.shape)
 		# SOFT ATTENTION
-		score = torch.matmul(query_obs,(key_obs*hard_attention_weights.unsqueeze(1)).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		score = torch.matmul(query_obs,key_obs.transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
-		weight = F.softmax(score ,dim=-1) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weight = F.softmax(score ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights.shape)
