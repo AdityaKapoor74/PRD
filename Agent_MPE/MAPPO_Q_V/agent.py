@@ -142,8 +142,9 @@ class PPOAgent:
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
 		if self.scheduler_need:
-			self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
-			self.scheduler = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
+			self.scheduler_policy = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
+			self.scheduler_q_critic = optim.lr_scheduler.MultiStepLR(self.q_critic_optimizer, milestones=[1000, 20000], gamma=0.1)
+			self.scheduler_v_critic = optim.lr_scheduler.MultiStepLR(self.v_critic_optimizer, milestones=[1000, 20000], gamma=0.1)
 
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
@@ -391,7 +392,7 @@ class PPOAgent:
 		Q_value_target = self.nstep_returns(Q_values_old.cpu(), rewards, dones).to(self.device)
 		
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
-			masks = (weights_prd>self.select_above_threshold).int()
+			masks = (weights_prd_old>self.select_above_threshold).int()
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masks.detach().cpu(),-1,-2), dim=-1)
 			Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
 		else:
@@ -428,7 +429,7 @@ class PPOAgent:
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
-				
+
 			critic_v_loss_1 = F.mse_loss(Value, Value_target)
 			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target)
 
