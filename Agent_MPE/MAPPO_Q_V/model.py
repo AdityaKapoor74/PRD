@@ -639,11 +639,12 @@ class V_network(nn.Module):
 			# GUMBEL SIGMOID, did not work that well
 			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
 			# GUMBEL SOFTMAX
-			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=0.01)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
-			# print(hard_attention_weights.shape)
+		# hard_score = -10000*(1-hard_attention_weights) + hard_attention_weights
+		# print(hard_attention_weights.unsqueeze(1).shape, key_obs.shape)
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs*hard_attention_weights.unsqueeze(1)).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
