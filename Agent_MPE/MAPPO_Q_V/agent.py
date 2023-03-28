@@ -392,7 +392,7 @@ class PPOAgent:
 		Q_value_target = self.nstep_returns(Q_values_old.cpu(), rewards, dones).to(self.device)
 		
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
-			masks = (weights_prd_old>self.select_above_threshold).int()
+			masks = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masks.detach().cpu(),-1,-2), dim=-1)
 			Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
 		else:
