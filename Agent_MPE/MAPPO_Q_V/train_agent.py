@@ -231,6 +231,11 @@ class MAPPO:
 
 					break
 
+			if self.agents.scheduler_need:
+				self.agents.scheduler_policy.step()
+				self.agents.scheduler_q_critic.step()
+				self.agents.scheduler_v_critic.step()
+
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
@@ -307,7 +312,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
