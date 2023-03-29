@@ -370,11 +370,11 @@ class PPOAgent:
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 
-		if self.history_states_critic_q is None:
-			self.history_states_critic_q = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
+		# if self.history_states_critic_q is None:
+		self.history_states_critic_q = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
 
-		if self.history_states_critic_v is None:
-			self.history_states_critic_v = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
+		# if self.history_states_critic_v is None:
+		self.history_states_critic_v = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
 
 		with torch.no_grad():
 			Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
