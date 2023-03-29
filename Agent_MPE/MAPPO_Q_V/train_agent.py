@@ -318,7 +318,7 @@ if __name__ == '__main__':
 				"gamma": 0.99,
 				"gif": False,
 				"gif_checkpoint":1,
-				"load_models": True,
+				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
 				"eval_policy": True,
