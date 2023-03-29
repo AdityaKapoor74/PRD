@@ -300,7 +300,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_Hard_Soft_Attn_run_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				# TRAINING
@@ -318,13 +318,13 @@ if __name__ == '__main__':
 				"gamma": 0.99,
 				"gif": False,
 				"gif_checkpoint":1,
-				"load_models": False,
+				"load_models": True,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
 				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 50000,
 				"max_time_steps": 100,
@@ -341,7 +341,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-4, #1e-3
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
@@ -357,7 +357,7 @@ if __name__ == '__main__':
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.12,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
