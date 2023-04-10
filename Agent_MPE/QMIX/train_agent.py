@@ -233,7 +233,7 @@ class QMIX:
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.Q_network.state_dict(), self.model_path+'_Q_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.QMix_network.state_dict(), self.critic_model_path+'_QMix_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.QMix_network.state_dict(), self.model_path+'_QMix_epsiode'+str(episode)+'.pt')
 
 			if self.learn and self.batch_size <= self.buffer.length and episode != 0:
 				sample = self.buffer.sample(num_episodes=self.batch_size)
