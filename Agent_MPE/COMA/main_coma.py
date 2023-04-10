@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "COMA_"+str(i)
-		test_num = "COMA"
+		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
 
 		dictionary = {
