@@ -10,7 +10,7 @@ def make_env(scenario_name, benchmark=False):
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env
+	return env, scenario.observation_shape, scenario.transformer_observation_shape
 
 
 def run_file(dictionary):
@@ -22,7 +22,7 @@ def run_file(dictionary):
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "COMA_run"+str(i)
+		extension = "COMA_"+str(i)
 		test_num = "COMA"
 		env_name = "crossing_team_greedy"
 
@@ -61,6 +61,8 @@ if __name__ == '__main__':
 				"norm_adv": False,
 				"norm_rew": False,
 			}
-		env = make_env(scenario_name=dictionary["env"],benchmark=False)
+		env, global_observation_shape, local_observation_shape = make_env(scenario_name=dictionary["env"],benchmark=False)
+		dictionary["global_observation_shape"] = global_observation_shape
+		dictionary["local_observation_shape"] = local_observation_shape
 		ma_controller = MACOMA(env,dictionary)
 		ma_controller.run()
