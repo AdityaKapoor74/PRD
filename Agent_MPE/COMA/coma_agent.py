@@ -44,7 +44,7 @@ class COMAAgent:
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
 		# obs_dim = 2*3 + 1
-		self.local_observation_shape = local_observation_shape
+		self.local_observation_shape = dictionary["local_observation_shape"]
 		self.critic_network = TransformerCritic(self.local_observation_shape, 128, self.local_observation_shape+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
 		self.target_critic_network = TransformerCritic(self.local_observation_shape, 128, self.local_observation_shape+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
 
