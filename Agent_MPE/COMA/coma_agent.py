@@ -43,17 +43,19 @@ class COMAAgent:
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
-		obs_dim = 2*3 + 1
-		self.critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
-		self.target_critic_network = TransformerCritic(obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
+		# obs_dim = 2*3 + 1
+		self.local_observation_shape = local_observation_shape
+		self.critic_network = TransformerCritic(self.local_observation_shape, 128, self.local_observation_shape+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
+		self.target_critic_network = TransformerCritic(self.local_observation_shape, 128, self.local_observation_shape+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
 
 		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		# MLP POLICY
 		self.seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
-		self.policy_network = MLPPolicy(obs_input_dim, self.num_agents, self.num_actions, self.device).to(self.device)
+		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
+		self.global_observation_shape = dictionary["global_observation_shape"]
+		self.policy_network = MLPPolicy(self.global_observation_shape, self.num_agents, self.num_actions, self.device).to(self.device)
 
 		if self.env_name == "color_social_dilemma":
 			self.relevant_set = torch.zeros(self.num_agents, self.num_agents).to(self.device)
