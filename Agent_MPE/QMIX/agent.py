@@ -134,8 +134,8 @@ class QMIXAgent:
 			Q_evals.append(Q_values.reshape(self.batch_size, self.num_agents, -1))
 			Q_targets.append(Q_target.reshape(self.batch_size, self.num_agents, -1))
 
-		Q_evals = torch.stack(Q_evals, dim=1) # across time
-		Q_targets = torch.stack(Q_targets, dim=1)
+		Q_evals = torch.stack(Q_evals, dim=1).to(self.device) # across time
+		Q_targets = torch.stack(Q_targets, dim=1).to(self.device)
 
 		with torch.no_grad():
 			Q_eval_last = self.Q_network(torch.cat([state_batch[:, -1].reshape(-1, self.obs_input_dim), last_one_hot_actions_batch[:, -1].reshape(-1, self.num_actions)], dim=-1).to(self.device)).reshape(self.batch_size, 1, self.num_agents, -1)
@@ -144,7 +144,7 @@ class QMIXAgent:
 			Q_targets = torch.gather(Q_targets, dim=-1, index=a_argmax.to(self.device)).squeeze(-1)
 
 		
-		Q_evals = torch.gather(Q_evals, dim=-1, index=actions_batch.unsqueeze(-1)).squeeze(-1)
+		Q_evals = torch.gather(Q_evals, dim=-1, index=actions_batch.unsqueeze(-1).to(self.device)).squeeze(-1)
 
 		Q_total_eval = self.QMix_network(Q_evals, state_batch[:, :-1].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device))
 		Q_total_target = self.target_QMix_network(Q_targets, state_batch[:, 1:].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device))
