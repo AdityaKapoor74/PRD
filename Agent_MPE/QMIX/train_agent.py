@@ -309,7 +309,7 @@ if __name__ == '__main__':
 				"hidden_dim": 256,
 				"norm_returns": False,
 				"soft_update": True,
-				"tau": 0.98,
+				"tau": 0.005,
 				"target_update_interval": 200,
 
 			}
