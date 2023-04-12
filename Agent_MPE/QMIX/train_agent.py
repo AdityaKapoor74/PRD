@@ -294,7 +294,7 @@ if __name__ == '__main__':
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
-				"batch_size": 32,
+				"batch_size": 128,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
 				"epsilon_greedy_decay_episodes": 20000,
@@ -306,12 +306,11 @@ if __name__ == '__main__':
 				"learning_rate": 1e-4, #1e-3
 				"grad_clip": 0.5,
 				"rnn_hidden_dim": 64,
-				"hidden_dim": 256,
+				"hidden_dim": 32,
 				"norm_returns": False,
-				"soft_update": True,
+				"soft_update": False,
 				"tau": 0.005,
 				"target_update_interval": 200,
-
 			}
 
 		seeds = [42, 142, 242, 342, 442]
