@@ -48,6 +48,7 @@ class PPOAgent:
 		self.non_relevant_set = torch.ones(1,self.num_agents,self.num_agents).to(self.device) - self.relevant_set
 
 		# Critic Setup
+		self.critic_observation_shape = dictionary["global_observation"]
 		self.value_lr = dictionary["value_lr"]
 		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
 		self.critic_score_regularizer = dictionary["critic_score_regularizer"]
@@ -59,6 +60,7 @@ class PPOAgent:
 
 
 		# Actor Setup
+		self.actor_observation_shape = dictionary["local_observation"]
 		self.policy_lr = dictionary["policy_lr"]
 		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
 		self.gamma = dictionary["gamma"]
@@ -83,10 +85,10 @@ class PPOAgent:
 
 
 		print("EXPERIMENT TYPE", self.experiment_type)
-		obs_input_dim = 2*3+1 # crossing_team_greedy
+		# obs_input_dim = 2*3+1 # crossing_team_greedy
 		# Q-V Network
-		self.critic_network_q = Q_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
-		self.critic_network_q_old = Q_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_q = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_q_old = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
 		# Copy network params
 		self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
 		# Disable updates for old network
@@ -95,8 +97,8 @@ class PPOAgent:
 
 		self.history_states_critic_q = None
 
-		self.critic_network_v = V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
-		self.critic_network_v_old = V_network(obs_input_dim=obs_input_dim, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_v = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_v_old = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
 		# Copy network params
 		self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
 		# Disable updates for old network
@@ -107,9 +109,9 @@ class PPOAgent:
 		
 		
 		# Policy Network
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
-		self.policy_network = MLP_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.policy_network_old = MLP_Policy(obs_input_dim=obs_input_dim, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
+		self.policy_network = MLP_Policy(obs_input_dim=self.actor_observation_shape, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old = MLP_Policy(obs_input_dim=self.actor_observation_shape, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		# Copy network params
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 		# Disable updates for old network
