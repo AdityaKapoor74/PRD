@@ -12,7 +12,7 @@ def make_env(scenario_name, benchmark=False):
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env
+	return env, scenario.observation_shape, scenario.transformer_observation_shape
 
 
 def run_file(dictionary):
@@ -32,9 +32,9 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,5):
 		extension = "MAA2C_run_"+str(i)
-		test_num = "MPE" 
+		test_num = "TEAM COLLISION AVOIDANCE" 
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -50,16 +50,16 @@ if __name__ == '__main__':
 				"policy_lr": 3e-4, #prd 1e-4
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
-				"entropy_pen": 0.0, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
 				"gamma": 0.99, 
 				"trace_decay": 0.95,
 				"lambda": 0.95, #0.8
-				"select_above_threshold": 0.03,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0,
+				"threshold_max": 0.125,
 				"steps_to_take": 1000, 
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
@@ -75,13 +75,17 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 50000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
 				"norm_adv": False,
 				"norm_rew": False,
 			}
-		env = make_env(scenario_name=dictionary["env"],benchmark=False)
+		seeds = [42, 142, 242, 342, 442]
+		torch.manual_seed(seeds[dictionary["iteration"]-1])
+		env, local_observation, global_observation = make_env(scenario_name=dictionary["env"],benchmark=False)
+		dictionary["global_observation"] = global_observation
+		dictionary["local_observation"] = local_observation
 		ma_controller = MAA2C(env,dictionary)
 		ma_controller.run()
