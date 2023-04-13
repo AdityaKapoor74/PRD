@@ -297,7 +297,7 @@ if __name__ == '__main__':
 				"batch_size": 32,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
-				"epsilon_greedy_decay_episodes": 20000,
+				"epsilon_greedy_decay_episodes": 5000,
 
 				# ENVIRONMENT
 				"env": env_name,
