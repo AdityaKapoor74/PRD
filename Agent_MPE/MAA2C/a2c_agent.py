@@ -242,7 +242,7 @@ class A2CAgent:
 	
 	def plot(self, episode):
 	
-		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"].item(),episode)
+		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["value_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
 		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
