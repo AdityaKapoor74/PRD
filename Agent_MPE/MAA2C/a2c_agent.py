@@ -59,6 +59,9 @@ class A2CAgent:
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
+		self.critic_observation_shape = dictionary["global_observation"]
+		self.actor_observation_shape = dictionary["local_observation"]
+
 		self.error_rate = []
 		self.average_relevant_set = []
 		
@@ -68,23 +71,21 @@ class A2CAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		obs_input_dim = 2*3 + 1 # crossing team greedy
+		# obs_input_dim = 2*3 + 1 # crossing team greedy
 		# obs_input_dim = 2*3 # crossing_greedy
 		# obs_input_dim = 2*4 # paired_agent
-		self.critic_network = TransformerCritic(obs_input_dim=obs_input_dim, 
+		self.critic_network = TransformerCritic(obs_input_dim=self.critic_observation_shape, 
 			obs_output_dim=256, 
-			obs_act_input_dim=obs_input_dim+self.num_actions, 
+			obs_act_input_dim=self.critic_observation_shape+self.num_actions, 
 			obs_act_output_dim=256, num_agents=self.num_agents, 
 			num_actions=self.num_actions, 
 			device=self.device).to(self.device)
 
-		self.seeds = [42, 142, 242, 342, 442]
-		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# POLICY
-		obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
+		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
 		# obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
 		# obs_input_dim = 2*3*self.num_agents # paired_agent
-		self.policy_network = Policy(obs_input_dim=obs_input_dim, 
+		self.policy_network = Policy(obs_input_dim=self.actor_observation_shape, 
 			num_agents=self.num_agents, 
 			num_actions=self.num_actions, 
 			device=self.device).to(self.device)
