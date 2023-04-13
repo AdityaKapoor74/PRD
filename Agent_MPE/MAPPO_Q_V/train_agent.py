@@ -283,7 +283,7 @@ def make_env(scenario_name, benchmark=False):
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env
+	return env, scenario.observation_shape, scenario.transformer_observation_shape
 
 '''
 crossing_team_greedy
@@ -297,10 +297,10 @@ PRD_MAPPO_Q: value_lr = 5e-4; policy_lr = 5e-4; entropy_pen = 0.0; grad_clip_cri
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_Hard_Soft_Attn_run_"+str(i)
+		extension = "MAPPO_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				# TRAINING
@@ -365,6 +365,8 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = make_env(scenario_name=dictionary["env"],benchmark=False)
+		env, local_observation, global_observation = make_env(scenario_name=dictionary["env"],benchmark=False)
+		dictionary["global_observation"] = global_observation
+		dictionary["local_observation"] = local_observation
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
