@@ -3,7 +3,7 @@ import random
 import torch
 import torch.nn as nn
 from functools import reduce
-from torch.optim import Adam, RMSProp
+from torch.optim import Adam, RMSprop
 import torch.nn.functional as F
 from model import QMIXNetwork, RNNQNetwork
 from utils import soft_update, hard_update
@@ -57,7 +57,7 @@ class QMIXAgent:
 
 		self.model_parameters = list(self.Q_network.parameters()) + list(self.QMix_network.parameters())
 		# self.optimizer = Adam(self.model_parameters, lr=self.learning_rate)
-		self.optimizer = RMSProp(self.model_parameters, lr=self.learning_rate, alpha=0.99, eps=1e-5)
+		self.optimizer = RMSprop(self.model_parameters, lr=self.learning_rate, alpha=0.99, eps=1e-5)
 
 		# Loading models
 		if dictionary["load_models"]:
