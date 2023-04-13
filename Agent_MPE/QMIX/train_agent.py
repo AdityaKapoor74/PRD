@@ -293,8 +293,8 @@ if __name__ == '__main__':
 				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"replay_buffer_size": 32,
-				"batch_size": 32,
+				"replay_buffer_size": 50000,
+				"batch_size": 500,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
 				"epsilon_greedy_decay_episodes": 5000,
@@ -303,7 +303,7 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# MODEL
-				"learning_rate": 5e-4, #1e-3
+				"learning_rate": 1e-5, #1e-3
 				"grad_clip": 10.0,
 				"rnn_hidden_dim": 64,
 				"hidden_dim": 32,
