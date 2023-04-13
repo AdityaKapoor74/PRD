@@ -149,9 +149,9 @@ class QMIXAgent:
 		Q_total_eval = self.QMix_network(Q_evals, state_batch[:, :-1].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device))
 		Q_total_target = self.target_QMix_network(Q_targets, state_batch[:, 1:].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device))
 
-		print(reward_batch.reshape(-1, 1, 1))
+
 		print(done_batch.reshape(-1, 1, 1))
-		print(Q_total_target)
+
 		total_targets = reward_batch.reshape(-1, 1, 1).to(self.device) + self.gamma * (1-done_batch.to(self.device)).reshape(-1, 1, 1) * Q_total_target
 
 		Q_loss = self.MSE(Q_total_eval, total_targets.detach())
@@ -159,8 +159,8 @@ class QMIXAgent:
 		self.optimizer.zero_grad()
 		print("LOSS", Q_loss.item())
 		Q_loss.backward()
-		# grad_norm = torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip).item()
-		grad_norm = -1
+		grad_norm = torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip).item()
+		# grad_norm = -1
 		self.optimizer.step()
 
 		if self.scheduler_need:
