@@ -294,7 +294,7 @@ if __name__ == '__main__':
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 50000,
-				"batch_size": 500,
+				"batch_size": 64,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
 				"epsilon_greedy_decay_episodes": 5000,
