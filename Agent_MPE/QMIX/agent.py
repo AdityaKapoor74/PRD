@@ -44,6 +44,8 @@ class QMIXAgent:
 		self.tau = dictionary["tau"] # target network smoothing coefficient
 		self.rnn_hidden_dim = dictionary["rnn_hidden_dim"]
 		self.hidden_dim = dictionary["hidden_dim"]
+
+		self.lambda_ = dictionary["lambda"]
 		
 
 
@@ -105,6 +107,43 @@ class QMIXAgent:
 		self.comet_ml.log_metric('Loss',self.plotting_dict["loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm',self.plotting_dict["grad_norm"],episode)
 
+	def calculate_deltas(self, values, rewards, dones):
+		deltas = []
+		next_value = 0
+		# rewards = rewards.unsqueeze(-1)
+		# dones = dones.unsqueeze(-1)
+		masks = 1-dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			next_value = values.data[t]
+			deltas.insert(0,td_error)
+		deltas = torch.stack(deltas)
+
+		return deltas
+
+
+	def nstep_returns(self, values, rewards, dones):
+		deltas = self.calculate_deltas(values, rewards, dones)
+		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+		target_Vs = advs+values
+		return target_Vs
+
+
+	def calculate_returns(self, rewards, discount_factor):
+		returns = []
+		R = 0
+		
+		for r in reversed(rewards):
+			R = r + R * discount_factor
+			returns.insert(0, R)
+		
+		returns_tensor = torch.stack(returns)
+		
+		if self.norm_returns:
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			
+		return returns_tensor
+
 	def update(self, sample, episode):
 		# sample episodes from replay buffer
 		state_batch, actions_batch, last_one_hot_actions_batch, reward_batch, done_batch, max_episode_len = sample
@@ -150,10 +189,8 @@ class QMIXAgent:
 		Q_total_eval = self.QMix_network(Q_evals, state_batch[:, :-1].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device))
 		Q_total_target = self.target_QMix_network(Q_targets, state_batch[:, 1:].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device))
 
-
-		print(done_batch.reshape(-1, 1, 1))
-
-		total_targets = reward_batch.reshape(-1, 1, 1).to(self.device) + self.gamma * (1-done_batch.to(self.device)).reshape(-1, 1, 1) * Q_total_target
+		# total_targets = reward_batch.reshape(-1, 1, 1).to(self.device) + self.gamma * (1-done_batch.to(self.device)).reshape(-1, 1, 1) * Q_total_target
+		total_targets = self.nstep_returns(Q_total_target, reward_batch.reshape(-1, 1, 1).to(self.device), done_batch.to(self.device).reshape(-1, 1, 1))
 
 		Q_loss = self.MSE(Q_total_eval, total_targets.detach())
 
