@@ -46,6 +46,7 @@ class QMIXAgent:
 		self.hidden_dim = dictionary["hidden_dim"]
 
 		self.lambda_ = dictionary["lambda"]
+		self.norm_returns = dictionary["norm_returns"]
 		
 
 
