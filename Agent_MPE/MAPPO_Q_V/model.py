@@ -16,11 +16,11 @@ class MLP_Policy(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.Policy_MLP = nn.Sequential(
-			nn.Linear(obs_input_dim, 128),
+			nn.Linear(obs_input_dim, 256),
 			nn.GELU(),
-			nn.Linear(128, 64),
+			nn.Linear(256, 128),
 			nn.GELU(),
-			nn.Linear(64, num_actions),
+			nn.Linear(128, num_actions),
 			nn.Softmax(dim=-1)
 			)
 
@@ -51,68 +51,68 @@ class Q_V_network(nn.Module):
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 64, bias=True), 
+			nn.Linear(obs_input_dim, 128, bias=True), 
 			nn.GELU(),
 			)
 		self.state_act_embed = nn.Sequential(
-			nn.Linear(obs_input_dim+self.num_actions, 64, bias=True), 
+			nn.Linear(obs_input_dim+self.num_actions, 128, bias=True), 
 			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
-		assert 64%self.num_heads == 0
+		assert 128%self.num_heads == 0
 		self.key = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64, bias=True), 
+					nn.Linear(128, 128, bias=True), 
 					nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 		self.query = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64, bias=True), 
+					nn.Linear(128, 128, bias=True), 
 					nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 		self.attention_value = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64//self.num_heads, bias=True), 
+					nn.Linear(128, 128//self.num_heads, bias=True), 
 					nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 
-		self.attention_value_layer_norm = nn.LayerNorm(64)
+		self.attention_value_layer_norm = nn.LayerNorm(128)
 
 		self.attention_value_linear = nn.Sequential(
-			nn.Linear(64, 64),
+			nn.Linear(128, 128),
 			nn.GELU(),
 			)
 
-		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
+		self.attention_value_linear_layer_norm = nn.LayerNorm(128)
 
 		if self.enable_hard_attention:
 			self.hard_attention = nn.ModuleList([nn.Sequential(
-						nn.Linear(64*2, 64//self.num_heads),
+						nn.Linear(128*2, 128//self.num_heads),
 						nn.GELU(),
 						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
-				nn.Linear(64, 2)
+				nn.Linear(128, 2)
 				)
 
 
 		# dimesion of key
-		self.d_k = 64
+		self.d_k = 128
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			nn.Linear(64*2, 64, bias=True), 
+			nn.Linear(128*2, 128, bias=True), 
 			nn.GELU(),
 			)
-		self.RNN = nn.GRUCell(64, 64)
+		self.RNN = nn.GRUCell(128, 128)
 		self.q_value_layer = nn.Sequential(
-			nn.Linear(64, 64, bias=True),
+			nn.Linear(128, 128, bias=True),
 			nn.GELU(),
-			nn.Linear(64, self.num_actions)
+			nn.Linear(128, self.num_actions)
 			)
 
 		self.v_value_layer = nn.Sequential(
-			nn.Linear(64, 64, bias=True),
+			nn.Linear(128, 128, bias=True),
 			nn.GELU(),
-			nn.Linear(64, 1)
+			nn.Linear(128, 1)
 			)
 			
 		# ********************************************************************************************************
