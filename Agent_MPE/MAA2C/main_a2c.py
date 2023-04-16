@@ -14,7 +14,7 @@ def make_env(scenario_name, benchmark=False):
 	else:
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
 	return env, scenario.observation_shape, scenario.transformer_observation_shape
-4
+	
 
 def run_file(dictionary):
 	env = make_env(scenario_name=dictionary["env"],benchmark=False)
@@ -31,7 +31,7 @@ PRD_MAA2C_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_cr
 
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
-	for i in range(1,5):
+	for i in range(1,6):
 		extension = "MAA2C_run_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE" 
 		env_name = "crossing_team_greedy"
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 				"lambda": 0.95, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.05,
+				"threshold_max": 0.04,
 				"steps_to_take": 1000, 
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
