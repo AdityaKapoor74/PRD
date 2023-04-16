@@ -59,8 +59,8 @@ class QMIXAgent:
 		self.MSE = nn.MSELoss()
 
 		self.model_parameters = list(self.Q_network.parameters()) + list(self.QMix_network.parameters())
-		# self.optimizer = Adam(self.model_parameters, lr=self.learning_rate)
-		self.optimizer = RMSprop(self.model_parameters, lr=self.learning_rate, alpha=0.99, eps=1e-5)
+		self.optimizer = Adam(self.model_parameters, lr=self.learning_rate)
+		# self.optimizer = RMSprop(self.model_parameters, lr=self.learning_rate, alpha=0.99, eps=1e-5)
 
 		# Loading models
 		if dictionary["load_models"]:
