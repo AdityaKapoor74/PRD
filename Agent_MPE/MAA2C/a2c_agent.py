@@ -180,32 +180,32 @@ class A2CAgent:
 			return index
 
 
-	# def calculate_advantages(self,returns, values, rewards, dones):
+	def calculate_advantages(self, returns, values, rewards, dones):
 		
-	# 	advantages = None
+		advantages = None
 
-	# 	if self.gae:
-	# 		advantages = []
-	# 		next_value = 0
-	# 		advantage = 0
-	# 		rewards = rewards.unsqueeze(-1)
-	# 		dones = dones.unsqueeze(-1)
-	# 		masks = 1 - dones
-	# 		for t in reversed(range(0, len(rewards))):
-	# 			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-	# 			next_value = values.data[t]
+		if self.gae:
+			advantages = []
+			next_value = 0
+			advantage = 0
+			rewards = rewards.unsqueeze(-1)
+			dones = dones.unsqueeze(-1)
+			masks = 1 - dones
+			for t in reversed(range(0, len(rewards))):
+				td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+				next_value = values.data[t]
 				
-	# 			advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
-	# 			advantages.insert(0, advantage)
+				advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
+				advantages.insert(0, advantage)
 
-	# 		advantages = torch.stack(advantages)	
-	# 	else:
-	# 		advantages = returns - values
+			advantages = torch.stack(advantages)	
+		else:
+			advantages = returns - values
 		
-	# 	if self.norm_adv:
-	# 		advantages = (advantages - advantages.mean()) / advantages.std()
+		if self.norm_adv:
+			advantages = (advantages - advantages.mean()) / advantages.std()
 		
-	# 	return advantages
+		return advantages
 
 
 	# def calculate_deltas(self, values, rewards, dones):
@@ -249,8 +249,8 @@ class A2CAgent:
 	def TD_error(self, target_values, values, rewards, dones):
 		TD_errors = []
 		curr_td_error = 0
-		rewards = rewards.unsqueeze(1)
-		dones = dones.unsqueeze(1)
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
 		masks = 1 - dones
 		for t in reversed(range(0, len(rewards))):
 			td_error = (rewards[t] + (self.gamma * target_values[t] * masks[t]) - values[t])**2
@@ -297,21 +297,11 @@ class A2CAgent:
 		discounted_rewards = None
 		next_probs = None
 
-		if self.critic_loss_type == "MC":
+		if self.critic_loss_type == "MC" or self.critic_loss_type == "TD_1":
 			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
-			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
-			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
-			Value_target = discounted_rewards
-			value_loss = F.smooth_l1_loss(V_values, Value_target)
-		elif self.critic_loss_type == "TD_1":
-			next_probs, _ = self.policy_network.forward(next_states_actor)
-			V_values_next, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-			Value_target = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-			value_loss = F.smooth_l1_loss(V_values, Value_target)
+			value_loss = F.smooth_l1_loss(V_values, target_V_values)
 		elif self.critic_loss_type == "TD_lambda":
-			value_loss = self.TD_error(target_V_values, V_values, torch.transpose(rewards, -1 , -2), dones).detach()
-
+			value_loss = self.TD_error(target_V_values, V_values, rewards, dones)
 
 		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
 			weights_ = weights
@@ -321,39 +311,39 @@ class A2CAgent:
 
 			value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
 
-		return discounted_rewards, next_probs, value_loss
+		return value_loss
 
 
-	def calculate_advantages_based_on_exp(self, discounted_rewards, V_values, rewards, dones, weights_prd, episode):
+	def calculate_advantages_based_on_exp(self, target_values, V_values, rewards, dones, weights_prd, episode):
 		# summing across each agent j to get the advantage
-		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - discounted_rewards[t,i])
+		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - target_values[t,i])
 		advantage = None
 		masking_advantage = None
 		if "shared" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
 			if episode < self.steps_to_take:
-				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones),dim=-2)
 			else:
 				advantage = torch.sum(self.calculate_advantages(discounted_rkewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
 		elif "prd_avg_top" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
 			values, indices = torch.topk(avg_weights,k=self.top_k,dim=-1)
 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "prd_avg_above_threshold" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
 			masking_advantage = (avg_weights>self.select_above_threshold).int()
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "prd_above_threshold" in self.experiment_type:
 			masking_advantage = (weights_prd>self.select_above_threshold).int()
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "top" in self.experiment_type:
 			if episode < self.steps_to_take:
-				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones),dim=-2)
 				min_weight_values, _ = torch.min(weights_prd, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
 			else:
@@ -361,11 +351,11 @@ class A2CAgent:
 				min_weight_values, _ = torch.min(values, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
 				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "greedy" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
 		elif "relevant_set" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * self.relevant_set ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * self.relevant_set ,dim=-2)
 
 		if "scaled" in self.experiment_type and episode > self.steps_to_take:
 			if "prd_soft_adv" in self.experiment_type:
@@ -414,8 +404,16 @@ class A2CAgent:
 		V_values, weights_value = self.critic_network.forward(states_critic, probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
-		target_V_values, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_actions)
-		target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
+		if self.critic_loss_type == "MC":
+			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
+			target_V_values = torch.transpose(discounted_rewards,-1,-2)
+		elif self.critic_loss_type == "TD_1":
+			V_values_next, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
+			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
+			target_V_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+		else:
+			target_V_values, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_actions)
+			target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
 
 		end_forward_time = time.process_time()
 		self.forward_time += end_forward_time - start_forward_time
@@ -428,12 +426,12 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		discounted_rewards, next_probs, value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value)
+		value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value)
 	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
-		advantage, masking_advantage = self.calculate_advantages_based_on_exp(discounted_rewards, V_values, rewards, dones, weights_prd, episode)
+		advantage, masking_advantage = self.calculate_advantages_based_on_exp(target_V_values, V_values, rewards, dones, weights_prd, episode)
 
 		if "prd_avg" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
