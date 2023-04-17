@@ -299,7 +299,7 @@ if __name__ == '__main__':
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
 				"epsilon_greedy_decay_episodes": 5000,
-				"lambda": 0.4,
+				"lambda": 0.7,
 
 				# ENVIRONMENT
 				"env": env_name,
@@ -308,7 +308,7 @@ if __name__ == '__main__':
 				"learning_rate": 1e-4, #1e-3
 				"grad_clip": 10.0,
 				"rnn_hidden_dim": 64,
-				"hidden_dim": 32,
+				"hidden_dim": 64,
 				"norm_returns": False,
 				"soft_update": False,
 				"tau": 0.005,
