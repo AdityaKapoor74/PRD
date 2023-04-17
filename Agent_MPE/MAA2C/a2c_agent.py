@@ -80,6 +80,14 @@ class A2CAgent:
 			obs_act_output_dim=256, num_agents=self.num_agents, 
 			num_actions=self.num_actions, 
 			device=self.device).to(self.device)
+		self.target_critic_network = TransformerCritic(obs_input_dim=self.critic_observation_shape, 
+			obs_output_dim=256, 
+			obs_act_input_dim=self.critic_observation_shape+self.num_actions, 
+			obs_act_output_dim=256, num_agents=self.num_agents, 
+			num_actions=self.num_actions, 
+			device=self.device).to(self.device)
+
+		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		# POLICY
 		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
@@ -172,71 +180,86 @@ class A2CAgent:
 			return index
 
 
-	def calculate_advantages(self,returns, values, rewards, dones):
+	# def calculate_advantages(self,returns, values, rewards, dones):
 		
-		advantages = None
+	# 	advantages = None
 
-		if self.gae:
-			advantages = []
-			next_value = 0
-			advantage = 0
-			rewards = rewards.unsqueeze(-1)
-			dones = dones.unsqueeze(-1)
-			masks = 1 - dones
-			for t in reversed(range(0, len(rewards))):
-				td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-				next_value = values.data[t]
+	# 	if self.gae:
+	# 		advantages = []
+	# 		next_value = 0
+	# 		advantage = 0
+	# 		rewards = rewards.unsqueeze(-1)
+	# 		dones = dones.unsqueeze(-1)
+	# 		masks = 1 - dones
+	# 		for t in reversed(range(0, len(rewards))):
+	# 			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+	# 			next_value = values.data[t]
 				
-				advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
-				advantages.insert(0, advantage)
+	# 			advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
+	# 			advantages.insert(0, advantage)
 
-			advantages = torch.stack(advantages)	
-		else:
-			advantages = returns - values
+	# 		advantages = torch.stack(advantages)	
+	# 	else:
+	# 		advantages = returns - values
 		
-		if self.norm_adv:
-			advantages = (advantages - advantages.mean()) / advantages.std()
+	# 	if self.norm_adv:
+	# 		advantages = (advantages - advantages.mean()) / advantages.std()
 		
-		return advantages
+	# 	return advantages
 
 
-	def calculate_deltas(self, values, rewards, dones):
-		deltas = []
-		next_value = 0
-		rewards = rewards.unsqueeze(-1)
-		dones = dones.unsqueeze(-1)
-		masks = 1-dones
+	# def calculate_deltas(self, values, rewards, dones):
+	# 	deltas = []
+	# 	next_value = 0
+	# 	rewards = rewards.unsqueeze(-1)
+	# 	dones = dones.unsqueeze(-1)
+	# 	masks = 1-dones
+	# 	for t in reversed(range(0, len(rewards))):
+	# 		td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+	# 		next_value = values.data[t]
+	# 		deltas.insert(0,td_error)
+	# 	deltas = torch.stack(deltas)
+
+	# 	return deltas
+
+
+	# def nstep_returns(self,values, rewards, dones):
+	# 	deltas = self.calculate_deltas(values, rewards, dones)
+	# 	advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+	# 	target_Vs = advs+values
+	# 	return target_Vs
+
+
+	# def calculate_returns(self,rewards, discount_factor):
+	# 	returns = []
+	# 	R = 0
+		
+	# 	for r in reversed(rewards):
+	# 		R = r + R * discount_factor
+	# 		returns.insert(0, R)
+		
+	# 	returns_tensor = torch.stack(returns).to(self.device)
+		
+	# 	if self.norm_rew:
+			
+	# 		returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			
+	# 	return returns_tensor
+
+	def TD_error(self, target_values, values, rewards, dones):
+		TD_errors = []
+		curr_td_error = 0
+		rewards = rewards.unsqueeze(1)
+		dones = dones.unsqueeze(1)
+		masks = 1 - dones
 		for t in reversed(range(0, len(rewards))):
-			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-			next_value = values.data[t]
-			deltas.insert(0,td_error)
-		deltas = torch.stack(deltas)
+			td_error = (rewards[t] + (self.gamma * target_values[t] * masks[t]) - values[t])**2
+			curr_td_error = td_error + (self.gamma * self.lambda_ * curr_td_error * masks[t])
+			TD_errors.insert(0, curr_td_error)
 
-		return deltas
-
-
-	def nstep_returns(self,values, rewards, dones):
-		deltas = self.calculate_deltas(values, rewards, dones)
-		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
-		target_Vs = advs+values
-		return target_Vs
-
-
-	def calculate_returns(self,rewards, discount_factor):
-		returns = []
-		R = 0
+		TD_errors = torch.mean(torch.stack(TD_errors))
 		
-		for r in reversed(rewards):
-			R = r + R * discount_factor
-			returns.insert(0, R)
-		
-		returns_tensor = torch.stack(returns).to(self.device)
-		
-		if self.norm_rew:
-			
-			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
-			
-		return returns_tensor
+		return TD_errors
 
 
 	
@@ -279,15 +302,15 @@ class A2CAgent:
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			discounted_rewards = torch.transpose(discounted_rewards,-1,-2)
 			Value_target = discounted_rewards
+			value_loss = F.smooth_l1_loss(V_values, Value_target)
 		elif self.critic_loss_type == "TD_1":
 			next_probs, _ = self.policy_network.forward(next_states_actor)
 			V_values_next, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
 			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
 			Value_target = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
+			value_loss = F.smooth_l1_loss(V_values, Value_target)
 		elif self.critic_loss_type == "TD_lambda":
-			Value_target = self.nstep_returns(target_V_values, rewards, dones).detach()
-		
-		value_loss = F.smooth_l1_loss(V_values, Value_target)
+			value_loss = self.TD_error(target_V_values, V_values, torch.transpose(rewards, -1 , -2), dones).detach()
 
 
 		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
@@ -312,7 +335,7 @@ class A2CAgent:
 			if episode < self.steps_to_take:
 				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones),dim=-2)
 			else:
-				advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
+				advantage = torch.sum(self.calculate_advantages(discounted_rkewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
 			advantage = torch.sum(self.calculate_advantages(discounted_rewards, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
@@ -382,16 +405,22 @@ class A2CAgent:
 
 		probs = self.policy_network.forward(states_actor)
 
+		with torch.no_grad():
+			next_probs = self.policy_network.forward(next_states_actor)
+
 		'''
 		Calculate V values
 		'''
-		V_values, weights_value = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+		V_values, weights_value = self.critic_network.forward(states_critic, probs.detach(), one_hot_next_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
+
+		target_V_values, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_actions)
+		target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
 
 		end_forward_time = time.process_time()
 		self.forward_time += end_forward_time - start_forward_time
 
-		target_V_values = V_values.clone()
+		# target_V_values = V_values.clone()
 
 		if "prd" in self.experiment_type:
 			weights_prd = weights_value
