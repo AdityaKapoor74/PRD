@@ -34,13 +34,30 @@ class QMIXNetwork(nn.Module):
 		self.num_agents = num_agents
 		self.hidden_dim = hidden_dim
 
-		self.hyper_w1 = nn.Linear(total_obs_dim, num_agents * hidden_dim)
+		self.hyper_w1 = nn.Sequential(
+			nn.Linear(total_obs_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.Linear(hidden_dim, num_agents * hidden_dim)
+			)
 		self.hyper_b1 = nn.Linear(total_obs_dim, hidden_dim)
-		self.hyper_w2 = nn.Linear(total_obs_dim, hidden_dim)
-		self.hyper_b2_l1 = nn.Linear(total_obs_dim, hidden_dim)
-		self.hyper_b2_l2 = nn.Linear(hidden_dim, 1)
+		self.hyper_w2 = nn.Sequential(
+			nn.Linear(total_obs_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.Linear(hidden_dim, hidden_dim)
+			)
+		self.hyper_b2_l1 = nn.Sequential(
+			nn.Linear(total_obs_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.Linear(hidden_dim, hidden_dim)
+			)
 
-		self.apply(weights_init)
+		self.hyper_b2_l2 = nn.Sequential(
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.Linear(hidden_dim, 1)
+			)
+
+		# self.apply(weights_init)
 
 	def forward(self, q_values, total_obs):
 		q_values = q_values.reshape(-1, 1, self.num_agents)
