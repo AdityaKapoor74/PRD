@@ -191,42 +191,55 @@ class PPOAgent:
 
 
 
-	def calculate_deltas(self, values, rewards, dones):
-		deltas = []
-		next_value = 0
-		# rewards = rewards.unsqueeze(-1)
-		# dones = dones.unsqueeze(-1)
-		masks = 1-dones
-		for t in reversed(range(0, len(rewards))):
-			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-			next_value = values.data[t]
-			deltas.insert(0,td_error)
-		deltas = torch.stack(deltas)
+	# def calculate_deltas(self, values, rewards, dones):
+	# 	deltas = []
+	# 	next_value = 0
+	# 	# rewards = rewards.unsqueeze(-1)
+	# 	# dones = dones.unsqueeze(-1)
+	# 	masks = 1-dones
+	# 	for t in reversed(range(0, len(rewards))):
+	# 		td_error = rewards[t] + (self.gamma * next_value * masks[t])
+	# 		next_value = values.data[t]
+	# 		deltas.insert(0,td_error)
+	# 	deltas = torch.stack(deltas)
 
-		return deltas
-
-
-	def nstep_returns(self, values, rewards, dones):
-		deltas = self.calculate_deltas(values, rewards, dones)
-		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
-		target_Vs = advs+values
-		return target_Vs
+	# 	return deltas
 
 
-	def calculate_returns(self, rewards, discount_factor):
-		returns = []
-		R = 0
+	# def nstep_returns(self, values, rewards, dones):
+	# 	deltas = self.calculate_deltas(values, rewards, dones)
+	# 	advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+	# 	target_Vs = advs+values
+	# 	return target_Vs
+
+	# def calculate_returns(self, rewards, discount_factor):
+	# 	returns = []
+	# 	R = 0
 		
-		for r in reversed(rewards):
-			R = r + R * discount_factor
-			returns.insert(0, R)
+	# 	for r in reversed(rewards):
+	# 		R = r + R * discount_factor
+	# 		returns.insert(0, R)
 		
-		returns_tensor = torch.stack(returns)
+	# 	returns_tensor = torch.stack(returns)
 		
-		if self.norm_returns:
-			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+	# 	if self.norm_returns:
+	# 		returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
 			
-		return returns_tensor
+	# 	return returns_tensor
+
+	def TD_error(self, target_values, values, rewards, dones):
+		TD_errors = []
+		curr_td_error = 0
+		masks = 1 - dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = (rewards[t] + (self.gamma * target_values[t] * masks[t]) - values.data[t])**2
+			curr_td_error = td_error + (self.gamma * self.gae_lambda * curr_td_error * masks[t])
+			TD_errors.insert(0, curr_td_error)
+
+		TD_errors = torch.mean(torch.stack(TD_errors))
+		
+		return TD_errors
+
 
 
 	def plot(self, episode):
@@ -391,15 +404,15 @@ class PPOAgent:
 																old_one_hot_actions.to(self.device)
 																)
 
-		Q_value_target = self.nstep_returns(Q_values_old.cpu(), rewards, dones).to(self.device)
+		# Q_value_target = self.nstep_returns(Q_values_old.cpu(), rewards, dones).to(self.device)
 		
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
 			masks = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masks.detach().cpu(),-1,-2), dim=-1)
-			Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
+			# Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
 		else:
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-			Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
+			# Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
 
 		q_value_loss_batch = 0
 		v_value_loss_batch = 0
@@ -432,11 +445,18 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 
-			critic_v_loss_1 = F.mse_loss(Value, Value_target)
-			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target)
+			# critic_v_loss_1 = F.mse_loss(Value, Value_target)
+			# critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target)
+			critic_v_loss_1 = self.TD_error(Value, Values_old, target_V_rewards.to(self.device), dones.to(self.device))
+			critic_v_loss_2 = self.TD_error(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Values_old, target_V_rewards.to(self.device), dones.to(self.device))
 
-			critic_q_loss_1 = F.mse_loss(Q_value, Q_value_target)
-			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_value_target)
+
+			# critic_q_loss_1 = F.mse_loss(Q_value, Q_value_target)
+			# critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_value_target)
+			critic_q_loss_1 = self.TD_error(Q_value, Q_values_old, rewards.to(self.device), dones.to(self.device))
+			critic_q_loss_2 = self.TD_error(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_values_old, rewards.to(self.device), dones.to(self.device))
+
+
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
