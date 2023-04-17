@@ -32,6 +32,7 @@ class MAA2C:
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
+		self.update_after_episodes = dictionary["update_after_episodes"]
 		self.weight_dictionary = {}
 
 		for i in range(self.num_agents):
@@ -73,7 +74,7 @@ class MAA2C:
 			self.actor_model_path = actor_dir+"actor"
 
 		if self.gif:
-			gif_dir = dictionary["gif_dir"]
+			gif_dir = dictionary["gif_dir"] 
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -259,7 +260,7 @@ class MAA2C:
 
 
 				if self.learn:
-					trajectory.append([states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones])
+					trajectory.append([states_critic, next_states_critic, one_hot_actions, one_hot_next_actions, actions, states_actor, next_states_actor, rewards, dones])
 					if all(dones) or step == self.max_time_steps:
 
 						
@@ -297,7 +298,7 @@ class MAA2C:
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
-			if self.learn:
+			if self.learn and episode % self.update_after_episodes:
 				self.update(trajectory,episode)
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
