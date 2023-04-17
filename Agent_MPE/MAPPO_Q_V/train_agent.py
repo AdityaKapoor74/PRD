@@ -300,7 +300,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "shared" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_above_threshold_ascend
 
 		dictionary = {
 				# TRAINING
@@ -341,7 +341,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-4, #1e-3
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
