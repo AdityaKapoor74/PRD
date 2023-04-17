@@ -298,7 +298,7 @@ class MAA2C:
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
-			if self.learn and episode % self.update_after_episodes:
+			if self.learn and episode % self.update_after_episodes == 0:
 				self.update(trajectory,episode)
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
