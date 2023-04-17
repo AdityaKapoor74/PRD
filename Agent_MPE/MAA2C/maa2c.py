@@ -204,6 +204,7 @@ class MAA2C:
 			self.timesteps_mean_per_1000_eps = []
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
+			trajectory = []
 
 		for episode in range(1,self.max_episodes+1):
 
@@ -213,7 +214,6 @@ class MAA2C:
 
 			states_critic, states_actor = self.split_states(states)
 
-			trajectory = []
 			episode_reward = 0
 			episode_collision_rate = 0
 			final_timestep = self.max_time_steps
@@ -300,6 +300,7 @@ class MAA2C:
 
 			if self.learn and episode % self.update_after_episodes == 0:
 				self.update(trajectory,episode)
+				trajectory = []
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
