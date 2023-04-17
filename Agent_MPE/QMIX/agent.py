@@ -184,7 +184,7 @@ class QMIXAgent:
 			next_last_one_hot_actions_slice = last_one_hot_actions_batch[:,t+1].reshape(-1, self.num_actions)
 			next_final_state = torch.cat([next_states_slice, next_last_one_hot_actions_slice], dim=-1)
 			
-			wit torch.no_grad():
+			with torch.no_grad():
 				Q_target = self.target_Q_network(next_final_state.to(self.device))
 
 			Q_evals.append(Q_values.reshape(self.batch_size, self.num_agents, -1))
