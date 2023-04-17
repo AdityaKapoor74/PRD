@@ -289,6 +289,10 @@ class PPOAgent:
 		if "shared" in self.experiment_type:
 			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 			advantage = torch.sum(self.calculate_advantages(V_values, rewards_, dones),dim=-2)
+		elif "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
+			masking_rewards = (weights_prd>self.select_above_threshold).int()
+			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masking_rewards,-1,-2), dim=-1)
+			advantage = self.calculate_advantages(V_values, rewards_, dones)
 		elif "prd_above_threshold" in self.experiment_type:
 			if episode < self.steps_to_take:
 				masking_rewards = (weights_prd>self.select_above_threshold).int()
