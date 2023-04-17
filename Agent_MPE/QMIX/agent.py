@@ -150,7 +150,7 @@ class QMIXAgent:
 		curr_td_error = 0
 		masks = 1 - dones
 		for t in reversed(range(0, len(rewards))):
-			td_error = (rewards[t] + (self.gamma * target_values[t] * masks[t]) - values.data[t])**2
+			td_error = (rewards[t] + (self.gamma * target_values[t] * masks[t]) - values[t])**2
 			curr_td_error = td_error + (self.gamma * self.lambda_ * curr_td_error * masks[t])
 			TD_errors.insert(0, curr_td_error)
 
