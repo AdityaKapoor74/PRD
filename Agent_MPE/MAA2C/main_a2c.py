@@ -60,7 +60,7 @@ if __name__ == '__main__':
 				"lambda": 0.95, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.043,
+				"threshold_max": 0.04,
 				"steps_to_take": 1000, 
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
