@@ -204,7 +204,8 @@ class MAA2C:
 			self.timesteps_mean_per_1000_eps = []
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
-			trajectory = []
+		
+		trajectory = []
 
 		for episode in range(1,self.max_episodes+1):
 
