@@ -39,20 +39,18 @@ class QMIXNetwork(nn.Module):
 			nn.LeakyReLU(),
 			nn.Linear(hidden_dim, num_agents * hidden_dim)
 			)
-		self.hyper_b1 = nn.Linear(total_obs_dim, hidden_dim)
+		self.hyper_b1 = nn.Sequential(
+			nn.Linear(total_obs_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.Linear(hidden_dim, hidden_dim)
+			)
 		self.hyper_w2 = nn.Sequential(
 			nn.Linear(total_obs_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.Linear(hidden_dim, hidden_dim)
 			)
-		self.hyper_b2_l1 = nn.Sequential(
+		self.hyper_b2 = nn.Sequential(
 			nn.Linear(total_obs_dim, hidden_dim),
-			nn.LeakyReLU(),
-			nn.Linear(hidden_dim, hidden_dim)
-			)
-
-		self.hyper_b2_l2 = nn.Sequential(
-			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.Linear(hidden_dim, 1)
 			)
@@ -69,7 +67,7 @@ class QMIXNetwork(nn.Module):
 		x = F.elu(torch.bmm(q_values, w1) + b1)
 
 		w2 = torch.abs(self.hyper_w2(total_obs))
-		b2 = self.hyper_b2_l2(F.relu(self.hyper_b2_l1(total_obs)))
+		b2 = self.hyper_b2(total_obs)
 		w2 = w2.reshape(-1, self.hidden_dim, 1)
 		b2 = b2.reshape(-1, 1, 1)
 
