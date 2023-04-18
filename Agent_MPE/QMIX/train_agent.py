@@ -37,6 +37,7 @@ class QMIX:
 		self.test_num = dictionary["test_num"]
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
+		self.update_episode_interval = dictionary["update_episode_interval"]
 
 		self.observation_shape = dictionary["observation_shape"]
 		self.replay_buffer_size = dictionary["replay_buffer_size"]
@@ -236,7 +237,7 @@ class QMIX:
 				torch.save(self.agents.Q_network.state_dict(), self.model_path+'_Q_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.QMix_network.state_dict(), self.model_path+'_QMix_epsiode'+str(episode)+'.pt')
 
-			if self.learn and self.batch_size <= self.buffer.length and episode != 0:
+			if self.learn and self.batch_size <= self.buffer.length and episode != 0 and episode%self.update_episode_interval == 0:
 				sample = self.buffer.sample(num_episodes=self.batch_size)
 				self.agents.update(sample, episode)
 
@@ -297,6 +298,7 @@ if __name__ == '__main__':
 				"scheduler_need": False,
 				"replay_buffer_size": 500,
 				"batch_size": 32,
+				"update_episode_interval": 5,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
 				"epsilon_greedy_decay_episodes": 500,
