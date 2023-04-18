@@ -18,26 +18,21 @@ class Policy(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.Policy_MLP = nn.Sequential(
-			nn.Linear(obs_input_dim, 256),
-			nn.Tanh(),
-			nn.Linear(256, 256),
-			nn.Tanh(),
-			nn.Linear(256, 256),
-			nn.Tanh(),
-			nn.Linear(256, num_actions),
+			nn.Linear(obs_input_dim, 128),
+			nn.GELU(),
+			nn.Linear(128, 64),
+			nn.GELU(),
+			nn.Linear(64, num_actions),
 			nn.Softmax(dim=-1)
 			)
 
 		self.reset_parameters()
 
 	def reset_parameters(self):
-		gain = nn.init.calculate_gain('tanh', 0.1)
-		gain_last_layer = nn.init.calculate_gain('tanh', 0.01)
 
-		nn.init.orthogonal_(self.Policy_MLP[0].weight, gain=gain)
-		nn.init.orthogonal_(self.Policy_MLP[2].weight, gain=gain)
-		nn.init.orthogonal_(self.Policy_MLP[4].weight, gain=gain)
-		nn.init.orthogonal_(self.Policy_MLP[6].weight, gain=gain_last_layer)
+		nn.init.xavier_uniform_(self.Policy_MLP[0].weight)
+		nn.init.xavier_uniform_(self.Policy_MLP[2].weight)
+		nn.init.xavier_uniform_(self.Policy_MLP[4].weight)
 
 
 	def forward(self, local_observations):
@@ -48,7 +43,7 @@ class TransformerCritic(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, num_agents, num_actions, device):
+	def __init__(self, obs_input_dim, obs_act_input_dim, num_agents, num_actions, device):
 		super(TransformerCritic, self).__init__()
 		
 		self.name = "TransformerCritic"
@@ -58,61 +53,47 @@ class TransformerCritic(nn.Module):
 		self.device = device
 
 		self.state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 256, bias=True), 
-			nn.Tanh(),
-			nn.Linear(256, 256, bias=True), 
-			nn.Tanh()
+			nn.Linear(obs_input_dim, 64, bias=True), 
+			nn.GELU(),
 			)
 		self.key = nn.Sequential(
-			nn.Linear(256, 256, bias=True),
-			nn.Tanh(),
-			nn.Linear(256, obs_output_dim, bias=True),
-			nn.Tanh(),
+			nn.Linear(64, 64, bias=True),
+			nn.GELU(),
 			)
 		self.query = nn.Sequential(
-			nn.Linear(256, 256, bias=True),
-			nn.Tanh(),
-			nn.Linear(256, obs_output_dim, bias=True),
-			nn.Tanh(),
+			nn.Linear(64, 64, bias=True),
+			nn.GELU(),
 			)
 		self.state_act_pol_embed = nn.Sequential(
-			nn.Linear(obs_act_input_dim, 256, bias=True), 
-			nn.Tanh(),
-			nn.Linear(256, obs_act_output_dim, bias=True), 
-			nn.Tanh(),
+			nn.Linear(obs_act_input_dim, 64, bias=True), 
+			nn.GELU(),
 			)
 		self.attention_value = nn.Sequential(
-			nn.Linear(obs_act_output_dim, 256, bias=True), 
-			nn.Tanh(),
-			nn.Linear(256, 256, bias=True), 
-			nn.Tanh(),
+			nn.Linear(64, 64, bias=True), 
+			nn.GELU(),
 			)
 
 		# dimesion of key
-		self.d_k_obs_act = obs_output_dim 
+		self.d_k_obs_act = 64 
 
-		self.layer_norm_state_act_pol_embed = nn.LayerNorm(obs_act_output_dim) 
+		self.layer_norm_state_act_pol_embed = nn.LayerNorm(64) 
 
-		curr_agent_output_dim = 256
 		self.curr_agent_state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 256, bias=True), 
-			nn.Tanh(),
-			nn.Linear(256, curr_agent_output_dim, bias=True), 
-			nn.Tanh(),
+			nn.Linear(obs_input_dim, 64, bias=True), 
+			nn.GELU(),
 			)
-		self.layer_norm_state_embed = nn.LayerNorm(curr_agent_output_dim)
+		self.layer_norm_state_embed = nn.LayerNorm(64)
 
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
 		# FCN FINAL LAYER TO GET VALUES
-		final_input_dim = obs_act_output_dim + curr_agent_output_dim
 		self.final_value_layers = nn.Sequential(
-			nn.Linear(final_input_dim, 256, bias=True), 
-			nn.Tanh(),
-			nn.Linear(256, 256, bias=True), 
-			nn.Tanh(),
-			nn.Linear(256, 1, bias=True)
+			nn.Linear(64*2, 64, bias=True), 
+			nn.GELU(),
+			nn.Linear(64, 64, bias=True), 
+			nn.GELU(),
+			nn.Linear(64, 1, bias=True)
 			)
 			
 		# ********************************************************************************************************	
@@ -131,26 +112,19 @@ class TransformerCritic(nn.Module):
 
 	def reset_parameters(self):
 		"""Reinitialize learnable parameters."""
-		gain = nn.init.calculate_gain('tanh', 0.1)
 
 		# EMBEDDINGS
-		nn.init.orthogonal_(self.state_embed[0].weight, gain=gain)
-		nn.init.orthogonal_(self.state_embed[2].weight, gain=gain)
-		nn.init.orthogonal_(self.state_act_pol_embed[0].weight, gain=gain)
-		nn.init.orthogonal_(self.state_act_pol_embed[2].weight, gain=gain)
+		nn.init.orthogonal_(self.state_embed[0].weight)
+		nn.init.orthogonal_(self.state_act_pol_embed[0].weight)
 
-		nn.init.orthogonal_(self.key[0].weight, gain=gain)
-		nn.init.orthogonal_(self.key[2].weight, gain=gain)
-		nn.init.orthogonal_(self.query[0].weight, gain=gain)
-		nn.init.orthogonal_(self.query[2].weight, gain=gain)
-		nn.init.orthogonal_(self.attention_value[0].weight, gain=gain)
-		nn.init.orthogonal_(self.attention_value[2].weight, gain=gain)
+		nn.init.orthogonal_(self.key[0].weight)
+		nn.init.orthogonal_(self.query[0].weight)
+		nn.init.orthogonal_(self.attention_value[0].weight)
 
-		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight, gain=gain)
-		nn.init.orthogonal_(self.curr_agent_state_embed[2].weight, gain=gain)
+		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight)
 
-		nn.init.orthogonal_(self.final_value_layers[0].weight, gain=gain)
-		nn.init.orthogonal_(self.final_value_layers[2].weight, gain=gain)
+		nn.init.orthogonal_(self.final_value_layers[0].weight)
+		nn.init.orthogonal_(self.final_value_layers[2].weight)
 		nn.init.orthogonal_(self.final_value_layers[4].weight)
 
 
