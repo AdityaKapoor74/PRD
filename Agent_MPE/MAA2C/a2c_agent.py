@@ -74,16 +74,16 @@ class A2CAgent:
 		# obs_input_dim = 2*3 + 1 # crossing team greedy
 		# obs_input_dim = 2*3 # crossing_greedy
 		# obs_input_dim = 2*4 # paired_agent
-		self.critic_network = TransformerCritic(obs_input_dim=self.critic_observation_shape, 
-			obs_output_dim=256, 
+		self.critic_network = TransformerCritic(
+			obs_input_dim=self.critic_observation_shape,
 			obs_act_input_dim=self.critic_observation_shape+self.num_actions, 
-			obs_act_output_dim=256, num_agents=self.num_agents, 
+			num_agents=self.num_agents, 
 			num_actions=self.num_actions, 
 			device=self.device).to(self.device)
-		self.target_critic_network = TransformerCritic(obs_input_dim=self.critic_observation_shape, 
-			obs_output_dim=256, 
+		self.target_critic_network = TransformerCritic(
+			obs_input_dim=self.critic_observation_shape,
 			obs_act_input_dim=self.critic_observation_shape+self.num_actions, 
-			obs_act_output_dim=256, num_agents=self.num_agents, 
+			num_agents=self.num_agents, 
 			num_actions=self.num_actions, 
 			device=self.device).to(self.device)
 
@@ -159,8 +159,8 @@ class A2CAgent:
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 		
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr, weight_decay=1e-3)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=1e-3)
+		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr, weight_decay=5e-4)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=5e-4)
 
 
 		self.comet_ml = None
@@ -247,6 +247,7 @@ class A2CAgent:
 	# 	return returns_tensor
 
 	def TD_error(self, target_values, values, rewards, dones):
+		print(target_values.shape)
 		TD_errors = []
 		curr_td_error = 0
 		rewards = rewards.unsqueeze(-1)
@@ -391,7 +392,7 @@ class A2CAgent:
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		start_forward_time = time.process_time()
+		# start_forward_time = time.process_time()
 
 		probs = self.policy_network.forward(states_actor)
 
@@ -415,8 +416,8 @@ class A2CAgent:
 			target_V_values, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_actions)
 			target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
 
-		end_forward_time = time.process_time()
-		self.forward_time += end_forward_time - start_forward_time
+		# end_forward_time = time.process_time()
+		# self.forward_time += end_forward_time - start_forward_time
 
 		# target_V_values = V_values.clone()
 
@@ -443,7 +444,7 @@ class A2CAgent:
 		policy_loss = self.calculate_policy_loss(probs, actions, entropy, advantage)
 		# # ***********************************************************************************
 		
-		start_update_time = time.process_time()
+		# start_update_time = time.process_time()
 
 		# **********************************
 		self.critic_optimizer.zero_grad()
@@ -457,8 +458,8 @@ class A2CAgent:
 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
 		self.policy_optimizer.step()
 
-		end_update_time = time.process_time()
-		self.update_time += end_update_time - start_update_time
+		# end_update_time = time.process_time()
+		# self.update_time += end_update_time - start_update_time
 
 
 		self.update_parameters()
