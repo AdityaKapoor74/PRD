@@ -180,7 +180,7 @@ class QMIX:
 				else:
 					actions = self.agents.get_action(states, last_one_hot_action)
 
-				last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
+				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					last_one_hot_action[i][act] = 1
 
@@ -195,11 +195,12 @@ class QMIX:
 					episode_goal_reached += np.sum(goal_reached)
 
 				if not self.gif:
-					self.buffer.push(states, actions, last_one_hot_action, np.sum(rewards), all(dones))
-
-				episode_reward += np.sum(rewards)
+					self.buffer.push(states, actions, last_one_hot_action, next_states, next_last_one_hot_action, np.sum(rewards), all(dones))
 
 				states = next_states
+				last_one_hot_action = next_last_one_hot_action
+
+				episode_reward += np.sum(rewards)
 
 				if all(dones) or step == self.max_time_steps:
 
@@ -218,7 +219,7 @@ class QMIX:
 					break
 
 			self.epsilon_greedy = self.epsilon_greedy - self.epsilon_decay_rate if self.epsilon_greedy - self.epsilon_decay_rate > self.epsilon_greedy_min else self.epsilon_greedy_min
-			self.buffer.end_episode(states)
+			self.buffer.end_episode()
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
@@ -294,12 +295,12 @@ if __name__ == '__main__':
 				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"replay_buffer_size": 100,
-				"batch_size": 64,
+				"replay_buffer_size": 500,
+				"batch_size": 32,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
-				"epsilon_greedy_decay_episodes": 5000,
-				"lambda": 0.7,
+				"epsilon_greedy_decay_episodes": 500,
+				"lambda": 0.8,
 
 				# ENVIRONMENT
 				"env": env_name,
@@ -307,11 +308,11 @@ if __name__ == '__main__':
 				# MODEL
 				"learning_rate": 1e-4, #1e-3
 				"grad_clip": 10.0,
-				"rnn_hidden_dim": 64,
-				"hidden_dim": 64,
+				"rnn_hidden_dim": 256,
+				"hidden_dim": 256,
 				"norm_returns": False,
 				"soft_update": False,
-				"tau": 0.005,
+				"tau": 0.05,
 				"target_update_interval": 200,
 			}
 
