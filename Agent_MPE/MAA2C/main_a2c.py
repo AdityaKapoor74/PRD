@@ -66,7 +66,7 @@ if __name__ == '__main__':
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
 				"top_k": 0,
-				"update_after_episodes": 1,
+				"update_after_episodes": 3,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
