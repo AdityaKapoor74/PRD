@@ -247,7 +247,6 @@ class A2CAgent:
 	# 	return returns_tensor
 
 	def TD_error(self, target_values, values, rewards, dones):
-		print(target_values.shape)
 		TD_errors = []
 		curr_td_error = 0
 		rewards = rewards.unsqueeze(-1)
