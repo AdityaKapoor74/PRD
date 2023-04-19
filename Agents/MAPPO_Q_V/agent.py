@@ -345,13 +345,13 @@ class PPOAgent:
 			# OLD VALUES
 			Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
 																old_states.to(self.device),
-																self.history_states_critic_q,
+																self.history_states_critic_q.to(self.device),
 																old_one_hot_actions.to(self.device)
 																)
 
 			Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
 													old_states.to(self.device),
-													self.history_states_critic_v,
+													self.history_states_critic_v.to(self.device),
 													old_one_hot_actions.to(self.device)
 													)
 		
