@@ -156,19 +156,12 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-
-				next_actions = self.agents.get_action(next_states, save=False)
-				next_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
-				for i, act in enumerate(next_actions):
-					next_one_hot_actions[i][act] = 1
 				
 
 				if not self.gif:
 					self.agents.buffer.states.append(states)
-					self.agents.buffer.next_states.append(next_states)
 					self.agents.buffer.actions.append(actions)
 					self.agents.buffer.one_hot_actions.append(one_hot_actions)
-					self.agents.buffer.next_one_hot_actions.append(next_one_hot_actions)
 					self.agents.buffer.dones.append(dones)
 					self.agents.buffer.rewards.append(rewards)
 
@@ -309,7 +302,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"norm_adv": False,
 
-				"network_update_interval": 100,
+				"network_update_interval": 20,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
