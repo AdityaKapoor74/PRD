@@ -308,6 +308,8 @@ if __name__ == '__main__':
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
+
+				"network_update_interval": 100,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
