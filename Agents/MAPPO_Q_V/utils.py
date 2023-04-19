@@ -47,11 +47,9 @@ def gumbel_sigmoid(logits: Tensor, tau: float = 1, hard: bool = False, threshold
 class RolloutBuffer:
 	def __init__(self):
 		self.states = []
-		self.next_states = []
 		self.logprobs = []
 		self.actions = []
 		self.one_hot_actions = []
-		self.next_one_hot_actions = []
 		self.rewards = []
 		self.dones = []
 	
@@ -59,9 +57,7 @@ class RolloutBuffer:
 	def clear(self):
 		del self.actions[:]
 		del self.states[:]
-		del self.next_states[:]
 		del self.one_hot_actions[:]
-		del self.next_one_hot_actions[:]
 		del self.logprobs[:]
 		del self.rewards[:]
 		del self.dones[:]
