@@ -148,9 +148,9 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, greedy=True)
+						actions, _ = self.agents.get_action(states, greedy=True)
 				else:
-					actions = self.agents.get_action(states)
+					actions, action_logprob = self.agents.get_action(states)
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
@@ -159,17 +159,16 @@ class MAPPO:
 				
 
 				if not self.gif:
-					self.agents.buffer.states.append(states)
-					self.agents.buffer.actions.append(actions)
-					self.agents.buffer.one_hot_actions.append(one_hot_actions)
-					self.agents.buffer.dones.append(dones)
-					self.agents.buffer.rewards.append(rewards)
+					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
 
 				episode_reward += np.sum(rewards)
 
 				states = next_states
 
-				if all(dones) or step == self.max_time_steps:
+				if step == self.max_time_steps:
+					dones = [1 for _ in range(self.num_agents)]
+
+				if all(dones):
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
@@ -277,10 +276,11 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
+				"q_value_lr": 1e-3, #1e-3
 				"value_lr": 1e-4, #1e-3
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
