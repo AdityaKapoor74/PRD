@@ -205,7 +205,8 @@ class PPOAgent:
 	def plot(self, episode):
 		self.comet_ml.log_metric('Q_Value_Loss',self.plotting_dict["q_value_loss"],episode)
 		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["v_value_loss"],episode)
-		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
+		self.comet_ml.log_metric('Grad_Norm_V_Value',self.plotting_dict["grad_norm_value_v"],episode)
+		self.comet_ml.log_metric('Grad_Norm_Q_Value',self.plotting_dict["grad_norm_value_q"],episode)
 		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
@@ -358,16 +359,21 @@ class PPOAgent:
 													)
 
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
-			masks = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masks.detach().cpu(),-1,-2), dim=-1)
+			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
+			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.detach().cpu(),-1,-2), dim=-1)
 		else:
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
 		target_Q_values = self.build_td_lambda_targets(rewards.to(self.device), dones.to(self.device), masks.to(self.device), Q_values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
 		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device), dones.to(self.device), masks.to(self.device), Values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
 
+		if self.norm_returns:
+			target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
+			target_V_values = (target_V_values - target_V_values.mean()) / target_V_values.std()
+		
 		rewards = rewards.reshape(-1, self.num_agents)
 		dones = dones.reshape(-1, self.num_agents)
+		masks = masks.reshape(-1, 1)
 
 		q_value_loss_batch = 0
 		v_value_loss_batch = 0
@@ -375,7 +381,8 @@ class PPOAgent:
 		entropy_batch = 0
 		weight_prd_batch = None
 		weight_v_batch = None
-		grad_norm_value_batch = 0
+		grad_norm_value_v_batch = 0
+		grad_norm_value_q_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
@@ -408,23 +415,24 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 			
-			critic_v_loss_1 = F.mse_loss(Value, target_V_values, reduction="sum") / masks.sum()
-			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), target_V_values, reduction="sum") / masks.sum()
+			critic_v_loss_1 = F.mse_loss(Value*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum()
+			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum()
 
+			critic_q_loss_1 = F.mse_loss(Q_value*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum()
+			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum()
 
-			critic_q_loss_1 = F.mse_loss(Q_value, target_Q_values, reduction="sum") / masks.sum()
-			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), target_Q_values, reduction="sum") / masks.sum()
-
+			print(critic_v_loss_1, critic_v_loss_2, masks.sum())
+			print(critic_q_loss_1, critic_q_loss_2, masks.sum())
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
 			# Finding Surrogate Loss
-			surr1 = ratios * advantage
-			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage
+			surr1 = ratios * advantage*masks.unsqueeze(-1).to(self.device)
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage * masks.unsqueeze(-1).to(self.device)
 
 			# final loss of clipped objective PPO
-			entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
-			policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
+			entropy = -torch.mean(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=2))
+			policy_loss = (-torch.min(surr1, surr2).mean() - self.entropy_pen*entropy)
 			
 			entropy_weights = 0
 			entropy_weights_v = 0
@@ -444,12 +452,12 @@ class PPOAgent:
 			
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
+			grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
 			self.q_critic_optimizer.step()
 			
 			self.v_critic_optimizer.zero_grad()
 			critic_v_loss.backward()
-			grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
+			grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
 			self.v_critic_optimizer.step()
 			
 
@@ -465,7 +473,8 @@ class PPOAgent:
 			v_value_loss_batch += critic_v_loss.item()
 			policy_loss_batch += policy_loss.item()
 			entropy_batch += entropy.item()
-			grad_norm_value_batch += grad_norm_value
+			grad_norm_value_v_batch += grad_norm_value_v
+			grad_norm_value_q_batch += grad_norm_value_q
 			grad_norm_policy_batch += grad_norm_policy
 			if weight_prd_batch is None:
 				weight_prd_batch = weights_prd.detach().cpu()
@@ -496,7 +505,8 @@ class PPOAgent:
 		v_value_loss_batch /= self.n_epochs
 		policy_loss_batch /= self.n_epochs
 		entropy_batch /= self.n_epochs
-		grad_norm_value_batch /= self.n_epochs
+		grad_norm_value_v_batch /= self.n_epochs
+		grad_norm_value_q_batch /= self.n_epochs
 		grad_norm_policy_batch /= self.n_epochs
 		weight_prd_batch /= self.n_epochs
 		weight_v_batch /= self.n_epochs
@@ -517,7 +527,8 @@ class PPOAgent:
 		"v_value_loss": v_value_loss_batch,
 		"policy_loss": policy_loss_batch,
 		"entropy": entropy_batch,
-		"grad_norm_value":grad_norm_value_batch,
+		"grad_norm_value_v":grad_norm_value_v_batch,
+		"grad_norm_value_q": grad_norm_value_q_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_prd": weight_prd_batch,
 		"weights_v": weight_v_batch,
@@ -532,7 +543,7 @@ class PPOAgent:
 		if self.comet_ml is not None:
 			self.plot(episode)
 
-		del q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_batch, grad_norm_policy_batch, weight_prd_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
+		del q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_v_batch, grad_norm_value_q_batch, grad_norm_policy_batch, weight_prd_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
 		torch.cuda.empty_cache()
 
 		# return history_states_critic[-1]
