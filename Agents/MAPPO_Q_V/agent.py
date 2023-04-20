@@ -421,9 +421,6 @@ class PPOAgent:
 			critic_q_loss_1 = F.mse_loss(Q_value*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum()
 			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum()
 
-			print(critic_v_loss_1, critic_v_loss_2, masks.sum())
-			print(critic_q_loss_1, critic_q_loss_2, masks.sum())
-
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
 			# Finding Surrogate Loss
