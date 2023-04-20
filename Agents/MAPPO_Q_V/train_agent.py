@@ -277,15 +277,15 @@ if __name__ == '__main__':
 
 				# CRITIC
 				"q_value_lr": 1e-3, #1e-3
-				"value_lr": 1e-4, #1e-3
+				"value_lr": 1e-3, #1e-3
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns": False,
+				"norm_returns": True,
 				
 
 				# ACTOR
