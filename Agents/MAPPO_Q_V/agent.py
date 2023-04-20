@@ -33,10 +33,14 @@ class PPOAgent:
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
+
+		self.update_ppo_agent = dictionary["update_ppo_agent"]
+		self.max_time_steps = dictionary["max_time_steps"]
 		
 		# Critic Setup
 		self.critic_observation_shape = dictionary["global_observation"]
 		self.value_lr = dictionary["value_lr"]
+		self.q_value_lr = dictionary["q_value_lr"]
 		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
 		self.critic_score_regularizer = dictionary["critic_score_regularizer"]
 		self.lambda_ = dictionary["lambda"] # TD lambda
@@ -107,7 +111,13 @@ class PPOAgent:
 
 		self.network_update_interval = dictionary["network_update_interval"]
 		
-		self.buffer = RolloutBuffer()
+		self.buffer = RolloutBuffer(
+			num_episodes=self.update_ppo_agent, 
+			max_time_steps=self.max_time_steps, 
+			num_agents=self.num_agents, 
+			obs_shape=self.critic_observation_shape, 
+			num_actions=self.num_actions
+			)
 
 		# Loading models
 		if dictionary["load_models"]:
@@ -128,7 +138,7 @@ class PPOAgent:
 		# 		params_to_update.append(param)
 				# print("\t",name)
 
-		self.q_critic_optimizer = optim.Adam(self.critic_network_q.parameters(), lr=self.value_lr)
+		self.q_critic_optimizer = optim.Adam(self.critic_network_q.parameters(), lr=self.q_value_lr)
 		self.v_critic_optimizer = optim.Adam(self.critic_network_v.parameters(), lr=self.value_lr)
 		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
 
@@ -142,7 +152,7 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy, greedy=False, save=True):
+	def get_action(self, state_policy, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
 			dists = self.policy_network_old(state_policy)
@@ -154,10 +164,7 @@ class PPOAgent:
 			probs = Categorical(dists)
 			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
 
-			if save:
-				self.buffer.logprobs.append(action_logprob.detach().cpu())
-
-			return actions
+			return actions, action_logprob.detach().cpu().numpy()
 
 
 	def calculate_advantages(self, values, values_old, rewards, dones):
@@ -180,20 +187,18 @@ class PPOAgent:
 		return advantages
 
 
-	def TD_error(self, values_old, values, rewards, dones):
-		TD_errors = []
-		curr_td_error = 0
-		next_value = 0
-		masks = 1 - dones
-		for t in reversed(range(0, len(rewards))):
-			td_error = (rewards[t] + (self.gamma * next_value * masks[t]) - values[t])**2
-			next_value = values_old[t]
-			curr_td_error = td_error + (self.gamma * self.lambda_ * curr_td_error * masks[t])
-			TD_errors.insert(0, curr_td_error)
-
-		TD_errors = torch.mean(torch.stack(TD_errors))
-		
-		return TD_errors
+	def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
+		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
+		# Initialise  last  lambda -return  for  not  terminated  episodes
+		ret = target_qs.new_zeros(*target_qs.shape)
+		ret[:, -1] = target_qs[:, -1] * (1 - torch.sum(terminated, dim=1))
+		# Backwards  recursive  update  of the "forward  view"
+		for t in range(ret.shape[1] - 2, -1,  -1):
+			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t].unsqueeze(-1) \
+						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
+		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+		# return ret[:, 0:-1]
+		return ret
 
 
 
@@ -324,15 +329,13 @@ class PPOAgent:
 
 	def update(self, episode):
 		# convert list to tensor
-		old_states = torch.FloatTensor(np.array(self.buffer.states))
-		# history_states_critic = torch.stack(self.buffer.history_states_critic, dim=0)
-		# Q_values_old = torch.stack(self.buffer.Q_values, dim=0)
-		# Values_old = torch.stack(self.buffer.Values, dim=0)
-		old_actions = torch.FloatTensor(np.array(self.buffer.actions))
-		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions))
-		old_logprobs = torch.stack(self.buffer.logprobs, dim=0)
+		old_states = torch.FloatTensor(np.array(self.buffer.states)).reshape(-1, self.num_agents, self.critic_observation_shape)
+		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
+		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).reshape(-1, self.num_agents, self.num_actions)
+		old_logprobs = torch.FloatTensor(self.buffer.logprobs).reshape(-1, self.num_agents)
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
+		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 
 		# if self.history_states_critic_q is None:
 		self.history_states_critic_q = torch.zeros(old_states.shape[0], self.num_agents, 64)
@@ -349,16 +352,22 @@ class PPOAgent:
 																)
 
 			Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
-													old_states.to(self.device),
+													old_states.reshape(-1, self.num_agents, self.critic_observation_shape).to(self.device),
 													self.history_states_critic_v.to(self.device),
-													old_one_hot_actions.to(self.device)
+													old_one_hot_actions.reshape(-1, self.num_agents, self.num_actions).to(self.device)
 													)
-		
+
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
 			masks = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masks.detach().cpu(),-1,-2), dim=-1)
+			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masks.detach().cpu(),-1,-2), dim=-1)
 		else:
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+
+		target_Q_values = self.build_td_lambda_targets(rewards.to(self.device), dones.to(self.device), masks.to(self.device), Q_values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
+		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device), dones.to(self.device), masks.to(self.device), Values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
+
+		rewards = rewards.reshape(-1, self.num_agents)
+		dones = dones.reshape(-1, self.num_agents)
 
 		q_value_loss_batch = 0
 		v_value_loss_batch = 0
@@ -375,8 +384,16 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(old_states.to(self.device), self.history_states_critic_q.to(self.device), old_one_hot_actions.to(self.device))
-			Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(old_states.to(self.device), self.history_states_critic_v.to(self.device), old_one_hot_actions.to(self.device))
+			Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(
+				old_states.to(self.device), 
+				self.history_states_critic_q.to(self.device), 
+				old_one_hot_actions.to(self.device)
+				)
+			Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(
+				old_states.to(self.device), 
+				self.history_states_critic_v.to(self.device), 
+				old_one_hot_actions.to(self.device)
+				)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), episode)
 
@@ -390,14 +407,13 @@ class PPOAgent:
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
+			
+			critic_v_loss_1 = F.mse_loss(Value, target_V_values, reduction="sum") / masks.sum()
+			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), target_V_values, reduction="sum") / masks.sum()
 
-			critic_v_loss_1 = self.TD_error(Value, Values_old, target_V_rewards.to(self.device), dones.to(self.device))
-			critic_v_loss_2 = self.TD_error(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Values_old, target_V_rewards.to(self.device), dones.to(self.device))
 
-
-			critic_q_loss_1 = self.TD_error(Q_value, Q_values_old, rewards.to(self.device), dones.to(self.device))
-			critic_q_loss_2 = self.TD_error(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_values_old, rewards.to(self.device), dones.to(self.device))
-
+			critic_q_loss_1 = F.mse_loss(Q_value, target_Q_values, reduction="sum") / masks.sum()
+			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), target_Q_values, reduction="sum") / masks.sum()
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
