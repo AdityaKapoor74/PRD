@@ -18,7 +18,6 @@ class PPOAgent:
 
 		# Environment Setup
 		self.env = env
-		self.team_size = dictionary["team_size"]
 		self.env_name = dictionary["env"]
 		self.num_agents = self.env.n_agents
 		self.num_actions = 5
