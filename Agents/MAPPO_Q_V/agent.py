@@ -377,11 +377,11 @@ class PPOAgent:
 		else:
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
-		# target_Q_values = self.build_td_lambda_targets(rewards.to(self.device), dones.to(self.device), masks.to(self.device), Q_values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
-		# target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device), dones.to(self.device), masks.to(self.device), Values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
+		target_Q_values = self.build_td_lambda_targets(rewards.to(self.device), dones.to(self.device), masks.to(self.device), Q_values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
+		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device), dones.to(self.device), masks.to(self.device), Values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
 
-		target_Q_values = self.calculate_returns(rewards.to(self.device)).reshape(-1, self.num_agents)
-		target_V_values = self.calculate_returns(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device)).reshape(-1, self.num_agents)
+		# target_Q_values = self.calculate_returns(rewards.to(self.device)).reshape(-1, self.num_agents)
+		# target_V_values = self.calculate_returns(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device)).reshape(-1, self.num_agents)
 
 		if self.norm_returns:
 			target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
@@ -419,8 +419,6 @@ class PPOAgent:
 				)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), episode)
-
-			print(advantage[0])
 
 			dists = self.policy_network(old_states.to(self.device))
 			probs = Categorical(dists.squeeze(0))
