@@ -156,7 +156,10 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				
+				reach_goal = dones
+
+				if step == self.max_time_steps:
+					dones = [1 for _ in range(self.num_agents)]
 
 				if not self.gif:
 					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
@@ -164,9 +167,6 @@ class MAPPO:
 				episode_reward += np.sum(rewards)
 
 				states = next_states
-
-				if step == self.max_time_steps:
-					dones = [1 for _ in range(self.num_agents)]
 
 				if all(dones):
 
@@ -179,7 +179,7 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(reach_goal), episode)
 
 					break
 
@@ -239,7 +239,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "PRESSURE PLATE"
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -280,7 +280,7 @@ if __name__ == '__main__':
 				"value_lr": 1e-3, #1e-3
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
@@ -301,7 +301,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"norm_adv": True,
 
-				"network_update_interval": 20,
+				"network_update_interval": 1,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
