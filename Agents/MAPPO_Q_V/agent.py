@@ -200,6 +200,21 @@ class PPOAgent:
 		# return ret[:, 0:-1]
 		return ret
 
+	def calculate_returns(self, rewards):
+		returns = []
+		R = 0
+		
+		for r in reversed(rewards):
+			R = r + R * self.gamma
+			returns.insert(0, R)
+		
+		returns_tensor = torch.stack(returns)
+		
+		if self.norm_returns:
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			
+		return returns_tensor
+
 
 
 	def plot(self, episode):
@@ -338,10 +353,8 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 
-		# if self.history_states_critic_q is None:
 		self.history_states_critic_q = torch.zeros(old_states.shape[0], self.num_agents, 64)
-
-		# if self.history_states_critic_v is None:
+		
 		self.history_states_critic_v = torch.zeros(old_states.shape[0], self.num_agents, 64)
 
 		with torch.no_grad():
@@ -364,8 +377,11 @@ class PPOAgent:
 		else:
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
-		target_Q_values = self.build_td_lambda_targets(rewards.to(self.device), dones.to(self.device), masks.to(self.device), Q_values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
-		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device), dones.to(self.device), masks.to(self.device), Values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
+		# target_Q_values = self.build_td_lambda_targets(rewards.to(self.device), dones.to(self.device), masks.to(self.device), Q_values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
+		# target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device), dones.to(self.device), masks.to(self.device), Values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
+
+		target_Q_values = self.calculate_returns(rewards.to(self.device)).reshape(-1, self.num_agents)
+		target_V_values = self.calculate_returns(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device)).reshape(-1, self.num_agents)
 
 		if self.norm_returns:
 			target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
@@ -403,6 +419,8 @@ class PPOAgent:
 				)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), episode)
+
+			print(advantage[0])
 
 			dists = self.policy_network(old_states.to(self.device))
 			probs = Categorical(dists.squeeze(0))
