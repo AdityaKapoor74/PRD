@@ -285,7 +285,7 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns": True,
+				"norm_returns": False,
 				
 
 				# ACTOR
@@ -299,7 +299,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.2,
 				"steps_to_take": 1000,
 				"top_k": 0,
-				"norm_adv": False,
+				"norm_adv": True,
 
 				"network_update_interval": 1,
 			}
