@@ -278,7 +278,7 @@ if __name__ == '__main__':
 				# CRITIC
 				"q_value_lr": 1e-4, #1e-3
 				"value_lr": 1e-4, #1e-3
-				"grad_clip_critic": 10.0,
+				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 4,
@@ -289,10 +289,10 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
-				"grad_clip_actor": 10.0,
+				"grad_clip_actor": 0.5,
 				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
-				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen": 0.0, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
