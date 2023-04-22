@@ -191,7 +191,8 @@ class PPOAgent:
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
 		# Initialise  last  lambda -return  for  not  terminated  episodes
 		ret = target_qs.new_zeros(*target_qs.shape)
-		ret[:, -1] = target_qs[:, -1] * (1 - torch.sum(terminated, dim=1))
+		ret = target_qs * (1-terminated)
+		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
 		# Backwards  recursive  update  of the "forward  view"
 		for t in range(ret.shape[1] - 2, -1,  -1):
 			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t].unsqueeze(-1) \
@@ -366,9 +367,9 @@ class PPOAgent:
 																)
 
 			Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
-													old_states.reshape(-1, self.num_agents, self.critic_observation_shape).to(self.device),
+													old_states.to(self.device),
 													self.history_states_critic_v.to(self.device),
-													old_one_hot_actions.reshape(-1, self.num_agents, self.num_actions).to(self.device)
+													old_one_hot_actions.to(self.device)
 													)
 
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
