@@ -41,6 +41,8 @@ class PPOAgent:
 		self.critic_observation_shape = dictionary["global_observation"]
 		self.value_lr = dictionary["value_lr"]
 		self.q_value_lr = dictionary["q_value_lr"]
+		self.q_weight_decay = dictionary["q_weight_decay"]
+		self.v_weight_decay = dictionary["v_weight_decay"]
 		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
 		self.critic_score_regularizer = dictionary["critic_score_regularizer"]
 		self.lambda_ = dictionary["lambda"] # TD lambda
@@ -53,6 +55,7 @@ class PPOAgent:
 		# Actor Setup
 		self.actor_observation_shape = dictionary["local_observation"]
 		self.policy_lr = dictionary["policy_lr"]
+		self.policy_weight_decay = dictionary["policy_weight_decay"]
 		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
@@ -138,9 +141,9 @@ class PPOAgent:
 		# 		params_to_update.append(param)
 				# print("\t",name)
 
-		self.q_critic_optimizer = optim.Adam(self.critic_network_q.parameters(), lr=self.q_value_lr)
-		self.v_critic_optimizer = optim.Adam(self.critic_network_v.parameters(), lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		self.q_critic_optimizer = optim.Adam(self.critic_network_q.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay)
+		self.v_critic_optimizer = optim.Adam(self.critic_network_v.parameters(), lr=self.value_lr, weight_decay=self.v_weight_decay)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=self.policy_weight_decay)
 
 		if self.scheduler_need:
 			self.scheduler_policy = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
@@ -354,34 +357,34 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 
-		# self.history_states_critic_q = torch.zeros(old_states.shape[0], self.num_agents, 64)
+		self.history_states_critic_q = torch.zeros(old_states.shape[0], self.num_agents, 64)
 		
-		# self.history_states_critic_v = torch.zeros(old_states.shape[0], self.num_agents, 64)
+		self.history_states_critic_v = torch.zeros(old_states.shape[0], self.num_agents, 64)
 
 		with torch.no_grad():
 			# OLD VALUES
-			# Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
-			# 													old_states.to(self.device),
-			# 													self.history_states_critic_q.to(self.device),
-			# 													old_one_hot_actions.to(self.device)
-			# 													)
+			Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
+																old_states.to(self.device),
+																self.history_states_critic_q.to(self.device),
+																old_one_hot_actions.to(self.device)
+																)
 
-			# Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
-			# 										old_states.to(self.device),
-			# 										self.history_states_critic_v.to(self.device),
-			# 										old_one_hot_actions.to(self.device)
-			# 										)
+			Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
+													old_states.to(self.device),
+													self.history_states_critic_v.to(self.device),
+													old_one_hot_actions.to(self.device)
+													)
 
 			# OLD VALUES
-			Q_values_old, weights_prd_old, _ = self.critic_network_q_old(
-												old_states.to(self.device),
-												old_one_hot_actions.to(self.device)
-												)
+			# Q_values_old, weights_prd_old, _ = self.critic_network_q_old(
+			# 									old_states.to(self.device),
+			# 									old_one_hot_actions.to(self.device)
+			# 									)
 
-			Values_old, _, _ = self.critic_network_v_old(
-												old_states.to(self.device),
-												old_one_hot_actions.to(self.device)
-												)
+			# Values_old, _, _ = self.critic_network_v_old(
+			# 									old_states.to(self.device),
+			# 									old_one_hot_actions.to(self.device)
+			# 									)
 
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
 			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
@@ -419,25 +422,25 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			# Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(
-			# 	old_states.to(self.device), 
-			# 	self.history_states_critic_q.to(self.device), 
-			# 	old_one_hot_actions.to(self.device)
-			# 	)
-			# Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(
-			# 	old_states.to(self.device), 
-			# 	self.history_states_critic_v.to(self.device), 
-			# 	old_one_hot_actions.to(self.device)
-			# 	)
-
-			Q_value, weights_prd, score_q = self.critic_network_q(
+			Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(
 				old_states.to(self.device), 
+				self.history_states_critic_q.to(self.device), 
 				old_one_hot_actions.to(self.device)
 				)
-			Value, weight_v, score_v = self.critic_network_v(
-				old_states.to(self.device),  
+			Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(
+				old_states.to(self.device), 
+				self.history_states_critic_v.to(self.device), 
 				old_one_hot_actions.to(self.device)
 				)
+
+			# Q_value, weights_prd, score_q = self.critic_network_q(
+			# 	old_states.to(self.device), 
+			# 	old_one_hot_actions.to(self.device)
+			# 	)
+			# Value, weight_v, score_v = self.critic_network_v(
+			# 	old_states.to(self.device),  
+			# 	old_one_hot_actions.to(self.device)
+			# 	)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), episode)
 
@@ -500,8 +503,8 @@ class PPOAgent:
 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
 			self.policy_optimizer.step()
 
-			# self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
-			# self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
+			self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
+			self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
 
 			q_value_loss_batch += critic_q_loss.item()
 			v_value_loss_batch += critic_v_loss.item()
