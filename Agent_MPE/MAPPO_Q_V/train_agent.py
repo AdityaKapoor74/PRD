@@ -168,18 +168,12 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states_actor, greedy=True)
+						actions, _ = self.agents.get_action(states_actor, greedy=True)
 				else:
-					actions = self.agents.get_action(states_actor)
+					actions, action_logprob = self.agents.get_action(states_actor)
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
-
-					# Q_value, V_value, critic_hidden_state, _ = self.agents.critic_network_old(
-					# 															torch.FloatTensor(np.array(states_critic)).unsqueeze(0).to(self.device),
-					# 															torch.from_numpy(self.critic_hidden_state).double().unsqueeze(0).to(self.device),
-					# 															torch.FloatTensor(np.array(one_hot_actions)).long().unsqueeze(0).to(self.device)
-					# 															)
 
 				
 
@@ -193,22 +187,16 @@ class MAPPO:
 					episode_collision_rate += np.sum(collision_rate)
 					episode_goal_reached += np.sum(goal_reached)
 
-
-				# if step == self.max_time_steps:
-				# 	dones = [True for _ in range(self.num_agents)]
-
 				if not self.gif:
-					self.agents.buffer.states_critic.append(states_critic)
-					# self.agents.buffer.history_states_critic.append(self.critic_hidden_state)
-					# self.agents.buffer.Q_values.append(Q_value.squeeze(0).detach().cpu())
-					# self.agents.buffer.Values.append(V_value.squeeze(0).detach().cpu())
-					self.agents.buffer.states_actor.append(states_actor)
-					self.agents.buffer.actions.append(actions)
-					self.agents.buffer.one_hot_actions.append(one_hot_actions)
-					self.agents.buffer.dones.append(dones)
-					self.agents.buffer.rewards.append(rewards)
+					# self.agents.buffer.states_critic.append(states_critic)
+					# self.agents.buffer.states_actor.append(states_actor)
+					# self.agents.buffer.actions.append(actions)
+					# self.agents.buffer.one_hot_actions.append(one_hot_actions)
+					# self.agents.buffer.dones.append(dones)
+					# self.agents.buffer.rewards.append(rewards)
+					# self.agents.buffer.logprobs.append(action_logprob)
 
-					# self.init_critic_hidden_state(critic_hidden_state.detach().cpu().numpy())
+					self.agents.buffer.push(states_critic, states_actor, action_logprob, actions, one_hot_actions, rewards, dones)
 
 				episode_reward += np.sum(rewards)
 
@@ -254,8 +242,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode)
-				# history_states_critic = self.agents.update(episode)
-				# self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu().numpy())
+
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -329,7 +316,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 30000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -341,10 +328,13 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"value_lr": 1e-5, #1e-3
+				"q_value_lr": 1e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
+				"q_weight_decay": 5e-4,
+				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
@@ -355,8 +345,9 @@ if __name__ == '__main__':
 				# ACTOR
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.05,
-				"policy_lr": 1e-5, #prd 1e-4
-				"entropy_pen": 8e-3, #8e-3
+				"policy_lr": 1e-4, #prd 1e-4
+				"policy_weight_decay": 5e-4,
+				"entropy_pen": 1e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
@@ -364,6 +355,8 @@ if __name__ == '__main__':
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
+
+				"network_update_interval": 1,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
