@@ -156,10 +156,6 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				reach_goal = dones
-
-				if step == self.max_time_steps:
-					dones = [1 for _ in range(self.num_agents)]
 
 				if not self.gif:
 					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
@@ -168,8 +164,7 @@ class MAPPO:
 
 				states = next_states
 
-				if all(dones):
-
+				if all(dones) or step == self.max_time_steps:
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 					print("*"*100)
@@ -179,7 +174,7 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(reach_goal), episode)
+						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
 					break
 
