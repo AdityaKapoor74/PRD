@@ -354,23 +354,34 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 
-		self.history_states_critic_q = torch.zeros(old_states.shape[0], self.num_agents, 64)
+		# self.history_states_critic_q = torch.zeros(old_states.shape[0], self.num_agents, 64)
 		
-		self.history_states_critic_v = torch.zeros(old_states.shape[0], self.num_agents, 64)
+		# self.history_states_critic_v = torch.zeros(old_states.shape[0], self.num_agents, 64)
 
 		with torch.no_grad():
 			# OLD VALUES
-			Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
-																old_states.to(self.device),
-																self.history_states_critic_q.to(self.device),
-																old_one_hot_actions.to(self.device)
-																)
+			# Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
+			# 													old_states.to(self.device),
+			# 													self.history_states_critic_q.to(self.device),
+			# 													old_one_hot_actions.to(self.device)
+			# 													)
 
-			Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
-													old_states.to(self.device),
-													self.history_states_critic_v.to(self.device),
-													old_one_hot_actions.to(self.device)
-													)
+			# Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
+			# 										old_states.to(self.device),
+			# 										self.history_states_critic_v.to(self.device),
+			# 										old_one_hot_actions.to(self.device)
+			# 										)
+
+			# OLD VALUES
+			Q_values_old, weights_prd_old, _ = self.critic_network_q_old(
+												old_states.to(self.device),
+												old_one_hot_actions.to(self.device)
+												)
+
+			Values_old, _, _ = self.critic_network_v_old(
+												old_states.to(self.device),
+												old_one_hot_actions.to(self.device)
+												)
 
 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
 			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
@@ -408,14 +419,23 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(
+			# Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(
+			# 	old_states.to(self.device), 
+			# 	self.history_states_critic_q.to(self.device), 
+			# 	old_one_hot_actions.to(self.device)
+			# 	)
+			# Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(
+			# 	old_states.to(self.device), 
+			# 	self.history_states_critic_v.to(self.device), 
+			# 	old_one_hot_actions.to(self.device)
+			# 	)
+
+			Q_value, weights_prd, score_q = self.critic_network_q(
 				old_states.to(self.device), 
-				self.history_states_critic_q.to(self.device), 
 				old_one_hot_actions.to(self.device)
 				)
-			Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(
-				old_states.to(self.device), 
-				self.history_states_critic_v.to(self.device), 
+			Value, weight_v, score_v = self.critic_network_v(
+				old_states.to(self.device),  
 				old_one_hot_actions.to(self.device)
 				)
 
@@ -480,8 +500,8 @@ class PPOAgent:
 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
 			self.policy_optimizer.step()
 
-			self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
-			self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
+			# self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
+			# self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
 
 			q_value_loss_batch += critic_q_loss.item()
 			v_value_loss_batch += critic_v_loss.item()
