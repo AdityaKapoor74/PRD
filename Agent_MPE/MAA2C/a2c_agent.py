@@ -20,6 +20,7 @@ class A2CAgent:
 		self.env_name = dictionary["env"]
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
+		self.update_after_episodes = dictionary["update_after_episodes"]
 		self.l1_pen = dictionary["l1_pen"]
 		self.l1_pen_min = dictionary["l1_pen_min"]
 		self.l1_pen_steps_to_take = dictionary["l1_pen_steps_to_take"]
@@ -246,20 +247,19 @@ class A2CAgent:
 			
 	# 	return returns_tensor
 
-	def TD_error(self, target_values, values, rewards, dones):
-		TD_errors = []
-		curr_td_error = 0
-		rewards = rewards.unsqueeze(-1)
-		dones = dones.unsqueeze(-1)
-		masks = 1 - dones
-		for t in reversed(range(0, len(rewards))):
-			td_error = (rewards[t] + (self.gamma * target_values[t] * masks[t]) - values[t])**2
-			curr_td_error = td_error + (self.gamma * self.lambda_ * curr_td_error * masks[t])
-			TD_errors.insert(0, curr_td_error)
-
-		TD_errors = torch.mean(torch.stack(TD_errors))
-		
-		return TD_errors
+	def build_td_lambda_targets(self, rewards, terminated, target_qs):
+		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
+		# Initialise  last  lambda -return  for  not  terminated  episodes
+		ret = target_qs.new_zeros(*target_qs.shape)
+		ret = target_qs * (1-terminated)
+		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
+		# Backwards  recursive  update  of the "forward  view"
+		for t in range(ret.shape[1] - 2, -1,  -1):
+			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + \
+						(rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
+		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+		# return ret[:, 0:-1]
+		return ret
 
 
 	
@@ -293,15 +293,9 @@ class A2CAgent:
 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, V_values, target_V_values, rewards, dones, weights):
-		discounted_rewards = None
-		next_probs = None
-
-		if self.critic_loss_type == "MC" or self.critic_loss_type == "TD_1":
-			# we need a TxNxN vector so inflate the discounted rewards by N --> cloning the discounted rewards for an agent N times
-			value_loss = F.smooth_l1_loss(V_values, target_V_values)
-		elif self.critic_loss_type == "TD_lambda":
-			value_loss = self.TD_error(target_V_values, V_values, rewards, dones)
+	def calculate_value_loss(self, V_values, target_V_values, weights):
+		
+		value_loss = F.smooth_l1_loss(V_values, target_V_values)
 
 		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
 			weights_ = weights
@@ -325,7 +319,7 @@ class A2CAgent:
 			if episode < self.steps_to_take:
 				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones),dim=-2)
 			else:
-				advantage = torch.sum(self.calculate_advantages(discounted_rkewards, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
 			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
@@ -413,7 +407,8 @@ class A2CAgent:
 			target_V_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
 		else:
 			target_V_values, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_actions)
-			target_V_values = target_V_values.reshape(-1,self.num_agents,self.num_agents)
+			target_V_values = target_V_values.reshape(self.update_after_episodes, -1, self.num_agents, self.num_agents)
+			target_V_values = self.build_td_lambda_targets(rewards.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), dones.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), target_V_values).reshape(-1, self.num_agents, self.num_agents)
 
 		# end_forward_time = time.process_time()
 		# self.forward_time += end_forward_time - start_forward_time
@@ -426,7 +421,7 @@ class A2CAgent:
 			weights_prd = None
 	
 
-		value_loss = self.calculate_value_loss(V_values, target_V_values, rewards, dones, weights_value)
+		value_loss = self.calculate_value_loss(V_values, target_V_values, weights_value)
 	
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
