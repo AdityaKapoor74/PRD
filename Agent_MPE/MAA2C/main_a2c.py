@@ -47,8 +47,8 @@ if __name__ == '__main__':
 				"extension":extension,
 				"iteration": i,
 				"device": "gpu",
-				"value_lr": 5e-4, #1e-3 
-				"policy_lr": 5e-4, #prd 1e-4
+				"value_lr": 1e-4, #1e-3 
+				"policy_lr": 1e-4, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"entropy_pen": 8e-3, #8e-3
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 30000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"gae": True,
