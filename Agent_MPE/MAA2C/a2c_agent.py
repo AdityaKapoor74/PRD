@@ -231,21 +231,21 @@ class A2CAgent:
 	# 	return target_Vs
 
 
-	# def calculate_returns(self,rewards, discount_factor):
-	# 	returns = []
-	# 	R = 0
+	def calculate_returns(self,rewards, discount_factor):
+		returns = []
+		R = 0
 		
-	# 	for r in reversed(rewards):
-	# 		R = r + R * discount_factor
-	# 		returns.insert(0, R)
+		for r in reversed(rewards):
+			R = r + R * discount_factor
+			returns.insert(0, R)
 		
-	# 	returns_tensor = torch.stack(returns).to(self.device)
+		returns_tensor = torch.stack(returns).to(self.device)
 		
-	# 	if self.norm_rew:
+		if self.norm_rew:
 			
-	# 		returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
 			
-	# 	return returns_tensor
+		return returns_tensor
 
 	def build_td_lambda_targets(self, rewards, terminated, target_qs):
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
