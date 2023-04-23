@@ -271,8 +271,8 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"q_value_lr": 1e-5, #1e-3
-				"value_lr": 1e-5, #1e-3
+				"q_value_lr": 1e-4, #1e-3
+				"value_lr": 1e-4, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
@@ -288,9 +288,9 @@ if __name__ == '__main__':
 				# ACTOR
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.05,
-				"policy_lr": 1e-5, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-1, #8e-3
+				"entropy_pen": 7e-1, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
