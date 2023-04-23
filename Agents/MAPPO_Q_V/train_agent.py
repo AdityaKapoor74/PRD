@@ -219,8 +219,8 @@ PP
 
 
 PRD-MAPPO
-Soft: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
-Hard: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
+Soft: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 7; threshold = 0.15
+Hard: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 7
 
 MAPPO
 Soft: value_lr = 1e-5; policy_lr = 1e-5; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
@@ -234,7 +234,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "PRESSURE PLATE"
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -245,7 +245,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 2,
+				"n_epochs": 5,
 				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
@@ -290,11 +290,11 @@ if __name__ == '__main__':
 				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 7e-2, #8e-3
+				"entropy_pen": 5e-2, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.2,
+				"threshold_max": 0.15,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
