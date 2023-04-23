@@ -234,7 +234,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "PRESSURE PLATE"
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -245,7 +245,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
+				"n_epochs": 2,
 				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
@@ -277,7 +277,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
