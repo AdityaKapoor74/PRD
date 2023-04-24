@@ -180,7 +180,7 @@ class PPOAgent:
 			return actions, action_logprob.cpu().numpy()
 
 
-	def calculate_advantages(self, values, values_old, rewards, dones):
+	def calculate_advantages(self, values, values_old, rewards, dones, masks_):
 		advantages = []
 		next_value = 0
 		advantage = 0
@@ -189,7 +189,7 @@ class PPOAgent:
 			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
 			next_value = values_old.data[t]
 			
-			advantage = td_error + (self.gamma * self.gae_lambda * advantage * masks[t])
+			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * masks[t]))*masks_[t]
 			advantages.insert(0, advantage)
 
 		advantages = torch.stack(advantages)
@@ -294,17 +294,17 @@ class PPOAgent:
 			self.comet_ml.log_metric('V_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
 
 
-	def calculate_advantages_based_on_exp(self, V_values, V_values_old, rewards, dones, weights_prd, episode):
+	def calculate_advantages_based_on_exp(self, V_values, V_values_old, rewards, dones, weights_prd, masks, episode):
 		advantage = None
 		masking_rewards = None
 		mean_min_weight_value = -1
 		if "shared" in self.experiment_type:
 			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-			advantage = torch.sum(self.calculate_advantages(V_values, V_values_old, rewards_, dones),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks),dim=-2)
 		elif "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 			masking_rewards = (weights_prd>self.select_above_threshold).int()
 			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masking_rewards,-1,-2), dim=-1)
-			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones)
+			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		elif "prd_above_threshold" in self.experiment_type:
 			if episode > self.steps_to_take:
 				masking_rewards = (weights_prd>self.select_above_threshold).int()
@@ -312,11 +312,11 @@ class PPOAgent:
 			else:
 				masking_rewards = torch.ones(weights_prd.shape).to(self.device)
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones)
+			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		elif "top" in self.experiment_type:
 			if episode > self.steps_to_take:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-				advantage = torch.sum(self.calculate_advantages(V_values, V_values_old, rewards_, dones),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks),dim=-2)
 				masking_rewards = torch.ones(weights_prd.shape).to(self.device)
 				min_weight_values, _ = torch.min(weights_prd, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
@@ -326,12 +326,12 @@ class PPOAgent:
 				mean_min_weight_value = torch.mean(min_weight_values)
 				masking_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 				rewards_ = torch.sum(masking_rewards * torch.transpose(masking_rewards,-1,-2), dim=-1)
-				advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones)
+				advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		elif "greedy" in self.experiment_type:
-			advantage = self.calculate_advantages(V_values, V_values_old, rewards, dones)
+			advantage = self.calculate_advantages(V_values, V_values_old, rewards, dones, masks)
 		elif "relevant_set" in self.experiment_type:
 			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * self.relevant_set, dim=-1)
-			advantage = self.calculate_advantages(V_values, V_values_old, rewards, dones)
+			advantage = self.calculate_advantages(V_values, V_values_old, rewards, dones, masks)
 
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
 			advantage = advantage*(self.num_agents/self.top_k)
@@ -486,7 +486,7 @@ class PPOAgent:
 				old_one_hot_actions.to(self.device)
 				)
 
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), episode)
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks, episode)
 
 			dists = self.policy_network(old_states_actor.to(self.device))
 			probs = Categorical(dists.squeeze(0))
@@ -523,12 +523,6 @@ class PPOAgent:
 
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).mean() + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).mean() + self.critic_weight_entropy_pen*entropy_weights_v
-
-			# take gradient step
-			# self.critic_optimizer.zero_grad()
-			# (critic_q_loss + critic_v_loss).backward(retain_graph=True)
-			# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
-			# self.critic_optimizer.step()
 
 			
 			self.q_critic_optimizer.zero_grad()
