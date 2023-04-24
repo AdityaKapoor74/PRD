@@ -133,19 +133,16 @@ class MAA2C:
 	def update(self,trajectory,episode):
 
 		states_critic = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
-		next_states_critic = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
 
-		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
-		one_hot_next_actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		one_hot_actions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
 
-		states_actor = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
-		next_states_actor = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
+		states_actor = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
 
-		rewards = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[8] for sars in trajectory])).to(self.device)
+		rewards = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
 
-		self.agents.update(states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones, episode)
+		self.agents.update(states_critic,one_hot_actions,actions,states_actor,rewards,dones,episode)
 		
 
 	def split_states(self,states):
@@ -261,7 +258,7 @@ class MAA2C:
 
 
 				if self.learn:
-					trajectory.append([states_critic, next_states_critic, one_hot_actions, one_hot_next_actions, actions, states_actor, next_states_actor, rewards, dones])
+					trajectory.append([states_critic, one_hot_actions, actions, states_actor, rewards, dones])
 					if all(dones) or step == self.max_time_steps:
 
 						
