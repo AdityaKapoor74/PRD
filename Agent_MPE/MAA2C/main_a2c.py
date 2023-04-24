@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"policy_lr": 1e-4, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
-				"entropy_pen": 4e-2, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
@@ -60,9 +60,9 @@ if __name__ == '__main__':
 				"lambda": 0.95, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.05,
+				"threshold_max": 0.04,
 				"steps_to_take": 1000, 
-				"network_update_interval": 10,
+				"network_update_interval": 1,
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
