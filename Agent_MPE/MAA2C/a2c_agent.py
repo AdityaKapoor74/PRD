@@ -21,6 +21,7 @@ class A2CAgent:
 		self.value_lr = dictionary["value_lr"]
 		self.policy_lr = dictionary["policy_lr"]
 		self.update_after_episodes = dictionary["update_after_episodes"]
+		self.network_update_interval = dictionary["network_update_interval"]
 		self.l1_pen = dictionary["l1_pen"]
 		self.l1_pen_min = dictionary["l1_pen_min"]
 		self.l1_pen_steps_to_take = dictionary["l1_pen_steps_to_take"]
@@ -254,7 +255,7 @@ class A2CAgent:
 		ret = target_qs * (1-terminated)
 		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
 		# Backwards  recursive  update  of the "forward  view"
-		for t in range(ret.shape[1] - 2, -1,  -1):
+		for t in range(ret.shape[1] - 2, -1, -1):
 			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + \
 						(rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
 		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
@@ -380,7 +381,7 @@ class A2CAgent:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
 
-	def update(self,states_critic,next_states_critic,one_hot_actions,one_hot_next_actions,actions,states_actor,next_states_actor,rewards,dones,episode):
+	def update(self,states_critic,one_hot_actions,actions,states_actor,rewards,dones,episode):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -389,24 +390,17 @@ class A2CAgent:
 
 		probs = self.policy_network.forward(states_actor)
 
-		with torch.no_grad():
-			next_probs = self.policy_network.forward(next_states_actor)
-
 		'''
 		Calculate V values
 		'''
-		V_values, weights_value = self.critic_network.forward(states_critic, probs.detach(), one_hot_next_actions)
+		V_values, weights_value = self.critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 		V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 
 		if self.critic_loss_type == "MC":
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			target_V_values = torch.transpose(discounted_rewards,-1,-2)
-		elif self.critic_loss_type == "TD_1":
-			V_values_next, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_next_actions)
-			V_values_next = V_values_next.reshape(-1,self.num_agents,self.num_agents)
-			target_V_values = torch.transpose(rewards.unsqueeze(-2).repeat(1,self.num_agents,1),-1,-2) + self.gamma*V_values_next*(1-dones.unsqueeze(-1))
-		else:
-			target_V_values, _ = self.target_critic_network.forward(next_states_critic, next_probs.detach(), one_hot_actions)
+		elif self.critic_loss_type == "TD_lambda":
+			target_V_values, _ = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			target_V_values = target_V_values.reshape(self.update_after_episodes, -1, self.num_agents, self.num_agents)
 			target_V_values = self.build_td_lambda_targets(rewards.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), dones.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), target_V_values).reshape(-1, self.num_agents, self.num_agents)
 
@@ -462,6 +456,10 @@ class A2CAgent:
 		# 	relevant_set_error_rate = torch.mean(masking_advantage*self.relevant_set)
 		# else:
 		# 	relevant_set_error_rate = -1
+
+		if episode % self.network_update_interval == 0:
+			# Copy new weights into old critic
+			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 
 		self.plotting_dict = {
