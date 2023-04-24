@@ -93,7 +93,7 @@ class TransformerCritic(nn.Module):
 			nn.GELU(),
 			nn.Linear(64, 64, bias=True), 
 			nn.GELU(),
-			nn.Linear(64, 1, bias=True)
+			nn.Linear(64, 1)
 			)
 			
 		# ********************************************************************************************************	
@@ -114,18 +114,18 @@ class TransformerCritic(nn.Module):
 		"""Reinitialize learnable parameters."""
 
 		# EMBEDDINGS
-		nn.init.orthogonal_(self.state_embed[0].weight)
-		nn.init.orthogonal_(self.state_act_pol_embed[0].weight)
+		nn.init.xavier_uniform_(self.state_embed[0].weight)
+		nn.init.xavier_uniform_(self.state_act_pol_embed[0].weight)
 
-		nn.init.orthogonal_(self.key[0].weight)
-		nn.init.orthogonal_(self.query[0].weight)
-		nn.init.orthogonal_(self.attention_value[0].weight)
+		nn.init.xavier_uniform_(self.key[0].weight)
+		nn.init.xavier_uniform_(self.query[0].weight)
+		nn.init.xavier_uniform_(self.attention_value[0].weight)
 
-		nn.init.orthogonal_(self.curr_agent_state_embed[0].weight)
+		nn.init.xavier_uniform_(self.curr_agent_state_embed[0].weight)
 
-		nn.init.orthogonal_(self.final_value_layers[0].weight)
-		nn.init.orthogonal_(self.final_value_layers[2].weight)
-		nn.init.orthogonal_(self.final_value_layers[4].weight)
+		nn.init.xavier_uniform_(self.final_value_layers[0].weight)
+		nn.init.xavier_uniform_(self.final_value_layers[2].weight)
+		nn.init.xavier_uniform_(self.final_value_layers[4].weight)
 
 
 
