@@ -182,7 +182,7 @@ class A2CAgent:
 			return index
 
 
-	def calculate_advantages(self, returns, values, rewards, dones):
+	def calculate_advantages(self, target_values, values, rewards, dones):
 		
 		advantages = None
 
@@ -195,14 +195,14 @@ class A2CAgent:
 			masks = 1 - dones
 			for t in reversed(range(0, len(rewards))):
 				td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-				next_value = values.data[t]
+				next_value = target_values.data[t]
 				
 				advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
 				advantages.insert(0, advantage)
 
 			advantages = torch.stack(advantages)	
 		else:
-			advantages = returns - values
+			advantages = target_values - values
 		
 		if self.norm_adv:
 			advantages = (advantages - advantages.mean()) / advantages.std()
