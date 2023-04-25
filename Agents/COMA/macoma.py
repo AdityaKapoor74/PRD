@@ -77,20 +77,14 @@ class MACOMA:
 	def update(self,trajectory,episode):
 
 		states = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
-		agent_global_positions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
-		agent_ids = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
+		
+		one_hot_actions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
 
-		next_states = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		next_agent_global_positions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		rewards = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
 
-		one_hot_actions = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
-		one_hot_next_actions = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
-
-		rewards = torch.FloatTensor(np.array([sars[8] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[9] for sars in trajectory])).to(self.device)
-
-		self.agents.update(states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode)
+		self.agents.update(states, one_hot_actions, actions, rewards, dones, episode)
 
 
 
@@ -139,7 +133,7 @@ class MACOMA:
 
 		for episode in range(1,self.max_episodes+1):
 
-			states, agent_global_positions, agent_ids = self.env.reset()
+			states = self.env.reset()
 
 			images = []
 
@@ -155,33 +149,23 @@ class MACOMA:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, agent_global_positions, agent_ids, greedy=True)
+						actions = self.agents.get_action(states, greedy=True)
 				else:
-					actions = self.agents.get_action(states, agent_global_positions, agent_ids)
+					actions = self.agents.get_action(states)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				obs,rewards,dones,info = self.env.step(actions)
-				next_states, next_agent_global_positions, agent_ids = obs
-
-				# next actions
-				with torch.no_grad():
-					next_actions = self.agents.get_action(next_states, next_agent_global_positions, agent_ids)
-
-
-				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
-				for i,act in enumerate(next_actions):
-					one_hot_next_actions[i][act] = 1
+				next_states, rewards, dones, info = self.env.step(actions)
 
 				episode_reward += np.sum(rewards)
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
-				rewards_ = [np.sum(rewards)]*self.num_agents
+				rewards = [np.sum(rewards)]*self.num_agents
 
 				if self.learn:
-					trajectory.append([states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones])
+					trajectory.append([states, one_hot_actions, actions, rewards, dones])
 					if all(dones) or step == self.max_time_steps:
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
@@ -197,7 +181,6 @@ class MACOMA:
 						break
 
 				states = next_states
-				agent_global_positions = next_agent_global_positions
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
