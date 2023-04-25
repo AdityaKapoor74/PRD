@@ -271,13 +271,13 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"q_value_lr": 1e-4, #1e-3
-				"value_lr": 1e-4, #1e-3
+				"q_value_lr": 5e-4, #1e-3
+				"value_lr": 5e-4, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
