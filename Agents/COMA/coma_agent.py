@@ -43,16 +43,17 @@ class COMAAgent:
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 
-		obs_dim = self.num_agents+2
-		self.critic_network = TransformerCritic(5, obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
-		self.target_critic_network = TransformerCritic(5, obs_dim, 128, obs_dim+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
+		self.actor_observation_shape = dictionary["local_observation"]
+		self.critic_observation_shape = dictionary["global_observation"]
+
+		
+		self.critic_network = TransformerCritic(self.critic_observation_shape, self.num_agents, self.num_actions, self.device).to(self.device)
+		self.target_critic_network = TransformerCritic(self.critic_observation_shape, self.num_agents, self.num_actions, self.device).to(self.device)
 
 		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		# MLP POLICY
-		self.seeds = [42, 142, 242, 342, 442]
-		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
-		self.policy_network = MLPPolicy(5, obs_dim, self.num_actions, self.num_agents, self.device).to(self.device)
+		self.policy_network = MLPPolicy(self.actor_observation_shape, self.num_agents, self.num_actions).to(self.device)
 
 		if dictionary["load_models"]:
 			# Loading models
@@ -76,12 +77,10 @@ class COMAAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy, agent_global_positions, agent_ids, greedy=False):
+	def get_action(self, state_policy, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			agent_global_positions = torch.FloatTensor(agent_global_positions).to(self.device)
-			agent_ids = torch.Tensor(agent_ids).to(self.device)
-			dists = self.policy_network(state_policy, agent_global_positions, agent_ids)
+			dists = self.policy_network(state_policy)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 			else:
@@ -91,7 +90,6 @@ class COMAAgent:
 
 
 	def calculate_advantages(self, Q_values, baseline):
-		
 		advantages = Q_values - baseline
 		
 		if self.norm_adv:
@@ -100,26 +98,40 @@ class COMAAgent:
 		return advantages
 
 
-	def calculate_deltas(self, values, rewards, dones):
-		deltas = []
-		next_value = 0
-		rewards = rewards
-		dones = dones
-		masks = 1-dones
-		for t in reversed(range(0, len(rewards))):
-			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-			next_value = values.data[t]
-			deltas.insert(0,td_error)
-		deltas = torch.stack(deltas)
+	# def calculate_deltas(self, values, rewards, dones):
+	# 	deltas = []
+	# 	next_value = 0
+	# 	rewards = rewards
+	# 	dones = dones
+	# 	masks = 1-dones
+	# 	for t in reversed(range(0, len(rewards))):
+	# 		td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+	# 		next_value = values.data[t]
+	# 		deltas.insert(0,td_error)
+	# 	deltas = torch.stack(deltas)
 
-		return deltas
+	# 	return deltas
 
 
-	def nstep_returns(self,values, rewards, dones):
-		deltas = self.calculate_deltas(values, rewards, dones)
-		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
-		target_Vs = advs+values
-		return target_Vs
+	# def nstep_returns(self,values, rewards, dones):
+	# 	deltas = self.calculate_deltas(values, rewards, dones)
+	# 	advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
+	# 	target_Vs = advs+values
+	# 	return target_Vs
+
+	def build_td_lambda_targets(self, rewards, terminated, target_qs):
+		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
+		# Initialise  last  lambda -return  for  not  terminated  episodes
+		ret = target_qs.new_zeros(*target_qs.shape)
+		ret = target_qs * (1-terminated)
+		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
+		# Backwards  recursive  update  of the "forward  view"
+		for t in range(ret.shape[1] - 2, -1,  -1):
+			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + \
+						(rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
+		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+		# return ret[:, 0:-1]
+		return ret
 
 
 	def calculate_returns(self,rewards, discount_factor):
@@ -139,19 +151,18 @@ class COMAAgent:
 
 
 	def plot(self, episode):
-		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"].item(),episode)
+		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
-		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
+		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
-		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
+		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
 
 		entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"]* torch.log(torch.clamp(self.plotting_dict["weights_value"], 1e-10,1.0)), dim=2))
 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
 		
-	def calculate_value_loss(self, Q_values, target_Q_values, rewards, dones, weights):
-		Q_target = self.nstep_returns(target_Q_values, rewards, dones).detach()
-		value_loss = F.smooth_l1_loss(Q_values, Q_target)
+	def calculate_value_loss(self, Q_values, Q_values_target, weights):
+		value_loss = F.smooth_l1_loss(Q_values, Q_values_target)
 
 		if self.critic_entropy_pen != 0:
 			weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
@@ -160,13 +171,13 @@ class COMAAgent:
 		return value_loss
 
 
-
 	def calculate_policy_loss(self, probs, actions, advantage):
 		probs = Categorical(probs)
 		policy_loss = -probs.log_prob(actions) * advantage.detach()
 		policy_loss = policy_loss.mean()
 
 		return policy_loss
+
 
 	def update_parameters(self):
 		self.episode += 1
@@ -178,20 +189,23 @@ class COMAAgent:
 			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 
-	def update(self, states, agent_global_positions, agent_ids, next_states, next_agent_global_positions, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode):		
+	def update(self, states, one_hot_actions, actions, rewards, dones, episode):		
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		probs = self.policy_network(states, agent_global_positions, agent_ids)
+		probs = self.policy_network(states)
 
-		Q_values, weights_value = self.critic_network(states, agent_global_positions, agent_ids, probs.detach(), one_hot_actions)
+		Q_values, weights_value = self.critic_network(states, one_hot_actions)
 		Q_values_act_chosen = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 		V_values_baseline = torch.sum(Q_values.reshape(-1,self.num_agents, self.num_actions) * probs.detach(), dim=-1)
 	
-		target_Q_values, target_weights_value = self.target_critic_network(states, agent_global_positions, agent_ids, probs.detach(), one_hot_actions)
+		target_Q_values, _ = self.target_critic_network(states, one_hot_actions)
 		target_Q_values_act_chosen = torch.sum(target_Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 
-		value_loss = self.calculate_value_loss(Q_values_act_chosen, target_Q_values_act_chosen, rewards, dones, weights_value)
+		# Q_values_target = self.nstep_returns(target_Q_values, rewards, dones).detach()
+		Q_values_target = self.build_td_lambda_targets(rewards, dones, target_Q_values_act_chosen)
+
+		value_loss = self.calculate_value_loss(Q_values_act_chosen, Q_values_target, weights_value)
 
 		advantage = self.calculate_advantages(Q_values_act_chosen, V_values_baseline)
 
@@ -215,12 +229,12 @@ class COMAAgent:
 		self.update_parameters()
 
 		self.plotting_dict = {
-		"value_loss": value_loss,
-		"policy_loss": policy_loss,
-		"entropy": entropy,
+		"value_loss": value_loss.item(),
+		"policy_loss": policy_loss.item(),
+		"entropy": entropy.item(),
 		"grad_norm_value":grad_norm_value,
 		"grad_norm_policy": grad_norm_policy,
-		"weights_value": weights_value,
+		"weights_value": weights_value.detach(),
 		}
 
 		if self.comet_ml is not None:
