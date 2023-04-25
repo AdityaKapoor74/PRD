@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from a2c_agent import A2CAgent
 import datetime
+import time
 
 
 
@@ -24,13 +25,14 @@ class MAA2C:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = self.env.n_agents
-		self.num_actions = 5 #self.env.action_space[0].n
+		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
+		self.update_after_episodes = dictionary["update_after_episodes"]
 		self.weight_dictionary = {}
 
 		for i in range(self.num_agents):
@@ -72,7 +74,7 @@ class MAA2C:
 			self.actor_model_path = actor_dir+"actor"
 
 		if self.gif:
-			gif_dir = dictionary["gif_dir"]
+			gif_dir = dictionary["gif_dir"] 
 			try: 
 				os.makedirs(gif_dir, exist_ok = True) 
 				print("Gif Directory created successfully") 
@@ -88,6 +90,13 @@ class MAA2C:
 				print("Policy Eval Directory created successfully") 
 			except OSError as error: 
 				print("Policy Eval Directory can not be created")
+
+		self.environment_time = 0.0
+
+
+	def get_actions(self,states):
+		actions = self.agents.get_action(states)
+		return actions
 
 
 	# FOR PAIRED AGENT ENVIRONMENTS
@@ -122,19 +131,16 @@ class MAA2C:
 
 
 	def update(self,trajectory,episode):
-		
+
 		states = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
 
-		next_states = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		one_hot_actions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
 
-		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
-		one_hot_next_actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		rewards = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
 
-		rewards = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
-
-		self.agents.update(states, next_states, one_hot_actions, one_hot_next_actions, actions, rewards, dones, episode)
+		self.agents.update(states,one_hot_actions,actions,rewards,dones,episode)
 
 
 
@@ -180,14 +186,15 @@ class MAA2C:
 			self.timesteps_mean_per_1000_eps = []
 			self.collision_rates = []
 			self.collison_rate_mean_per_1000_eps = []
+		
+		trajectory = []
 
 		for episode in range(1,self.max_episodes+1):
 
-			images = []
-
 			states = self.env.reset()
 
-			trajectory = []
+			images = []
+
 			episode_reward = 0
 			episode_collision_rate = 0
 			final_timestep = self.max_time_steps
@@ -199,31 +206,34 @@ class MAA2C:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, greedy=True)
+						actions = self.get_actions(states)
 				else:
-					actions = self.agents.get_action(states)
+					actions = self.get_actions(states)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
+				# start_env_time = time.process_time()
+
 				next_states,rewards,dones,info = self.env.step(actions)
 
-				# next actions
-				with torch.no_grad():
-					next_actions = self.agents.get_action(next_states)
+				# end_env_time = time.process_time()
+				# self.environment_time += end_env_time - start_env_time
 
 
-				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
-				for i,act in enumerate(next_actions):
-					one_hot_next_actions[i][act] = 1
+				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+					collision_rate = [value[1] for value in rewards]
+					rewards = [value[0] for value in rewards]
+					episode_collision_rate += np.sum(collision_rate)
 
 				episode_reward += np.sum(rewards)
 
-
 				if self.learn:
-					trajectory.append([states, next_states, one_hot_actions, one_hot_next_actions, actions, rewards, dones])
+					trajectory.append([states, one_hot_actions, actions, rewards, dones])
 					if all(dones) or step == self.max_time_steps:
+
+						
 						print("*"*100)
 						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 						print("*"*100)
@@ -233,10 +243,11 @@ class MAA2C:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+							if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
 
 						break
-
+					
 				states = next_states
 
 			if self.eval_policy:
@@ -248,13 +259,17 @@ class MAA2C:
 				if self.eval_policy:
 					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+					if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
+						self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
-			if self.learn:
-				self.update(trajectory,episode) 
+			if self.learn and episode % self.update_after_episodes == 0:
+				self.update(trajectory,episode)
+				trajectory = []
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -265,5 +280,15 @@ class MAA2C:
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			if self.env_name in ["crossing"]:
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 			if "prd" in self.experiment_type:
+				if self.env_name in ["paired_by_sharing_goals", "crossing_partially_coop", "crossing_team_greedy"]:
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)
+
+		# print("Environment Time:", self.environment_time/(self.max_episodes*self.max_time_steps))
+		# print("Total Update Time:", (self.agents.update_time+self.agents.forward_time)/self.max_episodes)
+		# print("Update Time:", self.agents.update_time/self.max_episodes)
+		# print("Forward Time:", self.agents.forward_time/self.max_episodes)
