@@ -48,7 +48,7 @@ if __name__ == '__main__':
 				"iteration": i,
 				"device": "gpu",
 				"value_lr": 1e-4, #1e-3 
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 1e-3, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"entropy_pen": 8e-3, #8e-3
