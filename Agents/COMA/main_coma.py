@@ -1,6 +1,7 @@
 from macoma import MACOMA
 import pressureplate
 import gym
+import torch
 
 
 if __name__ == '__main__':
@@ -8,7 +9,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_run"+str(i)
 		test_num = "COMA"
-		env_name = "pressureplate-linear-4p-v0"
+		env_name = "pressureplate-linear-6p-v0"
 
 		dictionary = {
 				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
@@ -19,15 +20,15 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"iteration": i,
-				"value_lr": 1e-3, 
-				"policy_lr": 7e-4,
+				"value_lr": 1e-4, 
+				"policy_lr": 1e-4,
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"critic_entropy_pen": 0.0,
 				"epsilon_start": 1.0,
-				"epsilon_end": 0.1,
+				"epsilon_end": 0.05,
 				"epsilon_episode_steps": 20000,
-				"target_critic_update": 50,
+				"target_critic_update": 100,
 				"gamma": 0.99,
 				"lambda": 0.8,
 				"gif": False,
@@ -40,11 +41,15 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 30000,
 				"max_time_steps": 70,
 				"norm_adv": False,
 				"norm_rew": False,
 			}
+		seeds = [42, 142, 242, 342, 442]
+		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(env_name)
+		dictionary["global_observation"] = 133
+		dictionary["local_observation"] = 133
 		ma_controller = MACOMA(env,dictionary)
 		ma_controller.run()
