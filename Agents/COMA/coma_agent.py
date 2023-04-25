@@ -78,15 +78,18 @@ class COMAAgent:
 
 
 	def get_action(self, state_policy, greedy=False):
-		with torch.no_grad():
-			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			dists = self.policy_network(state_policy)
-			if greedy:
-				actions = [dist.argmax().detach().cpu().item() for dist in dists]
-			else:
-				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+		if np.random.uniform() < self.epsilon:
+			actions = [np.random.choice(self.num_actions) for _ in range(self.num_agents)]
+		else:
+			with torch.no_grad():
+				state_policy = torch.FloatTensor(state_policy).to(self.device)
+				dists = self.policy_network(state_policy)
+				if greedy:
+					actions = [dist.argmax().detach().cpu().item() for dist in dists]
+				else:
+					actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
-			return actions
+		return actions
 
 
 	def calculate_advantages(self, Q_values, baseline):
