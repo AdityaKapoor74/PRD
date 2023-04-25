@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "COMA_run"+str(i)
-		test_num = "COMA"
+		test_num = "PRESSURE PLATE"
 		env_name = "pressureplate-linear-6p-v0"
 
 		dictionary = {
