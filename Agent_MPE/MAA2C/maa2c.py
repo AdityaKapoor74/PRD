@@ -231,22 +231,14 @@ class MAA2C:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				start_env_time = time.process_time()
+				# start_env_time = time.process_time()
 
 				next_states,rewards,dones,info = self.env.step(actions)
 
-				end_env_time = time.process_time()
-				self.environment_time += end_env_time - start_env_time
+				# end_env_time = time.process_time()
+				# self.environment_time += end_env_time - start_env_time
 
 				next_states_critic,next_states_actor = self.split_states(next_states)
-
-				# next actions
-				next_actions = self.get_actions(next_states_actor)
-
-
-				one_hot_next_actions = np.zeros((self.num_agents,self.num_actions))
-				for i,act in enumerate(next_actions):
-					one_hot_next_actions[i][act] = 1
 
 
 				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
@@ -317,7 +309,7 @@ class MAA2C:
 					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_error_rate"), np.array(self.agents.error_rate), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"average_relevant_set"), np.array(self.agents.average_relevant_set), allow_pickle=True, fix_imports=True)
 
-		print("Environment Time:", self.environment_time/(self.max_episodes*self.max_time_steps))
-		print("Total Update Time:", (self.agents.update_time+self.agents.forward_time)/self.max_episodes)
-		print("Update Time:", self.agents.update_time/self.max_episodes)
-		print("Forward Time:", self.agents.forward_time/self.max_episodes)
+		# print("Environment Time:", self.environment_time/(self.max_episodes*self.max_time_steps))
+		# print("Total Update Time:", (self.agents.update_time+self.agents.forward_time)/self.max_episodes)
+		# print("Update Time:", self.agents.update_time/self.max_episodes)
+		# print("Forward Time:", self.agents.forward_time/self.max_episodes)
