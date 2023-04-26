@@ -44,7 +44,7 @@ if __name__ == '__main__':
 				"threshold_min": 0.0, 
 				"threshold_max": 0.04,
 				"steps_to_take": 1000, 
-				"network_update_interval": 100,
+				"network_update_interval": 1,
 				"l1_pen": 0.0,
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
