@@ -347,9 +347,10 @@ class A2CAgent:
 			target_V_values = torch.transpose(discounted_rewards,-1,-2)
 		elif self.critic_loss_type == "TD_lambda":
 			with torch.no_grad():
-				target_V_values, _ = self.target_critic_network.forward(states, probs.detach(), one_hot_actions)
-			target_V_values = target_V_values.reshape(self.update_after_episodes, -1, self.num_agents, self.num_agents)
-			target_V_values = self.build_td_lambda_targets(rewards.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), dones.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), target_V_values).reshape(-1, self.num_agents, self.num_agents)
+				old_V_values, _ = self.target_critic_network.forward(states, probs.detach(), one_hot_actions)
+			old_V_values = old_V_values.reshape(self.update_after_episodes, -1, self.num_agents, self.num_agents)
+			target_V_values = self.build_td_lambda_targets(rewards.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), dones.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), old_V_values).reshape(-1, self.num_agents, self.num_agents)
+			old_V_values = old_V_values.reshape(-1, self.num_agents, self.num_agents)
 
 		# end_forward_time = time.process_time()
 		# self.forward_time += end_forward_time - start_forward_time
@@ -367,7 +368,7 @@ class A2CAgent:
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
-		advantage, masking_advantage = self.calculate_advantages_based_on_exp(target_V_values, V_values, rewards, dones, weights_prd, episode)
+		advantage, masking_advantage = self.calculate_advantages_based_on_exp(old_V_values, V_values, rewards, dones, weights_prd, episode)
 
 		if "prd_avg" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
