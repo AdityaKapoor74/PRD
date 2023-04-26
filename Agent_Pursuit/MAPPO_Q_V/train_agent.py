@@ -192,12 +192,10 @@ class MAPPO:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.collision_rates.append(episode_collision_rate)
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
