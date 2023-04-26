@@ -18,40 +18,29 @@ class PPOAgent:
 
 		# Environment Setup
 		self.env = env
-		self.team_size = dictionary["team_size"]
 		self.env_name = dictionary["env"]
-		self.num_agents = self.env.n
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = self.env.num_agents
+		self.num_actions = self.env.action_space("pursuer_0").n
 
 		# Training setup
 		self.test_num = dictionary["test_num"]
 		self.gif = dictionary["gif"]
 		self.experiment_type = dictionary["experiment_type"]
-		self.num_relevant_agents_in_relevant_set = []
-		self.num_non_relevant_agents_in_relevant_set = []
-		self.false_positive_rate = []
 		self.n_epochs = dictionary["n_epochs"]
 		self.scheduler_need = dictionary["scheduler_need"]
 		if dictionary["device"] == "gpu":
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
-		assert self.num_agents%self.team_size == 0
-		self.num_teams = self.num_agents//self.team_size
-		self.relevant_set = torch.zeros(1,self.num_agents,self.num_agents).to(self.device)
-
-		for team_id in range(self.num_teams):
-			for i in range(self.num_agents):
-				if i >= team_id*self.team_size and i < (team_id+1)*self.team_size:
-					self.relevant_set[0][i][team_id*self.team_size:(team_id+1)*self.team_size] = torch.ones(self.team_size)
-
-		self.non_relevant_set = torch.ones(1,self.num_agents,self.num_agents).to(self.device) - self.relevant_set
-
+		
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
 		self.max_time_steps = dictionary["max_time_steps"]
 
+		self.height = dictionary["height"]
+		self.width = dictionary["width"]
+		self.channel = dictionary["channel"]
+
 		# Critic Setup
-		self.critic_observation_shape = dictionary["global_observation"]
 		self.q_value_lr = dictionary["q_value_lr"]
 		self.v_value_lr = dictionary["v_value_lr"]
 		self.q_weight_decay = dictionary["q_weight_decay"]
@@ -66,7 +55,6 @@ class PPOAgent:
 
 
 		# Actor Setup
-		self.actor_observation_shape = dictionary["local_observation"]
 		self.policy_lr = dictionary["policy_lr"]
 		self.policy_weight_decay = dictionary["policy_weight_decay"]
 		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
@@ -94,16 +82,16 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 		# obs_input_dim = 2*3+1 # crossing_team_greedy
 		# Q-V Network
-		self.critic_network_q = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
-		self.critic_network_q_old = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_q = Q_network(height=self.height, width=self.width, in_channel=self.channel, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_q_old = Q_network(height=self.height, width=self.width, in_channel=self.channel, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
 		# Copy network params
 		self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
 		# Disable updates for old network
 		for param in self.critic_network_q_old.parameters():
 			param.requires_grad_(False)
 
-		self.critic_network_v = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
-		self.critic_network_v_old = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_v = V_network(height=self.height, width=self.width, in_channel=self.channel, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_v_old = V_network(height=self.height, width=self.width, in_channel=self.channel, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
 		# Copy network params
 		self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
 		# Disable updates for old network
@@ -113,8 +101,8 @@ class PPOAgent:
 		
 		# Policy Network
 		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
-		self.policy_network = MLP_Policy(obs_input_dim=self.actor_observation_shape, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
-		self.policy_network_old = MLP_Policy(obs_input_dim=self.actor_observation_shape, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network = MLP_Policy(height=self.height, width=self.width, in_channel=self.channel, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
+		self.policy_network_old = MLP_Policy(height=self.height, width=self.width, in_channel=self.channel, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device).to(self.device)
 		# Copy network params
 		self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 		# Disable updates for old network
@@ -127,8 +115,9 @@ class PPOAgent:
 			num_episodes=self.update_ppo_agent, 
 			max_time_steps=self.max_time_steps, 
 			num_agents=self.num_agents, 
-			obs_shape_critic=self.critic_observation_shape, 
-			obs_shape_actor=self.actor_observation_shape, 
+			height=self.height,
+			width=self.width,
+			channel=self.channel,
 			num_actions=self.num_actions
 			)
 
@@ -167,8 +156,8 @@ class PPOAgent:
 
 	def get_action(self, state_policy, greedy=False):
 		with torch.no_grad():
-			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			dists = self.policy_network_old(state_policy)
+			state_policy = torch.FloatTensor(state_policy).permute(0, 3, 1, 2).to(self.device)
+			dists = self.policy_network_old(state_policy).squeeze(0)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 			else:
@@ -268,20 +257,6 @@ class PPOAgent:
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
 
-		# 	if "crossing_team_greedy" == self.env_name:
-		# 		self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
-		# 		self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)
-		# 		self.num_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]).item())
-		# 		self.num_non_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item())
-		# 		# FPR = FP / (FP+TN)
-		# 		FP = torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item()*self.num_agents
-		# 		TN = torch.mean(self.plotting_dict["true_negatives"]).item()*self.num_agents
-		# 		self.false_positive_rate.append(FP/(FP+TN))
-
-		# if "prd_top" in self.experiment_type:
-		# 	self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
-
-
 		# ENTROPY OF Q WEIGHTS
 		for i in range(self.num_heads):
 			entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_prd"][:,i]* torch.log(torch.clamp(self.plotting_dict["weights_prd"][:,i], 1e-10,1.0)), dim=2))
@@ -338,50 +313,6 @@ class PPOAgent:
 		return advantage.detach(), masking_rewards, mean_min_weight_value
 
 
-	# def calculate_advantages_Q_V(self, Q, V, weights_prd, dones, episode):
-	# 	'''
-	# 	Q : B x N x 1
-	# 	V : B x N x 1
-	# 	weights_prd: B x N x N x 1
-	# 	dones: B x N x 1
-	# 	episode : int
-	# 	'''
-	# 	advantage = None
-	# 	masking_advantage = None
-	# 	mean_min_weight_value = -1
-	# 	dones = dones.unsqueeze(-1)
-
-	# 	if "shared" in self.experiment_type:
-	# 		advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * (1-dones), dim=-1) - V # B x N x 1
-
-	# 	elif "prd_above_threshold" in self.experiment_type:
-	# 		# No masking until warm-up period ends
-	# 		if episode < self.steps_to_take:
-	# 			masking_advantage = torch.ones(weights_prd.shape).to(self.device)
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-	# 		else:
-	# 			masking_advantage = (weights_prd > self.select_above_threshold).int()
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-
-	# 	elif "top" in self.experiment_type:
-	# 		# No masking until warm-up period ends
-	# 		if episode < self.steps_to_take:
-	# 			masking_advantage = torch.ones(weights_prd.shape).to(self.device)
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-	# 			min_weight_values, _ = torch.min(weights_prd, dim=-1)
-	# 			mean_min_weight_value = torch.mean(min_weight_values)
-	# 		else:
-	# 			values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
-	# 			min_weight_values, _ = torch.min(values, dim=-1)
-	# 			mean_min_weight_value = torch.mean(min_weight_values)
-	# 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-		
-	# 	if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
-	# 		advantage = advantage*(self.num_agents/self.top_k)
-
-	# 	return advantage.detach(), masking_advantage, mean_min_weight_value
-
 	def update_parameters(self):
 		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
@@ -391,8 +322,7 @@ class PPOAgent:
 
 	def update(self, episode):
 		# convert list to tensor
-		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).reshape(-1, self.num_agents, self.critic_observation_shape)
-		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).reshape(-1, self.num_agents, self.actor_observation_shape)
+		old_states = torch.FloatTensor(np.array(self.buffer.states)).reshape(-1, self.height, self.width, self.channel).permute(0, 3, 1, 2)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).reshape(-1, self.num_agents, self.num_actions)
 		old_logprobs = torch.FloatTensor(self.buffer.logprobs).reshape(-1, self.num_agents)
@@ -420,12 +350,12 @@ class PPOAgent:
 
 			# OLD VALUES
 			Q_values_old, weights_prd_old, _ = self.critic_network_q_old(
-												old_states_critic.to(self.device),
+												old_states.to(self.device),
 												old_one_hot_actions.to(self.device)
 												)
 
 			Values_old, _, _ = self.critic_network_v_old(
-												old_states_critic.to(self.device),
+												old_states.to(self.device),
 												old_one_hot_actions.to(self.device)
 												)
 
@@ -477,17 +407,17 @@ class PPOAgent:
 			# 	)
 
 			Q_value, weights_prd, score_q = self.critic_network_q(
-				old_states_critic.to(self.device), 
+				old_states.to(self.device), 
 				old_one_hot_actions.to(self.device)
 				)
 			Value, weight_v, score_v = self.critic_network_v(
-				old_states_critic.to(self.device),  
+				old_states.to(self.device),  
 				old_one_hot_actions.to(self.device)
 				)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
-			dists = self.policy_network(old_states_actor.to(self.device))
+			dists = self.policy_network(old_states.to(self.device))
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions.to(self.device))
 
