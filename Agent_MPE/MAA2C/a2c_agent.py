@@ -400,7 +400,8 @@ class A2CAgent:
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			target_V_values = torch.transpose(discounted_rewards,-1,-2)
 		elif self.critic_loss_type == "TD_lambda":
-			target_V_values, _ = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
+			with torch.no_grad():
+				target_V_values, _ = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
 			target_V_values = target_V_values.reshape(self.update_after_episodes, -1, self.num_agents, self.num_agents)
 			target_V_values = self.build_td_lambda_targets(rewards.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), dones.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), target_V_values).reshape(-1, self.num_agents, self.num_agents)
 
