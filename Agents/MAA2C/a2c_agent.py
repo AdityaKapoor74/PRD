@@ -327,7 +327,7 @@ class A2CAgent:
 			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
 
-	def update(self,states, one_hot_actions, actions, rewards, dones, episode):
+	def update(self, states, one_hot_actions, actions, rewards, dones, episode):
 
 		'''
 		Getting the probability mass function over the action space for each agent
@@ -345,6 +345,7 @@ class A2CAgent:
 		if self.critic_loss_type == "MC":
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			target_V_values = torch.transpose(discounted_rewards,-1,-2)
+			old_V_values = target_V_values
 		elif self.critic_loss_type == "TD_lambda":
 			with torch.no_grad():
 				old_V_values, _ = self.target_critic_network.forward(states, probs.detach(), one_hot_actions)
