@@ -269,14 +269,14 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# MODEL
-				"learning_rate": 1e-3, #1e-3
-				"grad_clip": 0.5,
+				"learning_rate": 5e-4, #1e-3
+				"grad_clip": 10.0,
 				"rnn_hidden_dim": 64,
 				"hidden_dim": 64,
 				"norm_returns": False,
 				"soft_update": True,
 				"tau": 0.001,
-				"target_update_interval": 200,
+				"target_update_interval": 10,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
