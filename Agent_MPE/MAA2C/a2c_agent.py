@@ -399,6 +399,7 @@ class A2CAgent:
 		if self.critic_loss_type == "MC":
 			discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
 			target_V_values = torch.transpose(discounted_rewards,-1,-2)
+			old_V_values = target_V_values
 		elif self.critic_loss_type == "TD_lambda":
 			with torch.no_grad():
 				old_V_values, _ = self.target_critic_network.forward(states_critic, probs.detach(), one_hot_actions)
