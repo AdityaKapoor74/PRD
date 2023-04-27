@@ -292,7 +292,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 100000,
 				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -309,12 +309,12 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# MODEL
-				"learning_rate": 1e-4, #1e-3
-				"grad_clip": 0.5,
+				"learning_rate": 1e-3, #1e-3
+				"grad_clip": 10.0,
 				"rnn_hidden_dim": 64,
 				"hidden_dim": 64,
 				"norm_returns": False,
-				"soft_update": True,
+				"soft_update": False,
 				"tau": 0.001,
 				"target_update_interval": 200,
 			}
