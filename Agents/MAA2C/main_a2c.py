@@ -17,7 +17,7 @@ if __name__ == '__main__':
 		extension = "MAA2C_run_"+str(i)
 		test_num = "PRESSURE PLATE" 
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_above_threshold" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -29,14 +29,14 @@ if __name__ == '__main__':
 				"extension":extension,
 				"iteration": i,
 				"device": "gpu",
-				"value_lr": 1e-3, #1e-3 
+				"value_lr": 1e-4, #1e-3 
 				"policy_lr": 1e-4, #prd 1e-4
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"entropy_pen": 5e-2, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
-				"critic_loss_type": "TD_lambda",
+				"critic_loss_type": "MC",
 				"gamma": 0.99, 
 				"trace_decay": 0.95,
 				"lambda": 0.95, #0.8
