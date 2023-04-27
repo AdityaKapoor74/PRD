@@ -29,8 +29,8 @@ if __name__ == '__main__':
 				"extension":extension,
 				"iteration": i,
 				"device": "gpu",
-				"value_lr": 1e-4, #1e-3 
-				"policy_lr": 1e-4, #prd 1e-4
+				"value_lr": 1e-5, #1e-3 
+				"policy_lr": 1e-5, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
 				"entropy_pen": 5e-1, #8e-3
