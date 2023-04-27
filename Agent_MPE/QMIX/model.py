@@ -28,6 +28,32 @@ class RNNQNetwork(nn.Module):
 		return Q_a_values
 
 
+class AgentQNetwork(nn.Module):
+	def __init__(self, num_inputs, num_actions):
+		super(AgentQNetwork, self).__init__()
+
+		self.QNet = nn.Sequential(
+			nn.Linear(num_inputs+num_actions, 128),
+			nn.GELU(),
+			nn.Linear(128, 64),
+			nn.GELU(),
+			nn.Linear(64, num_actions)
+			)
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+
+		# EMBEDDINGS
+		nn.init.xavier_uniform_(self.QNet[0].weight)
+		nn.init.xavier_uniform_(self.QNet[2].weight)
+		nn.init.xavier_uniform_(self.QNet[4].weight)
+
+	def forward(self, states_actions):
+		return self.QNet(states_actions)
+
+
 class QMIXNetwork(nn.Module):
 	def __init__(self, num_agents, hidden_dim, total_obs_dim):
 		super(QMIXNetwork, self).__init__()
@@ -36,26 +62,42 @@ class QMIXNetwork(nn.Module):
 
 		self.hyper_w1 = nn.Sequential(
 			nn.Linear(total_obs_dim, hidden_dim),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			nn.Linear(hidden_dim, num_agents * hidden_dim)
 			)
 		self.hyper_b1 = nn.Sequential(
 			nn.Linear(total_obs_dim, hidden_dim),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			nn.Linear(hidden_dim, hidden_dim)
 			)
 		self.hyper_w2 = nn.Sequential(
 			nn.Linear(total_obs_dim, hidden_dim),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			nn.Linear(hidden_dim, hidden_dim)
 			)
 		self.hyper_b2 = nn.Sequential(
 			nn.Linear(total_obs_dim, hidden_dim),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			nn.Linear(hidden_dim, 1)
 			)
 
 		# self.apply(weights_init)
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+
+		# EMBEDDINGS
+		nn.init.xavier_uniform_(self.hyper_w1[0].weight)
+		nn.init.xavier_uniform_(self.hyper_w1[2].weight)
+
+		nn.init.xavier_uniform_(self.hyper_b1[0].weight)
+		nn.init.xavier_uniform_(self.hyper_b1[2].weight)
+
+		nn.init.xavier_uniform_(self.hyper_w2[0].weight)
+		nn.init.xavier_uniform_(self.hyper_w2[2].weight)
+
+		nn.init.xavier_uniform_(self.hyper_b2[0].weight)
+		nn.init.xavier_uniform_(self.hyper_b2[2].weight)
 
 	def forward(self, q_values, total_obs):
 		q_values = q_values.reshape(-1, 1, self.num_agents)
