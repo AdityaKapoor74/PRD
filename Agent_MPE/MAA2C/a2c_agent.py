@@ -422,7 +422,7 @@ class A2CAgent:
 		# policy entropy
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
 
-		advantage, masking_advantage = self.calculate_advantages_based_on_exp(target_V_values, V_values, rewards, dones, weights_prd, episode)
+		advantage, masking_advantage = self.calculate_advantages_based_on_exp(old_V_values, V_values, rewards, dones, weights_prd, episode)
 
 		if "prd_avg" in self.experiment_type:
 			agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
