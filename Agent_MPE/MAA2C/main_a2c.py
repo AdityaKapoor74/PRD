@@ -54,7 +54,7 @@ if __name__ == '__main__':
 				"entropy_pen": 8e-3, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
-				"critic_loss_type": "TD_lambda",
+				"critic_loss_type": "MC",
 				"gamma": 0.99, 
 				"trace_decay": 0.95,
 				"lambda": 0.95, #0.8
