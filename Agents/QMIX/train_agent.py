@@ -94,7 +94,7 @@ class QMIX:
 				print("Policy Eval Directory created successfully") 
 			except OSError as error: 
 				print("Policy Eval Directory can not be created")
-				
+
 
 
 	def make_gif(self,images,fname,fps=10, scale=1.0):
@@ -252,8 +252,8 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 50000,
-				"max_time_steps": 100,
+				"max_episodes": 100000,
+				"max_time_steps": 70,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 500,
@@ -262,7 +262,7 @@ if __name__ == '__main__':
 				"num_updates": 1,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.1,
-				"epsilon_greedy_decay_episodes": 5000,
+				"epsilon_greedy_decay_episodes": 10000,
 				"lambda": 0.8,
 
 				# ENVIRONMENT
