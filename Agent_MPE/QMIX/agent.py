@@ -59,7 +59,7 @@ class QMIXAgent:
 		self.QMix_network = QMIXNetwork(self.num_agents, self.hidden_dim, self.obs_input_dim * self.num_agents).to(self.device)
 		self.target_QMix_network = QMIXNetwork(self.num_agents, self.hidden_dim, self.obs_input_dim * self.num_agents).to(self.device)
 
-		self.loss_fn = nn.HuberLoss()
+		self.loss_fn = nn.HuberLoss(reduction="sum")
 
 		self.model_parameters = list(self.Q_network.parameters()) + list(self.QMix_network.parameters())
 		self.optimizer = Adam(self.model_parameters, lr=self.learning_rate)
@@ -191,7 +191,7 @@ class QMIXAgent:
 
 		Q_values = self.Q_network(final_state.to(self.device))
 		Q_a_values = torch.gather(Q_values, dim=-1, index=actions_batch.unsqueeze(-1).to(self.device)).squeeze(-1)
-		Q_mix_values = self.QMix_network(Q_a_values, state_batch.reshape(state_batch.shape[0], state_batch.shape[1], -1)).reshape(state_batch.shape[0], state_batch.shape[1], 1)
+		Q_mix_values = self.QMix_network(Q_a_values, state_batch.reshape(state_batch.shape[0], state_batch.shape[1], -1)).reshape(state_batch.shape[0], state_batch.shape[1], 1)*mask_batch.unsqueeze(-1).to(self.device)
 
 		# Calcuate Q targets with TD-lambda
 		with torch.no_grad():
@@ -200,7 +200,7 @@ class QMIXAgent:
 			target_Q_mix_values = self.target_QMix_network(target_Q_a_values, state_batch.reshape(state_batch.shape[0], state_batch.shape[1], -1)).reshape(state_batch.shape[0], state_batch.shape[1], 1)
 			target_Q_mix_values = self.build_td_lambda_targets(reward_batch.unsqueeze(-1).to(self.device), done_batch.unsqueeze(-1).to(self.device), mask_batch.to(self.device), target_Q_mix_values)
 
-		Q_loss = self.loss_fn(Q_mix_values, target_Q_mix_values)
+		Q_loss = self.loss_fn(Q_mix_values, target_Q_mix_values) / torch.sum(mask_batch)
 
 		self.optimizer.zero_grad()
 		Q_loss.backward()
