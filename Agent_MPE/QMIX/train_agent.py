@@ -286,10 +286,10 @@ if __name__ == '__main__':
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 50000,
@@ -298,10 +298,11 @@ if __name__ == '__main__':
 				"scheduler_need": False,
 				"replay_buffer_size": 500,
 				"batch_size": 32,
-				"update_episode_interval": 5,
+				"update_episode_interval": 1,
+				"num_updates": 1,
 				"epsilon_greedy": 1.0,
-				"epsilon_greedy_min": 0.05,
-				"epsilon_greedy_decay_episodes": 500,
+				"epsilon_greedy_min": 0.1,
+				"epsilon_greedy_decay_episodes": 5000,
 				"lambda": 0.8,
 
 				# ENVIRONMENT
@@ -309,12 +310,12 @@ if __name__ == '__main__':
 
 				# MODEL
 				"learning_rate": 1e-4, #1e-3
-				"grad_clip": 10.0,
-				"rnn_hidden_dim": 256,
-				"hidden_dim": 256,
+				"grad_clip": 0.5,
+				"rnn_hidden_dim": 64,
+				"hidden_dim": 64,
 				"norm_returns": False,
-				"soft_update": False,
-				"tau": 0.05,
+				"soft_update": True,
+				"tau": 0.001,
 				"target_update_interval": 200,
 			}
 
