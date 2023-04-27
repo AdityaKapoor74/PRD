@@ -303,7 +303,7 @@ if __name__ == '__main__':
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.1,
 				"epsilon_greedy_decay_episodes": 5000,
-				"lambda": 0.8,
+				"lambda": 1.0,
 
 				# ENVIRONMENT
 				"env": env_name,
