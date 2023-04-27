@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"policy_lr": 1e-4, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 1e-2, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "TD_lambda",
