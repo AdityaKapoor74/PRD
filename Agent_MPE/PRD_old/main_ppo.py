@@ -74,7 +74,7 @@ if __name__ == '__main__':
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 0.0, #8e-3
+				"entropy_pen": 5e-1, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
