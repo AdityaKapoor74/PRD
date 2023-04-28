@@ -17,7 +17,7 @@ if __name__ == '__main__':
 		extension = "MAA2C_run_"+str(i)
 		test_num = "PRESSURE PLATE" 
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "shared" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
