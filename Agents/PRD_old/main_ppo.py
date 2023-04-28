@@ -43,7 +43,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 100000,
+				"max_episodes": 30000,
 				"max_time_steps": 70,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -54,7 +54,7 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"value_lr": 3e-4, #1e-3
+				"value_lr": 1e-4, #1e-3
 				"value_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
 				"value_clip": 0.05,
@@ -80,7 +80,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"norm_adv": False,
 
-				"network_update_interval": 100,
+				"network_update_interval": 1,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
