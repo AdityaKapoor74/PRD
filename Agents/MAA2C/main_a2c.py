@@ -50,6 +50,7 @@ if __name__ == '__main__':
 				"l1_pen_steps_to_take": 0,
 				"top_k": 0,
 				"update_after_episodes": 5,
+				"update_epochs": 5,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
