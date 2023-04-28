@@ -19,8 +19,8 @@ class PPOAgent:
 		# Environment Setup
 		self.env = env
 		self.env_name = dictionary["env"]
-		self.num_agents = self.env.n_agents
-		self.num_actions = 5
+		self.num_agents = self.env.n
+		self.num_actions = self.env.action_space[0].n
 
 		# Training setup
 		self.test_num = dictionary["test_num"]
@@ -116,7 +116,8 @@ class PPOAgent:
 			num_episodes=self.update_ppo_agent, 
 			max_time_steps=self.max_time_steps, 
 			num_agents=self.num_agents, 
-			obs_shape=self.critic_observation_shape,
+			obs_shape_critic=self.critic_observation_shape, 
+			obs_shape_actor=self.actor_observation_shape, 
 			num_actions=self.num_actions
 			)
 
@@ -320,7 +321,8 @@ class PPOAgent:
 
 	def update(self, episode):
 
-		old_states = torch.FloatTensor(np.array(self.buffer.states)).reshape(-1, self.num_agents, self.critic_observation_shape)
+		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).reshape(-1, self.num_agents, self.critic_observation_shape)
+		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).reshape(-1, self.num_agents, self.actor_observation_shape)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).reshape(-1, self.num_agents, self.num_actions)
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
@@ -328,10 +330,10 @@ class PPOAgent:
 		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 
 		with torch.no_grad():
-			old_dists = self.target_policy_network(old_states.to(self.device))
+			old_dists = self.target_policy_network(old_states_actor.to(self.device))
 			old_probs = Categorical(old_dists.squeeze(0))
 			old_logprobs = old_probs.log_prob(old_actions.to(self.device))
-			V_values_old, _ = self.target_critic_network(old_states.to(self.device), old_dists, old_one_hot_actions.to(self.device))
+			V_values_old, _ = self.target_critic_network(old_states_critic.to(self.device), old_dists, old_one_hot_actions.to(self.device))
 			V_values_old = V_values_old.reshape(-1, self.num_agents, self.num_agents)
 
 		target_V_values = self.build_td_lambda_targets(rewards.unsqueeze(-1).to(self.device), dones.unsqueeze(-1).to(self.device), masks.unsqueeze(-1).to(self.device), V_values_old.reshape(self.update_ppo_agent, -1, self.num_agents, self.num_agents)).reshape(-1, self.num_agents, self.num_agents)
@@ -355,14 +357,14 @@ class PPOAgent:
 			'''
 			# start_forward_time = time.process_time()
 
-			dists = self.policy_network(old_states.to(self.device))
+			dists = self.policy_network(old_states_actor.to(self.device))
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions.to(self.device))
 
 			'''
 			Calculate V values
 			'''
-			V_values, weights_value = self.critic_network(old_states.to(self.device), dists.detach(), old_one_hot_actions.to(self.device))
+			V_values, weights_value = self.critic_network(old_states_critic.to(self.device), dists.detach(), old_one_hot_actions.to(self.device))
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
 		
 
