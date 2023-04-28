@@ -397,7 +397,7 @@ class PPOAgent:
 
 			self.critic_optimizer.zero_grad()
 			value_loss.backward(retain_graph=False)
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
+			# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
 			self.critic_optimizer.step()
 
 
