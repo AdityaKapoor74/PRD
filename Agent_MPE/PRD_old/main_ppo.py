@@ -39,7 +39,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 2,
+				"n_epochs": 5,
 				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 				# CRITIC
 				"value_lr": 1e-4, #1e-3
 				"value_weight_decay": 5e-4,
-				"grad_clip_critic": 0.5,
+				"grad_clip_critic": 10.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 4,
@@ -79,11 +79,11 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
-				"grad_clip_actor": 0.5,
+				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 2e-1, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
