@@ -42,7 +42,7 @@ if __name__ == '__main__':
 				"lambda": 0.95, #0.8
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.16,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000, 
 				"network_update_interval": 1,
 				"l1_pen": 0.0,
