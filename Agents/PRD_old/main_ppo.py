@@ -75,7 +75,7 @@ if __name__ == '__main__':
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.05,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
