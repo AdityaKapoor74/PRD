@@ -236,7 +236,7 @@ class PPOAgent:
 	def plot(self, episode):
 	
 		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["value_loss"],episode)
-		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
+		self.comet_ml.log_metric('Grad_Norm_V_Value',self.plotting_dict["grad_norm_value"],episode)
 		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
@@ -247,7 +247,6 @@ class PPOAgent:
 				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
-			self.average_relevant_set.append(self.plotting_dict["avg_agent_group_over_episode"].item())
 
 
 		if "prd_top" in self.experiment_type:
