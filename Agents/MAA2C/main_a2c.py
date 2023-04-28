@@ -17,7 +17,7 @@ if __name__ == '__main__':
 		extension = "MAA2C_run_"+str(i)
 		test_num = "PRESSURE PLATE" 
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "shared" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -33,7 +33,7 @@ if __name__ == '__main__':
 				"policy_lr": 5e-5, #prd 1e-4
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
-				"entropy_pen": 5e-1, #8e-3
+				"entropy_pen": 8e-1, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "MC",
