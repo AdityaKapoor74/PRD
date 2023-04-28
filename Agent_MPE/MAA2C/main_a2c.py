@@ -35,7 +35,7 @@ if __name__ == '__main__':
 		extension = "MAA2C_run_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE" 
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold" # prd_above_threshold_ascend, greedy, shared
+		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"policy_lr": 1e-4, #prd 1e-4
 				"grad_clip_critic": 0.5,
 				"grad_clip_actor": 0.5,
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 0.0, #8e-3
 				"entropy_pen_min": 0.0, #8e-3
 				"critic_entropy_pen": 0.0,
 				"critic_loss_type": "MC",
@@ -67,7 +67,8 @@ if __name__ == '__main__':
 				"l1_pen_min": 0.0,
 				"l1_pen_steps_to_take": 0,
 				"top_k": 0,
-				"update_after_episodes": 1,
+				"update_after_episodes": 5,
+				"update_epochs": 5,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
