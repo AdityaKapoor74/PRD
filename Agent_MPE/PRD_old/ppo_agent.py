@@ -401,8 +401,8 @@ class PPOAgent:
 			grad_norm_value = 0
 			for p in self.critic_network.parameters():
 				param_norm = p.grad.detach().data.norm(2)
-				total_norm += param_norm.item() ** 2
-			grad_norm_value = total_norm ** 0.5
+				grad_norm_value += param_norm.item() ** 2
+			grad_norm_value = torch.tensor(grad_norm_value) ** 0.5
 			self.critic_optimizer.step()
 
 
