@@ -5,6 +5,7 @@ import torch.optim as optim
 from torch.distributions import Categorical
 from a2c_model import *
 import torch.nn.functional as F
+from utils import RolloutBuffer
 
 class A2CAgent:
 
@@ -15,68 +16,64 @@ class A2CAgent:
 		comet_ml,
 		):
 
+		# Environment Setup
 		self.env = env
-		self.test_num = dictionary["test_num"]
 		self.env_name = dictionary["env"]
-		self.value_lr = dictionary["value_lr"]
-		self.policy_lr = dictionary["policy_lr"]
-		self.update_epochs = dictionary["update_epochs"]
-		self.update_after_episodes = dictionary["update_after_episodes"]
-		self.network_update_interval = dictionary["network_update_interval"]
-		self.l1_pen = dictionary["l1_pen"]
-		self.l1_pen_min = dictionary["l1_pen_min"]
-		self.l1_pen_steps_to_take = dictionary["l1_pen_steps_to_take"]
-		self.critic_entropy_pen = dictionary["critic_entropy_pen"]
-		self.gamma = dictionary["gamma"]
-		self.entropy_pen = dictionary["entropy_pen"]
-		self.entropy_pen_min = dictionary["entropy_pen_min"]
-		self.entropy_delta = (self.entropy_pen - self.entropy_pen_min) / dictionary["max_episodes"]
-		self.trace_decay = dictionary["trace_decay"]
-		self.top_k = dictionary["top_k"]
-		self.gae = dictionary["gae"]
-		self.critic_loss_type = dictionary["critic_loss_type"]
-		self.norm_adv = dictionary["norm_adv"]
-		self.norm_rew = dictionary["norm_rew"]
+		self.num_agents = self.env.n_agents
+		self.num_actions = 5
+
+		# Training setup
+		self.test_num = dictionary["test_num"]
 		self.gif = dictionary["gif"]
-		# TD lambda
-		self.lambda_ = dictionary["lambda"]
 		self.experiment_type = dictionary["experiment_type"]
-		# Used for masking advantages above a threshold
-		self.select_above_threshold = dictionary["select_above_threshold"]
-		self.threshold_min = dictionary["threshold_min"]
-		self.threshold_max = dictionary["threshold_max"]
-		self.steps_to_take = dictionary["steps_to_take"]
-		if "prd_above_threshold_decay" in self.experiment_type:
-			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
-		elif "prd_above_threshold_ascend" in self.experiment_type:
-			self.threshold_delta = (self.threshold_max - self.select_above_threshold)/self.steps_to_take
-
-		if "prd_above_threshold_l1_pen_decay" in self.experiment_type:
-			self.l1_pen_delta = (self.l1_pen - self.l1_pen_min)/self.l1_pen_steps_to_take
-
+		self.false_positive_rate = []
+		self.n_epochs = dictionary["n_epochs"]
+		self.scheduler_need = dictionary["scheduler_need"]
 		if dictionary["device"] == "gpu":
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
 
-		self.grad_clip_critic = dictionary["grad_clip_critic"]
-		self.grad_clip_actor = dictionary["grad_clip_actor"]
-
-		self.critic_observation_shape = dictionary["global_observation"]
-		self.actor_observation_shape = dictionary["local_observation"]
-
-		self.error_rate = []
-		self.average_relevant_set = []
+		self.update_ppo_agent = dictionary["update_ppo_agent"]
+		self.max_time_steps = dictionary["max_time_steps"]
 		
-		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
-		self.episode = 0
+		# Critic Setup
+		self.critic_observation_shape = dictionary["global_observation"]
+		self.value_lr = dictionary["value_lr"]
+		self.value_weight_decay = dictionary["value_weight_decay"]
+		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
+		self.critic_score_regularizer = dictionary["critic_score_regularizer"]
+		self.lambda_ = dictionary["lambda"] # TD lambda
+		self.value_clip = dictionary["value_clip"]
+		self.num_heads = dictionary["num_heads"]
+		self.grad_clip_critic = dictionary["grad_clip_critic"]
+
+
+		# Actor Setup
+		self.actor_observation_shape = dictionary["local_observation"]
+		self.policy_lr = dictionary["policy_lr"]
+		self.policy_weight_decay = dictionary["policy_weight_decay"]
+		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
+		self.gamma = dictionary["gamma"]
+		self.entropy_pen = dictionary["entropy_pen"]
+		self.gae_lambda = dictionary["gae_lambda"]
+		self.top_k = dictionary["top_k"]
+		self.norm_adv = dictionary["norm_adv"]
+		self.norm_returns = dictionary["norm_returns"]
+		self.threshold_min = dictionary["threshold_min"]
+		self.threshold_max = dictionary["threshold_max"]
+		self.steps_to_take = dictionary["steps_to_take"]
+		self.policy_clip = dictionary["policy_clip"]
+		self.grad_clip_actor = dictionary["grad_clip_actor"]
+		
+		self.select_above_threshold = dictionary["select_above_threshold"]
+		if "prd_above_threshold_decay" in self.experiment_type:
+			self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
+		elif "prd_above_threshold_ascend" in self.experiment_type:
+			self.threshold_delta = (self.threshold_max - self.select_above_threshold)/self.steps_to_take
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
-		# obs_input_dim = 2*3 + 1 # crossing team greedy
-		# obs_input_dim = 2*3 # crossing_greedy
-		# obs_input_dim = 2*4 # paired_agent
 		self.critic_network = TransformerCritic(
 			obs_input_dim=self.critic_observation_shape,
 			obs_act_input_dim=self.critic_observation_shape+self.num_actions, 
@@ -92,14 +89,36 @@ class A2CAgent:
 
 		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
-		# POLICY
-		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1) # crossing_team_greedy
-		# obs_input_dim = 2*3 + (self.num_agents-1)*4 # crossing_greedy
-		# obs_input_dim = 2*3*self.num_agents # paired_agent
+		# Disable updates for old network
+		for param in self.target_critic_network.parameters():
+			param.requires_grad_(False)
+
 		self.policy_network = Policy(obs_input_dim=self.actor_observation_shape, 
 			num_agents=self.num_agents, 
 			num_actions=self.num_actions, 
 			device=self.device).to(self.device)
+
+		self.target_policy_network = Policy(obs_input_dim=self.actor_observation_shape, 
+			num_agents=self.num_agents, 
+			num_actions=self.num_actions, 
+			device=self.device).to(self.device)
+
+		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
+
+		# Disable updates for old network
+		for param in self.target_policy_network.parameters():
+			param.requires_grad_(False)
+
+		self.network_update_interval = dictionary["network_update_interval"]
+
+
+		self.buffer = RolloutBuffer(
+			num_episodes=self.update_ppo_agent, 
+			max_time_steps=self.max_time_steps, 
+			num_agents=self.num_agents, 
+			obs_shape=self.critic_observation_shape,
+			num_actions=self.num_actions
+			)
 
 		
 		if dictionary["load_models"]:
@@ -114,8 +133,12 @@ class A2CAgent:
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 		
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr, weight_decay=5e-4)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=5e-4)
+		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr, weight_decay=self.value_weight_decay)
+		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=self.policy_weight_decay)
+
+		if self.scheduler_need:
+			self.scheduler_policy = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
+			self.scheduler_value = optim.lr_scheduler.MultiStepLR(self.critic_optimizer, milestones=[1000, 20000], gamma=0.1)
 
 
 		self.comet_ml = None
@@ -123,39 +146,32 @@ class A2CAgent:
 			self.comet_ml = comet_ml
 
 
-		self.update_time = 0.0
-		self.forward_time = 0.0
-
-
-	def get_action(self,state):
+	def get_actions(self,state):
 		with torch.no_grad():
 			state = torch.FloatTensor(state).to(self.device)
-			dists = self.policy_network.forward(state)
+			dists = self.target_policy_network.forward(state)
 			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+
 			return actions
 
 
-	def calculate_advantages(self, target_values, values, rewards, dones):
+	def calculate_advantages(self, target_values, values, rewards, dones, masks_):
 		
-		advantages = None
+		advantages = []
+		next_value = 0
+		advantage = 0
+		rewards = rewards.unsqueeze(-1)
+		dones = dones.unsqueeze(-1)
+		masks_ = masks_.unsqueeze(-1)
+		masks = 1 - dones
+		for t in reversed(range(0, len(rewards))):
+			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			next_value = target_values.data[t]
+			
+			advantage = td_error + (self.gamma * self.gae_lambda * advantage * masks[t]) * masks_[t]
+			advantages.insert(0, advantage)
 
-		if self.gae:
-			advantages = []
-			next_value = 0
-			advantage = 0
-			rewards = rewards.unsqueeze(-1)
-			dones = dones.unsqueeze(-1)
-			masks = 1 - dones
-			for t in reversed(range(0, len(rewards))):
-				td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-				next_value = target_values.data[t]
-				
-				advantage = td_error + (self.gamma * self.trace_decay * advantage * masks[t])
-				advantages.insert(0, advantage)
-
-			advantages = torch.stack(advantages)	
-		else:
-			advantages = target_values - values
+		advantages = torch.stack(advantages)
 		
 		if self.norm_adv:
 			advantages = (advantages - advantages.mean()) / advantages.std()
@@ -201,7 +217,7 @@ class A2CAgent:
 			
 		return returns_tensor
 
-	def build_td_lambda_targets(self, rewards, terminated, target_qs):
+	def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
 		# Initialise  last  lambda -return  for  not  terminated  episodes
 		ret = target_qs.new_zeros(*target_qs.shape)
@@ -209,8 +225,8 @@ class A2CAgent:
 		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
 		# Backwards  recursive  update  of the "forward  view"
 		for t in range(ret.shape[1] - 2, -1, -1):
-			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + \
-						(rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
+			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t].unsqueeze(-1) \
+						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
 		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
 		# return ret[:, 0:-1]
 		return ret
@@ -241,51 +257,37 @@ class A2CAgent:
 		entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"]* torch.log(torch.clamp(self.plotting_dict["weights_value"], 1e-10,1.0)), dim=2))
 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
 
-		
-	def calculate_value_loss(self, V_values, target_V_values, weights):
-		value_loss = F.smooth_l1_loss(V_values, target_V_values)
 
-		if self.l1_pen !=0 and self.critic_entropy_pen != 0:
-			weights_ = weights
-			weights_off_diagonal = weights_ * (1 - torch.eye(self.num_agents,device=self.device))
-			l1_weights = torch.mean(weights_off_diagonal)
-			weight_entropy = -torch.mean(torch.sum(weights_ * torch.log(torch.clamp(weights_, 1e-10,1.0)), dim=2))
-
-			value_loss += self.l1_pen*l1_weights + self.critic_entropy_pen*weight_entropy
-
-		return value_loss
-
-
-	def calculate_advantages_based_on_exp(self, target_values, V_values, rewards, dones, weights_prd, episode):
+	def calculate_advantages_based_on_exp(self, target_values, V_values, rewards, dones, weights_prd, masks, episode):
 		# summing across each agent j to get the advantage
 		# so we sum across the second last dimension which does A[t,j] = sum(V[t,i,j] - target_values[t,i])
 		advantage = None
 		masking_advantage = None
 		if "shared" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks),dim=-2)
 		elif "prd_soft_adv" in self.experiment_type:
 			if episode < self.steps_to_take:
-				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks),dim=-2)
 			else:
-				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * torch.transpose(weights_prd,-1,-2) ,dim=-2)
 		elif "prd_averaged" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
-			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * torch.transpose(avg_weights,-1,-2) ,dim=-2)
 		elif "prd_avg_top" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
 			values, indices = torch.topk(avg_weights,k=self.top_k,dim=-1)
 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "prd_avg_above_threshold" in self.experiment_type:
 			avg_weights = torch.mean(weights_prd,dim=0)
 			masking_advantage = (avg_weights>self.select_above_threshold).int()
-			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "prd_above_threshold" in self.experiment_type:
 			masking_advantage = (weights_prd>self.select_above_threshold).int()
-			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "top" in self.experiment_type:
 			if episode < self.steps_to_take:
-				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks),dim=-2)
 				min_weight_values, _ = torch.min(weights_prd, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
 			else:
@@ -293,11 +295,11 @@ class A2CAgent:
 				min_weight_values, _ = torch.min(values, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
 				masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * torch.transpose(masking_advantage,-1,-2),dim=-2)
+				advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * torch.transpose(masking_advantage,-1,-2),dim=-2)
 		elif "greedy" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * self.greedy_policy ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * self.greedy_policy ,dim=-2)
 		elif "relevant_set" in self.experiment_type:
-			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones) * self.relevant_set ,dim=-2)
+			advantage = torch.sum(self.calculate_advantages(target_values, V_values, rewards, dones, masks) * self.relevant_set ,dim=-2)
 
 		if "scaled" in self.experiment_type and episode > self.steps_to_take:
 			if "prd_soft_adv" in self.experiment_type:
@@ -307,15 +309,8 @@ class A2CAgent:
 
 		return advantage, masking_advantage
 
-	def calculate_policy_loss(self, probs, actions, entropy, advantage):
-		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions) * advantage.detach()
-		policy_loss = policy_loss.mean() - self.entropy_pen*entropy
-
-		return policy_loss
 
 	def update_parameters(self):
-		self.episode += 1
 
 		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
@@ -323,12 +318,24 @@ class A2CAgent:
 		if self.threshold_max >= self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
 
-		# annealing entropy pen
-		if self.entropy_pen > 0:
-			self.entropy_pen = self.entropy_pen - self.entropy_delta
 
+	def update(self, episode):
 
-	def update(self, states, one_hot_actions, actions, rewards, dones, episode):
+		old_states = torch.FloatTensor(np.array(self.buffer.states)).reshape(-1, self.num_agents, self.critic_observation_shape)
+		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
+		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).reshape(-1, self.num_agents, self.num_actions)
+		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
+		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
+		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
+
+		with torch.no_grad():
+			old_dists = self.target_policy_network(old_states.to(self.device))
+			old_probs = Categorical(old_dists.squeeze(0))
+			old_logprobs = old_probs.log_prob(old_actions.to(self.device))
+			V_values_old, _ = self.target_critic_network(old_states.to(self.device), old_dists, old_one_hot_actions.to(self.device))
+			V_values_old = V_values_old.reshape(-1, self.num_agents, self.num_agents)
+
+		target_V_values = self.build_td_lambda_targets(rewards.unsqueeze(-1).to(self.device), dones.unsqueeze(-1).to(self.device), masks.unsqueeze(-1).to(self.device), V_values_old.reshape(self.update_ppo_agent, -1, self.num_agents, self.num_agents)).reshape(-1, self.num_agents, self.num_agents)
 
 		value_loss_batch = 0.0
 		policy_loss_batch = 0.0
@@ -337,50 +344,36 @@ class A2CAgent:
 		grad_norm_policy_batch = 0.0
 		weights_value_batch = None
 
+		rewards = rewards.reshape(-1, self.num_agents)
+		dones = dones.reshape(-1, self.num_agents)
+		masks = masks.reshape(-1, 1)
 
-		for _ in range(self.update_epochs):
+
+		for _ in range(self.n_epochs):
 
 			'''
 			Getting the probability mass function over the action space for each agent
 			'''
 			# start_forward_time = time.process_time()
 
-			probs = self.policy_network.forward(states)
+			dists = self.policy_network(old_states.to(self.device))
+			probs = Categorical(dists.squeeze(0))
+			logprobs = probs.log_prob(old_actions.to(self.device))
 
 			'''
 			Calculate V values
 			'''
-			V_values, weights_value = self.critic_network.forward(states, probs.detach(), one_hot_actions)
+			V_values, weights_value = self.critic_network(old_states.to(self.device), dists.detach(), old_one_hot_actions.to(self.device))
 			V_values = V_values.reshape(-1,self.num_agents,self.num_agents)
-
-			if self.critic_loss_type == "MC":
-				discounted_rewards = self.calculate_returns(rewards,self.gamma).unsqueeze(-2).repeat(1,self.num_agents,1).to(self.device)
-				target_V_values = torch.transpose(discounted_rewards,-1,-2)
-				old_V_values = target_V_values
-			elif self.critic_loss_type == "TD_lambda":
-				with torch.no_grad():
-					old_V_values, _ = self.target_critic_network.forward(states, probs.detach(), one_hot_actions)
-				old_V_values = old_V_values.reshape(self.update_after_episodes, -1, self.num_agents, self.num_agents)
-				target_V_values = self.build_td_lambda_targets(rewards.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), dones.reshape(self.update_after_episodes, -1, self.num_agents).unsqueeze(-1), old_V_values).reshape(-1, self.num_agents, self.num_agents)
-				old_V_values = old_V_values.reshape(-1, self.num_agents, self.num_agents)
-
-			# end_forward_time = time.process_time()
-			# self.forward_time += end_forward_time - start_forward_time
-
-			# target_V_values = V_values.clone()
-
-			if "prd" in self.experiment_type:
-				weights_prd = weights_value
-			else:
-				weights_prd = None
 		
 
-			value_loss = self.calculate_value_loss(V_values, target_V_values, weights_value)
-		
-			# policy entropy
-			entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=2))
+			# value_loss = self.calculate_value_loss(V_values, target_V_values, weights_value)
+			critic_v_loss_1 = F.mse_loss(V_values*masks.unsqueeze(-1).to(self.device), target_V_values*masks.unsqueeze(-1).to(self.device), reduction="sum") / masks.sum()
+			critic_v_loss_2 = F.mse_loss(torch.clamp(V_values, V_values_old.to(self.device)-self.value_clip, V_values_old.to(self.device)+self.value_clip)*masks.unsqueeze(-1).to(self.device), target_V_values*masks.unsqueeze(-1).to(self.device), reduction="sum") / masks.sum()
 
-			advantage, masking_advantage = self.calculate_advantages_based_on_exp(old_V_values, V_values, rewards, dones, weights_prd, episode)
+			value_loss = torch.max(critic_v_loss_1, critic_v_loss_2)
+
+			advantage, masking_advantage = self.calculate_advantages_based_on_exp(V_values_old, V_values, rewards.to(self.device), dones.to(self.device), weights_value, masks.to(self.device), episode)
 
 			if "prd_avg" in self.experiment_type:
 				agent_groups_over_episode = torch.sum(masking_advantage,dim=0)
@@ -388,13 +381,19 @@ class A2CAgent:
 			elif "threshold" in self.experiment_type:
 				agent_groups_over_episode = torch.sum(torch.sum(masking_advantage.float(), dim=-2),dim=0)/masking_advantage.shape[0]
 				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-		
-			policy_loss = self.calculate_policy_loss(probs, actions, entropy, advantage)
-			# # ***********************************************************************************
 			
-			# start_update_time = time.process_time()
 
-			# **********************************
+			# Finding the ratio (pi_theta / pi_theta__old)
+			ratios = torch.exp(logprobs - old_logprobs.to(self.device))
+			# Finding Surrogate Loss
+			surr1 = ratios * advantage*masks.to(self.device)
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage * masks.to(self.device)
+
+			# final loss of clipped objective PPO
+			entropy = -torch.mean(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=2))
+			policy_loss = (-torch.min(surr1, surr2).mean() - self.entropy_pen*entropy)
+
+
 			self.critic_optimizer.zero_grad()
 			value_loss.backward(retain_graph=False)
 			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
@@ -405,9 +404,6 @@ class A2CAgent:
 			policy_loss.backward(retain_graph=False)
 			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
 			self.policy_optimizer.step()
-
-			# end_update_time = time.process_time()
-			# self.update_time += end_update_time - start_update_time
 
 			value_loss_batch += value_loss.item()
 			policy_loss_batch += policy_loss.item()
@@ -420,12 +416,12 @@ class A2CAgent:
 				weights_value_batch += weights_value
 
 
-		value_loss_batch /= self.update_epochs
-		policy_loss_batch /= self.update_epochs
-		grad_norm_policy_batch /= self.update_epochs
-		grad_norm_value_batch /= self.update_epochs
-		entropy_batch /= self.update_epochs
-		weights_value_batch /= self.update_epochs
+		value_loss_batch /= self.n_epochs
+		policy_loss_batch /= self.n_epochs
+		grad_norm_policy_batch /= self.n_epochs
+		grad_norm_value_batch /= self.n_epochs
+		entropy_batch /= self.n_epochs
+		weights_value_batch /= self.n_epochs
 
 
 
@@ -440,6 +436,10 @@ class A2CAgent:
 		if episode % self.network_update_interval == 0:
 			# Copy new weights into old critic
 			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
+			self.target_policy_network.load_state_dict(self.policy_network.state_dict())
+
+		# clear buffer
+		self.buffer.clear()
 
 
 		self.plotting_dict = {
