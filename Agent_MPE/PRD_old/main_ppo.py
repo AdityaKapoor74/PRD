@@ -1,6 +1,6 @@
 from mappo import MAPPO
-import pressureplate
-import gym
+from multiagent.environment import MultiAgentEnv
+import multiagent.scenarios as scenarios
 import torch
 
 '''
@@ -11,13 +11,24 @@ crossing_greedy
 PRD_MAA2C_Q: value_lr = 5e-4; policy_lr = 3e-4; entropy_pen = 8e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; threshold = 0.1
 '''
 
+
+def make_env(scenario_name, benchmark=False):
+	scenario = scenarios.load(scenario_name + ".py").Scenario()
+	world = scenario.make_world()
+	if benchmark:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+	else:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
+	return env, scenario.observation_shape, scenario.transformer_observation_shape
+
+
 if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,6):
-		extension = "MAA2C_run_"+str(i)
-		test_num = "PRESSURE PLATE" 
-		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
+		extension = "PRD_old_"+str(i)
+		test_num = "TEAM COLLISION AVOIDANCE"
+		env_name = "crossing_team_greedy"
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -29,7 +40,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -44,13 +55,14 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
 
 
 				# ENVIRONMENT
+				"team_size": 8,
 				"env": env_name,
 
 				# CRITIC
@@ -62,20 +74,20 @@ if __name__ == '__main__':
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
 				# ACTOR
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
-				"policy_lr": 5e-5, #prd 1e-4
+				"policy_lr": 3e-5, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 4e-1, #8e-3
+				"entropy_pen": 7e-1, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.04,
+				"threshold_max": 0.1,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
@@ -85,8 +97,8 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name)
-		dictionary["global_observation"] = 133
-		dictionary["local_observation"] = 133
+		env, local_observation, global_observation = make_env(scenario_name=dictionary["env"],benchmark=False)
+		dictionary["global_observation"] = global_observation
+		dictionary["local_observation"] = local_observation
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
