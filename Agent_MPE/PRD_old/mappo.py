@@ -24,7 +24,7 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n
+		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -80,19 +80,6 @@ class MAPPO:
 				print("Policy Eval Directory can not be created")
 
 
-	def split_states(self,states):
-		states_critic = []
-		states_actor = []
-		for i in range(self.num_agents):
-			states_critic.append(states[i][0])
-			states_actor.append(states[i][1])
-
-		states_critic = np.asarray(states_critic)
-		states_actor = np.asarray(states_actor)
-
-		return states_critic, states_actor
-
-
 	def make_gif(self,images,fname,fps=10, scale=1.0):
 		from moviepy.editor import ImageSequenceClip
 		"""Creates a gif given a stack of images using moviepy
@@ -141,8 +128,6 @@ class MAPPO:
 
 			states = self.env.reset()
 
-			states_critic, states_actor = self.split_states(states)
-
 			images = []
 
 			episode_reward = 0
@@ -156,16 +141,15 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_actions(states_actor)
+						actions = self.agents.get_actions(states)
 				else:
-					actions = self.agents.get_actions(states_actor)
+					actions = self.agents.get_actions(states)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
 				next_states,rewards,dones,info = self.env.step(actions)
-				next_states_critic, next_states_actor = self.split_states(next_states)
 
 
 				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
@@ -176,7 +160,7 @@ class MAPPO:
 				episode_reward += np.sum(rewards)
 
 				if self.learn:
-					self.agents.buffer.push(states_critic, states_actor, actions, one_hot_actions, rewards, dones)
+					self.agents.buffer.push(states, actions, one_hot_actions, rewards, dones)
 					
 					if all(dones) or step == self.max_time_steps:
 						
@@ -196,7 +180,6 @@ class MAPPO:
 						break
 					
 				states = next_states
-				states_critic, states_actor = next_states_critic, next_states_actor
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
