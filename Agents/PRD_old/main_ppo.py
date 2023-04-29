@@ -43,7 +43,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 50000,
+				"max_episodes": 30000,
 				"max_time_steps": 70,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 5e-5, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 5e-1, #8e-3
 				"gae_lambda": 0.95,
