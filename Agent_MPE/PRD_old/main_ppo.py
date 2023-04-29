@@ -68,7 +68,7 @@ if __name__ == '__main__':
 				# CRITIC
 				"value_lr": 1e-4, #1e-3
 				"value_weight_decay": 5e-4,
-				"grad_clip_critic": 0.5,
+				"grad_clip_critic": 10.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 4,
@@ -79,9 +79,9 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
-				"grad_clip_actor": 0.5,
+				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 5e-5, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 7e-1, #8e-3
 				"gae_lambda": 0.95,
