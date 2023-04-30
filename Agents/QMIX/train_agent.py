@@ -31,7 +31,7 @@ class QMIX:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = self.env.n_agents
-		self.num_actions = 5
+		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -96,7 +96,6 @@ class QMIX:
 				print("Policy Eval Directory can not be created")
 
 
-
 	def make_gif(self,images,fname,fps=10, scale=1.0):
 		from moviepy.editor import ImageSequenceClip
 		"""Creates a gif given a stack of images using moviepy
@@ -147,8 +146,8 @@ class QMIX:
 			final_timestep = self.max_time_steps
 
 			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
-			# self.agents.Q_network.rnn_hidden_state = None
-			# self.agents.target_Q_network.rnn_hidden_state = None
+			self.agents.Q_network.rnn_hidden_state = None
+			self.agents.target_Q_network.rnn_hidden_state = None
 
 			for step in range(1, self.max_time_steps+1):
 
@@ -252,18 +251,18 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 100000,
+				"max_episodes": 30000,
 				"max_time_steps": 70,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"replay_buffer_size": 500,
-				"batch_size": 64,
+				"replay_buffer_size": 5000,
+				"batch_size": 32,
 				"update_episode_interval": 1,
 				"num_updates": 1,
-				"epsilon_greedy": 1.0,
-				"epsilon_greedy_min": 0.1,
-				"epsilon_greedy_decay_episodes": 10000,
-				"lambda": 1.0,
+				"epsilon_greedy": 0.1,
+				"epsilon_greedy_min": 0.05,
+				"epsilon_greedy_decay_episodes": 500,
+				"lambda": 0.6,
 
 				# ENVIRONMENT
 				"env": env_name,
@@ -272,11 +271,11 @@ if __name__ == '__main__':
 				"learning_rate": 5e-4, #1e-3
 				"grad_clip": 10.0,
 				"rnn_hidden_dim": 64,
-				"hidden_dim": 64,
+				"hidden_dim": 32,
 				"norm_returns": False,
-				"soft_update": True,
+				"soft_update": False,
 				"tau": 0.001,
-				"target_update_interval": 10,
+				"target_update_interval": 200,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
