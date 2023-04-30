@@ -54,7 +54,7 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"value_lr": 5e-4, #1e-3
+				"value_lr": 3e-4, #1e-3
 				"value_weight_decay": 5e-4,
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.05,
