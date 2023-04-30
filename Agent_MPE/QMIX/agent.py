@@ -269,7 +269,11 @@ class QMIXAgent:
 		self.optimizer.zero_grad()
 		Q_loss.backward()
 		# grad_norm = torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip).item()
-		grad_norm = -1
+		grad_norm = 0
+		for p in self.model_parameters:
+			param_norm = p.grad.detach().data.norm(2)
+			grad_norm += param_norm.item() ** 2
+		grad_norm = torch.tensor(grad_norm) ** 0.5
 		self.optimizer.step()
 
 		if self.scheduler_need:
@@ -285,7 +289,7 @@ class QMIXAgent:
 
 
 		self.plotting_dict = {
-		"loss": Q_loss_batch, #Q_loss.item(),
+		"loss": Q_loss.item(),
 		"grad_norm": grad_norm,
 		}
 
