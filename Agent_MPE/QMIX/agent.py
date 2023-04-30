@@ -103,6 +103,7 @@ class QMIXAgent:
 				final_state = torch.cat([state, last_one_hot_action], dim=-1).to(self.device)
 				Q_values = self.Q_network(final_state)
 				actions = Q_values.argmax(dim=-1).cpu().tolist()
+				# actions = [Categorical(dist).sample().detach().cpu().item() for dist in Q_values]
 		
 		return actions
 
@@ -133,20 +134,20 @@ class QMIXAgent:
 	# 	return target_Vs
 
 
-	# def calculate_returns(self, rewards, discount_factor):
-	# 	returns = []
-	# 	R = 0
+	def calculate_returns(self, rewards):
+		returns = []
+		R = 0
 		
-	# 	for r in reversed(rewards):
-	# 		R = r + R * discount_factor
-	# 		returns.insert(0, R)
+		for r in reversed(rewards):
+			R = r + R * self.gamma
+			returns.insert(0, R)
 		
-	# 	returns_tensor = torch.stack(returns)
+		returns_tensor = torch.stack(returns)
 		
-	# 	if self.norm_returns:
-	# 		returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
+		if self.norm_returns:
+			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
 			
-	# 	return returns_tensor
+		return returns_tensor
 
 	# def TD_error(self, target_values, values, rewards, dones, mask):
 	# 	TD_errors = []
@@ -268,12 +269,12 @@ class QMIXAgent:
 
 		self.optimizer.zero_grad()
 		Q_loss.backward()
-		# grad_norm = torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip).item()
-		grad_norm = 0
-		for p in self.model_parameters:
-			param_norm = p.grad.detach().data.norm(2)
-			grad_norm += param_norm.item() ** 2
-		grad_norm = torch.tensor(grad_norm) ** 0.5
+		grad_norm = torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip).item()
+		# grad_norm = 0
+		# for p in self.model_parameters:
+		# 	param_norm = p.grad.detach().data.norm(2)
+		# 	grad_norm += param_norm.item() ** 2
+		# grad_norm = torch.tensor(grad_norm) ** 0.5
 		self.optimizer.step()
 
 		if self.scheduler_need:
