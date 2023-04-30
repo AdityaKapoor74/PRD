@@ -296,7 +296,7 @@ if __name__ == '__main__':
 				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"replay_buffer_size": 500,
+				"replay_buffer_size": 5000,
 				"batch_size": 32,
 				"update_episode_interval": 1,
 				"num_updates": 1,
