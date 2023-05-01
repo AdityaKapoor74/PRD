@@ -271,8 +271,8 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"q_value_lr": 1e-3, #1e-3
-				"value_lr": 1e-3, #1e-3
+				"q_value_lr": 5e-4, #1e-3
+				"value_lr": 5e-4, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 10.0,
