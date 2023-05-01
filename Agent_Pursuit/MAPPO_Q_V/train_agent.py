@@ -272,7 +272,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
-				"enable_hard_attention": False,
+				"enable_hard_attention": True,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
