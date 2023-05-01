@@ -74,14 +74,14 @@ if __name__ == '__main__':
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.6, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
 				# ACTOR
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
-				"policy_lr": 5e-5, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 7e-1, #8e-3
 				"gae_lambda": 0.95,
