@@ -245,7 +245,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
+				"n_epochs": 10,
 				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
@@ -260,7 +260,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 100000,
+				"max_episodes": 30000,
 				"max_time_steps": 70,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
