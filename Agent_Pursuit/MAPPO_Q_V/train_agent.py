@@ -225,7 +225,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "PURSUIT"
 		env_name = "pursuit_v4"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
 
 		max_time_steps = 500
 		num_agents = 8
@@ -240,7 +240,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
+				"n_epochs": 10,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
@@ -266,26 +266,26 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"q_value_lr": 1e-4, #1e-3
-				"v_value_lr": 1e-4, #1e-3
+				"q_value_lr": 5e-4, #1e-3
+				"v_value_lr": 5e-4, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
-				"grad_clip_critic": 0.5,
-				"value_clip": 0.05,
-				"enable_hard_attention": True,
+				"grad_clip_critic": 10.0,
+				"value_clip": 0.2,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.6, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
 				# ACTOR
-				"grad_clip_actor": 0.5,
-				"policy_clip": 0.05,
-				"policy_lr": 1e-4, #prd 1e-4
+				"grad_clip_actor": 10.0,
+				"policy_clip": 0.2,
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
