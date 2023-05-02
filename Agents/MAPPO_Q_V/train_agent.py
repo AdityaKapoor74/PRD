@@ -288,7 +288,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.2,
-				"policy_lr": 3e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 5e-2, #8e-3
 				# "entropy_final": 0.0,
