@@ -219,10 +219,10 @@ class QMIXAgent:
 		for _ in range(self.num_updates):
 			for t in range(max_episode_len):
 				# train in time order
-				states_slice = state_batch[:,t].reshape(-1, self.obs_input_dim)
+				states_slice = state_batch[:,t].reshape(-1, self.height, self.width, self.channel).permute(0, 3, 1, 2)
 				last_one_hot_actions_slice = last_one_hot_actions_batch[:,t].reshape(-1, self.num_actions)
 				actions_slice = actions_batch[:, t].reshape(-1)
-				next_states_slice = next_state_batch[:,t].reshape(-1, self.obs_input_dim)
+				next_states_slice = next_state_batch[:,t].reshape(-1, self.height, self.width, self.channel).permute(0, 3, 1, 2)
 				next_last_one_hot_actions_slice = next_last_one_hot_actions_batch[:,t].reshape(-1, self.num_actions)
 				reward_slice = reward_batch[:, t].reshape(-1)
 				done_slice = done_batch[:, t].reshape(-1)
@@ -233,14 +233,14 @@ class QMIXAgent:
 
 				Q_values = self.Q_network(states_slice.to(self.device), last_one_hot_actions_slice.to(self.device))
 				Q_evals = torch.gather(Q_values, dim=-1, index=actions_slice.unsqueeze(-1).to(self.device)).squeeze(-1)
-				Q_mix = self.QMix_network(Q_evals, state_batch[:,t].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device)).squeeze(-1).squeeze(-1) * mask_slice.to(self.device)
+				Q_mix = self.QMix_network(Q_evals, state_batch[:,t].reshape(-1, self.height, self.width, self.channel).permute(0, 3, 1, 2).to(self.device)).squeeze(-1).squeeze(-1) * mask_slice.to(self.device)
 
 				with torch.no_grad():
 					Q_evals_next = self.Q_network(next_states_slice.to(self.device), next_last_one_hot_actions_slice.to(self.device))
 					Q_targets = self.target_Q_network(next_states_slice.to(self.device), next_last_one_hot_actions_slice.to(self.device))
 					a_argmax = torch.argmax(Q_evals_next, dim=-1, keepdim=True)
 					Q_targets = torch.gather(Q_targets, dim=-1, index=a_argmax.to(self.device)).squeeze(-1)
-					Q_mix_target = self.target_QMix_network(Q_targets, next_state_batch[:, t].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device)).squeeze(-1).squeeze(-1)
+					Q_mix_target = self.target_QMix_network(Q_targets, next_state_batch[:, t].reshape(-1, self.height, self.width, self.channel).permute(0, 3, 1, 2).to(self.device)).squeeze(-1).squeeze(-1)
 					
 				Q_mix_values.append(Q_mix)
 				target_Q_mix_values.append(Q_mix_target)
