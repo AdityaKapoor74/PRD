@@ -272,7 +272,7 @@ if __name__ == '__main__':
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 50,
-				"batch_size": 2,
+				"batch_size": 6,
 				"update_episode_interval": 1,
 				"num_updates": 1,
 				"epsilon_greedy": 1.0,
