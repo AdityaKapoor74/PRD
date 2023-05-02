@@ -29,7 +29,8 @@ class RNNQNetwork(nn.Module):
 		self.apply(weights_init)
 
 	def forward(self, states, actions):
-		states = self.Conv(states).reshape(-1, self.obs_input_dim)+self.positions
+		states = self.Conv(states).reshape(-1, self.num_agents, self.obs_input_dim)+self.positions
+		states = states.reshape(-1, self.obs_input_dim)
 		states_actions = torch.cat([states, actions], dim=-1).to(self.device)
 		x = F.relu(self.Layer1(states_actions))
 		self.rnn_hidden_state = self.RNN(x, self.rnn_hidden_state)
