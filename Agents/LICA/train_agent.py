@@ -191,8 +191,8 @@ class LICA:
 
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
-				torch.save(self.agents.Q_network.state_dict(), self.model_path+'_Q_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.QMix_network.state_dict(), self.model_path+'_QMix_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.actor.state_dict(), self.model_path+'_actor_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.critic.state_dict(), self.model_path+'_critic_epsiode'+str(episode)+'.pt')
 
 			if self.learn and episode != 0 and episode%self.update_episode_interval == 0:
 				self.agents.update(self.buffer, episode)
