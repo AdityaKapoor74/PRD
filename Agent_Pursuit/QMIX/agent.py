@@ -33,7 +33,6 @@ class QMIXAgent:
 			self.device = "cpu"
 		self.soft_update = dictionary["soft_update"]
 		self.target_update_interval = dictionary["target_update_interval"]
-		self.epsilon_greedy = dictionary["epsilon_greedy"]
 		self.batch_size = dictionary["batch_size"]
 		self.gamma = dictionary["gamma"]
 		self.num_updates = dictionary["num_updates"]
@@ -93,8 +92,8 @@ class QMIXAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
-	def get_action(self, state, last_one_hot_action):
-		if np.random.uniform() < self.epsilon_greedy:
+	def get_action(self, state, last_one_hot_action, epsilon_greedy):
+		if np.random.uniform() < epsilon_greedy:
 			actions = [np.random.choice(self.num_actions) for _ in range(self.num_agents)]
 		else:
 			with torch.no_grad():
