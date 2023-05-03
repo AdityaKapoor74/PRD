@@ -165,9 +165,9 @@ class QMIX:
 					# time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, last_one_hot_action)
+						actions = self.agents.get_action(states, last_one_hot_action, self.epsilon_greedy)
 				else:
-					actions = self.agents.get_action(states, last_one_hot_action)
+					actions = self.agents.get_action(states, last_one_hot_action, self.epsilon_greedy)
 
 				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
