@@ -271,14 +271,14 @@ if __name__ == '__main__':
 				"max_time_steps": max_time_steps,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"replay_buffer_size": 50,
+				"replay_buffer_size": 100,
 				"batch_size": 32,
 				"update_episode_interval": 1,
 				"num_updates": 1,
 				"epsilon_greedy": 1.0,
-				"epsilon_greedy_min": 0.05,
+				"epsilon_greedy_min": 0.1,
 				"epsilon_greedy_decay_episodes": 500,
-				"lambda": 0.6,
+				"lambda": 0.8,
 
 				# ENVIRONMENT
 				"env": env_name,
@@ -291,7 +291,7 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"soft_update": False,
 				"tau": 0.001,
-				"target_update_interval": 50,
+				"target_update_interval": 200,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
