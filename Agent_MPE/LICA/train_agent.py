@@ -284,7 +284,7 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"update_episode_interval": 1,
