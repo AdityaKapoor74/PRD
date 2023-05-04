@@ -140,7 +140,7 @@ class LICAAgent:
 
 		for _ in range(self.num_updates):
 
-			self.actor.rnn_hidden_state = None
+			self.actor.rnn_hidden_obs = None
 			probs = []
 			entropy = []
 
@@ -162,17 +162,17 @@ class LICAAgent:
 				probs.append(prob)
 				entropy.append(ent)
 
-			probs = torch.stack(probs, dim=1)
-			entropy = torch.stack(entropy, dim=1)
+			probs = torch.stack(probs, dim=1).reshape(-1, mask_batch.shape[1], self.num_agents, self.num_actions)
+			entropy = torch.stack(entropy, dim=1).reshape(-1, mask_batch.shape[1])
 
-			mix_loss = self.critic(probs.to(self.device), critic_state_batch.to(self.device))
+			mix_loss = self.critic(probs.to(self.device), critic_state_batch.to(self.device)).squeeze(-1)
 
 			mix_loss = (mix_loss * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
 
 			# adaptive entropy
 			entropy_loss = (entropy.to(self.device) * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
-			# entropy_coeff = self.entropy_coeff / entropy_loss.item()
-			entropy_coeff = self.entropy_coeff
+			entropy_coeff = self.entropy_coeff / entropy_loss.item()
+			# entropy_coeff = self.entropy_coeff
 
 			mix_loss = -mix_loss - entropy_coeff*entropy_loss
 
