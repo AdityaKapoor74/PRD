@@ -242,7 +242,7 @@ if __name__ == '__main__':
 				"max_time_steps": 70,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"update_episode_interval": 1,
+				"update_episode_interval": 7,
 				"num_updates": 1,
 				"entropy_coeff": 5e-2,
 				"lambda": 0.8,
