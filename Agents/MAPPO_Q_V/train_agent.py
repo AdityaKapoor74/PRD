@@ -234,7 +234,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "PRESSURE PLATE"
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -288,7 +288,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.2,
-				"policy_lr": 3e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 5e-2, #8e-3
 				# "entropy_final": 0.0,
