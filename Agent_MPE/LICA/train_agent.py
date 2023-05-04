@@ -287,9 +287,9 @@ if __name__ == '__main__':
 				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"update_episode_interval": 5,
+				"update_episode_interval": 32,
 				"num_updates": 1,
-				"entropy_coeff": 8e-3,
+				"entropy_coeff": 0.06,
 				"lambda": 0.8,
 
 				# ENVIRONMENT
@@ -297,7 +297,7 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# MODEL
-				"critic_learning_rate": 5e-3, #1e-3
+				"critic_learning_rate": 5e-4, #1e-3
 				"actor_learning_rate": 2.5e-3, #1e-3
 				"critic_grad_clip": 10.0,
 				"actor_grad_clip": 10.0,
