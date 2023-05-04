@@ -169,8 +169,8 @@ class LICAAgent:
 
 			# adaptive entropy
 			entropy_loss = (entropy.to(self.device) * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
-			# entropy_coeff = self.entropy_coeff / entropy_loss.item()
-			entropy_coeff = self.entropy_coeff
+			entropy_coeff = self.entropy_coeff / entropy_loss.item()
+			# entropy_coeff = self.entropy_coeff
 
 			mix_loss = -mix_loss - entropy_coeff*entropy_loss
 
