@@ -137,7 +137,7 @@ class LICA:
 			final_timestep = self.max_time_steps
 
 			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
-			self.agents.actor.rnn_hidden_state = None
+			self.agents.actor.rnn_hidden_obs = None
 
 			for step in range(1, self.max_time_steps+1):
 
@@ -244,7 +244,7 @@ if __name__ == '__main__':
 				"scheduler_need": False,
 				"update_episode_interval": 7,
 				"num_updates": 1,
-				"entropy_coeff": 5e-2,
+				"entropy_coeff": 0.11,
 				"lambda": 0.8,
 
 				# ENVIRONMENT
