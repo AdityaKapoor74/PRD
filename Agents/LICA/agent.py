@@ -22,9 +22,10 @@ class LICAAgent:
 		# Environment Setup
 		self.env = env
 		self.env_name = dictionary["env"]
-		self.num_agents = self.env.n_agents
+		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
-		self.obs_input_dim = dictionary["observation_shape"] # crossing_team_greedy
+		self.critic_obs_shape = dictionary["global_observation"]
+		self.actor_obs_shape = dictionary["local_observation"]
 
 		# Training setup
 		self.scheduler_need = dictionary["scheduler_need"]
@@ -52,10 +53,10 @@ class LICAAgent:
 		self.norm_returns = dictionary["norm_returns"]
 
 		# Q Network
-		self.actor = RNNAgent(self.obs_input_dim, self.rnn_hidden_dim, self.num_actions).to(self.device)
+		self.actor = RNNAgent(self.actor_obs_shape, self.rnn_hidden_dim, self.num_actions).to(self.device)
 		
-		self.critic = LICACritic(self.obs_input_dim, self.mixing_embed_dim, self.num_actions, self.num_agents, self.num_hypernet_layers).to(self.device)
-		self.target_critic = LICACritic(self.obs_input_dim, self.mixing_embed_dim, self.num_actions, self.num_agents, self.num_hypernet_layers).to(self.device)
+		self.critic = LICACritic(self.critic_obs_shape, self.mixing_embed_dim, self.num_actions, self.num_agents, self.num_hypernet_layers).to(self.device)
+		self.target_critic = LICACritic(self.critic_obs_shape, self.mixing_embed_dim, self.num_actions, self.num_agents, self.num_hypernet_layers).to(self.device)
 
 		self.loss_fn = nn.HuberLoss(reduction="sum")
 
@@ -127,7 +128,8 @@ class LICAAgent:
 	def update(self, buffer, episode):
 		
 		# # convert list to tensor
-		state_batch = torch.FloatTensor(np.array(buffer.states))
+		critic_state_batch = torch.FloatTensor(np.array(buffer.critic_states))
+		actor_state_batch = torch.FloatTensor(np.array(buffer.actor_states))
 		one_hot_actions_batch = torch.FloatTensor(np.array(buffer.one_hot_actions))
 		actions_batch = torch.FloatTensor(np.array(buffer.actions)).long()
 		last_one_hot_actions_batch = torch.FloatTensor(np.array(buffer.last_one_hot_actions))
@@ -149,10 +151,10 @@ class LICAAgent:
 				if mask_slice.sum().cpu().numpy() < EPS:
 					break
 
-				states_slice = state_batch[:,t].reshape(-1, self.obs_input_dim)
+				actor_states_slice = actor_state_batch[:,t].reshape(-1, self.actor_obs_shape)
 				last_one_hot_action_slice = last_one_hot_actions_batch[:, t].reshape(-1, self.num_actions)
 				
-				final_state = torch.cat([states_slice, last_one_hot_action_slice], dim=-1)
+				final_state = torch.cat([actor_states_slice, last_one_hot_action_slice], dim=-1)
 				dist = self.actor(final_state.to(self.device))
 				ent = multinomial_entropy(dist).mean(dim=-1, keepdim=True)
 				prob = F.softmax(dist, dim=-1)
@@ -163,13 +165,14 @@ class LICAAgent:
 			probs = torch.stack(probs, dim=1)
 			entropy = torch.stack(entropy, dim=1)
 
-			mix_loss = self.critic(probs.to(self.device), state_batch.to(self.device))
+			mix_loss = self.critic(probs.to(self.device), critic_state_batch.to(self.device))
 
 			mix_loss = (mix_loss * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
 
 			# adaptive entropy
 			entropy_loss = (entropy.to(self.device) * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
-			entropy_coeff = self.entropy_coeff / entropy_loss.item()
+			# entropy_coeff = self.entropy_coeff / entropy_loss.item()
+			entropy_coeff = self.entropy_coeff
 
 			mix_loss = -mix_loss - entropy_coeff*entropy_loss
 
@@ -183,9 +186,9 @@ class LICAAgent:
 			# grad_norm = torch.tensor(grad_norm) ** 0.5
 			self.actor_optimizer.step()
 
-			Qs = self.critic(one_hot_actions_batch.to(self.device), state_batch.to(self.device)).squeeze(-1) * mask_batch.to(self.device)
+			Qs = self.critic(one_hot_actions_batch.to(self.device), critic_state_batch.to(self.device)).squeeze(-1) * mask_batch.to(self.device)
 			
-			target_Qs = self.target_critic(one_hot_actions_batch.to(self.device), state_batch.to(self.device)).squeeze(-1)
+			target_Qs = self.target_critic(one_hot_actions_batch.to(self.device), critic_state_batch.to(self.device)).squeeze(-1)
 			target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
 
 			Q_loss = self.loss_fn(Qs, target_Qs.detach()) / mask_batch.to(self.device).sum()
