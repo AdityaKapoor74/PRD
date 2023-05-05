@@ -61,7 +61,7 @@ class PPOAgent:
 		self.entropy_pen = dictionary["entropy_pen"]
 		self.entropy_final = dictionary["entropy_final"]
 		self.entropy_delta_episodes = dictionary["entropy_delta_episodes"]
-		if self.entropy_final != self.entropy_pen
+		if self.entropy_final != self.entropy_pen:
 			self.entropy_delta = (self.entropy_pen - self.entropy_final)/self.entropy_delta_episodes
 		else:
 			self.entropy_delta = 0
