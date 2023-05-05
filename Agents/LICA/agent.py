@@ -138,6 +138,23 @@ class LICAAgent:
 
 		for _ in range(self.num_updates):
 
+			Qs = self.critic(one_hot_actions_batch.to(self.device), state_batch.to(self.device)).squeeze(-1) * mask_batch.to(self.device)
+			
+			target_Qs = self.target_critic(one_hot_actions_batch.to(self.device), state_batch.to(self.device)).squeeze(-1)
+			target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
+
+			Q_loss = self.loss_fn(Qs, target_Qs.detach()) / mask_batch.to(self.device).sum()
+
+			self.critic_optimizer.zero_grad()
+			Q_loss.backward()
+			critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.critic_grad_clip).item()
+			# grad_norm = 0
+			# for p in self.model_parameters:
+			# 	param_norm = p.grad.detach().data.norm(2)
+			# 	grad_norm += param_norm.item() ** 2
+			# grad_norm = torch.tensor(grad_norm) ** 0.5
+			self.critic_optimizer.step()
+
 			self.actor.rnn_hidden_obs = None
 			probs = []
 			entropy = []
@@ -183,23 +200,6 @@ class LICAAgent:
 			# 	grad_norm += param_norm.item() ** 2
 			# grad_norm = torch.tensor(grad_norm) ** 0.5
 			self.actor_optimizer.step()
-
-			Qs = self.critic(one_hot_actions_batch.to(self.device), state_batch.to(self.device)).squeeze(-1) * mask_batch.to(self.device)
-			
-			target_Qs = self.target_critic(one_hot_actions_batch.to(self.device), state_batch.to(self.device)).squeeze(-1)
-			target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
-
-			Q_loss = self.loss_fn(Qs, target_Qs.detach()) / mask_batch.to(self.device).sum()
-
-			self.critic_optimizer.zero_grad()
-			Q_loss.backward()
-			critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.critic_grad_clip).item()
-			# grad_norm = 0
-			# for p in self.model_parameters:
-			# 	param_norm = p.grad.detach().data.norm(2)
-			# 	grad_norm += param_norm.item() ** 2
-			# grad_norm = torch.tensor(grad_norm) ** 0.5
-			self.critic_optimizer.step()
 			
 
 		if self.scheduler_need:
