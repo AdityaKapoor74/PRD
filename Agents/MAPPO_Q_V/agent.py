@@ -59,6 +59,12 @@ class PPOAgent:
 		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
+		self.entropy_final = dictionary["entropy_final"]
+		self.entropy_delta_episodes = dictionary["entropy_delta_episodes"]
+		if self.entropy_final != self.entropy_pen
+			self.entropy_delta = (self.entropy_pen - self.entropy_final)/self.entropy_delta_episodes
+		else:
+			self.entropy_delta = 0
 		self.gae_lambda = dictionary["gae_lambda"]
 		self.top_k = dictionary["top_k"]
 		self.norm_adv = dictionary["norm_adv"]
@@ -340,6 +346,8 @@ class PPOAgent:
 
 		if self.threshold_max > self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
+
+		self.entropy_pen -= self.entropy_delta
 
 
 
