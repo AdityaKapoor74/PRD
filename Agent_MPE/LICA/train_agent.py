@@ -287,10 +287,10 @@ if __name__ == '__main__':
 				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"update_episode_interval": 5,
+				"update_episode_interval": 32,
 				"num_updates": 1,
-				"entropy_coeff": 8e-3,
-				"lambda": 0.8,
+				"entropy_coeff": 0.06,
+				"lambda": 0.6,
 
 				# ENVIRONMENT
 				"team_size": 8,
