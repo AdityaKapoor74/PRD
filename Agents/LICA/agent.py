@@ -88,14 +88,17 @@ class LICAAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
-	def get_action(self, state, last_one_hot_action):
-		with torch.no_grad():
-			state = torch.FloatTensor(state)
-			last_one_hot_action = torch.FloatTensor(last_one_hot_action)
-			final_state = torch.cat([state, last_one_hot_action], dim=-1).to(self.device)
-			dists = self.actor(final_state)
-			actions = GumbelSoftmax(logits=dists).sample()
-			actions = torch.argmax(actions, dim=-1).tolist()
+	def get_action(self, state, last_one_hot_action, epsilon):
+		if np.random.uniform() < epsilon:
+			actions = [np.random.choice(self.num_actions) for _ in range(self.num_agents)]
+		else:
+			with torch.no_grad():
+				state = torch.FloatTensor(state)
+				last_one_hot_action = torch.FloatTensor(last_one_hot_action)
+				final_state = torch.cat([state, last_one_hot_action], dim=-1).to(self.device)
+				dists = self.actor(final_state)
+				actions = GumbelSoftmax(logits=dists).sample()
+				actions = torch.argmax(actions, dim=-1).tolist()
 		
 		return actions
 
@@ -189,7 +192,7 @@ class LICAAgent:
 			# entropy_coeff = self.entropy_coeff / entropy_loss.item()
 			entropy_coeff = self.entropy_coeff
 
-			mix_loss = -mix_loss - entropy_coeff*entropy_loss
+			mix_loss = - mix_loss #- entropy_coeff*entropy_loss
 
 			self.actor_optimizer.zero_grad()
 			mix_loss.backward()
