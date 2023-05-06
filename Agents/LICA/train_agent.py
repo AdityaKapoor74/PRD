@@ -1,5 +1,5 @@
-from multiagent.environment import MultiAgentEnv
-import multiagent.scenarios as scenarios
+import pressureplate
+import gym
 
 import os
 import time
@@ -30,7 +30,7 @@ class LICA:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n
+		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -39,15 +39,13 @@ class LICA:
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.update_episode_interval = dictionary["update_episode_interval"]
 
-		self.critic_obs_shape = dictionary["global_observation"]
-		self.actor_obs_shape = dictionary["local_observation"]
+		self.observation_shape = dictionary["observation_shape"]
 
 		self.buffer = RolloutBuffer(
 			num_episodes = self.update_episode_interval,
 			max_time_steps = self.max_time_steps,
 			num_agents = self.num_agents,
-			critic_obs_shape = self.critic_obs_shape,
-			actor_obs_shape = self.actor_obs_shape,
+			obs_shape = self.observation_shape,
 			num_actions = self.num_actions
 			)
 
@@ -89,20 +87,6 @@ class LICA:
 				print("Policy Eval Directory can not be created")
 
 
-	def split_states(self, states):
-		states_critic = []
-		states_actor = []
-		for i in range(self.num_agents):
-			states_critic.append(states[i][0])
-			states_actor.append(states[i][1])
-
-		states_critic = np.asarray(states_critic)
-		states_actor = np.asarray(states_actor)
-
-		return states_critic, states_actor
-
-
-
 	def make_gif(self,images,fname,fps=10, scale=1.0):
 		from moviepy.editor import ImageSequenceClip
 		"""Creates a gif given a stack of images using moviepy
@@ -141,20 +125,15 @@ class LICA:
 			self.rewards_mean_per_1000_eps = []
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
-			self.collision_rates = []
-			self.collison_rate_mean_per_1000_eps = []
 
 		for episode in range(1, self.max_episodes+1):
 
 			states = self.env.reset()
 
-			states_critic, states_actor = self.split_states(states)
-
 			images = []
 
 			episode_reward = 0
 			episode_goal_reached = 0
-			episode_collision_rate = 0
 			final_timestep = self.max_time_steps
 
 			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
@@ -169,27 +148,20 @@ class LICA:
 					import time
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states_actor, last_one_hot_action)
+						actions = self.agents.get_action(states, last_one_hot_action)
 				else:
-					actions = self.agents.get_action(states_actor, last_one_hot_action)
+					actions = self.agents.get_action(states, last_one_hot_action)
 
 				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				next_states_critic, next_states_actor = self.split_states(next_states)
-
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
-					collision_rate = [value[1] for value in rewards]
-					rewards = [value[0] for value in rewards]
-					episode_collision_rate += np.sum(collision_rate)
 
 				if not self.gif:
-					self.buffer.push(states_critic, states_actor, last_one_hot_action, actions, next_last_one_hot_action, np.sum(rewards), all(dones))
+					self.buffer.push(states, last_one_hot_action, actions, next_last_one_hot_action, np.sum(rewards), all(dones))
 
 				states = next_states
-				states_critic, states_actor = next_states_critic, next_states_actor
 				last_one_hot_action = next_last_one_hot_action
 
 				episode_reward += np.sum(rewards)
@@ -206,21 +178,17 @@ class LICA:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
 						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
-						if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
-								self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
 
 					break
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.collision_rates.append(episode_collision_rate)
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				if self.env_name in ["crossing_greedy", "crossing_fully_coop", "crossing_partially_coop", "crossing_team_greedy"]:
-					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.actor.state_dict(), self.model_path+'_actor_epsiode'+str(episode)+'.pt')
@@ -240,27 +208,14 @@ class LICA:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				if "crossing" in self.env_name:
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
-					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-
-
-def make_env(scenario_name, benchmark=False):
-	scenario = scenarios.load(scenario_name + ".py").Scenario()
-	world = scenario.make_world()
-	if benchmark:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
-	else:
-		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env, scenario.observation_shape, scenario.transformer_observation_shape
 
 
 if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "LICA_"+str(i)
-		test_num = "TEAM COLLISION AVOIDANCE"
-		env_name = "crossing_team_greedy"
+		test_num = "PRESSURE PLATE"
+		env_name = "pressureplate-linear-6p-v0"
 
 		dictionary = {
 				# TRAINING
@@ -284,16 +239,15 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 100,
+				"max_time_steps": 70,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"update_episode_interval": 32,
+				"update_episode_interval": 7,
 				"num_updates": 1,
 				"entropy_coeff": 1e-1,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
-				"team_size": 8,
 				"env": env_name,
 
 				# MODEL
@@ -312,8 +266,7 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env, local_observation, global_observation = make_env(scenario_name=dictionary["env"],benchmark=False)
-		dictionary["global_observation"] = global_observation
-		dictionary["local_observation"] = local_observation
+		env = gym.make(env_name)
+		dictionary["observation_shape"] = 133
 		ma_controller = LICA(env, dictionary)
 		ma_controller.run()
