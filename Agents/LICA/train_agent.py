@@ -244,8 +244,8 @@ if __name__ == '__main__':
 				"scheduler_need": False,
 				"update_episode_interval": 7,
 				"num_updates": 1,
-				"entropy_coeff": 5e-2,
-				"lambda": 0.8,
+				"entropy_coeff": 0.06,
+				"lambda": 0.6,
 
 				# ENVIRONMENT
 				"env": env_name,
