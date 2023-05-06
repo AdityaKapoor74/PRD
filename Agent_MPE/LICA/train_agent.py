@@ -289,7 +289,7 @@ if __name__ == '__main__':
 				"scheduler_need": False,
 				"update_episode_interval": 32,
 				"num_updates": 1,
-				"entropy_coeff": 0.06,
+				"entropy_coeff": 1e-1,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
