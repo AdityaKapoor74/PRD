@@ -41,6 +41,11 @@ class LICA:
 
 		self.observation_shape = dictionary["observation_shape"]
 
+		self.epsilon = dictionary["epsilon_start"]
+		self.epsilon_end = dictionary["epsilon_end"]
+		self.epsilon_num_episodes = dictionary["epsilon_num_episodes"]
+		self.epsilon_delta = (self.epsilon_end - self.epsilon) / self.epsilon_num_episodes 
+
 		self.buffer = RolloutBuffer(
 			num_episodes = self.update_episode_interval,
 			max_time_steps = self.max_time_steps,
@@ -148,9 +153,9 @@ class LICA:
 					import time
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, last_one_hot_action)
+						actions = self.agents.get_action(states, last_one_hot_action, self.epsilon)
 				else:
-					actions = self.agents.get_action(states, last_one_hot_action)
+					actions = self.agents.get_action(states, last_one_hot_action, self.epsilon)
 
 				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
@@ -180,6 +185,9 @@ class LICA:
 						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
 					break
+
+			if self.epsilon - self.epsilon_delta > self.epsilon_end:
+				self.epsilon -= self.epsilon_delta
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
@@ -245,6 +253,9 @@ if __name__ == '__main__':
 				"update_episode_interval": 7,
 				"num_updates": 1,
 				"entropy_coeff": 1e-1,
+				"epsilon_start": 1.0,
+				"epsilon_end": 0.1,
+				"epsilon_num_episodes": 500,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
