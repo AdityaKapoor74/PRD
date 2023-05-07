@@ -326,6 +326,10 @@ class PPOAgent:
 				masking_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 				rewards_ = torch.sum(masking_rewards * torch.transpose(masking_rewards,-1,-2), dim=-1)
 				advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
+		elif "prd_soft_advantage" in self.experiment_type:
+			masking_rewards = (weights_prd>1e-4).int()
+			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd * self.num_agents,-1,-2), dim=-1)
+			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		elif "greedy" in self.experiment_type:
 			advantage = self.calculate_advantages(V_values, V_values_old, rewards, dones, masks)
 		elif "relevant_set" in self.experiment_type:
