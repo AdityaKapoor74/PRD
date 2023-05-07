@@ -290,7 +290,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "TEAM COLLISION AVOIDANCE"
 		env_name = "crossing_team_greedy"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_top_8" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -349,11 +349,11 @@ if __name__ == '__main__':
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 4e-2, #8e-3
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.12,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 1000,
-				"top_k": 0,
+				"top_k": 8,
 				"norm_adv": False,
 
 				"network_update_interval": 1,
