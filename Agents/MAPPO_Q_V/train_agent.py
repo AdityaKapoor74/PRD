@@ -242,7 +242,7 @@ if __name__ == '__main__':
 		fully_coop = False
 		max_episode_steps = 70
 		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 		
 
 		dictionary = {
@@ -286,7 +286,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
-				"enable_hard_attention": False,
+				"enable_hard_attention": True,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
