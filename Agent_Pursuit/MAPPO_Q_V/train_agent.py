@@ -272,7 +272,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
@@ -287,9 +287,9 @@ if __name__ == '__main__':
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.0,
+				"select_above_threshold": 0.3,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.3,
+				"threshold_max": 0.0, # 0.3
 				"steps_to_take": 300,
 				"top_k": 0,
 				"norm_adv": False,
