@@ -234,7 +234,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "PRESSURE PLATE"
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_soft_adv" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
