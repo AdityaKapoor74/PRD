@@ -179,7 +179,7 @@ class MAPPO:
 
 					break
 
-			self.agents.update_parameters()
+			# self.agents.update_parameters()
 
 			if self.agents.scheduler_need:
 				self.agents.scheduler_policy.step()
