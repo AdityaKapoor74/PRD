@@ -1,4 +1,4 @@
-import pressureplate
+import lbforaging
 import gym
 
 import os
@@ -29,8 +29,8 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
-		self.num_actions = 5
+		self.num_agents = len(self.env.players)
+		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -232,9 +232,16 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "MAPPO_"+str(i)
-		test_num = "PRESSURE PLATE"
-		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		test_num = "LB-FORAGING"
+		num_players = 6
+		num_food = 9
+		grid_size = 12
+		fully_coop = False
+		max_episode_steps = 70
+		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
+		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+
+		
 
 		dictionary = {
 				# TRAINING
@@ -261,7 +268,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": max_episode_steps,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -296,7 +303,7 @@ if __name__ == '__main__':
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0, # 0.2
+				"threshold_max": 0.2, # 0.2
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
@@ -306,8 +313,8 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name)
-		dictionary["global_observation"] = 133
-		dictionary["local_observation"] = 133
+		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.01, normalize_reward=True)
+		dictionary["global_observation"] = num_players*3 + num_food*3
+		dictionary["local_observation"] = num_players*3 + num_food*3
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
