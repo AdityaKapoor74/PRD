@@ -156,6 +156,7 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				num_food_left = info["num_food_left"]
 
 				if not self.gif:
 					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
@@ -174,7 +175,7 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+						self.comet_ml.log_metric('Num Food Left', num_food_left, episode)
 
 					break
 
@@ -297,7 +298,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-2, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"entropy_final": 0.0,
 				"entropy_delta_episodes": 30000,
 				"gae_lambda": 0.95,
