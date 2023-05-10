@@ -1,4 +1,4 @@
-import pressureplate
+import lbforaging
 import gym
 
 import os
@@ -30,7 +30,7 @@ class QMIX:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
+		self.num_agents = len(self.env.players)
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -159,9 +159,9 @@ class QMIX:
 					# time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, last_one_hot_action)
+						actions = self.agents.get_action(states, last_one_hot_action, self.epsilon_greedy)
 				else:
-					actions = self.agents.get_action(states, last_one_hot_action)
+					actions = self.agents.get_action(states, last_one_hot_action, self.epsilon_greedy)
 
 				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
@@ -228,8 +228,13 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "QMix"+str(i)
-		test_num = "PRESSURE PLATE"
-		env_name = "pressureplate-linear-6p-v0"
+		test_num = "LB-FORAGING"
+		num_players = 6
+		num_food = 9
+		grid_size = 12
+		fully_coop = False
+		max_episode_steps = 70
+		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
 
 		dictionary = {
 				# TRAINING
@@ -252,7 +257,7 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": max_episode_steps,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
@@ -280,7 +285,7 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name)
-		dictionary["observation_shape"] = 133
+		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.01, normalize_reward=True)
+		dictionary["observation_shape"] = num_players*3 + num_food*3
 		ma_controller = QMIX(env, dictionary)
 		ma_controller.run()
