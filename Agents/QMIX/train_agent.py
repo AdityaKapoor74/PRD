@@ -265,7 +265,7 @@ if __name__ == '__main__':
 				"batch_size": 32,
 				"update_episode_interval": 1,
 				"num_updates": 1,
-				"epsilon_greedy": 0.1,
+				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.1,
 				"epsilon_greedy_decay_episodes": 500,
 				"lambda": 0.6,
