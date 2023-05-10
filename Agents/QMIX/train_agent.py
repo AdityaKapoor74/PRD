@@ -168,6 +168,7 @@ class QMIX:
 					last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				num_food_left = info["num_food_left"]
 
 				if not self.gif:
 					self.buffer.push(states, actions, last_one_hot_action, next_states, next_last_one_hot_action, np.sum(rewards), all(dones))
@@ -188,7 +189,7 @@ class QMIX:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+						self.comet_ml.log_metric('Num Food Left', num_food_left, episode)
 
 					break
 
@@ -265,7 +266,7 @@ if __name__ == '__main__':
 				"update_episode_interval": 1,
 				"num_updates": 1,
 				"epsilon_greedy": 0.1,
-				"epsilon_greedy_min": 0.05,
+				"epsilon_greedy_min": 0.1,
 				"epsilon_greedy_decay_episodes": 500,
 				"lambda": 0.6,
 
