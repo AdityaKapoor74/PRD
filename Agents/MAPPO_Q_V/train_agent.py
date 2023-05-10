@@ -179,6 +179,8 @@ class MAPPO:
 
 					break
 
+			self.agents.update_parameters()
+
 			if self.agents.scheduler_need:
 				self.agents.scheduler_policy.step()
 				self.agents.scheduler_q_critic.step()
@@ -303,7 +305,7 @@ if __name__ == '__main__':
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.4, # 0.2
+				"threshold_max": 0.2, # 0.2
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
