@@ -148,9 +148,9 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _ = self.agents.get_action(states, greedy=True)
+						actions, _ = self.agents.get_action(np.array(states), greedy=True)
 				else:
-					actions, action_logprob = self.agents.get_action(states)
+					actions, action_logprob = self.agents.get_action(np.array(states))
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
@@ -242,7 +242,7 @@ if __name__ == '__main__':
 		fully_coop = False
 		max_episode_steps = 70
 		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 		
 
 		dictionary = {
