@@ -5,7 +5,8 @@ import os
 import time
 from comet_ml import Experiment
 import numpy as np
-from agent import PPOAgent
+from agent import LICAAgent
+from buffer import RolloutBuffer
 import torch
 import datetime
 
@@ -13,7 +14,7 @@ torch.autograd.set_detect_anomaly(True)
 
 
 
-class MAPPO:
+class LICA:
 
 	def __init__(self, env, dictionary):
 
@@ -30,15 +31,28 @@ class MAPPO:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = self.env.n_agents
-		self.num_actions = 5
+		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
-		self.experiment_type = dictionary["experiment_type"]
-		self.update_ppo_agent = dictionary["update_ppo_agent"]
+		self.update_episode_interval = dictionary["update_episode_interval"]
 
+		self.observation_shape = dictionary["observation_shape"]
+
+		self.epsilon = dictionary["epsilon_start"]
+		self.epsilon_end = dictionary["epsilon_end"]
+		self.epsilon_num_episodes = dictionary["epsilon_num_episodes"]
+		self.epsilon_delta = (self.epsilon_end - self.epsilon) / self.epsilon_num_episodes 
+
+		self.buffer = RolloutBuffer(
+			num_episodes = self.update_episode_interval,
+			max_time_steps = self.max_time_steps,
+			num_agents = self.num_agents,
+			obs_shape = self.observation_shape,
+			num_actions = self.num_actions
+			)
 
 		self.comet_ml = None
 		if self.save_comet_ml_plot:
@@ -46,26 +60,17 @@ class MAPPO:
 			self.comet_ml.log_parameters(dictionary)
 
 
-		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
-		# self.init_critic_hidden_state(np.zeros((1, self.num_agents, 256)))
+		self.agents = LICAAgent(self.env, dictionary, self.comet_ml)
 
 		if self.save_model:
-			critic_dir = dictionary["critic_dir"]
+			model_dir = dictionary["model_dir"]
 			try: 
-				os.makedirs(critic_dir, exist_ok = True) 
-				print("Critic Directory created successfully") 
+				os.makedirs(model_dir, exist_ok = True) 
+				print("Model Directory created successfully") 
 			except OSError as error: 
-				print("Critic Directory can not be created") 
-			actor_dir = dictionary["actor_dir"]
-			try: 
-				os.makedirs(actor_dir, exist_ok = True) 
-				print("Actor Directory created successfully") 
-			except OSError as error: 
-				print("Actor Directory can not be created")
-
+				print("Model Directory cannot be created")
 			
-			self.critic_model_path = critic_dir+"critic"
-			self.actor_model_path = actor_dir+"actor"
+			self.model_path = model_dir+"model"
 			
 
 		if self.gif:
@@ -119,8 +124,6 @@ class MAPPO:
 		clip.write_gif(fname, fps=fps)
 
 
-
-
 	def run(self):  
 		if self.eval_policy:
 			self.rewards = []
@@ -128,16 +131,19 @@ class MAPPO:
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
 
-		for episode in range(1,self.max_episodes+1):
+		for episode in range(1, self.max_episodes+1):
 
 			states = self.env.reset()
 
 			images = []
 
 			episode_reward = 0
-			episode_collision_rate = 0
 			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
+
+			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
+			self.agents.actor.rnn_hidden_obs = None
+
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -145,26 +151,28 @@ class MAPPO:
 					if not(episode%self.gif_checkpoint):
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					import time
-					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _ = self.agents.get_action(states, greedy=True)
+						actions = self.agents.get_action(states, last_one_hot_action, self.epsilon)
 				else:
-					actions, action_logprob = self.agents.get_action(states)
-					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
-					for i,act in enumerate(actions):
-						one_hot_actions[i][act] = 1
+					actions = self.agents.get_action(states, last_one_hot_action, self.epsilon)
+
+				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
+				for i,act in enumerate(actions):
+					last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
 
 				if not self.gif:
-					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
+					self.buffer.push(states, last_one_hot_action, actions, next_last_one_hot_action, np.sum(rewards), all(dones))
+
+				states = next_states
+				last_one_hot_action = next_last_one_hot_action
 
 				episode_reward += np.sum(rewards)
 
-				states = next_states
-
 				if all(dones) or step == self.max_time_steps:
+
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 					print("*"*100)
@@ -178,10 +186,8 @@ class MAPPO:
 
 					break
 
-			if self.agents.scheduler_need:
-				self.agents.scheduler_policy.step()
-				self.agents.scheduler_q_critic.step()
-				self.agents.scheduler_v_critic.step()
+			if self.epsilon - self.epsilon_delta > self.epsilon_end:
+				self.epsilon -= self.epsilon_delta
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
@@ -193,14 +199,13 @@ class MAPPO:
 
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
-				torch.save(self.agents.critic_network_q.state_dict(), self.critic_model_path+'_Q_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.critic_network_v.state_dict(), self.critic_model_path+'_V_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+				torch.save(self.agents.actor.state_dict(), self.model_path+'_actor_epsiode'+str(episode)+'.pt')
+				torch.save(self.agents.critic.state_dict(), self.model_path+'_critic_epsiode'+str(episode)+'.pt')
 
-			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
-				self.agents.update(episode)
-				# history_states_critic = self.agents.update(episode)
-				# self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu().numpy())
+			if self.learn and episode != 0 and episode%self.update_episode_interval == 0:
+				self.agents.update(self.buffer, episode)
+				self.buffer.clear()
+
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -213,101 +218,66 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
 
-
-'''
-PP
-
-
-PRD-MAPPO
-Soft: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 7; threshold = 0.15
-Hard: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 7
-
-MAPPO
-Soft: value_lr = 1e-5; policy_lr = 1e-5; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
-Hard: value_lr = 1e-5; policy_lr = 1e-5; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
-'''
-
-
 if __name__ == '__main__':
 
 	for i in range(1,6):
-		extension = "MAPPO_"+str(i)
+		extension = "LICA_"+str(i)
 		test_num = "PRESSURE PLATE"
 		env_name = "pressureplate-linear-6p-v0"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
 				"iteration": i,
 				"device": "gpu",
-				"update_learning_rate_with_prd": False,
-				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
-				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
-				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 10,
-				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
+				"model_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+'_'+extension+'/models/',
+				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+'_'+extension+'/',
+				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+'_'+extension+'/',
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
-				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
-				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
+				"model_path_actor": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
+				"model_path_critic": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
+				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 30000,
 				"max_time_steps": 70,
-				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
-
+				"update_episode_interval": 7,
+				"num_updates": 1,
+				"entropy_coeff": 1e-1,
+				"epsilon_start": 1.0,
+				"epsilon_end": 0.1,
+				"epsilon_num_episodes": 500,
+				"lambda": 0.6,
 
 				# ENVIRONMENT
 				"env": env_name,
 
-				# CRITIC
-				"q_value_lr": 5e-4, #1e-3
-				"value_lr": 5e-4, #1e-3
-				"q_weight_decay": 5e-4,
-				"v_weight_decay": 5e-4,
-				"grad_clip_critic": 10.0,
-				"value_clip": 0.2,
-				"enable_hard_attention": True,
-				"num_heads": 4,
-				"critic_weight_entropy_pen": 0.0,
-				"critic_score_regularizer": 0.0,
-				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
+				# MODEL
+				"critic_learning_rate": 1e-3, #1e-3
+				"actor_learning_rate": 1e-4, #1e-3
+				"critic_grad_clip": 10.0,
+				"actor_grad_clip": 10.0,
+				"rnn_hidden_dim": 64,
+				"mixing_embed_dim": 64,
+				"num_hypernet_layers": 2,
 				"norm_returns": False,
-				
-
-				# ACTOR
-				"grad_clip_actor": 10.0,
-				"policy_clip": 0.2,
-				"policy_lr": 1e-4, #prd 1e-4
-				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-2, #8e-3
-				"entropy_final": 0.0,
-				"entropy_delta_episodes": 30000,
-				"gae_lambda": 0.95,
-				"select_above_threshold": 0.0,
-				"threshold_min": 0.0, 
-				"threshold_max": 0.2,
-				"steps_to_take": 1000,
-				"top_k": 0,
-				"norm_adv": False,
-
-				"network_update_interval": 1,
+				"soft_update": False,
+				"tau": 0.001,
+				"target_update_interval": 200,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(env_name)
-		dictionary["global_observation"] = 133
-		dictionary["local_observation"] = 133
-		ma_controller = MAPPO(env,dictionary)
+		dictionary["observation_shape"] = 133
+		ma_controller = LICA(env, dictionary)
 		ma_controller.run()
