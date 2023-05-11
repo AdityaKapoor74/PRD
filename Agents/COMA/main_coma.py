@@ -27,13 +27,13 @@ if __name__ == '__main__':
 				"iteration": i,
 				"value_lr": 1e-4, 
 				"policy_lr": 1e-4,
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"critic_entropy_pen": 0.0,
 				"epsilon_start": 1.0,
 				"epsilon_end": 0.05,
 				"epsilon_episode_steps": 1000,
-				"entropy_pen": 1e-3,
+				"entropy_pen": 8e-3,
 				"target_critic_update": 200,
 				"gamma": 0.99,
 				"lambda": 0.7,
@@ -54,7 +54,7 @@ if __name__ == '__main__':
 			}
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.01, normalize_reward=True)
+		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.0, normalize_reward=True)
 		dictionary["global_observation"] = num_players*3 + num_food*3
 		dictionary["local_observation"] = num_players*3 + num_food*3
 		ma_controller = MACOMA(env,dictionary)
