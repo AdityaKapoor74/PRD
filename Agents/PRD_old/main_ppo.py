@@ -54,9 +54,9 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"value_lr": 5e-4, #1e-3
+				"value_lr": 1e-4, #1e-3
 				"value_weight_decay": 5e-4,
-				"grad_clip_critic": 10.0,
+				"grad_clip_critic": 0.5,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
-				"grad_clip_actor": 10.0,
+				"grad_clip_actor": 0.5,
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
