@@ -20,7 +20,7 @@ class MACOMA:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
+		self.num_agents = len(self.env.players)
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -139,7 +139,7 @@ class MACOMA:
 
 			trajectory = []
 			episode_reward = 0
-			episode_collision_rate = 0
+			episode_num_food_left = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
@@ -149,15 +149,16 @@ class MACOMA:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, greedy=True)
+						actions = self.agents.get_action(np.array(states), greedy=True)
 				else:
-					actions = self.agents.get_action(states)
+					actions = self.agents.get_action(np.array(states))
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				episode_num_food_left += info["num_food_left"]
 
 				episode_reward += np.sum(rewards)
 
@@ -176,7 +177,7 @@ class MACOMA:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+							self.comet_ml.log_metric('Num Food Left', round(episode_num_food_left/step, 4), episode)
 
 						break
 
