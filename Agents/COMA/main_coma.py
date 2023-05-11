@@ -32,7 +32,7 @@ if __name__ == '__main__':
 				"critic_entropy_pen": 0.0,
 				"epsilon_start": 1.0,
 				"epsilon_end": 0.05,
-				"epsilon_episode_steps": 1000,
+				"epsilon_episode_steps": 10000,
 				"entropy_pen": 8e-3,
 				"target_critic_update": 200,
 				"gamma": 0.99,
