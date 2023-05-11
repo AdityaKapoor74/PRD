@@ -37,6 +37,7 @@ class COMAAgent:
 		self.epsilon = self.epsilon_start
 		self.epsilon_end = dictionary["epsilon_end"]
 		self.epsilon_episode_steps = dictionary["epsilon_episode_steps"]
+		self.entropy_pen = dictionary["entropy_pen"]
 		self.episode = 0
 		self.target_critic_update = dictionary["target_critic_update"]
 
@@ -214,7 +215,7 @@ class COMAAgent:
 
 		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=-1))
 	
-		policy_loss = self.calculate_policy_loss(probs, actions, advantage)
+		policy_loss = self.calculate_policy_loss(probs, actions, advantage) - self.entropy_pen*entropy
 		# # ***********************************************************************************
 			
 		
