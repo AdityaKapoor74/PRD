@@ -128,8 +128,8 @@ class MACOMA:
 			self.rewards_mean_per_1000_eps = []
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
-			self.collision_rates = []
-			self.collison_rate_mean_per_1000_eps = []
+			self.num_food_left = []
+			self.num_food_left_mean_per_1000_eps = []
 
 		for episode in range(1,self.max_episodes+1):
 
@@ -186,7 +186,7 @@ class MACOMA:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.collision_rates.append(episode_collision_rate)
+				self.num_food_left.append(episode_num_food_left)
 
 			if episode > self.save_model_checkpoint and episode%self.save_model_checkpoint:
 				if self.eval_policy:
@@ -209,6 +209,5 @@ class MACOMA:
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-			if "crossing" in self.env_name:
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_food_left_list"), np.array(self.num_food_left), allow_pickle=True, fix_imports=True)
+			np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_num_food_left_per_1000_eps"), np.array(self.num_food_left_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
