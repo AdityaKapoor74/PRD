@@ -49,7 +49,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": max_episode_steps,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -76,11 +76,11 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 4e-1, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.01,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
