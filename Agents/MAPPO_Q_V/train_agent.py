@@ -240,7 +240,7 @@ if __name__ == '__main__':
 		num_food = 9
 		grid_size = 12
 		fully_coop = False
-		max_episode_steps = 70
+		max_episode_steps = 100
 		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
 		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 		
@@ -255,7 +255,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 10,
-				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -300,7 +300,7 @@ if __name__ == '__main__':
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 8e-3, #8e-3
-				"entropy_final": 0.0,
+				"entropy_final": 1e-3,
 				"entropy_delta_episodes": 10000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
