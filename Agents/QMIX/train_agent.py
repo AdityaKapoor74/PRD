@@ -266,16 +266,16 @@ if __name__ == '__main__':
 				"update_episode_interval": 1,
 				"num_updates": 1,
 				"epsilon_greedy": 1.0,
-				"epsilon_greedy_min": 0.1,
-				"epsilon_greedy_decay_episodes": 500,
+				"epsilon_greedy_min": 0.05,
+				"epsilon_greedy_decay_episodes": 10000,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
 				"env": env_name,
 
 				# MODEL
-				"learning_rate": 5e-4, #1e-3
-				"grad_clip": 10.0,
+				"learning_rate": 3e-4, #1e-3
+				"grad_clip": 0.5,
 				"rnn_hidden_dim": 64,
 				"hidden_dim": 32,
 				"norm_returns": False,
@@ -286,7 +286,7 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.01, normalize_reward=True)
+		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.0, normalize_reward=True)
 		dictionary["observation_shape"] = num_players*3 + num_food*3
 		ma_controller = QMIX(env, dictionary)
 		ma_controller.run()
