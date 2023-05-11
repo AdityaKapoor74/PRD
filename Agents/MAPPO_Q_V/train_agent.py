@@ -255,7 +255,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 10,
-				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -284,7 +284,7 @@ if __name__ == '__main__':
 				"value_lr": 5e-4, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
-				"grad_clip_critic": 10.0,
+				"grad_clip_critic": 0.5,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
@@ -295,17 +295,17 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
-				"grad_clip_actor": 10.0,
+				"grad_clip_actor": 0.5,
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-3, #8e-3
-				"entropy_final": 1e-3,
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_final": 0.0,
 				"entropy_delta_episodes": 10000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1, # 0.2
+				"threshold_max": 0.15, # 0.2
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
