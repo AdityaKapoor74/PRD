@@ -256,7 +256,7 @@ if __name__ == '__main__':
 				"max_time_steps": max_episode_steps,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"update_episode_interval": 7,
+				"update_episode_interval": 32,
 				"num_updates": 1,
 				"entropy_coeff": 1e-1,
 				"epsilon_start": 1.0,
@@ -268,10 +268,10 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# MODEL
-				"critic_learning_rate": 1e-3, #1e-3
+				"critic_learning_rate": 1e-4, #1e-3
 				"actor_learning_rate": 1e-4, #1e-3
-				"critic_grad_clip": 10.0,
-				"actor_grad_clip": 10.0,
+				"critic_grad_clip": 0.5,
+				"actor_grad_clip": 0.5,
 				"rnn_hidden_dim": 64,
 				"mixing_embed_dim": 64,
 				"num_hypernet_layers": 2,
