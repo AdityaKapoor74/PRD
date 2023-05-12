@@ -119,7 +119,16 @@ class MAPPO:
 		clip.write_gif(fname, fps=fps)
 
 
-
+	def preprocess_state(self, states):
+		states = np.array(states)
+		# bring agent states first and then food locations
+		states_ = np.concatenate([states[:, -self.num_agents*3:], states[:, :-self.num_agents*3]], axis=-1)
+		for curr_agent_num in range(states_.shape[0]):
+			curr_px, curr_py = states_[curr_agent_num][0], states_[curr_agent_num][1]
+			# looping over the state
+			for i in range(3, states_[curr_agent_num].shape[0], 3):
+				states_[curr_agent_num][i], states_[curr_agent_num][i+1] = states_[curr_agent_num][i]-curr_px, states_[curr_agent_num][i+1]-curr_py
+		return states_
 
 	def run(self):  
 		if self.eval_policy:
@@ -130,7 +139,7 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-			states = self.env.reset()
+			states = self.preprocess_state(self.env.reset())
 
 			images = []
 
@@ -156,6 +165,7 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				next_states = self.preprocess_state(next_states)
 				num_food_left = info["num_food_left"]
 
 				if not self.gif:
@@ -297,7 +307,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.2,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 1e-2, #8e-3
 				"entropy_final": 1e-2,
@@ -315,7 +325,7 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.01, normalize_reward=True)
+		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.0, normalize_reward=True)
 		dictionary["global_observation"] = num_players*3 + num_food*3
 		dictionary["local_observation"] = num_players*3 + num_food*3
 		ma_controller = MAPPO(env,dictionary)
