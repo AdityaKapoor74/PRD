@@ -252,7 +252,7 @@ if __name__ == '__main__':
 		fully_coop = False
 		max_episode_steps = 70
 		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 		
 
 		dictionary = {
@@ -279,7 +279,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 30000,
+				"max_episodes": 10000,
 				"max_time_steps": max_episode_steps,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -290,8 +290,8 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"q_value_lr": 1e-3, #1e-3
-				"value_lr": 1e-3, #1e-3
+				"q_value_lr": 1e-2, #1e-3
+				"value_lr": 1e-2, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
