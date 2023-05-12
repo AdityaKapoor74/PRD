@@ -252,7 +252,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 30000,
+				"max_episodes": 10000,
 				"max_time_steps": max_episode_steps,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -260,16 +260,16 @@ if __name__ == '__main__':
 				"num_updates": 1,
 				"entropy_coeff": 1e-1,
 				"epsilon_start": 1.0,
-				"epsilon_end": 0.1,
-				"epsilon_num_episodes": 5000,
+				"epsilon_end": 0.05,
+				"epsilon_num_episodes": 10000,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
 				"env": env_name,
 
 				# MODEL
-				"critic_learning_rate": 1e-4, #1e-3
-				"actor_learning_rate": 1e-4, #1e-3
+				"critic_learning_rate": 5e-3, #1e-3
+				"actor_learning_rate": 1e-3, #1e-3
 				"critic_grad_clip": 0.5,
 				"actor_grad_clip": 0.5,
 				"rnn_hidden_dim": 64,
@@ -283,7 +283,7 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.01, normalize_reward=True)
+		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.0, normalize_reward=True)
 		dictionary["observation_shape"] = num_players*3 + num_food*3
 		ma_controller = LICA(env, dictionary)
 		ma_controller.run()
