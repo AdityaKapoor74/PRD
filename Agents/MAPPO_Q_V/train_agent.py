@@ -260,7 +260,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
