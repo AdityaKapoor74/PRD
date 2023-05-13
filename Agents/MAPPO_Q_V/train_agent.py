@@ -281,7 +281,7 @@ if __name__ == '__main__':
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.6, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
