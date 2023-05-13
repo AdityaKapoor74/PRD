@@ -250,7 +250,7 @@ if __name__ == '__main__':
 		num_food = 5
 		grid_size = 15
 		fully_coop = False
-		max_episode_steps = 100
+		max_episode_steps = 40
 		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
 		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 		
