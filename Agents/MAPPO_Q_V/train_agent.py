@@ -248,7 +248,7 @@ if __name__ == '__main__':
 		test_num = "LB-FORAGING"
 		num_players = 6
 		num_food = 9
-		grid_size = 15
+		grid_size = 12
 		fully_coop = False
 		max_episode_steps = 70
 		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
