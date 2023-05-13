@@ -264,7 +264,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
+				"n_epochs": 1,
 				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
@@ -290,8 +290,8 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"q_value_lr": 5e-3, #1e-3
-				"value_lr": 5e-3, #1e-3
+				"q_value_lr": 1e-3, #1e-3
+				"value_lr": 1e-3, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
