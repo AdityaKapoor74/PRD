@@ -1,4 +1,5 @@
-import gfootball.env as football_env
+import lbforaging
+import gym
 
 import os
 import time
@@ -28,8 +29,8 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = dictionary["num_agents"]
-		self.num_actions = 19
+		self.num_agents = len(self.env.players)
+		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -118,7 +119,16 @@ class MAPPO:
 		clip.write_gif(fname, fps=fps)
 
 
-
+	def preprocess_state(self, states):
+		states = np.array(states)
+		# bring agent states first and then food locations
+		states_ = np.concatenate([states[:, -self.num_agents*3:], states[:, :-self.num_agents*3]], axis=-1)
+		for curr_agent_num in range(states_.shape[0]):
+			curr_px, curr_py = states_[curr_agent_num][0], states_[curr_agent_num][1]
+			# looping over the state
+			for i in range(3, states_[curr_agent_num].shape[0], 3):
+				states_[curr_agent_num][i], states_[curr_agent_num][i+1] = states_[curr_agent_num][i]-curr_px, states_[curr_agent_num][i+1]-curr_py
+		return states_
 
 	def run(self):  
 		if self.eval_policy:
@@ -126,12 +136,10 @@ class MAPPO:
 			self.rewards_mean_per_1000_eps = []
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
-			self.goal_score_rate = []
-			self.goal_score_rate_mean_per_1000_eps = []
 
 		for episode in range(1,self.max_episodes+1):
 
-			states = self.env.reset()
+			states = self.preprocess_state(self.env.reset())
 
 			images = []
 
@@ -149,14 +157,16 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _ = self.agents.get_action(states, greedy=True)
+						actions, _ = self.agents.get_action(np.array(states), greedy=True)
 				else:
-					actions, action_logprob = self.agents.get_action(states)
+					actions, action_logprob = self.agents.get_action(np.array(states))
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				next_states = self.preprocess_state(next_states)
+				num_food_left = info["num_food_left"]
 
 				if not self.gif:
 					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
@@ -165,7 +175,7 @@ class MAPPO:
 
 				states = next_states
 
-				if dones or step == self.max_time_steps:
+				if all(dones) or step == self.max_time_steps:
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 					print("*"*100)
@@ -175,9 +185,11 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Goal Scored', np.sum(dones), episode)
+						self.comet_ml.log_metric('Num Food Left', num_food_left, episode)
 
 					break
+
+			# self.agents.update_parameters()
 
 			if self.agents.scheduler_need:
 				self.agents.scheduler_policy.step()
@@ -187,12 +199,11 @@ class MAPPO:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.goal_score_rate.append(int(dones))
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.goal_score_rate_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.critic_network_q.state_dict(), self.critic_model_path+'_Q_epsiode'+str(episode)+'.pt')
@@ -213,8 +224,6 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"goal_score_rate_list"), np.array(self.goal_score_rate), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_goal_score_rate_per_1000_eps"), np.array(self.goal_score_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
 
 
@@ -236,9 +245,15 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "MAPPO_"+str(i)
-		test_num = "GOOGLE FOOTBALL"
-		env_name = "academy_counterattack_easy"
-		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		test_num = "LB-FORAGING"
+		num_players = 6
+		num_food = 9
+		grid_size = 15
+		fully_coop = False
+		max_episode_steps = 70
+		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
+		experiment_type = "prd_top_3" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		
 
 		dictionary = {
 				# TRAINING
@@ -249,8 +264,8 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 1,
+				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -264,8 +279,8 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 30000,
-				"max_time_steps": 40,
+				"max_episodes": 10000,
+				"max_time_steps": max_episode_steps,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -273,37 +288,36 @@ if __name__ == '__main__':
 
 				# ENVIRONMENT
 				"env": env_name,
-				"num_agents": 6,
 
 				# CRITIC
-				"q_value_lr": 1e-3, #1e-3
-				"value_lr": 1e-3, #1e-3
+				"q_value_lr": 5e-3, #1e-3
+				"value_lr": 5e-3, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
-				"value_clip": 0.1,
+				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.6, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
 				# ACTOR
 				"grad_clip_actor": 0.5,
-				"policy_clip": 0.1,
+				"policy_clip": 0.2,
 				"policy_lr": 1e-3, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 1e-3, #8e-3
 				"entropy_final": 1e-3,
-				"entropy_delta_episodes": 30000,
+				"entropy_delta_episodes": 10000,
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.0,
+				"select_above_threshold": 0.2,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1, # 0.2
-				"steps_to_take": 100,
-				"top_k": 0,
+				"threshold_max": 0.0, # 0.33
+				"steps_to_take": 1000,
+				"top_k": 3,
 				"norm_adv": False,
 
 				"network_update_interval": 1,
@@ -311,20 +325,8 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = football_env.create_environment(
-			env_name=env_name,
-			number_of_left_players_agent_controls=dictionary["num_agents"],
-			# number_of_right_players_agent_controls=2,
-			representation="simple115",
-			# num_agents=4,
-			stacked=False, 
-			logdir='/tmp/football', 
-			write_goal_dumps=False, 
-			write_full_episode_dumps=False, 
-			rewards='scoring,checkpoints',
-			render=False
-			)
-		dictionary["global_observation"] = 115
-		dictionary["local_observation"] = 115
+		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.0, normalize_reward=True)
+		dictionary["global_observation"] = num_players*3 + num_food*3
+		dictionary["local_observation"] = num_players*3 + num_food*3
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
