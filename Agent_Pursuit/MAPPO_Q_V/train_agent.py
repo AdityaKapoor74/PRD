@@ -225,7 +225,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "PURSUIT"
 		env_name = "pursuit_v4"
-		experiment_type = "prd_top_3" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
 
 		max_time_steps = 500
 		num_agents = 8
@@ -291,7 +291,7 @@ if __name__ == '__main__':
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0, # 0.3
 				"steps_to_take": 300,
-				"top_k": 3,
+				"top_k": 0,
 				"norm_adv": False,
 
 				"network_update_interval": 1,
