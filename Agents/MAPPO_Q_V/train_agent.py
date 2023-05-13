@@ -29,8 +29,7 @@ class MAPPO:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = dictionary["num_agents"]
-		print(self.env.action_space)
-		self.num_actions = self.env.action_space[0].n
+		self.num_actions = self.env.action_space.n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
