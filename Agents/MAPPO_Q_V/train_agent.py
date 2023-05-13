@@ -245,7 +245,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 2,
-				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -297,7 +297,7 @@ if __name__ == '__main__':
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.199, # 0.2
-				"steps_to_take": 1000,
+				"steps_to_take": 100,
 				"top_k": 0,
 				"norm_adv": False,
 
