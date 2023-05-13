@@ -71,11 +71,11 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-1, #8e-3
+				"entropy_pen": 5e-2, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.2,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
