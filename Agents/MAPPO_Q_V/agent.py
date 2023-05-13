@@ -20,7 +20,7 @@ class PPOAgent:
 		self.env = env
 		self.env_name = dictionary["env"]
 		self.num_agents = dictionary["num_agents"]
-		self.num_actions = self.env.action_space.n
+		self.num_actions = 19
 
 		# Training setup
 		self.test_num = dictionary["test_num"]
