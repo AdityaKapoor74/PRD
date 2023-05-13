@@ -244,7 +244,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 1,
+				"n_epochs": 2,
 				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
@@ -276,7 +276,7 @@ if __name__ == '__main__':
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
-				"value_clip": 0.2,
+				"value_clip": 0.1,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
@@ -287,11 +287,11 @@ if __name__ == '__main__':
 
 				# ACTOR
 				"grad_clip_actor": 0.5,
-				"policy_clip": 0.2,
-				"policy_lr": 5e-4, #prd 1e-4
+				"policy_clip": 0.1,
+				"policy_lr": 1e-3, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 0.0, #8e-3
-				"entropy_final": 0.0,
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_final": 1e-3,
 				"entropy_delta_episodes": 30000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
