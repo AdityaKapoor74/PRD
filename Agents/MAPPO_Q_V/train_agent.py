@@ -250,7 +250,7 @@ if __name__ == '__main__':
 		num_food = 5
 		grid_size = 15
 		fully_coop = False
-		max_episode_steps = 70
+		max_episode_steps = 100
 		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
 		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 		
@@ -265,7 +265,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 1,
-				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -279,7 +279,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 10000,
+				"max_episodes": 20000,
 				"max_time_steps": max_episode_steps,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
