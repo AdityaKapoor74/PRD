@@ -28,7 +28,7 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = len(self.env.action_space)
+		self.num_agents = dictionary["num_agents"]
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -254,10 +254,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": False,
-				"save_model": False,
+				"eval_policy": True,
+				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 30000,
 				"max_time_steps": 70,
@@ -268,6 +268,7 @@ if __name__ == '__main__':
 
 				# ENVIRONMENT
 				"env": env_name,
+				"num_agents": 6,
 
 				# CRITIC
 				"q_value_lr": 1e-3, #1e-3
@@ -307,7 +308,7 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = football_env.create_environment(
 			env_name=env_name,
-			number_of_left_players_agent_controls=6,
+			number_of_left_players_agent_controls=dictionary["num_agents"],
 			# number_of_right_players_agent_controls=2,
 			representation="simple115",
 			# num_agents=4,
