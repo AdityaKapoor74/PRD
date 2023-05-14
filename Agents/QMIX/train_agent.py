@@ -200,7 +200,7 @@ class QMIX:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.goal_score_rate.append(int(dones))
+				self.goal_score_rate.append(all(dones))
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
