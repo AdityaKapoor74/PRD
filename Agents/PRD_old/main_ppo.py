@@ -1,6 +1,5 @@
 from mappo import MAPPO
-import pressureplate
-import gym
+import gfootball.env as football_env
 import torch
 
 '''
@@ -15,8 +14,8 @@ if __name__ == '__main__':
 	# crossing_greedy/ crossing_fully_coop /  paired_by_sharing_goals/ crossing_partially_coop/ color_social_dilemma
 	for i in range(1,6):
 		extension = "PRD_old_"+str(i)
-		test_num = "PRESSURE PLATE" 
-		env_name = "pressureplate-linear-6p-v0"
+		test_num = "GOOGLE FOOTBALL"
+		env_name = "academy_counterattack_easy"
 		experiment_type = "prd_above_threshold_ascend" # prd_above_threshold_ascend, greedy, shared
 
 		dictionary = {
@@ -29,7 +28,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 1,
-				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -44,7 +43,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": 40,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -52,12 +51,13 @@ if __name__ == '__main__':
 
 				# ENVIRONMENT
 				"env": env_name,
+				"num_agents": 6,
 
 				# CRITIC
-				"value_lr": 1e-4, #1e-3
+				"value_lr": 1e-3, #1e-3
 				"value_weight_decay": 5e-4,
 				"grad_clip_critic": 0.5,
-				"value_clip": 0.2,
+				"value_clip": 0.1,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
@@ -68,14 +68,14 @@ if __name__ == '__main__':
 
 				# ACTOR
 				"grad_clip_actor": 0.5,
-				"policy_clip": 0.2,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_clip": 0.1,
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-2, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.1,
+				"threshold_max": 0.15,
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
@@ -85,8 +85,20 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name)
-		dictionary["global_observation"] = 133
-		dictionary["local_observation"] = 133
+		env = football_env.create_environment(
+			env_name=env_name,
+			number_of_left_players_agent_controls=dictionary["num_agents"],
+			# number_of_right_players_agent_controls=2,
+			representation="simple115",
+			# num_agents=4,
+			stacked=False, 
+			logdir='/tmp/football', 
+			write_goal_dumps=False, 
+			write_full_episode_dumps=False, 
+			rewards='scoring,checkpoints',
+			render=False
+			)
+		dictionary["global_observation"] = 115
+		dictionary["local_observation"] = 115
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
