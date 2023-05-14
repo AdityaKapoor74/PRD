@@ -139,7 +139,6 @@ class MACOMA:
 
 			trajectory = []
 			episode_reward = 0
-			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
 			for step in range(1, self.max_time_steps+1):
 
@@ -186,7 +185,7 @@ class MACOMA:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
-				self.goal_score_rate.append(int(dones))
+				self.goal_score_rate.append(all(dones))
 
 			if episode > self.save_model_checkpoint and episode%self.save_model_checkpoint:
 				if self.eval_policy:
