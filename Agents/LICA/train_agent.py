@@ -1,5 +1,4 @@
-import pressureplate
-import gym
+import gfootball.env as football_env
 
 import os
 import time
@@ -30,8 +29,8 @@ class LICA:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = dictionary["num_agents"]
+		self.num_actions = 19
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -130,6 +129,8 @@ class LICA:
 			self.rewards_mean_per_1000_eps = []
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
+			self.goal_score_rate = []
+			self.goal_score_rate_mean_per_1000_eps = []
 
 		for episode in range(1, self.max_episodes+1):
 
@@ -138,7 +139,6 @@ class LICA:
 			images = []
 
 			episode_reward = 0
-			episode_goal_reached = 0
 			final_timestep = self.max_time_steps
 
 			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
@@ -162,6 +162,7 @@ class LICA:
 					last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				dones = [dones]*self.num_agents
 
 				if not self.gif:
 					self.buffer.push(states, last_one_hot_action, actions, next_last_one_hot_action, np.sum(rewards), all(dones))
@@ -182,7 +183,7 @@ class LICA:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+						self.comet_ml.log_metric('Goal Scored', all(dones), episode)
 
 					break
 
@@ -192,11 +193,12 @@ class LICA:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
+				self.goal_score_rate.append(all(dones))
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-
+				self.goal_score_rate_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.actor.state_dict(), self.model_path+'_actor_epsiode'+str(episode)+'.pt')
@@ -216,14 +218,16 @@ class LICA:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"goal_score_rate_list"), np.array(self.goal_score_rate), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_goal_score_rate_per_1000_eps"), np.array(self.goal_score_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
 
 if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "LICA_"+str(i)
-		test_num = "PRESSURE PLATE"
-		env_name = "pressureplate-linear-6p-v0"
+		test_num = "GOOGLE FOOTBALL"
+		env_name = "academy_counterattack_easy"
 
 		dictionary = {
 				# TRAINING
@@ -247,25 +251,26 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": 40,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"update_episode_interval": 7,
+				"update_episode_interval": 10,
 				"num_updates": 1,
 				"entropy_coeff": 1e-1,
 				"epsilon_start": 1.0,
-				"epsilon_end": 0.1,
-				"epsilon_num_episodes": 500,
-				"lambda": 0.6,
+				"epsilon_end": 0.05,
+				"epsilon_num_episodes": 1000,
+				"lambda": 0.8,
 
 				# ENVIRONMENT
 				"env": env_name,
+				"num_agents": 6,
 
 				# MODEL
 				"critic_learning_rate": 1e-3, #1e-3
-				"actor_learning_rate": 1e-4, #1e-3
-				"critic_grad_clip": 10.0,
-				"actor_grad_clip": 10.0,
+				"actor_learning_rate": 5e-4, #1e-3
+				"critic_grad_clip": 0.5,
+				"actor_grad_clip": 0.5,
 				"rnn_hidden_dim": 64,
 				"mixing_embed_dim": 64,
 				"num_hypernet_layers": 2,
@@ -277,7 +282,19 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name)
-		dictionary["observation_shape"] = 133
+		env = football_env.create_environment(
+			env_name=env_name,
+			number_of_left_players_agent_controls=dictionary["num_agents"],
+			# number_of_right_players_agent_controls=2,
+			representation="simple115",
+			# num_agents=4,
+			stacked=False, 
+			logdir='/tmp/football', 
+			write_goal_dumps=False, 
+			write_full_episode_dumps=False, 
+			rewards='scoring,checkpoints',
+			render=False
+			)
+		dictionary["observation_shape"] = 115
 		ma_controller = LICA(env, dictionary)
 		ma_controller.run()
