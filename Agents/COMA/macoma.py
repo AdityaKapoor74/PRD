@@ -162,7 +162,7 @@ class MACOMA:
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
 				rewards = [np.sum(rewards)]*self.num_agents
-				dones = [dones]*self.num_agents
+				dones = [int(dones)]*self.num_agents
 
 				if self.learn:
 					trajectory.append([states, one_hot_actions, actions, rewards, dones])
@@ -176,7 +176,7 @@ class MACOMA:
 						if self.save_comet_ml_plot:
 							self.comet_ml.log_metric('Episode_Length', step, episode)
 							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Goal Scored', np.sum(dones), episode)
+							self.comet_ml.log_metric('Goal Scored', all(dones), episode)
 
 						break
 
