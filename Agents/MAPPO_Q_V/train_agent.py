@@ -237,7 +237,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "GOOGLE FOOTBALL"
 		env_name = "academy_counterattack_easy"
-		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_above_threshold" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
