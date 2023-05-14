@@ -1,5 +1,4 @@
-import pressureplate
-import gym
+import gfootball.env as football_env
 
 import os
 import time
@@ -30,8 +29,8 @@ class QMIX:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = dictionary["num_agents"]
+		self.num_actions = 19
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -134,6 +133,8 @@ class QMIX:
 			self.rewards_mean_per_1000_eps = []
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
+			self.goal_score_rate = []
+			self.goal_score_rate_mean_per_1000_eps = []
 
 		for episode in range(self.max_episodes):
 
@@ -159,15 +160,16 @@ class QMIX:
 					# time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions = self.agents.get_action(states, last_one_hot_action)
+						actions = self.agents.get_action(states, last_one_hot_action, self.epsilon_greedy)
 				else:
-					actions = self.agents.get_action(states, last_one_hot_action)
+					actions = self.agents.get_action(states, last_one_hot_action, self.epsilon_greedy)
 
 				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
+				dones = [dones]*self.num_agents
 
 				if not self.gif:
 					self.buffer.push(states, actions, last_one_hot_action, next_states, next_last_one_hot_action, np.sum(rewards), all(dones))
@@ -188,7 +190,7 @@ class QMIX:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
+						self.comet_ml.log_metric('Goal Scored', all(dones), episode)
 
 					break
 
@@ -198,11 +200,12 @@ class QMIX:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
+				self.goal_score_rate.append(int(dones))
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-
+				self.goal_score_rate_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.Q_network.state_dict(), self.model_path+'_Q_epsiode'+str(episode)+'.pt')
@@ -222,14 +225,16 @@ class QMIX:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"goal_score_rate_list"), np.array(self.goal_score_rate), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_goal_score_rate_per_1000_eps"), np.array(self.goal_score_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
 
 if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "QMix"+str(i)
-		test_num = "PRESSURE PLATE"
-		env_name = "pressureplate-linear-6p-v0"
+		test_num = "GOOGLE FOOTBALL"
+		env_name = "academy_counterattack_easy"
 
 		dictionary = {
 				# TRAINING
@@ -252,20 +257,21 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 70,
+				"max_time_steps": 40,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
 				"batch_size": 32,
 				"update_episode_interval": 1,
 				"num_updates": 1,
-				"epsilon_greedy": 0.1,
+				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
-				"epsilon_greedy_decay_episodes": 500,
+				"epsilon_greedy_decay_episodes": 1000,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
 				"env": env_name,
+				"num_agents": 6,
 
 				# MODEL
 				"learning_rate": 5e-4, #1e-3
@@ -280,7 +286,19 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name)
-		dictionary["observation_shape"] = 133
+		env = football_env.create_environment(
+			env_name=env_name,
+			number_of_left_players_agent_controls=dictionary["num_agents"],
+			# number_of_right_players_agent_controls=2,
+			representation="simple115",
+			# num_agents=4,
+			stacked=False, 
+			logdir='/tmp/football', 
+			write_goal_dumps=False, 
+			write_full_episode_dumps=False, 
+			rewards='scoring,checkpoints',
+			render=False
+			)
+		dictionary["observation_shape"] = 115
 		ma_controller = QMIX(env, dictionary)
 		ma_controller.run()
