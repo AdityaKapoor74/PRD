@@ -162,7 +162,7 @@ class LICA:
 					last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				dones = [dones]*self.num_agents
+				dones = [int(dones)]*self.num_agents
 
 				if not self.gif:
 					self.buffer.push(states, last_one_hot_action, actions, next_last_one_hot_action, np.sum(rewards), all(dones))
