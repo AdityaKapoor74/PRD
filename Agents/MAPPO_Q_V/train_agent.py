@@ -155,7 +155,7 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				dones = [dones]*self.num_agents
+				dones = [int(dones)]*self.num_agents
 
 				if not self.gif:
 					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
