@@ -237,7 +237,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "GOOGLE FOOTBALL"
 		env_name = "academy_counterattack_easy"
-		experiment_type = "prd_above_threshold_decay" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "prd_top_3" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -302,7 +302,7 @@ if __name__ == '__main__':
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0, # 0.2
 				"steps_to_take": 100,
-				"top_k": 0,
+				"top_k": 3,
 				"norm_adv": False,
 
 				"network_update_interval": 1,
