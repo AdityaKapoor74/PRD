@@ -22,8 +22,8 @@ class LICAAgent:
 		# Environment Setup
 		self.env = env
 		self.env_name = dictionary["env"]
-		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = dictionary["num_agents"]
+		self.num_actions = 19
 		self.obs_input_dim = dictionary["observation_shape"] # crossing_team_greedy
 
 		# Training setup
