@@ -30,8 +30,8 @@ class COMAAgent:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		
-		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = dictionary["num_agents"]
+		self.num_actions = 19
 
 		self.epsilon_start = dictionary["epsilon_start"]
 		self.epsilon = self.epsilon_start
