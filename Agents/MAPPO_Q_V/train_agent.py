@@ -174,7 +174,7 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Goal Scored', all(dones), episode)
+						self.comet_ml.log_metric('Goal Scored', np.mean(dones), episode)
 
 					break
 
