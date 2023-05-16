@@ -28,7 +28,7 @@ env, local_observation_size, global_observation_size = make_env(scenario_name=en
 num_agents = env.n
 num_actions = env.action_space[0].n
 
-experiment_type = "prd_above_threshold_ascend"
+experiment_type = "shared"
 update_ppo_agent = 1
 n_epochs = 1
 policy_clip = 0.05
