@@ -25,7 +25,7 @@ observation_size = num_players*3 + num_food*3
 num_agents = len(env.players)
 num_actions = env.action_space[0].n
 
-experiment_type = "shared"
+experiment_type = "prd_above_threshold_ascend"
 update_ppo_agent = 1
 n_epochs = 1
 policy_clip = 0.2
