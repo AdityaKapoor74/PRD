@@ -25,7 +25,7 @@ observation_size = num_players*3 + num_food*3
 num_agents = len(env.players)
 num_actions = env.action_space[0].n
 
-experiment_type = "prd_above_threshold_ascend"
+experiment_type = "prd_above_threshold"
 update_ppo_agent = 1
 n_epochs = 1
 policy_clip = 0.2
@@ -42,7 +42,7 @@ gamma = 0.99
 if experiment_type == "shared":
 	model_root_dir = "./../../../tests/LB-FORAGING/models/Foraging-12x12-6p-9f-v2_shared_MAPPO_1/"
 else:
-	model_root_dir = "./../../../tests/LB-FORAGING/models/Foraging-12x12-6p-9f-v2_prd_above_threshold_ascend_MAPPO_1/"
+	model_root_dir = "./../../../tests/LB-FORAGING/models/Foraging-12x12-6p-9f-v2_prd_above_threshold_MAPPO_1/"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
