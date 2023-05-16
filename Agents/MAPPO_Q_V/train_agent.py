@@ -237,7 +237,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "GOOGLE FOOTBALL"
 		env_name = "academy_counterattack_easy"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
+		experiment_type = "shared" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -248,8 +248,8 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 2,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 15,
+				"update_ppo_agent": 2, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -263,8 +263,8 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 30000,
-				"max_time_steps": 40,
+				"max_episodes": 50000,
+				"max_time_steps": 200,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -272,15 +272,15 @@ if __name__ == '__main__':
 
 				# ENVIRONMENT
 				"env": env_name,
-				"num_agents": 6,
+				"num_agents": 4,
 
 				# CRITIC
-				"q_value_lr": 5e-3, #1e-3
-				"value_lr": 5e-3, #1e-3
+				"q_value_lr": 5e-4, #1e-3
+				"value_lr": 5e-4, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
-				"grad_clip_critic": 0.5,
-				"value_clip": 0.1,
+				"grad_clip_critic": 10.0,
+				"value_clip": 1.0,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
@@ -290,19 +290,19 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
-				"grad_clip_actor": 0.5,
-				"policy_clip": 0.1,
-				"policy_lr": 1e-3, #prd 1e-4
+				"grad_clip_actor": 10.0,
+				"policy_clip": 1.0,
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 1e-3, #8e-3
-				"entropy_final": 1e-3,
-				"entropy_delta_episodes": 30000,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_final": 1e-2,
+				"entropy_delta_episodes": 50000,
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.2,
+				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0, # 0.2
-				"steps_to_take": 100,
-				"top_k": 3,
+				"threshold_max": 0.1, # 0.2
+				"steps_to_take": 1000,
+				"top_k": 0,
 				"norm_adv": False,
 
 				"network_update_interval": 1,
