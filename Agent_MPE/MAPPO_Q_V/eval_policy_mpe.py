@@ -38,7 +38,7 @@ select_above_threshold = 0.12
 steps_to_take = 0
 enable_hard_attention = False
 max_episodes = 100
-max_time_steps = 70
+max_time_steps = 100
 lambda_ = 0.95
 gae_lambda = 0.95
 gamma = 0.99
@@ -177,7 +177,7 @@ for iterator in range(1, 31):
 	policy_network.load_state_dict(torch.load(os.path.join(model_root_dir, "actor_networks", "actor_epsiode"+str(1000*iterator)+".pt"), map_location=device))
 	
 	policy_grads_runs = []
-	for run in range(1, 6):
+	for run in range(1, 11):
 		policy_grads_episodic = []
 		for episode in range(1, max_episodes+1):
 
