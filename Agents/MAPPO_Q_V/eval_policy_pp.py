@@ -20,7 +20,7 @@ observation_size = 133
 num_agents = env.n_agents
 num_actions = 5
 
-experiment_type = "shared"
+experiment_type = "prd_above_threshold"
 update_ppo_agent = 1
 n_epochs = 1
 policy_clip = 0.2
@@ -38,7 +38,7 @@ gamma = 0.99
 if experiment_type == "shared":
 	model_root_dir = "./../../../tests/PRESSURE PLATE/models/pressureplate-linear-6p-v0_shared_MAPPO_1/"
 else:
-	model_root_dir = "./../../../tests/PRESSURE PLATE/models/pressureplate-linear-6p-v0_prd_above_threshold_ascend_MAPPO_1/"
+	model_root_dir = "./../../../tests/PRESSURE PLATE/models/pressureplate-linear-6p-v0_prd_above_threshold_MAPPO_1/"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
