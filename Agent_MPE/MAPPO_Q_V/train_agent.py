@@ -1,5 +1,5 @@
-import lbforaging
-import gym
+from multiagent.environment import MultiAgentEnv
+import multiagent.scenarios as scenarios
 
 import os
 import time
@@ -29,7 +29,7 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = len(self.env.players)
+		self.num_agents = self.env.n
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -87,6 +87,22 @@ class MAPPO:
 				print("Policy Eval Directory can not be created")
 
 
+	def split_states(self,states):
+		states_critic = []
+		states_actor = []
+		for i in range(self.num_agents):
+			states_critic.append(states[i][0])
+			states_actor.append(states[i][1])
+
+		states_critic = np.asarray(states_critic)
+		states_actor = np.asarray(states_actor)
+
+		return states_critic,states_actor
+
+	# def init_critic_hidden_state(self, hidden_state):
+	# 	self.critic_hidden_state = hidden_state
+
+
 	def make_gif(self,images,fname,fps=10, scale=1.0):
 		from moviepy.editor import ImageSequenceClip
 		"""Creates a gif given a stack of images using moviepy
@@ -127,12 +143,16 @@ class MAPPO:
 			self.rewards_mean_per_1000_eps = []
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
+			self.collision_rates = []
+			self.collison_rate_mean_per_1000_eps = []
 
 		for episode in range(1,self.max_episodes+1):
 
 			states = self.env.reset()
 
 			images = []
+
+			states_critic, states_actor = self.split_states(states)
 
 			episode_reward = 0
 			episode_collision_rate = 0
@@ -148,24 +168,43 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _ = self.agents.get_action(states, greedy=True)
+						actions, _ = self.agents.get_action(states_actor, greedy=True)
 				else:
-					actions, action_logprob = self.agents.get_action(states)
+					actions, action_logprob = self.agents.get_action(states_actor)
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
 
+				
+
 				next_states, rewards, dones, info = self.env.step(actions)
-				num_food_left = info["num_food_left"]
+				next_states_critic, next_states_actor = self.split_states(next_states)
+
+				if "crossing" in self.env_name:
+					collision_rate = [value[1] for value in rewards]
+					goal_reached = [value[2] for value in rewards]
+					rewards = [value[0] for value in rewards] 
+					episode_collision_rate += np.sum(collision_rate)
+					episode_goal_reached += np.sum(goal_reached)
 
 				if not self.gif:
-					self.agents.buffer.push(states, action_logprob, actions, one_hot_actions, rewards, dones)
+					# self.agents.buffer.states_critic.append(states_critic)
+					# self.agents.buffer.states_actor.append(states_actor)
+					# self.agents.buffer.actions.append(actions)
+					# self.agents.buffer.one_hot_actions.append(one_hot_actions)
+					# self.agents.buffer.dones.append(dones)
+					# self.agents.buffer.rewards.append(rewards)
+					# self.agents.buffer.logprobs.append(action_logprob)
+
+					self.agents.buffer.push(states_critic, states_actor, action_logprob, actions, one_hot_actions, rewards, dones)
 
 				episode_reward += np.sum(rewards)
 
+				states_critic, states_actor = next_states_critic, next_states_actor
 				states = next_states
 
 				if all(dones) or step == self.max_time_steps:
+
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 					print("*"*100)
@@ -175,7 +214,8 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Food Left', num_food_left, episode)
+						self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+						self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(dones), episode)
 
 					break
 
@@ -187,10 +227,12 @@ class MAPPO:
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
+				self.collision_rates.append(episode_collision_rate)
 
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
@@ -200,8 +242,7 @@ class MAPPO:
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode)
-				# history_states_critic = self.agents.update(episode)
-				# self.init_critic_hidden_state(history_states_critic.detach().unsqueeze(0).cpu().numpy())
+
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
@@ -212,20 +253,34 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+
+				if "prd" in self.experiment_type:
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_relevant_agents_in_relevant_set"), np.array(self.agents.num_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"num_non_relevant_agents_in_relevant_set"), np.array(self.agents.num_non_relevant_agents_in_relevant_set), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"false_positive_rate"), np.array(self.agents.false_positive_rate), allow_pickle=True, fix_imports=True)
 
 
+
+def make_env(scenario_name, benchmark=False):
+	scenario = scenarios.load(scenario_name + ".py").Scenario()
+	world = scenario.make_world()
+	if benchmark:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+	else:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
+	return env, scenario.observation_shape, scenario.transformer_observation_shape
 
 '''
-PP
-
-
+crossing_team_greedy
 PRD-MAPPO
-Soft: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 7; threshold = 0.15
-Hard: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 7
+Soft: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 1e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
+Hard: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 1e-3; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
 
 MAPPO
-Soft: value_lr = 1e-5; policy_lr = 1e-5; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
-Hard: value_lr = 1e-5; policy_lr = 1e-5; entropy_pen = 0.0; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
+Soft: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 1e-2; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
+Hard: value_lr = 1e-4; policy_lr = 1e-4; entropy_pen = 1e-2; grad_clip_critic = 0.5; grad_clip_actor = 0.5; value_clip = 0.05; policy_clip = 0.05; n_epochs = 5; update_ppo_agent = 5
 '''
 
 
@@ -233,15 +288,9 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "MAPPO_"+str(i)
-		test_num = "LB-FORAGING"
-		num_players = 6
-		num_food = 9
-		grid_size = 12
-		fully_coop = False
-		max_episode_steps = 70
-		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold, prd_above_threshold_ascend, prd_top_k, prd_above_threshold_decay
-		
+		test_num = "TEAM COLLISION AVOIDANCE"
+		env_name = "crossing_team_greedy"
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
@@ -252,8 +301,8 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 10,
-				"update_ppo_agent": 7, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 5,
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -268,42 +317,41 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": max_episode_steps,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
 
 
 				# ENVIRONMENT
+				"team_size": 8,
 				"env": env_name,
 
 				# CRITIC
-				"q_value_lr": 5e-4, #1e-3
-				"value_lr": 5e-4, #1e-3
+				"q_value_lr": 1e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
-				"grad_clip_critic": 10.0,
-				"value_clip": 0.2,
+				"grad_clip_critic": 0.5,
+				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
 				# ACTOR
-				"grad_clip_actor": 10.0,
-				"policy_clip": 0.2,
+				"grad_clip_actor": 0.5,
+				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 0.0, #8e-3
-				"entropy_final": 0.0,
-				"entropy_delta_episodes": 30000,
+				"entropy_pen": 4e-2, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
-				"threshold_max": 0.2, # 0.2
+				"threshold_max": 0.0, #0.12
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": False,
@@ -313,8 +361,8 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(env_name, max_episode_steps=max_episode_steps, penalty=0.01, normalize_reward=True)
-		dictionary["global_observation"] = num_players*3 + num_food*3
-		dictionary["local_observation"] = num_players*3 + num_food*3
+		env, local_observation, global_observation = make_env(scenario_name=dictionary["env"],benchmark=False)
+		dictionary["global_observation"] = global_observation
+		dictionary["local_observation"] = local_observation
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
