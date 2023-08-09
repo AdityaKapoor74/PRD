@@ -184,8 +184,8 @@ class MAPPO:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Enemies Dead', info["num_enemies_dead"], episode)
-						self.comet_ml.log_metric('Num Allies Dead', info["num_allies_dead"], episode)
+						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
+						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
 						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
 						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
 
@@ -243,7 +243,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
 
 		dictionary = {
 				# TRAINING
