@@ -18,34 +18,20 @@ class PPOAgent:
 
 		# Environment Setup
 		self.env = env
-		self.team_size = dictionary["team_size"]
 		self.env_name = dictionary["env"]
-		self.num_agents = self.env.n
+		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
 
 		# Training setup
 		self.test_num = dictionary["test_num"]
 		self.gif = dictionary["gif"]
 		self.experiment_type = dictionary["experiment_type"]
-		self.num_relevant_agents_in_relevant_set = []
-		self.num_non_relevant_agents_in_relevant_set = []
-		self.false_positive_rate = []
 		self.n_epochs = dictionary["n_epochs"]
 		self.scheduler_need = dictionary["scheduler_need"]
 		if dictionary["device"] == "gpu":
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
 			self.device = "cpu"
-		assert self.num_agents%self.team_size == 0
-		self.num_teams = self.num_agents//self.team_size
-		self.relevant_set = torch.zeros(1,self.num_agents,self.num_agents).to(self.device)
-
-		for team_id in range(self.num_teams):
-			for i in range(self.num_agents):
-				if i >= team_id*self.team_size and i < (team_id+1)*self.team_size:
-					self.relevant_set[0][i][team_id*self.team_size:(team_id+1)*self.team_size] = torch.ones(self.team_size)
-
-		self.non_relevant_set = torch.ones(1,self.num_agents,self.num_agents).to(self.device) - self.relevant_set
 
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
 		self.max_time_steps = dictionary["max_time_steps"]
@@ -62,6 +48,7 @@ class PPOAgent:
 		self.value_clip = dictionary["value_clip"]
 		self.num_heads = dictionary["num_heads"]
 		self.enable_hard_attention = dictionary["enable_hard_attention"]
+		self.enable_grad_clip_critic = dictionary["enable_grad_clip_critic"]
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 
 
@@ -80,6 +67,7 @@ class PPOAgent:
 		self.threshold_max = dictionary["threshold_max"]
 		self.steps_to_take = dictionary["steps_to_take"]
 		self.policy_clip = dictionary["policy_clip"]
+		self.enable_grad_clip_actor = dictionary["enable_grad_clip_actor"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 		if self.enable_hard_attention:
 			self.select_above_threshold = 0
@@ -143,13 +131,6 @@ class PPOAgent:
 				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
-		# params_to_update = []
-		# for name, param in self.critic_network.named_parameters():
-		# 	if param.requires_grad == True:
-		# 		if "v_value_layer" in name:
-		# 			continue
-		# 		params_to_update.append(param)
-				# print("\t",name)
 
 		self.q_critic_optimizer = optim.Adam(self.critic_network_q.parameters(), lr=self.v_value_lr, weight_decay=self.v_weight_decay)
 		self.v_critic_optimizer = optim.Adam(self.critic_network_v.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay)
@@ -165,10 +146,11 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 
-	def get_action(self, state_policy, greedy=False):
+	def get_action(self, state_policy, mask_actions, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			dists = self.policy_network_old(state_policy)
+			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
+			dists = self.policy_network_old(state_policy, mask_actions)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 			else:
@@ -199,42 +181,6 @@ class PPOAgent:
 		return advantages
 
 
-
-	# def calculate_deltas(self, values, rewards, dones):
-	# 	deltas = []
-	# 	next_value = 0
-	# 	# rewards = rewards.unsqueeze(-1)
-	# 	# dones = dones.unsqueeze(-1)
-	# 	masks = 1-dones
-	# 	for t in reversed(range(0, len(rewards))):
-	# 		td_error = rewards[t] + (self.gamma * next_value * masks[t])
-	# 		next_value = values.data[t]
-	# 		deltas.insert(0,td_error)
-	# 	deltas = torch.stack(deltas)
-
-	# 	return deltas
-
-
-	# def nstep_returns(self, values, rewards, dones):
-	# 	deltas = self.calculate_deltas(values, rewards, dones)
-	# 	advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
-	# 	target_Vs = advs+values
-	# 	return target_Vs
-
-	# def calculate_returns(self, rewards, discount_factor):
-	# 	returns = []
-	# 	R = 0
-		
-	# 	for r in reversed(rewards):
-	# 		R = r + R * discount_factor
-	# 		returns.insert(0, R)
-		
-	# 	returns_tensor = torch.stack(returns)
-		
-	# 	if self.norm_returns:
-	# 		returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
-			
-	# 	return returns_tensor
 
 	def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
@@ -267,20 +213,6 @@ class PPOAgent:
 				self.comet_ml.log_metric('Group_Size_'+agent_name, self.plotting_dict["agent_groups_over_episode"][i].item(), episode)
 
 			self.comet_ml.log_metric('Avg_Group_Size', self.plotting_dict["avg_agent_group_over_episode"].item(), episode)
-
-		# 	if "crossing_team_greedy" == self.env_name:
-		# 		self.comet_ml.log_metric('Num_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]),episode)
-		# 		self.comet_ml.log_metric('Num_non_relevant_agents_in_relevant_set',torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]),episode)
-		# 		self.num_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_relevant_agents_in_relevant_set"]).item())
-		# 		self.num_non_relevant_agents_in_relevant_set.append(torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item())
-		# 		# FPR = FP / (FP+TN)
-		# 		FP = torch.mean(self.plotting_dict["num_non_relevant_agents_in_relevant_set"]).item()*self.num_agents
-		# 		TN = torch.mean(self.plotting_dict["true_negatives"]).item()*self.num_agents
-		# 		self.false_positive_rate.append(FP/(FP+TN))
-
-		# if "prd_top" in self.experiment_type:
-		# 	self.comet_ml.log_metric('Mean_Smallest_Weight', self.plotting_dict["mean_min_weight_value"].item(), episode)
-
 
 		# ENTROPY OF Q WEIGHTS
 		for i in range(self.num_heads):
@@ -342,50 +274,6 @@ class PPOAgent:
 		return advantage.detach(), masking_rewards, mean_min_weight_value
 
 
-	# def calculate_advantages_Q_V(self, Q, V, weights_prd, dones, episode):
-	# 	'''
-	# 	Q : B x N x 1
-	# 	V : B x N x 1
-	# 	weights_prd: B x N x N x 1
-	# 	dones: B x N x 1
-	# 	episode : int
-	# 	'''
-	# 	advantage = None
-	# 	masking_advantage = None
-	# 	mean_min_weight_value = -1
-	# 	dones = dones.unsqueeze(-1)
-
-	# 	if "shared" in self.experiment_type:
-	# 		advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * (1-dones), dim=-1) - V # B x N x 1
-
-	# 	elif "prd_above_threshold" in self.experiment_type:
-	# 		# No masking until warm-up period ends
-	# 		if episode < self.steps_to_take:
-	# 			masking_advantage = torch.ones(weights_prd.shape).to(self.device)
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-	# 		else:
-	# 			masking_advantage = (weights_prd > self.select_above_threshold).int()
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-
-	# 	elif "top" in self.experiment_type:
-	# 		# No masking until warm-up period ends
-	# 		if episode < self.steps_to_take:
-	# 			masking_advantage = torch.ones(weights_prd.shape).to(self.device)
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-	# 			min_weight_values, _ = torch.min(weights_prd, dim=-1)
-	# 			mean_min_weight_value = torch.mean(min_weight_values)
-	# 		else:
-	# 			values, indices = torch.topk(weights_prd,k=self.top_k,dim=-1)
-	# 			min_weight_values, _ = torch.min(values, dim=-1)
-	# 			mean_min_weight_value = torch.mean(min_weight_values)
-	# 			masking_advantage = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-	# 			advantage = torch.sum(Q.unsqueeze(1).repeat(1, self.num_agents, 1) * torch.transpose(masking_advantage,-1,-2) * (1-dones), dim=-1) - V # B x N x 1
-		
-	# 	if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
-	# 		advantage = advantage*(self.num_agents/self.top_k)
-
-	# 	return advantage.detach(), masking_advantage, mean_min_weight_value
-
 	def update_parameters(self):
 		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
@@ -399,6 +287,7 @@ class PPOAgent:
 		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).reshape(-1, self.num_agents, self.actor_observation_shape)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).reshape(-1, self.num_agents, self.num_actions)
+		old_mask_actions = torch.FloatTensor(np.array(self.buffer.action_masks)).reshape(-1, self.num_agents, self.num_actions)
 		old_logprobs = torch.FloatTensor(self.buffer.logprobs).reshape(-1, self.num_agents)
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
@@ -491,7 +380,7 @@ class PPOAgent:
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
-			dists = self.policy_network(old_states_actor.to(self.device))
+			dists = self.policy_network(old_states_actor.to(self.device), old_mask_actions.to(self.device))
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions.to(self.device))
 
@@ -530,18 +419,27 @@ class PPOAgent:
 			
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
-			grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
+			if self.enable_grad_clip_critic:
+				grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
+			else:
+				grad_norm_value_q = torch.tensor([-1.0])
 			self.q_critic_optimizer.step()
 			
 			self.v_critic_optimizer.zero_grad()
 			critic_v_loss.backward()
-			grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
+			if self.enable_grad_clip_critic:
+				grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
+			else:
+				grad_norm_value_v = torch.tensor([-1.0])
 			self.v_critic_optimizer.step()
 			
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward()
-			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
+			if self.enable_grad_clip_critic:
+				grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
+			else:
+				grad_norm_policy = torch.tensor([-1.0])
 			self.policy_optimizer.step()
 
 			# self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
