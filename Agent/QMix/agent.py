@@ -194,7 +194,7 @@ class QMIXAgent:
 					next_final_state_slice = torch.cat([next_states_slice, next_last_one_hot_actions_slice], dim=-1)
 					Q_evals_next = self.Q_network(next_final_state_slice.to(self.device))
 					Q_targets = self.target_Q_network(next_final_state_slice.to(self.device))
-					a_argmax = torch.argmax(Q_evals_next+next_mask_actions_slice, dim=-1, keepdim=True)
+					a_argmax = torch.argmax(Q_evals_next+next_mask_actions_slice.to(self.device), dim=-1, keepdim=True)
 					Q_targets = torch.gather(Q_targets, dim=-1, index=a_argmax.to(self.device)).squeeze(-1)
 					Q_mix_target = self.target_QMix_network(Q_targets, next_state_batch[:, t].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device)).squeeze(-1).squeeze(-1)
 					
