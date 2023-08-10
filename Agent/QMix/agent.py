@@ -157,6 +157,7 @@ class QMIXAgent:
 		last_one_hot_actions_batch = torch.FloatTensor(last_one_hot_actions_batch)
 		next_state_batch = torch.FloatTensor(next_state_batch)
 		next_last_one_hot_actions_batch = torch.FloatTensor(next_last_one_hot_actions_batch)
+		next_mask_actions_batch = torch.FloatTensor(next_mask_actions_batch)
 		reward_batch = torch.FloatTensor(reward_batch)
 		done_batch = torch.FloatTensor(done_batch).long()
 		mask_batch = torch.FloatTensor(mask_batch).long()
