@@ -160,14 +160,14 @@ class MAPPO:
 				dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
-				mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
+				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				if not self.gif:
 					self.agents.buffer.push(states, states, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
 
 				episode_reward += np.mean(rewards)
 
-				states = next_states
+				states, mask_actions = next_states, next_mask_actions
 
 				if all(dones) or step == self.max_time_steps:
 
