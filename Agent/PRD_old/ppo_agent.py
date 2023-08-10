@@ -157,7 +157,7 @@ class PPOAgent:
 			dists, rnn_hidden_state = self.target_policy_network(state, mask_actions)
 			actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
-			return actions, rnn_hidden_state
+			return actions, rnn_hidden_state.cpu().numpy()
 
 
 	def calculate_advantages(self, target_values, values, rewards, dones, masks_):
