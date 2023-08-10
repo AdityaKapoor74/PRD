@@ -12,31 +12,28 @@ class MLP_Policy(nn.Module):
 
 		self.name = "MLP Policy"
 
+		self.rnn_hidden_state = None
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
-		self.Policy_MLP = nn.Sequential(
-			nn.Linear(obs_input_dim, 128),
-			nn.GELU(),
-			nn.Linear(128, 64),
-			nn.GELU(),
-			nn.Linear(64, num_actions)
-			)
+		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.GELU())
+		self.RNN = nn.GRUCell(input_size=128, hidden_size=128)
+		self.Layer_2 = nn.Sequential(nn.Linear(128, 64), nn.GELU(), nn.Linear(64, num_actions))
 
 		self.reset_parameters()
 
 	def reset_parameters(self):
-		# gain = nn.init.calculate_gain('tanh', 0.1)
-		# gain_last_layer = nn.init.calculate_gain('tanh', 0.01)
 
-		nn.init.xavier_uniform_(self.Policy_MLP[0].weight)
-		nn.init.xavier_uniform_(self.Policy_MLP[2].weight)
-		nn.init.xavier_uniform_(self.Policy_MLP[4].weight)
+		nn.init.xavier_uniform_(self.Layer_1[0].weight)
+		nn.init.xavier_uniform_(self.Layer_2[0].weight)
+		nn.init.xavier_uniform_(self.Layer_2[2].weight)
 
 
 	def forward(self, local_observations, mask_actions=None):
-		policy = self.Policy_MLP(local_observations) + mask_actions
-		return F.softmax(policy, dim=-1)
+		intermediate = self.Layer_1(local_observations)
+		self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
+		policy = self.Layer_2(self.rnn_hidden_state) + mask_actions
+		return F.softmax(policy, dim=-1), self.rnn_hidden_state
 
 
 class Q_network(nn.Module):
