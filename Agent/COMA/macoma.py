@@ -165,7 +165,7 @@ class MACOMA:
 				next_states = np.array(next_states)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
-				episode_reward += np.sum(rewards)
+				episode_reward += np.mean(rewards)
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
 				rewards_ = [np.sum(rewards)]*self.num_agents
