@@ -53,6 +53,7 @@ class PPOAgent:
 
 
 		# Actor Setup
+		self.rnn_hidden_actor = dictionary["rnn_hidden_actor"]
 		self.actor_observation_shape = dictionary["local_observation"]
 		self.policy_lr = dictionary["policy_lr"]
 		self.policy_weight_decay = dictionary["policy_weight_decay"]
@@ -117,7 +118,8 @@ class PPOAgent:
 			num_agents=self.num_agents, 
 			obs_shape_critic=self.critic_observation_shape, 
 			obs_shape_actor=self.actor_observation_shape, 
-			num_actions=self.num_actions
+			num_actions=self.num_actions,
+			rnn_hidden_actor=self.rnn_hidden_actor,
 			)
 
 		# Loading models
@@ -150,7 +152,7 @@ class PPOAgent:
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
 			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
-			dists = self.policy_network_old(state_policy, mask_actions)
+			dists, rnn_hidden_state = self.policy_network_old(state_policy, mask_actions)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 			else:
@@ -159,7 +161,7 @@ class PPOAgent:
 			probs = Categorical(dists)
 			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
 
-			return actions, action_logprob.cpu().numpy()
+			return actions, action_logprob.cpu().numpy(), rnn_hidden_state.cpu().numpy()
 
 
 	def calculate_advantages(self, values, values_old, rewards, dones, masks_):
@@ -285,6 +287,7 @@ class PPOAgent:
 		# convert list to tensor
 		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).reshape(-1, self.num_agents, self.critic_observation_shape)
 		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).reshape(-1, self.num_agents, self.actor_observation_shape)
+		old_rnn_hidden_state_actor = torch.FloatTensor(np.array(self.buffer.rnn_hidden_state_actor)).reshape(-1, self.num_agents, self.rnn_hidden_actor)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).reshape(-1, self.num_agents, self.num_actions)
 		old_mask_actions = torch.FloatTensor(np.array(self.buffer.action_masks)).reshape(-1, self.num_agents, self.num_actions)
@@ -354,6 +357,8 @@ class PPOAgent:
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
 
+		self.policy_network.rnn_hidden_state = old_rnn_hidden_state_actor
+
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
@@ -380,7 +385,7 @@ class PPOAgent:
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
-			dists = self.policy_network(old_states_actor.to(self.device), old_mask_actions.to(self.device))
+			dists, rnn_hidden_state_actor = self.policy_network(old_states_actor.to(self.device), old_mask_actions.to(self.device))
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions.to(self.device))
 
@@ -436,11 +441,13 @@ class PPOAgent:
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward()
-			if self.enable_grad_clip_critic:
+			if self.enable_grad_clip_actor:
 				grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
 			else:
 				grad_norm_policy = torch.tensor([-1.0])
 			self.policy_optimizer.step()
+
+			self.policy_network.rnn_hidden_state = rnn_hidden_state_actor.detach()
 
 			# self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
 			# self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
@@ -476,6 +483,8 @@ class PPOAgent:
 
 		# clear buffer
 		self.buffer.clear()
+		self.policy_network.rnn_hidden_state = None
+		self.policy_network_old.rnn_hidden_state = None
 
 		q_value_loss_batch /= self.n_epochs
 		v_value_loss_batch /= self.n_epochs
@@ -521,225 +530,3 @@ class PPOAgent:
 
 		del q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_v_batch, grad_norm_value_q_batch, grad_norm_policy_batch, weight_prd_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
 		torch.cuda.empty_cache()
-
-		# return history_states_critic[-1]
-
-
-	# def update(self, episode):
-	# 	# convert list to tensor
-	# 	old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic))
-	# 	# history_states_critic = torch.stack(self.buffer.history_states_critic, dim=0)
-	# 	# Q_values_old = torch.stack(self.buffer.Q_values, dim=0)
-	# 	# Values_old = torch.stack(self.buffer.Values, dim=0)
-	# 	old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor))
-	# 	old_actions = torch.FloatTensor(np.array(self.buffer.actions))
-	# 	old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions))
-	# 	old_logprobs = torch.stack(self.buffer.logprobs, dim=0)
-	# 	rewards = torch.FloatTensor(np.array(self.buffer.rewards))
-	# 	dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
-
-	# 	# if self.history_states_critic_q is None:
-	# 	self.history_states_critic_q = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
-
-	# 	# if self.history_states_critic_v is None:
-	# 	self.history_states_critic_v = torch.zeros(old_states_critic.shape[0], self.num_agents, 64)
-
-	# 	with torch.no_grad():
-	# 		Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
-	# 															old_states_critic.to(self.device),
-	# 															self.history_states_critic_q.to(self.device),
-	# 															old_one_hot_actions.to(self.device)
-	# 															)
-
-	# 		Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
-	# 															old_states_critic.to(self.device),
-	# 															self.history_states_critic_v.to(self.device),
-	# 															old_one_hot_actions.to(self.device)
-	# 															)
-
-	# 	# Q_value_target = self.nstep_returns(Q_values_old.cpu(), rewards, dones).to(self.device)
-		
-	# 	if "threshold" in self.experiment_type or "top" in self.experiment_type:
-	# 		masks = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-	# 		target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masks.detach().cpu(),-1,-2), dim=-1)
-	# 		# Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
-	# 	else:
-	# 		target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-	# 		# Value_target = self.nstep_returns(Values_old, target_V_rewards.to(self.device), dones.to(self.device)).to(self.device)
-
-	# 	q_value_loss_batch = 0
-	# 	v_value_loss_batch = 0
-	# 	policy_loss_batch = 0
-	# 	entropy_batch = 0
-	# 	weight_prd_batch = None
-	# 	weight_v_batch = None
-	# 	grad_norm_value_batch = 0
-	# 	grad_norm_policy_batch = 0
-	# 	agent_groups_over_episode_batch = 0
-	# 	avg_agent_group_over_episode_batch = 0
-
-	# 	# torch.autograd.set_detect_anomaly(True)
-	# 	# Optimize policy for n epochs
-	# 	for _ in range(self.n_epochs):
-
-	# 		Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(old_states_critic.to(self.device), self.history_states_critic_q.to(self.device), old_one_hot_actions.to(self.device))
-	# 		Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(old_states_critic.to(self.device), self.history_states_critic_v.to(self.device), old_one_hot_actions.to(self.device))
-
-	# 		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), episode)
-
-	# 		dists = self.policy_network(old_states_actor.to(self.device))
-	# 		probs = Categorical(dists.squeeze(0))
-	# 		logprobs = probs.log_prob(old_actions.to(self.device))
-
-	# 		if "threshold" in self.experiment_type or "top" in self.experiment_type:
-	# 			agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.float(), dim=-2),dim=0)/masking_rewards.shape[0]
-	# 			avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-	# 			agent_groups_over_episode_batch += agent_groups_over_episode
-	# 			avg_agent_group_over_episode_batch += avg_agent_group_over_episode
-				
-
-	# 		# critic_v_loss_1 = F.mse_loss(Value, Value_target)
-	# 		# critic_v_loss_2 = F.mse_loss(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Value_target)
-	# 		critic_v_loss_1 = self.TD_error(Value, Values_old, target_V_rewards.to(self.device), dones.to(self.device))
-	# 		critic_v_loss_2 = self.TD_error(torch.clamp(Value, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), Values_old, target_V_rewards.to(self.device), dones.to(self.device))
-
-
-	# 		# critic_q_loss_1 = F.mse_loss(Q_value, Q_value_target)
-	# 		# critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_value_target)
-	# 		critic_q_loss_1 = self.TD_error(Q_value, Q_values_old, rewards.to(self.device), dones.to(self.device))
-	# 		critic_q_loss_2 = self.TD_error(torch.clamp(Q_value, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), Q_values_old, rewards.to(self.device), dones.to(self.device))
-
-
-
-	# 		# Finding the ratio (pi_theta / pi_theta__old)
-	# 		ratios = torch.exp(logprobs - old_logprobs.to(self.device))
-	# 		# Finding Surrogate Loss
-	# 		surr1 = ratios * advantage
-	# 		surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage
-
-	# 		# final loss of clipped objective PPO
-	# 		entropy = -torch.mean(torch.sum(dists * torch.log(torch.clamp(dists, 1e-10,1.0)), dim=2))
-	# 		policy_loss = -torch.min(surr1, surr2).mean() - self.entropy_pen*entropy
-			
-	# 		entropy_weights = 0
-	# 		entropy_weights_v = 0
-	# 		for i in range(self.num_heads):
-	# 			entropy_weights += -torch.mean(torch.sum(weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10,1.0)), dim=2))
-	# 			entropy_weights_v += -torch.mean(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10,1.0)), dim=2))
-
-	# 		critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).mean() + self.critic_weight_entropy_pen*entropy_weights
-	# 		critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).mean() + self.critic_weight_entropy_pen*entropy_weights_v
-
-	# 		# take gradient step
-	# 		# self.critic_optimizer.zero_grad()
-	# 		# (critic_q_loss + critic_v_loss).backward(retain_graph=True)
-	# 		# grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
-	# 		# self.critic_optimizer.step()
-
-			
-	# 		self.q_critic_optimizer.zero_grad()
-	# 		critic_q_loss.backward()
-	# 		grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
-	# 		self.q_critic_optimizer.step()
-			
-	# 		self.v_critic_optimizer.zero_grad()
-	# 		critic_v_loss.backward()
-	# 		grad_norm_value_ = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
-	# 		self.v_critic_optimizer.step()
-			
-
-	# 		self.policy_optimizer.zero_grad()
-	# 		policy_loss.backward()
-	# 		grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
-	# 		self.policy_optimizer.step()
-
-	# 		self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
-	# 		self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
-
-	# 		q_value_loss_batch += critic_q_loss.item()
-	# 		v_value_loss_batch += critic_v_loss.item()
-	# 		policy_loss_batch += policy_loss.item()
-	# 		entropy_batch += entropy.item()
-	# 		grad_norm_value_batch += grad_norm_value
-	# 		grad_norm_policy_batch += grad_norm_policy
-	# 		if weight_prd_batch is None:
-	# 			weight_prd_batch = weights_prd.detach().cpu()
-	# 		else:
-	# 			weight_prd_batch += weights_prd.detach().cpu()
-	# 		if weight_v_batch is None:
-	# 			weight_v_batch = weight_v.detach().cpu()
-	# 		else:
-	# 			weight_v_batch += weight_v.detach().cpu()
-			
-
-
-			
-	# 	# Copy new weights into old policy
-	# 	self.policy_network_old.load_state_dict(self.policy_network.state_dict())
-
-	# 	# Copy new weights into old critic
-	# 	self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
-	# 	self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
-
-	# 	# self.scheduler.step()
-	# 	# print("learning rate of policy", self.scheduler.get_lr())
-
-	# 	# clear buffer
-	# 	self.buffer.clear()
-
-	# 	q_value_loss_batch /= self.n_epochs
-	# 	v_value_loss_batch /= self.n_epochs
-	# 	policy_loss_batch /= self.n_epochs
-	# 	entropy_batch /= self.n_epochs
-	# 	grad_norm_value_batch /= self.n_epochs
-	# 	grad_norm_policy_batch /= self.n_epochs
-	# 	weight_prd_batch /= self.n_epochs
-	# 	weight_v_batch /= self.n_epochs
-	# 	agent_groups_over_episode_batch /= self.n_epochs
-	# 	avg_agent_group_over_episode_batch /= self.n_epochs
-
-	# 	if "prd" in self.experiment_type and "crossing_team_greedy" == self.env_name:
-	# 		num_relevant_agents_in_relevant_set = self.relevant_set*masking_rewards
-	# 		num_non_relevant_agents_in_relevant_set = self.non_relevant_set*masking_rewards
-	# 		true_negatives = self.non_relevant_set*(1-masking_rewards)
-	# 	else:
-	# 		num_relevant_agents_in_relevant_set = None
-	# 		num_non_relevant_agents_in_relevant_set = None
-	# 		true_negatives = None
-
-
-	# 	if "prd" in self.experiment_type:
-	# 		if self.update_learning_rate_with_prd:
-	# 			for g in self.policy_optimizer.param_groups:
-	# 				g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
-
-	# 	self.update_parameters()
-
-
-	# 	self.plotting_dict = {
-	# 	"q_value_loss": q_value_loss_batch,
-	# 	"v_value_loss": v_value_loss_batch,
-	# 	"policy_loss": policy_loss_batch,
-	# 	"entropy": entropy_batch,
-	# 	"grad_norm_value":grad_norm_value_batch,
-	# 	"grad_norm_policy": grad_norm_policy_batch,
-	# 	"weights_prd": weight_prd_batch,
-	# 	"weights_v": weight_v_batch,
-	# 	"num_relevant_agents_in_relevant_set": num_relevant_agents_in_relevant_set,
-	# 	"num_non_relevant_agents_in_relevant_set": num_non_relevant_agents_in_relevant_set,
-	# 	"true_negatives": true_negatives,
-	# 	}
-
-	# 	if "threshold" in self.experiment_type:
-	# 		self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode_batch
-	# 		self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode_batch
-	# 	if "prd_top" in self.experiment_type:
-	# 		self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
-
-	# 	if self.comet_ml is not None:
-	# 		self.plot(episode)
-
-	# 	del q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_batch, grad_norm_policy_batch, weight_prd_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
-	# 	torch.cuda.empty_cache()
-
-	# 	# return history_states_critic[-1]
