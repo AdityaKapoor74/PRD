@@ -138,6 +138,10 @@ class MAPPO:
 
 			episode_reward = 0
 			final_timestep = self.max_time_steps
+
+			self.agents.policy_network_old.rnn_hidden_state = None
+			self.agents.policy_network.rnn_hidden_state = None
+
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -148,9 +152,9 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _ = self.agents.get_action(states, mask_actions, greedy=True)
+						actions, _, _ = self.agents.get_action(states, mask_actions, greedy=True)
 				else:
-					actions, action_logprob = self.agents.get_action(states, mask_actions)
+					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states, mask_actions)
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
@@ -163,7 +167,7 @@ class MAPPO:
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				if not self.gif:
-					self.agents.buffer.push(states, states, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
+					self.agents.buffer.push(states, states, rnn_hidden_state_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
 
 				episode_reward += np.mean(rewards)
 
@@ -282,6 +286,7 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
+				"rnn_hidden_actor": 128,
 				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.05,
