@@ -86,7 +86,7 @@ class COMAAgent:
 		with torch.no_grad():
 			states = torch.FloatTensor(states).unsqueeze(0)
 			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0)
-			_, _, rnn_hidden_state_critic = self.critic_network(states, one_hot_actions)
+			_, _, rnn_hidden_state_critic = self.critic_network(states.to(self.device), one_hot_actions.to(self.device))
 			return rnn_hidden_state_critic.cpu().numpy()
 
 	def get_actions(self, state, mask_actions, available_actions):
