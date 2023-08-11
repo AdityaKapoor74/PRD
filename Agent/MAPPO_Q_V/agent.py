@@ -53,6 +53,10 @@ class PPOAgent:
 
 
 		# Actor Setup
+		self.warm_up = dictionary["warm_up"]
+		self.warm_up_period = dictionary["warm_up_period"]
+		self.epsilon_start = self.epsilon = dictionary["epsilon_start"]
+		self.epsilon_end = dictionary["epsilon_end"]
 		self.rnn_hidden_actor = dictionary["rnn_hidden_actor"]
 		self.actor_observation_shape = dictionary["local_observation"]
 		self.policy_lr = dictionary["policy_lr"]
@@ -147,19 +151,25 @@ class PPOAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
+	def update_epsilon(self):
+		if self.warm_up:
+			self.epsilon -= (self.epsilon_end - self.epsilon_start)/self.warm_up_period
 
 	def get_action(self, state_policy, mask_actions, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
 			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
 			dists, rnn_hidden_state = self.policy_network_old(state_policy, mask_actions)
-			if greedy:
-				actions = [dist.argmax().detach().cpu().item() for dist in dists]
+			if self.warm_up:
+				dists = (1-self.epsilon)*dists + available_actions*self.epsilon/self.num_actions
 			else:
-				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
+				if greedy:
+					actions = [dist.argmax().detach().cpu().item() for dist in dists]
+				else:
+					actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
-			probs = Categorical(dists)
-			action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
+				probs = Categorical(dists)
+				action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
 
 			return actions, action_logprob.cpu().numpy(), rnn_hidden_state.cpu().numpy()
 
