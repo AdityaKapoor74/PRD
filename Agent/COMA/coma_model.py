@@ -76,6 +76,8 @@ class TransformerCritic(nn.Module):
 		# EMBED S of agent whose Q value is being est
 		self.state_embed_q = nn.Sequential(nn.Linear(obs_input_dim, obs_output_dim), nn.LeakyReLU())
 		# FCN FINAL LAYER TO GET VALUES
+		self.rnn_hidden_state = None
+		self.RNN = nn.GRUCell(final_input_dim, final_input_dim)
 		self.final_value_layers = nn.Sequential(
 												nn.Linear(final_input_dim, 64, bias=True),
 												nn.LeakyReLU(),
@@ -110,7 +112,7 @@ class TransformerCritic(nn.Module):
 		# Queries
 		queries = self.query_layer(state_embed_attn)
 		# Calc score (score corresponding to self to be made 0)
-		score = torch.matmul(queries,keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)
+		score = torch.matmul(queries, keys.transpose(1,2))/math.sqrt(self.d_k_obs_act)
 		mask = torch.ones_like(score, dtype=torch.bool).to(self.device)*self.mask_score
 		score = score[mask].reshape(mask.shape[0], self.num_agents,-1)
 		weight = F.softmax(score,dim=-1)
@@ -123,7 +125,8 @@ class TransformerCritic(nn.Module):
 		curr_agent_state_action_embed = self.state_embed_q(states)
 
 		node_features = torch.cat([curr_agent_state_action_embed, x], dim=-1)
+		shape = node_features.shape
+		self.rnn_hidden_state = self.RNN(node_features.view(-1, shape[-1])).reshape(*shape)
+		Value = self.final_value_layers(self.rnn_hidden_state)
 
-		Value = self.final_value_layers(node_features)
-
-		return Value, weight
+		return Value, weight, self.rnn_hidden_state
