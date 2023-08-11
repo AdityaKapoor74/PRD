@@ -37,6 +37,8 @@ class PPOAgent:
 		self.max_time_steps = dictionary["max_time_steps"]
 
 		# Critic Setup
+		self.rnn_hidden_q = dictionary["rnn_hidden_q"]
+		self.rnn_hidden_v = dictionary["rnn_hidden_v"]
 		self.critic_observation_shape = dictionary["global_observation"]
 		self.q_value_lr = dictionary["q_value_lr"]
 		self.v_value_lr = dictionary["v_value_lr"]
@@ -124,6 +126,8 @@ class PPOAgent:
 			obs_shape_actor=self.actor_observation_shape, 
 			num_actions=self.num_actions,
 			rnn_hidden_actor=self.rnn_hidden_actor,
+			rnn_hidden_q=self.rnn_hidden_q,
+			rnn_hidden_v=self.rnn_hidden_v,
 			)
 
 		# Loading models
@@ -150,6 +154,15 @@ class PPOAgent:
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
+
+	def get_value_rnn_state(self, state, one_hot_actions):
+		with torch.no_grad():
+			state = torch.FloatTensor(state).unsqueeze(0)
+			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0)
+			_, _, _, rnn_hidden_state_v = self.critic_network_v_old(state.to(self.device), one_hot_actions.to(self.device))
+			_, _, _, rnn_hidden_state_q = self.critic_network_q_old(state.to(self.device), one_hot_actions.to(self.device))
+
+			return rnn_hidden_state_v, rnn_hidden_state_q
 
 	def update_epsilon(self):
 		if self.warm_up:
@@ -297,6 +310,8 @@ class PPOAgent:
 	def update(self, episode):
 		# convert list to tensor
 		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).reshape(-1, self.num_agents, self.critic_observation_shape)
+		old_rnn_hidden_state_v = torch.FloatTensor(np.array(self.buffer.rnn_hidden_state_v)).reshape(-1, self.num_agents, self.rnn_hidden_v)
+		old_rnn_hidden_state_q = torch.FloatTensor(np.array(self.buffer.rnn_hidden_state_q)).reshape(-1, self.num_agents, self.rnn_hidden_q)
 		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).reshape(-1, self.num_agents, self.actor_observation_shape)
 		old_rnn_hidden_state_actor = torch.FloatTensor(np.array(self.buffer.rnn_hidden_state_actor)).reshape(-1, self.num_agents, self.rnn_hidden_actor)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
@@ -307,31 +322,15 @@ class PPOAgent:
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
 		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 
-		# self.history_states_critic_q = torch.zeros(old_states.shape[0], self.num_agents, 64)
-		
-		# self.history_states_critic_v = torch.zeros(old_states.shape[0], self.num_agents, 64)
-
 		with torch.no_grad():
 			# OLD VALUES
-			# Q_values_old, self.history_states_critic_q, weights_prd_old, _ = self.critic_network_q_old(
-			# 													old_states.to(self.device),
-			# 													self.history_states_critic_q.to(self.device),
-			# 													old_one_hot_actions.to(self.device)
-			# 													)
-
-			# Values_old, self.history_states_critic_v, _, _ = self.critic_network_v_old(
-			# 										old_states.to(self.device),
-			# 										self.history_states_critic_v.to(self.device),
-			# 										old_one_hot_actions.to(self.device)
-			# 										)
-
-			# OLD VALUES
-			Q_values_old, weights_prd_old, _ = self.critic_network_q_old(
+			self.critic_network_q_old.rnn_hidden_state = old_rnn_hidden_state_q.to(self.device)
+			Q_values_old, weights_prd_old, _, _ = self.critic_network_q_old(
 												old_states_critic.to(self.device),
 												old_one_hot_actions.to(self.device)
 												)
-
-			Values_old, _, _ = self.critic_network_v_old(
+			self.critic_network_v_old.rnn_hidden_state = old_rnn_hidden_state_v.to(self.device)
+			Values_old, _, _, _ = self.critic_network_v_old(
 												old_states_critic.to(self.device),
 												old_one_hot_actions.to(self.device)
 												)
@@ -368,28 +367,18 @@ class PPOAgent:
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
 
-		self.policy_network.rnn_hidden_state = old_rnn_hidden_state_actor
-
+		self.policy_network.rnn_hidden_state = old_rnn_hidden_state_actor.to(self.device)
+		self.critic_network_v.rnn_hidden_state = old_rnn_hidden_state_v.to(self.device)
+		self.critic_network_q.rnn_hidden_state = old_rnn_hidden_state_q.to(self.device)
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			# Q_value, new_history_states_critic_q, weights_prd, score_q = self.critic_network_q(
-			# 	old_states.to(self.device), 
-			# 	self.history_states_critic_q.to(self.device), 
-			# 	old_one_hot_actions.to(self.device)
-			# 	)
-			# Value, new_history_states_critic_v, weight_v, score_v = self.critic_network_v(
-			# 	old_states.to(self.device), 
-			# 	self.history_states_critic_v.to(self.device), 
-			# 	old_one_hot_actions.to(self.device)
-			# 	)
-
-			Q_value, weights_prd, score_q = self.critic_network_q(
+			Q_value, weights_prd, score_q, rnn_hidden_state_q = self.critic_network_q(
 				old_states_critic.to(self.device), 
 				old_one_hot_actions.to(self.device)
 				)
-			Value, weight_v, score_v = self.critic_network_v(
+			Value, weight_v, score_v, rnn_hidden_state_v = self.critic_network_v(
 				old_states_critic.to(self.device),  
 				old_one_hot_actions.to(self.device)
 				)
@@ -440,6 +429,8 @@ class PPOAgent:
 			else:
 				grad_norm_value_q = torch.tensor([-1.0])
 			self.q_critic_optimizer.step()
+
+			self.critic_network_q.rnn_hidden_state = rnn_hidden_state_q.detach()
 			
 			self.v_critic_optimizer.zero_grad()
 			critic_v_loss.backward()
@@ -448,6 +439,8 @@ class PPOAgent:
 			else:
 				grad_norm_value_v = torch.tensor([-1.0])
 			self.v_critic_optimizer.step()
+
+			self.critic_network_v.rnn_hidden_state = rnn_hidden_state_v.detach()
 			
 
 			self.policy_optimizer.zero_grad()
@@ -459,9 +452,6 @@ class PPOAgent:
 			self.policy_optimizer.step()
 
 			self.policy_network.rnn_hidden_state = rnn_hidden_state_actor.detach()
-
-			# self.history_states_critic_q = new_history_states_critic_q.detach().cpu()
-			# self.history_states_critic_v = new_history_states_critic_v.detach().cpu()
 
 			q_value_loss_batch += critic_q_loss.item()
 			v_value_loss_batch += critic_v_loss.item()
@@ -496,6 +486,12 @@ class PPOAgent:
 		self.buffer.clear()
 		self.policy_network.rnn_hidden_state = None
 		self.policy_network_old.rnn_hidden_state = None
+		
+		self.critic_network_q_old.rnn_hidden_state = None
+		self.critic_network_q.rnn_hidden_state = None
+
+		self.critic_network_v_old.rnn_hidden_state = None
+		self.critic_network_v.rnn_hidden_state = None
 
 		q_value_loss_batch /= self.n_epochs
 		v_value_loss_batch /= self.n_epochs
