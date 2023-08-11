@@ -54,7 +54,7 @@ class PPOAgent:
 
 		# Actor Setup
 		self.warm_up = dictionary["warm_up"]
-		self.warm_up_period = dictionary["warm_up_period"]
+		self.warm_up_episodes = dictionary["warm_up_episodes"]
 		self.epsilon_start = self.epsilon = dictionary["epsilon_start"]
 		self.epsilon_end = dictionary["epsilon_end"]
 		self.rnn_hidden_actor = dictionary["rnn_hidden_actor"]
@@ -153,7 +153,7 @@ class PPOAgent:
 
 	def update_epsilon(self):
 		if self.warm_up:
-			self.epsilon -= (self.epsilon_end - self.epsilon_start)/self.warm_up_period
+			self.epsilon -= (self.epsilon_end - self.epsilon_start)/self.warm_up_episodes
 
 	def get_action(self, state_policy, mask_actions, greedy=False):
 		with torch.no_grad():
