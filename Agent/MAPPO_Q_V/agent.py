@@ -161,7 +161,8 @@ class PPOAgent:
 			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
 			dists, rnn_hidden_state = self.policy_network_old(state_policy, mask_actions)
 			if self.warm_up:
-				dists = (1-self.epsilon)*dists + (mask_actions>=0).float()*self.epsilon/self.num_actions
+				available_actions = (mask_actions>=0).float()
+				dists = (1-self.epsilon)*dists + available_actions*self.epsilon/sum(available_actions)
 			
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
