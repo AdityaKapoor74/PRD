@@ -162,9 +162,7 @@ class PPOAgent:
 			dists, rnn_hidden_state = self.policy_network_old(state_policy, mask_actions)
 			if self.warm_up:
 				available_actions = (mask_actions>=0).int()
-				dists = (1.0-self.epsilon)*dists + available_actions*self.epsilon/sum(available_actions)
-				# unusual behavior dists has nan values
-				dists = torch.nan_to_num(dists, nan=0.0)
+				dists = (1.0-self.epsilon)*dists + available_actions*self.epsilon/torch.sum(available_actions, dim=-1).unsqueeze(-1)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 			else:
