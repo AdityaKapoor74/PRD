@@ -162,7 +162,7 @@ class PPOAgent:
 			_, _, _, rnn_hidden_state_v = self.critic_network_v_old(state.to(self.device), one_hot_actions.to(self.device))
 			_, _, _, rnn_hidden_state_q = self.critic_network_q_old(state.to(self.device), one_hot_actions.to(self.device))
 
-			return rnn_hidden_state_v, rnn_hidden_state_q
+			return rnn_hidden_state_v.cpu().numpy(), rnn_hidden_state_q.cpu().numpy()
 
 	def update_epsilon(self):
 		if self.warm_up:
