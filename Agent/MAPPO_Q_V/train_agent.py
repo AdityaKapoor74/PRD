@@ -177,7 +177,7 @@ class MAPPO:
 				if not self.gif:
 					self.agents.buffer.push(states, rnn_hidden_state_v, rnn_hidden_state_q, states, rnn_hidden_state_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
 
-				episode_reward += np.mean(rewards)
+				episode_reward += np.sum(rewards)
 
 				states, mask_actions = next_states, next_mask_actions
 
