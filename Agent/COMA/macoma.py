@@ -78,16 +78,17 @@ class MACOMA:
 	def update(self, trajectory, episode):
 
 		states = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
-		rnn_hidden_state_actor = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		rnn_hidden_state_critic = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		rnn_hidden_state_actor = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
 
-		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		mask_actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		one_hot_actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		mask_actions = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
 		
-		rewards = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
+		rewards = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
 
-		self.agents.update(states, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards, dones, episode)
+		self.agents.update(states, rnn_hidden_state_critic, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards, dones, episode)
 
 
 
@@ -143,6 +144,10 @@ class MACOMA:
 			trajectory = []
 			episode_reward = 0
 			final_timestep = self.max_time_steps
+			self.agents.policy_network.rnn_hidden_state = None
+			self.agents.critic_network.rnn_hidden_state = None
+			self.agents.target_critic_network.rnn_hidden_state = None
+
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -159,6 +164,8 @@ class MACOMA:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
+				rnn_hidden_state_critic = self.agents.get_critic_hidden(states, one_hot_actions)
+
 				next_states, rewards, dones, info = self.env.step(actions)
 				dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
@@ -172,7 +179,7 @@ class MACOMA:
 
 
 				if self.learn:
-					trajectory.append([states, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards_, dones])
+					trajectory.append([states, rnn_hidden_state_critic, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards_, dones])
 					
 					if all(dones) or step == self.max_time_steps:
 						print("*"*100)
