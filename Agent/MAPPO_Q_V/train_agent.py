@@ -142,6 +142,12 @@ class MAPPO:
 			self.agents.policy_network_old.rnn_hidden_state = None
 			self.agents.policy_network.rnn_hidden_state = None
 
+			self.agents.critic_network_q_old.rnn_hidden_state = None
+			self.agents.critic_network_q.rnn_hidden_state = None
+
+			self.agents.critic_network_v_old.rnn_hidden_state = None
+			self.agents.critic_network_v.rnn_hidden_state = None
+
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -159,6 +165,8 @@ class MAPPO:
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
 
+					rnn_hidden_state_v, rnn_hidden_state_q = self.agents.get_value_rnn_state(states, one_hot_actions)
+
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				dones = [int(dones)]*self.num_agents
@@ -167,7 +175,7 @@ class MAPPO:
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				if not self.gif:
-					self.agents.buffer.push(states, states, rnn_hidden_state_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
+					self.agents.buffer.push(states, rnn_hidden_state_v, rnn_hidden_state_q, states, rnn_hidden_state_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
 
 				episode_reward += np.mean(rewards)
 
@@ -262,7 +270,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"warm_up": True,
+				"warm_up": False,
 				"warm_up_episodes": 500,
 				"epsilon_start": 1.0,
 				"epsilon_end": 0.0,
@@ -277,6 +285,8 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
+				"rnn_hidden_q": 128,
+				"rnn_hidden_v": 128,				
 				"q_value_lr": 1e-4, #1e-3
 				"v_value_lr": 1e-4, #1e-3
 				"q_weight_decay": 5e-4,
