@@ -153,7 +153,8 @@ class PPOAgent:
 
 	def update_epsilon(self):
 		if self.warm_up:
-			self.epsilon -= (self.epsilon_end - self.epsilon_start)/self.warm_up_episodes
+			self.epsilon -= (self.epsilon_start - self.epsilon_end)/self.warm_up_episodes
+			self.epsilon = max(self.epsilon, self.epsilon_end)
 
 	def get_action(self, state_policy, mask_actions, greedy=False):
 		with torch.no_grad():
