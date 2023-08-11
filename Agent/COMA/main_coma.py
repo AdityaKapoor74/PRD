@@ -23,8 +23,8 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"iteration": i,
-				"value_lr": 1e-3, 
-				"policy_lr": 7e-4,
+				"value_lr": 1e-4, 
+				"policy_lr": 1e-4,
 				"enable_grad_clip_critic": False,
 				"enable_grad_clip_actor": False,
 				"grad_clip_critic": 10.0,
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 				"critic_entropy_pen": 0.0,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.02,
-				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen": 1e-1, #8e-3
 				"epsilon_episode_steps": 750,
 				"target_critic_update": 200,
 				"gamma": 0.99,
