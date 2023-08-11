@@ -82,6 +82,12 @@ class COMAAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
+	def get_critic_hidden(self, states, one_hot_actions):
+		with torch.no_grad():
+			states = torch.FloatTensor(states).unsqueeze(0)
+			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0)
+			_, _, rnn_hidden_state_critic = self.critic_network(states, one_hot_actions)
+			return rnn_hidden_state_critic.cpu().numpy()
 
 	def get_actions(self, state, mask_actions, available_actions):
 		with torch.no_grad():
@@ -182,18 +188,20 @@ class COMAAgent:
 			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 
-	def update(self, states, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards, dones, episode):		
+	def update(self, states, rnn_hidden_state_critic, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards, dones, episode):		
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
 		self.policy_network.rnn_hidden_state = rnn_hidden_state_actor
 		probs, _ = self.policy_network(states, mask_actions)
 
-		Q_values, weights_value = self.critic_network.forward(states, one_hot_actions)
+		self.critic_network.rnn_hidden_state = rnn_hidden_state_critic
+		Q_values, weights_value, _ = self.critic_network(states, one_hot_actions)
 		Q_values_act_chosen = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 		V_values_baseline = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * probs.detach(), dim=-1)
-	
-		target_Q_values, target_weights_value = self.target_critic_network.forward(states, one_hot_actions)
+		
+		self.target_critic_network.rnn_hidden_state = rnn_hidden_state_critic
+		target_Q_values, target_weights_value, _ = self.target_critic_network(states, one_hot_actions)
 		target_Q_values_act_chosen = torch.sum(target_Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 
 		value_loss = self.calculate_value_loss(Q_values_act_chosen, target_Q_values_act_chosen, rewards, dones, weights_value)
@@ -213,6 +221,9 @@ class COMAAgent:
 		else:
 			grad_norm_value = torch.tensor([-1.0])
 		self.critic_optimizer.step()
+
+		self.target_critic_network.rnn_hidden_state = None
+		self.critic_network.rnn_hidden_state = None
 
 
 		self.policy_optimizer.zero_grad()
