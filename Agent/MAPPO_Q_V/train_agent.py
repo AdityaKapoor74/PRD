@@ -189,6 +189,9 @@ class MAPPO:
 						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
 						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
 
+					# if warmup
+					self.agents.update_epsilon()
+
 					break
 
 			if self.agents.scheduler_need:
@@ -259,6 +262,10 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
+				"warm_up": True,
+				"warm_up_episodes": 500,
+				"epsilon_start": 1.0,
+				"epsilon_end": 0.0,
 				"max_episodes": 30000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
