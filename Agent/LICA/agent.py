@@ -182,7 +182,7 @@ class LICAAgent:
 				
 				final_state = torch.cat([actor_states_slice, last_one_hot_action_slice], dim=-1)
 				dist = self.actor(final_state.to(self.device))
-				ent = multinomial_entropy(dist).mean(dim=-1, keepdim=True)
+				ent = multinomial_entropy(dist*(mask_actions_slice>0).float().to(self.device)).mean(dim=-1, keepdim=True)
 				prob = F.softmax(dist + mask_actions_slice.to(self.device), dim=-1)
 
 				probs.append(prob)
