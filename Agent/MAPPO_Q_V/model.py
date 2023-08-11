@@ -36,6 +36,20 @@ class MLP_Policy(nn.Module):
 		return F.softmax(policy, dim=-1), self.rnn_hidden_state
 
 
+
+class AttentionDropout(nn.Module):
+	def __init__(self, dropout_prob):
+		super(AttentionDropout, self).__init__()
+		self.dropout_prob = dropout_prob
+	
+	def forward(self, attention_scores):
+		# Apply dropout to attention scores
+		mask = (torch.rand_like(attention_scores) > self.dropout_prob).float()
+		attention_scores = attention_scores * mask
+		return attention_scores
+
+
+
 class Q_network(nn.Module):
 	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention):
 		super(Q_network, self).__init__()
@@ -45,6 +59,8 @@ class Q_network(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.enable_hard_attention = enable_hard_attention
+
+		self.attention_dropout = AttentionDropout(dropout_prob=0.2)
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
@@ -217,6 +233,9 @@ class Q_network(nn.Module):
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights.shape)
 
+		for head in range(self.num_heads):
+			weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
+
 		# EMBED STATE ACTION POLICY
 		obs_actions_embed = self.state_act_embed(obs_actions) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
@@ -259,6 +278,8 @@ class V_network(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.enable_hard_attention = enable_hard_attention
+
+		self.attention_dropout = AttentionDropout(dropout_prob=0.2)
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
@@ -431,6 +452,9 @@ class V_network(nn.Module):
 		# print(weight.shape)
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights.shape)
+
+		for head in range(self.num_heads):
+			weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
 		# EMBED STATE ACTION POLICY
 		obs_actions_embed = self.state_act_embed(obs_actions) # Batch_size, Num agents, Num agents - 1, dim
