@@ -134,6 +134,10 @@ class MAPPO:
 			final_timestep = self.max_time_steps
 			self.agents.target_policy_network.rnn_hidden_state = None
 			self.agents.policy_network.rnn_hidden_state = None
+
+			self.agents.target_critic_network.rnn_hidden_state = None
+			self.agents.critic_network.rnn_hidden_state = None
+			
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -142,13 +146,15 @@ class MAPPO:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, rnn_hidden_state_actor = self.agents.get_actions(states, mask_actions)
+						actions, dists, rnn_hidden_state_actor = self.agents.get_actions(states, mask_actions)
 				else:
-					actions, rnn_hidden_state_actor = self.agents.get_actions(states, mask_actions)
+					actions, dists, rnn_hidden_state_actor = self.agents.get_actions(states, mask_actions)
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
+
+				rnn_hidden_state_critic = self.agents.get_value_hidden_state(states, dists, one_hot_actions)
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				dones = [int(dones)]*self.num_agents
@@ -159,7 +165,7 @@ class MAPPO:
 				episode_reward += np.mean(rewards)
 
 				if self.learn:
-					self.agents.buffer.push(states, states, rnn_hidden_state_actor, actions, one_hot_actions, mask_actions, rewards, dones)
+					self.agents.buffer.push(states, rnn_hidden_state_critic, states, rnn_hidden_state_actor, actions, one_hot_actions, mask_actions, rewards, dones)
 					
 					if all(dones) or step == self.max_time_steps:
 						
