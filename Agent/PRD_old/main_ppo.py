@@ -38,7 +38,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 100000,
+				"max_episodes": 30000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -49,6 +49,7 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
+				"rnn_hidden_critic": 128,
 				"value_lr": 1e-4, #1e-3
 				"value_weight_decay": 5e-4,
 				"enable_grad_clip_critic": False,
@@ -67,7 +68,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.05,
-				"policy_lr": 5e-5, #prd 1e-4
+				"policy_lr": 1e-3, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 1e-2, #8e-3
 				"gae_lambda": 0.95,
