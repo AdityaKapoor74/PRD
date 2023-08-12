@@ -180,7 +180,7 @@ class QMIX:
 
 				states, mask_actions, last_one_hot_action = next_states, next_mask_actions, next_last_one_hot_action
 
-				episode_reward += np.mean(rewards)
+				episode_reward += np.sum(rewards)
 
 				if all(dones) or step == self.max_time_steps:
 
