@@ -162,7 +162,7 @@ class MAPPO:
 				next_states = np.array(next_states)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
-				episode_reward += np.mean(rewards)
+				episode_reward += np.sum(rewards)
 
 				if self.learn:
 					self.agents.buffer.push(states, rnn_hidden_state_critic, states, rnn_hidden_state_actor, actions, one_hot_actions, mask_actions, rewards, dones)
