@@ -52,47 +52,51 @@ class TransformerCritic(nn.Module):
 		self.device = device
 
 		self.state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 64, bias=True), 
+			nn.Linear(obs_input_dim, 128, bias=True), 
 			nn.GELU(),
 			)
 		self.key = nn.Sequential(
-			nn.Linear(64, 64, bias=True),
+			nn.Linear(128, 128, bias=True),
 			nn.GELU(),
 			)
 		self.query = nn.Sequential(
-			nn.Linear(64, 64, bias=True),
+			nn.Linear(128, 128, bias=True),
 			nn.GELU(),
 			)
 		self.state_act_pol_embed = nn.Sequential(
-			nn.Linear(obs_act_input_dim, 64, bias=True), 
+			nn.Linear(obs_act_input_dim, 128, bias=True), 
 			nn.GELU(),
 			)
 		self.attention_value = nn.Sequential(
-			nn.Linear(64, 64, bias=True), 
+			nn.Linear(128, 128, bias=True), 
 			nn.GELU(),
 			)
 
 		# dimesion of key
-		self.d_k_obs_act = 64 
+		self.d_k_obs_act = 128 
 
-		self.layer_norm_state_act_pol_embed = nn.LayerNorm(64) 
+		self.layer_norm_state_act_pol_embed = nn.LayerNorm(128) 
 
 		self.curr_agent_state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 64, bias=True), 
+			nn.Linear(obs_input_dim, 128, bias=True), 
 			nn.GELU(),
 			)
-		self.layer_norm_state_embed = nn.LayerNorm(64)
+		self.layer_norm_state_embed = nn.LayerNorm(128)
 
 		# ********************************************************************************************************
 
 		# ********************************************************************************************************
 		# FCN FINAL LAYER TO GET VALUES
+		self.common_layer = nn.Sequential(
+			nn.Linear(128*2, 128, bias=True), 
+			nn.GELU()
+			)
+		self.rnn_hidden_state = None
+		self.RNN = nn.GRUCell(128, 128)
 		self.final_value_layers = nn.Sequential(
-			nn.Linear(64*2, 64, bias=True), 
+			nn.Linear(128, 128, bias=True), 
 			nn.GELU(),
-			nn.Linear(64, 64, bias=True), 
-			nn.GELU(),
-			nn.Linear(64, 1)
+			nn.Linear(128, 1)
 			)
 			
 		# ********************************************************************************************************	
@@ -122,9 +126,9 @@ class TransformerCritic(nn.Module):
 
 		nn.init.xavier_uniform_(self.curr_agent_state_embed[0].weight)
 
+		nn.init.xavier_uniform_(self.common_layer[0].weight)
 		nn.init.xavier_uniform_(self.final_value_layers[0].weight)
 		nn.init.xavier_uniform_(self.final_value_layers[2].weight)
-		nn.init.xavier_uniform_(self.final_value_layers[4].weight)
 
 
 
@@ -159,6 +163,8 @@ class TransformerCritic(nn.Module):
 		curr_agent_state_embed = self.layer_norm_state_embed(curr_agent_state_embed+states_embed)
 		curr_agent_node_features = torch.cat([curr_agent_state_embed.unsqueeze(-2).repeat(1,1,self.num_agents,1), node_features], dim=-1)
 
-		Value = self.final_value_layers(curr_agent_node_features)
+		intermediate = self.common_layer(curr_agent_node_features)
+		self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1])).reshape(*intermediate.shape)
+		Value = self.final_value_layers(self.rnn_hidden_state)		
 
-		return Value, ret_weight
+		return Value, ret_weight, self.rnn_hidden_state
