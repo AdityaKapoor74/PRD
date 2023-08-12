@@ -156,7 +156,7 @@ class PPOAgent:
 			states = torch.FloatTensor(states).unsqueeze(0)
 			policy_prob_dist = torch.FloatTensor(policy_prob_dist).unsqueeze(0)
 			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0)
-			_, _, rnn_hidden_state_critic = self.target_critic_network(states, policy_prob_dist, one_hot_actions)
+			_, _, rnn_hidden_state_critic = self.target_critic_network(states.to(self.device), policy_prob_dist.to(self.device), one_hot_actions.to(self.device))
 		return rnn_hidden_state_critic.cpu().numpy()
 
 
