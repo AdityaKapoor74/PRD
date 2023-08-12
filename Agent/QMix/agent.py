@@ -137,6 +137,7 @@ class QMIXAgent:
 	def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
 		# Initialise  last  lambda -return  for  not  terminated  episodes
+		# print(rewards.shape, terminated.shape, mask.shape, target_qs.shape)
 		ret = target_qs.new_zeros(*target_qs.shape)
 		ret = target_qs * (1-terminated)
 		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
@@ -183,8 +184,12 @@ class QMIXAgent:
 				done_slice = done_batch[:, t].reshape(-1)
 				mask_slice = mask_batch[:, t].reshape(-1)
 
-				if mask_slice.sum().cpu().numpy() < EPS:
-					break
+				# print("*"*20)
+				# print(states_slice.shape, last_one_hot_actions_slice.shape, actions_slice.shape, next_states_slice.shape)
+				# print(next_last_one_hot_actions_slice.shape, next_mask_actions_slice.shape, reward_slice.shape, done_slice.shape, mask_slice.shape)
+
+				# if mask_slice.sum().cpu().numpy() < EPS:
+				# 	break
 
 				final_state_slice = torch.cat([states_slice, last_one_hot_actions_slice], dim=-1)
 				Q_values = self.Q_network(final_state_slice.to(self.device))
@@ -206,7 +211,7 @@ class QMIXAgent:
 		Q_mix_values = torch.stack(Q_mix_values, dim=1).to(self.device)
 		target_Q_mix_values = torch.stack(target_Q_mix_values, dim=1).to(self.device)
 
-		target_Q_mix_values = self.build_td_lambda_targets(reward_batch[:, :max_episode_len].to(self.device), done_batch[:, :max_episode_len].to(self.device), mask_batch.to(self.device), target_Q_mix_values)
+		target_Q_mix_values = self.build_td_lambda_targets(reward_batch[:, :max_episode_len].to(self.device), done_batch[:, :max_episode_len].to(self.device), mask_batch[:, :max_episode_len].to(self.device), target_Q_mix_values)
 
 		Q_loss = self.loss_fn(Q_mix_values, target_Q_mix_values.detach()) / mask_batch.to(self.device).sum()
 
