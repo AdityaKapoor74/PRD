@@ -31,7 +31,10 @@ class MLP_Policy(nn.Module):
 
 	def forward(self, local_observations, mask_actions=None):
 		intermediate = self.Layer_1(local_observations)
-		self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
+		if self.rnn_hidden_state is not None:
+			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
+		else:
+			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state).view(*intermediate.shape)
 		policy = self.Layer_2(self.rnn_hidden_state) + mask_actions
 		return F.softmax(policy, dim=-1), self.rnn_hidden_state
 
@@ -260,7 +263,10 @@ class Q_network(nn.Module):
 		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		# print(curr_agent_node_features.shape)
 		shape = curr_agent_node_features.shape
-		self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1])).reshape(*shape)
+		if self.rnn_hidden_state is not None:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state.view(-1, shape[-1])).reshape(*shape)
+		else:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state).reshape(*shape)
 		Q_value = self.q_value_layer(self.rnn_hidden_state) # Batch_size, Num agents, num_actions
 		# print(Q_value.shape)
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
@@ -480,7 +486,10 @@ class V_network(nn.Module):
 		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		# print(curr_agent_node_features.shape)
 		shape = curr_agent_node_features.shape
-		self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1])).reshape(*shape)
+		if self.rnn_hidden_state is not None:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state.view(-1, shape[-1])).reshape(*shape)
+		else:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state).reshape(*shape)
 		V_value = self.v_value_layer(self.rnn_hidden_state) # Batch_size, Num agents, 1
 		# print(V_value.shape)
 
