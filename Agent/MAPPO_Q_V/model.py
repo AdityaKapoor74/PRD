@@ -1,331 +1,487 @@
-import os
-import time
-from comet_ml import Experiment
-import numpy as np
-from agent import PPOAgent
 import torch
-import datetime
-
-import gym
-import smaclite  # noqa
-
-torch.autograd.set_detect_anomaly(True)
-
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+import math
+from utils import gumbel_sigmoid
 
 
-class MAPPO:
+class MLP_Policy(nn.Module):
+	def __init__(self, obs_input_dim, num_actions, num_agents, device):
+		super(MLP_Policy, self).__init__()
 
-	def __init__(self, env, dictionary):
+		self.name = "MLP Policy"
 
-		if dictionary["device"] == "gpu":
-			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.rnn_hidden_state = None
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = device
+		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.GELU())
+		self.RNN = nn.GRUCell(input_size=128, hidden_size=128)
+		self.Layer_2 = nn.Sequential(nn.Linear(128, 64), nn.GELU(), nn.Linear(64, num_actions))
+
+		self.reset_parameters()
+
+	def reset_parameters(self):
+
+		nn.init.xavier_uniform_(self.Layer_1[0].weight)
+		nn.init.xavier_uniform_(self.Layer_2[0].weight)
+		nn.init.xavier_uniform_(self.Layer_2[2].weight)
+
+
+	def forward(self, local_observations, mask_actions=None):
+		intermediate = self.Layer_1(local_observations)
+		self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
+		policy = self.Layer_2(self.rnn_hidden_state) + mask_actions
+		return F.softmax(policy, dim=-1), self.rnn_hidden_state
+
+
+
+class AttentionDropout(nn.Module):
+	def __init__(self, dropout_prob):
+		super(AttentionDropout, self).__init__()
+		self.dropout_prob = dropout_prob
+	
+	def forward(self, attention_scores):
+		# Apply dropout to attention scores
+		mask = (torch.rand_like(attention_scores) > self.dropout_prob).float()
+		attention_scores = attention_scores * mask
+		return attention_scores
+
+
+
+class Q_network(nn.Module):
+	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention):
+		super(Q_network, self).__init__()
+		
+		self.num_heads = num_heads
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = device
+		self.enable_hard_attention = enable_hard_attention
+
+		self.attention_dropout = AttentionDropout(dropout_prob=0.2)
+
+		# Embedding Networks
+		self.state_embed = nn.Sequential(
+			nn.Linear(obs_input_dim, 128, bias=True), 
+			nn.GELU(),
+			)
+		self.state_act_embed = nn.Sequential(
+			nn.Linear(obs_input_dim+self.num_actions, 128, bias=True), 
+			nn.GELU(),
+			)
+
+		# Key, Query, Attention Value, Hard Attention Networks
+		assert 128%self.num_heads == 0
+		self.key = nn.ModuleList([nn.Sequential(
+					nn.Linear(128, 128, bias=True), 
+					nn.GELU()
+					).to(self.device) for _ in range(self.num_heads)])
+		self.query = nn.ModuleList([nn.Sequential(
+					nn.Linear(128, 128, bias=True), 
+					nn.GELU()
+					).to(self.device) for _ in range(self.num_heads)])
+		self.attention_value = nn.ModuleList([nn.Sequential(
+					nn.Linear(128, 128//self.num_heads, bias=True), 
+					nn.GELU()
+					).to(self.device) for _ in range(self.num_heads)])
+
+		self.attention_value_layer_norm = nn.LayerNorm(128)
+
+		self.attention_value_linear = nn.Sequential(
+			nn.Linear(128, 128),
+			nn.GELU(),
+			)
+
+		self.attention_value_linear_layer_norm = nn.LayerNorm(128)
+
+		if self.enable_hard_attention:
+			self.hard_attention = nn.ModuleList([nn.Sequential(
+						nn.Linear(128*2, 128//self.num_heads),
+						nn.GELU(),
+						).to(self.device) for _ in range(self.num_heads)])
+
+			self.hard_attention_linear = nn.Sequential(
+				nn.Linear(128, 2)
+				)
+
+
+		# dimesion of key
+		self.d_k = 128
+
+		# FCN FINAL LAYER TO GET Q-VALUES
+		self.common_layer = nn.Sequential(
+			nn.Linear(128*2, 128, bias=True), 
+			nn.GELU(),
+			)
+		self.RNN = nn.GRUCell(128, 128)
+		self.rnn_hidden_state = None
+		self.q_value_layer = nn.Sequential(
+			nn.Linear(128, 128, bias=True),
+			nn.GELU(),
+			nn.Linear(128, self.num_actions)
+			)
+			
+		# ********************************************************************************************************
+		self.reset_parameters()
+
+
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		# gain = nn.init.calculate_gain('tanh', 0.01)
+
+		# Embedding Networks
+		nn.init.xavier_uniform_(self.state_embed[0].weight)
+		nn.init.xavier_uniform_(self.state_act_embed[0].weight)
+
+		# Key, Query, Attention Value, Hard Attention Networks
+		for i in range(self.num_heads):
+			nn.init.xavier_uniform_(self.key[i][0].weight)
+			nn.init.xavier_uniform_(self.query[i][0].weight)
+			nn.init.xavier_uniform_(self.attention_value[i][0].weight)
+			if self.enable_hard_attention:
+				nn.init.xavier_uniform_(self.hard_attention[i][0].weight)
+
+		nn.init.xavier_uniform_(self.attention_value_linear[0].weight)
+		if self.enable_hard_attention:
+			nn.init.xavier_uniform_(self.hard_attention_linear[0].weight)
+
+		nn.init.xavier_uniform_(self.common_layer[0].weight)
+		nn.init.xavier_uniform_(self.q_value_layer[0].weight)
+		nn.init.xavier_uniform_(self.q_value_layer[2].weight)
+
+
+	# We assume that the agent in question's actions always impact its rewards
+	def remove_self_loops(self, states_key):
+		ret_states_keys = torch.zeros(states_key.shape[0],self.num_agents,self.num_agents-1,states_key.shape[-1])
+		for i in range(self.num_agents):
+			if i == 0:
+				red_state = states_key[:,i,i+1:]
+			elif i == self.num_agents-1:
+				red_state = states_key[:,i,:i]
+			else:
+				red_state = torch.cat([states_key[:,i,:i],states_key[:,i,i+1:]], dim=-2)
+
+			ret_states_keys[:,i] = red_state
+
+		return ret_states_keys.to(self.device)
+
+	# Setting weight value as 1 for the diagonal elements in the weight matrix
+	def weight_assignment(self,weights):
+		weights_new = torch.zeros(weights.shape[0], self.num_heads, self.num_agents, self.num_agents).to(self.device)
+		one = torch.ones(weights.shape[0], self.num_heads, 1).to(self.device)
+		for i in range(self.num_agents):
+			if i == 0:
+				weight_vec = torch.cat([one,weights[:,:,i,:]], dim=-1)
+			elif i == self.num_agents-1:
+				weight_vec = torch.cat([weights[:,:,i,:],one], dim=-1)
+			else:
+				weight_vec = torch.cat([weights[:,:,i,:i],one,weights[:,:,i,i:]], dim=-1)
+			weights_new[:,:,i,:] = weight_vec
+
+		return weights_new.to(self.device)
+
+
+	def forward(self, states, actions):
+		states_query = states.unsqueeze(-2) # Batch_size, Num agents, sequence_length=1, dim
+		# print(states_query.shape)
+		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num Agents, dim
+		# print(states_key.shape)
+		actions_ = actions.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num_Agents, dim
+		# print(actions_.shape)
+
+		states_key = self.remove_self_loops(states_key) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key.shape)
+		actions_ = self.remove_self_loops(actions_) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(actions_.shape)
+
+		obs_actions = torch.cat([states_key,actions_],dim=-1).to(self.device) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(obs_actions.shape)
+
+		# EMBED STATES QUERY
+		states_query_embed = self.state_embed(states_query) # Batch_size, Num agents, 1, dim
+		# print(states_query_embed.shape)
+		# EMBED STATES QUERY
+		states_key_embed = self.state_embed(states_key) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key_embed.shape)
+		# KEYS
+		key_obs = torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		# print(key_obs.shape)
+		# QUERIES
+		query_obs = torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		# print(query_obs.shape)
+		# HARD ATTENTION
+		if self.enable_hard_attention:
+			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+			# print(query_key_concat.shape)
+			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
+			# print(query_key_concat_intermediate.shape)
+			# GUMBEL SIGMOID, did not work that well
+			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SOFTMAX
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
+			# print(hard_attention_weights.shape)
 		else:
-			self.device = "cpu"
-		self.env = env
-		self.gif = dictionary["gif"]
-		self.save_model = dictionary["save_model"]
-		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
-		self.save_comet_ml_plot = dictionary["save_comet_ml_plot"]
-		self.learn = dictionary["learn"]
-		self.gif_checkpoint = dictionary["gif_checkpoint"]
-		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
-		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
-		self.env_name = dictionary["env"]
-		self.test_num = dictionary["test_num"]
-		self.max_episodes = dictionary["max_episodes"]
-		self.max_time_steps = dictionary["max_time_steps"]
-		self.experiment_type = dictionary["experiment_type"]
-		self.update_ppo_agent = dictionary["update_ppo_agent"]
+			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
+			# print(hard_attention_weights.shape)
+		# SOFT ATTENTION
+		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(score.shape)
+		weight = F.softmax(score ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(weight.shape)
+		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
+		# print(weights.shape)
+
+		for head in range(self.num_heads):
+			weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
+
+		# EMBED STATE ACTION POLICY
+		obs_actions_embed = self.state_act_embed(obs_actions) # Batch_size, Num agents, Num agents - 1, dim
+		# print(obs_actions_embed.shape)
+		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
+		# print(attention_values.shape)
+		aggregated_node_features = torch.matmul(weight, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features_ = self.attention_value_layer_norm(torch.sum(obs_actions_embed, dim=-2)+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features_.shape)
+		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+
+		curr_agent_node_features = torch.cat([states_query_embed.squeeze(-2), aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+
+		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		shape = curr_agent_node_features.shape
+		self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1])).reshape(*shape)
+		Q_value = self.q_value_layer(self.rnn_hidden_state) # Batch_size, Num agents, num_actions
+		# print(Q_value.shape)
+		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
+		# print(Q_value.shape)
+
+		return Q_value.squeeze(-1), weights, score, self.rnn_hidden_state
 
 
-		self.comet_ml = None
-		if self.save_comet_ml_plot:
-			self.comet_ml = Experiment("im5zK8gFkz6j07uflhc3hXk8I",project_name=dictionary["test_num"])
-			self.comet_ml.log_parameters(dictionary)
+class V_network(nn.Module):
+	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention):
+		super(V_network, self).__init__()
+		
+		self.num_heads = num_heads
+		self.num_agents = num_agents
+		self.num_actions = num_actions
+		self.device = device
+		self.enable_hard_attention = enable_hard_attention
+
+		self.attention_dropout = AttentionDropout(dropout_prob=0.2)
+
+		# Embedding Networks
+		self.state_embed = nn.Sequential(
+			nn.Linear(obs_input_dim, 128, bias=True), 
+			nn.GELU(),
+			)
+		self.state_act_embed = nn.Sequential(
+			nn.Linear(obs_input_dim+self.num_actions, 128, bias=True), 
+			nn.GELU(),
+			)
+
+		# Key, Query, Attention Value, Hard Attention Networks
+		assert 128%self.num_heads == 0
+		self.key = nn.ModuleList([nn.Sequential(
+					nn.Linear(128, 128, bias=True), 
+					nn.GELU()
+					).to(self.device) for _ in range(self.num_heads)])
+		self.query = nn.ModuleList([nn.Sequential(
+					nn.Linear(128, 128, bias=True), 
+					nn.GELU()
+					).to(self.device) for _ in range(self.num_heads)])
+		self.attention_value = nn.ModuleList([nn.Sequential(
+					nn.Linear(128, 128//self.num_heads, bias=True), 
+					nn.GELU()
+					).to(self.device) for _ in range(self.num_heads)])
+
+		self.attention_value_layer_norm = nn.LayerNorm(128)
+
+		self.attention_value_linear = nn.Sequential(
+			nn.Linear(128, 128),
+			nn.GELU(),
+			)
+
+		self.attention_value_linear_layer_norm = nn.LayerNorm(128)
+
+		if self.enable_hard_attention:
+			self.hard_attention = nn.ModuleList([nn.Sequential(
+						nn.Linear(128*2, 128//self.num_heads),
+						nn.GELU(),
+						).to(self.device) for _ in range(self.num_heads)])
+
+			self.hard_attention_linear = nn.Sequential(
+				nn.Linear(128, 2)
+				)
 
 
-		self.agents = PPOAgent(self.env, dictionary, self.comet_ml)
-		# self.init_critic_hidden_state(np.zeros((1, self.num_agents, 256)))
+		# dimesion of key
+		self.d_k = 128
 
-		if self.save_model:
-			critic_dir = dictionary["critic_dir"]
-			try: 
-				os.makedirs(critic_dir, exist_ok = True) 
-				print("Critic Directory created successfully") 
-			except OSError as error: 
-				print("Critic Directory can not be created") 
-			actor_dir = dictionary["actor_dir"]
-			try: 
-				os.makedirs(actor_dir, exist_ok = True) 
-				print("Actor Directory created successfully") 
-			except OSError as error: 
-				print("Actor Directory can not be created")
-
+		# FCN FINAL LAYER TO GET Q-VALUES
+		self.common_layer = nn.Sequential(
+			nn.Linear(128*2, 128, bias=True), 
+			nn.GELU(),
+			)
+		self.RNN = nn.GRUCell(128, 128)
+		self.rnn_hidden_state = None
+		self.v_value_layer = nn.Sequential(
+			nn.Linear(128, 128, bias=True),
+			nn.GELU(),
+			nn.Linear(128, 1)
+			)
 			
-			self.critic_model_path = critic_dir+"critic"
-			self.actor_model_path = actor_dir+"actor"
-			
-
-		if self.gif:
-			gif_dir = dictionary["gif_dir"]
-			try: 
-				os.makedirs(gif_dir, exist_ok = True) 
-				print("Gif Directory created successfully") 
-			except OSError as error: 
-				print("Gif Directory can not be created")
-			self.gif_path = gif_dir+self.env_name+'.gif'
+		# ********************************************************************************************************
+		self.reset_parameters()
 
 
-		if self.eval_policy:
-			self.policy_eval_dir = dictionary["policy_eval_dir"]
-			try: 
-				os.makedirs(self.policy_eval_dir, exist_ok = True) 
-				print("Policy Eval Directory created successfully") 
-			except OSError as error: 
-				print("Policy Eval Directory can not be created")
+	def reset_parameters(self):
+		"""Reinitialize learnable parameters."""
+		# gain = nn.init.calculate_gain('tanh', 0.01)
+
+		# Embedding Networks
+		nn.init.xavier_uniform_(self.state_embed[0].weight)
+		nn.init.xavier_uniform_(self.state_act_embed[0].weight)
+
+		# Key, Query, Attention Value, Hard Attention Networks
+		for i in range(self.num_heads):
+			nn.init.xavier_uniform_(self.key[i][0].weight)
+			nn.init.xavier_uniform_(self.query[i][0].weight)
+			nn.init.xavier_uniform_(self.attention_value[i][0].weight)
+			if self.enable_hard_attention:
+				nn.init.xavier_uniform_(self.hard_attention[i][0].weight)
+
+		nn.init.xavier_uniform_(self.attention_value_linear[0].weight)
+		if self.enable_hard_attention:
+			nn.init.xavier_uniform_(self.hard_attention_linear[0].weight)
+
+		nn.init.xavier_uniform_(self.common_layer[0].weight)
+		nn.init.xavier_uniform_(self.v_value_layer[0].weight)
+		nn.init.xavier_uniform_(self.v_value_layer[2].weight)
 
 
-	def make_gif(self,images,fname,fps=10, scale=1.0):
-		from moviepy.editor import ImageSequenceClip
-		"""Creates a gif given a stack of images using moviepy
-		Notes
-		-----
-		works with current Github version of moviepy (not the pip version)
-		https://github.com/Zulko/moviepy/commit/d4c9c37bc88261d8ed8b5d9b7c317d13b2cdf62e
-		Usage
-		-----
-		>>> X = randn(100, 64, 64)
-		>>> gif('test.gif', X)
-		Parameters
-		----------
-		filename : string
-			The filename of the gif to write to
-		array : array_like
-			A numpy array that contains a sequence of images
-		fps : int
-			frames per second (default: 10)
-		scale : float
-			how much to rescale each image by (default: 1.0)
-		"""
+	# We assume that the agent in question's actions always impact its rewards
+	def remove_self_loops(self, states_key):
+		ret_states_keys = torch.zeros(states_key.shape[0],self.num_agents,self.num_agents-1,states_key.shape[-1])
+		for i in range(self.num_agents):
+			if i == 0:
+				red_state = states_key[:,i,i+1:]
+			elif i == self.num_agents-1:
+				red_state = states_key[:,i,:i]
+			else:
+				red_state = torch.cat([states_key[:,i,:i],states_key[:,i,i+1:]], dim=-2)
 
-		# copy into the color dimension if the images are black and white
-		if images.ndim == 3:
-			images = images[..., np.newaxis] * np.ones(3)
+			ret_states_keys[:,i] = red_state
 
-		# make the moviepy clip
-		clip = ImageSequenceClip(list(images), fps=fps).resize(scale)
-		clip.write_gif(fname, fps=fps)
+		return ret_states_keys.to(self.device)
 
+	# Setting weight value as 1 for the diagonal elements in the weight matrix
+	def weight_assignment(self,weights):
+		weights_new = torch.zeros(weights.shape[0], self.num_heads, self.num_agents, self.num_agents).to(self.device)
+		one = torch.ones(weights.shape[0], self.num_heads, 1).to(self.device)
+		for i in range(self.num_agents):
+			if i == 0:
+				weight_vec = torch.cat([one,weights[:,:,i,:]], dim=-1)
+			elif i == self.num_agents-1:
+				weight_vec = torch.cat([weights[:,:,i,:],one], dim=-1)
+			else:
+				weight_vec = torch.cat([weights[:,:,i,:i],one,weights[:,:,i,i:]], dim=-1)
+			weights_new[:,:,i,:] = weight_vec
+
+		return weights_new.to(self.device)
 
 
+	def forward(self, states, actions):
+		states_query = states.unsqueeze(-2) # Batch_size, Num agents, sequence_length=1, dim
+		# print(states_query.shape)
+		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num Agents, dim
+		# print(states_key.shape)
+		actions_ = actions.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num_Agents, dim
+		# print(actions_.shape)
 
-	def run(self):  
-		if self.eval_policy:
-			self.rewards = []
-			self.rewards_mean_per_1000_eps = []
-			self.timesteps = []
-			self.timesteps_mean_per_1000_eps = []
+		states_key = self.remove_self_loops(states_key) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key.shape)
+		actions_ = self.remove_self_loops(actions_) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(actions_.shape)
 
-		for episode in range(1,self.max_episodes+1):
+		obs_actions = torch.cat([states_key,actions_],dim=-1).to(self.device) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(obs_actions.shape)
 
-			states, info = self.env.reset(return_info=True)
-			mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
-			states = np.array(states)
+		# EMBED STATES QUERY
+		states_query_embed = self.state_embed(states_query) # Batch_size, Num agents, 1, dim
+		# print(states_query_embed.shape)
+		# EMBED STATES QUERY
+		states_key_embed = self.state_embed(states_key) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key_embed.shape)
+		# KEYS
+		key_obs = torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		# print(key_obs.shape)
+		# QUERIES
+		query_obs = torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		# print(query_obs.shape)
+		# HARD ATTENTION
+		if self.enable_hard_attention:
+			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+			# print(query_key_concat.shape)
+			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
+			# print(query_key_concat_intermediate.shape)
+			# GUMBEL SIGMOID, did not work that well
+			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SOFTMAX
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
+			# print(hard_attention_weights.shape)
+		else:
+			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
+		# hard_score = -10000*(1-hard_attention_weights) + hard_attention_weights
+		# print(hard_attention_weights.unsqueeze(1).shape, key_obs.shape)
+		# SOFT ATTENTION
+		score = torch.matmul(query_obs,key_obs.transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(score.shape)
+		weight = F.softmax(score ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(weight.shape)
+		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
+		# print(weights.shape)
 
-			images = []
+		for head in range(self.num_heads):
+			weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
-			episode_reward = 0
-			final_timestep = self.max_time_steps
+		# EMBED STATE ACTION POLICY
+		obs_actions_embed = self.state_act_embed(obs_actions) # Batch_size, Num agents, Num agents - 1, dim
+		# print(obs_actions_embed.shape)
+		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
+		# print(attention_values.shape)
+		aggregated_node_features = torch.matmul(weight, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features_ = self.attention_value_layer_norm(torch.sum(obs_actions_embed, dim=-2)+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features_.shape)
+		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
 
-			self.agents.policy_network_old.rnn_hidden_state = None
-			self.agents.policy_network.rnn_hidden_state = None
+		curr_agent_node_features = torch.cat([states_query_embed.squeeze(-2), aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
 
-			self.agents.critic_network_q_old.rnn_hidden_state = None
-			self.agents.critic_network_q.rnn_hidden_state = None
+		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		shape = curr_agent_node_features.shape
+		self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1])).reshape(*shape)
+		V_value = self.v_value_layer(self.rnn_hidden_state) # Batch_size, Num agents, 1
+		# print(V_value.shape)
 
-			self.agents.critic_network_v_old.rnn_hidden_state = None
-			self.agents.critic_network_v.rnn_hidden_state = None
-
-			for step in range(1, self.max_time_steps+1):
-
-				if self.gif:
-					# At each step, append an image to list
-					if not(episode%self.gif_checkpoint):
-						images.append(np.squeeze(self.env.render(mode='rgb_array')))
-					import time
-					time.sleep(0.1)
-					# Advance a step and render a new image
-					with torch.no_grad():
-						actions, _, _ = self.agents.get_action(states, mask_actions, greedy=True)
-				else:
-					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states, mask_actions)
-					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
-					for i,act in enumerate(actions):
-						one_hot_actions[i][act] = 1
-
-					rnn_hidden_state_v, rnn_hidden_state_q = self.agents.get_value_rnn_state(states, one_hot_actions)
-
-
-				next_states, rewards, dones, info = self.env.step(actions)
-				dones = [int(dones)]*self.num_agents
-				rewards = info["indiv_rewards"]
-				next_states = np.array(next_states)
-				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
-
-				if not self.gif:
-					self.agents.buffer.push(states, rnn_hidden_state_v, rnn_hidden_state_q, states, rnn_hidden_state_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
-
-				episode_reward += np.sum(rewards)
-
-				states, mask_actions = next_states, next_mask_actions
-
-				if all(dones) or step == self.max_time_steps:
-
-					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
-					print("*"*100)
-
-					final_timestep = step
-
-					if self.save_comet_ml_plot:
-						self.comet_ml.log_metric('Episode_Length', step, episode)
-						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
-						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
-						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
-						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
-
-					# if warmup
-					self.agents.update_epsilon()
-
-					break
-
-			if self.agents.scheduler_need:
-				self.agents.scheduler_policy.step()
-				self.agents.scheduler_q_critic.step()
-				self.agents.scheduler_v_critic.step()
-
-			if self.eval_policy:
-				self.rewards.append(episode_reward)
-				self.timesteps.append(final_timestep)
-
-			if episode > self.save_model_checkpoint and self.eval_policy:
-				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-
-			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
-				torch.save(self.agents.critic_network_q.state_dict(), self.critic_model_path+'_Q_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.critic_network_v.state_dict(), self.critic_model_path+'_V_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
-
-			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
-				self.agents.update(episode)
-
-			elif self.gif and not(episode%self.gif_checkpoint):
-				print("GENERATING GIF")
-				self.make_gif(np.array(images),self.gif_path)
-
-
-			if self.eval_policy and not(episode%self.save_model_checkpoint) and episode!=0:
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
-				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
-				
-
-if __name__ == '__main__':
-
-	RENDER = False
-	USE_CPP_RVO2 = False
-
-	for i in range(1,6):
-		extension = "MAPPO_"+str(i)
-		test_num = "StarCraft"
-		env_name = "10m_vs_11m"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
-
-		dictionary = {
-				# TRAINING
-				"iteration": i,
-				"device": "gpu",
-				"update_learning_rate_with_prd": False,
-				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/critic_networks/',
-				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
-				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
-				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
-				"test_num":test_num,
-				"extension":extension,
-				"gamma": 0.99,
-				"gif": False,
-				"gif_checkpoint":1,
-				"load_models": False,
-				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
-				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
-				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
-				"learn":True,
-				"warm_up": False,
-				"warm_up_episodes": 500,
-				"epsilon_start": 1.0,
-				"epsilon_end": 0.0,
-				"max_episodes": 30000,
-				"max_time_steps": 100,
-				"experiment_type": experiment_type,
-				"parallel_training": False,
-				"scheduler_need": False,
-
-
-				# ENVIRONMENT
-				"env": env_name,
-
-				# CRITIC
-				"rnn_hidden_q": 128,
-				"rnn_hidden_v": 128,				
-				"q_value_lr": 1e-3, #1e-3
-				"v_value_lr": 1e-3, #1e-3
-				"q_weight_decay": 5e-4,
-				"v_weight_decay": 5e-4,
-				"enable_grad_clip_critic": False,
-				"grad_clip_critic": 0.5,
-				"value_clip": 0.05,
-				"enable_hard_attention": False,
-				"num_heads": 4,
-				"critic_weight_entropy_pen": 0.0,
-				"critic_score_regularizer": 0.0,
-				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns": False,
-				
-
-				# ACTOR
-				"rnn_hidden_actor": 128,
-				"enable_grad_clip_actor": False,
-				"grad_clip_actor": 0.5,
-				"policy_clip": 0.05,
-				"policy_lr": 1e-3, #prd 1e-4
-				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-2, #8e-3
-				"gae_lambda": 0.95,
-				"select_above_threshold": 0.0,
-				"threshold_min": 0.0, 
-				"threshold_max": 0.0, #0.12
-				"steps_to_take": 1000,
-				"top_k": 0,
-				"norm_adv": False,
-
-				"network_update_interval": 1,
-			}
-
-		seeds = [42, 142, 242, 342, 442]
-		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
-		obs, info = env.reset(return_info=True)
-		dictionary["global_observation"] = obs[0].shape[0]
-		dictionary["local_observation"] = obs[0].shape[0]
-		ma_controller = MAPPO(env,dictionary)
-		ma_controller.run()
+		return V_value.squeeze(-1), weights, score, self.rnn_hidden_state
