@@ -17,7 +17,7 @@ class MLP_Policy(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim, 64), nn.GELU())
-		self.RNN = nn.GRUCell(input_size=564, hidden_size=64)
+		self.RNN = nn.GRUCell(input_size=64, hidden_size=64)
 		self.Layer_2 = nn.Sequential(nn.Linear(64, 64), nn.GELU(), nn.Linear(64, num_actions))
 
 		self.reset_parameters()
