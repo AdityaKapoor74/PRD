@@ -73,6 +73,8 @@ class Q_network(nn.Module):
 
 		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
+		self.temperature = 0.1
+
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
 			nn.Linear(obs_input_dim, 64, bias=True), 
@@ -225,7 +227,7 @@ class Q_network(nn.Module):
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
-		weight = F.softmax(score ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights.shape)
@@ -374,6 +376,8 @@ class V_network(nn.Module):
 		self.attention_dropout = AttentionDropout(dropout_prob=0.2)
 
 		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
+
+		self.temperature = 0.2
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
@@ -528,7 +532,7 @@ class V_network(nn.Module):
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
-		weight = F.softmax(score ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights.shape)
