@@ -20,6 +20,8 @@ class MLP_Policy(nn.Module):
 		self.RNN = nn.GRUCell(input_size=64, hidden_size=64)
 		self.Layer_2 = nn.Sequential(nn.Linear(64, 64), nn.GELU(), nn.Linear(64, num_actions))
 
+		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
+
 		self.reset_parameters()
 
 	def reset_parameters(self):
@@ -30,7 +32,11 @@ class MLP_Policy(nn.Module):
 
 
 	def forward(self, local_observations, mask_actions=None):
-		intermediate = self.Layer_1(local_observations)
+		if len(local_observations.shape) == 3:
+			positional_embedding = self.positional_embedding.unsqueeze(0)
+		else:
+			positional_embedding = self.positional_embedding
+		intermediate = self.Layer_1(local_observations) + positional_embedding
 		if self.rnn_hidden_state is not None:
 			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
 		else:
@@ -64,6 +70,8 @@ class Q_network(nn.Module):
 		self.enable_hard_attention = enable_hard_attention
 
 		self.attention_dropout = AttentionDropout(dropout_prob=0.2)
+
+		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
@@ -185,9 +193,86 @@ class Q_network(nn.Module):
 
 		return weights_new.to(self.device)
 
-
 	def forward(self, states, actions):
-		states_query = states.unsqueeze(-2) # Batch_size, Num agents, sequence_length=1, dim
+		# EMBED STATES KEY & QUERY
+		states_embed = self.state_embed(states) + self.positional_embedding.unsqueeze(0) # Batch size, Num Agents, dim
+		states_query_embed = states_embed.unsqueeze(-2) # Batch size, Num Agents, 1, dim
+		# print(states_query_embed.shape)
+		# EMBED STATES QUERY
+		states_key_embed = states_embed.unsqueeze(1).repeat(1,self.num_agents, 1, 1) # Batch_size, Num agents, Num Agents, dim
+		states_key_embed = self.remove_self_loops(states_key_embed) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key_embed.shape)
+		# KEYS
+		key_obs = torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		# print(key_obs.shape)
+		# QUERIES
+		query_obs = torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		# print(query_obs.shape)
+		# HARD ATTENTION
+		if self.enable_hard_attention:
+			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+			# print(query_key_concat.shape)
+			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
+			# print(query_key_concat_intermediate.shape)
+			# GUMBEL SIGMOID, did not work that well
+			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SOFTMAX
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
+			# print(hard_attention_weights.shape)
+		else:
+			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
+			# print(hard_attention_weights.shape)
+		# SOFT ATTENTION
+		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(score.shape)
+		weight = F.softmax(score ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(weight.shape)
+		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
+		# print(weights.shape)
+
+		for head in range(self.num_heads):
+			weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
+
+		# EMBED STATE ACTION
+		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
+		obs_actions_embed = self.state_act_embed(obs_actions) + self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
+		obs_actions_embed = self.remove_self_loops(obs_actions_embed.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
+		# print(obs_actions_embed.shape)
+		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
+		# print(attention_values.shape)
+		aggregated_node_features = torch.matmul(weight, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features_ = self.attention_value_layer_norm(torch.sum(obs_actions_embed, dim=-2)+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features_.shape)
+		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+
+		curr_agent_node_features = torch.cat([states_query_embed.squeeze(-2), aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+
+		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		shape = curr_agent_node_features.shape
+		if self.rnn_hidden_state is not None:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state.view(-1, shape[-1])).reshape(*shape)
+		else:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state).reshape(*shape)
+		Q_value = self.q_value_layer(self.rnn_hidden_state) # Batch_size, Num agents, num_actions
+		# print(Q_value.shape)
+		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
+		# print(Q_value.shape)
+
+		return Q_value.squeeze(-1), weights, score, self.rnn_hidden_state
+
+'''
+	def forward(self, states, actions):
+		states_query = states.unsqueeze(-2) # Batch_size, Num agents, 1, dim
 		# print(states_query.shape)
 		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num Agents, dim
 		# print(states_key.shape)
@@ -199,7 +284,7 @@ class Q_network(nn.Module):
 		actions_ = self.remove_self_loops(actions_) # Batch_size, Num agents, Num Agents - 1, dim
 		# print(actions_.shape)
 
-		obs_actions = torch.cat([states_key,actions_],dim=-1).to(self.device) # Batch_size, Num agents, Num Agents - 1, dim
+		obs_actions = torch.cat([states_key, actions_],dim=-1).to(self.device) # Batch_size, Num agents, Num Agents - 1, dim
 		# print(obs_actions.shape)
 
 		# EMBED STATES QUERY
@@ -273,6 +358,7 @@ class Q_network(nn.Module):
 		# print(Q_value.shape)
 
 		return Q_value.squeeze(-1), weights, score, self.rnn_hidden_state
+'''
 
 
 class V_network(nn.Module):
@@ -286,6 +372,8 @@ class V_network(nn.Module):
 		self.enable_hard_attention = enable_hard_attention
 
 		self.attention_dropout = AttentionDropout(dropout_prob=0.2)
+
+		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
@@ -409,6 +497,83 @@ class V_network(nn.Module):
 
 
 	def forward(self, states, actions):
+		# EMBED STATES KEY & QUERY
+		states_embed = self.state_embed(states) + self.positional_embedding.unsqueeze(0) # Batch size, Num Agents, dim
+		states_query_embed = states_embed.unsqueeze(-2) # Batch size, Num Agents, 1, dim
+		# print(states_query_embed.shape)
+		# EMBED STATES QUERY
+		states_key_embed = states_embed.unsqueeze(1).repeat(1,self.num_agents, 1, 1) # Batch_size, Num agents, Num Agents, dim
+		states_key_embed = self.remove_self_loops(states_key_embed) # Batch_size, Num agents, Num Agents - 1, dim
+		# print(states_key_embed.shape)
+		# KEYS
+		key_obs = torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		# print(key_obs.shape)
+		# QUERIES
+		query_obs = torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		# print(query_obs.shape)
+		# HARD ATTENTION
+		if self.enable_hard_attention:
+			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+			# print(query_key_concat.shape)
+			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
+			# print(query_key_concat_intermediate.shape)
+			# GUMBEL SIGMOID, did not work that well
+			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
+			# GUMBEL SOFTMAX
+			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
+			# print(hard_attention_weights.shape)
+		else:
+			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
+			# print(hard_attention_weights.shape)
+		# SOFT ATTENTION
+		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(score.shape)
+		weight = F.softmax(score ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# print(weight.shape)
+		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
+		# print(weights.shape)
+
+		for head in range(self.num_heads):
+			weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
+
+		# EMBED STATE ACTION
+		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
+		obs_actions_embed = self.state_act_embed(obs_actions) + self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
+		obs_actions_embed = self.remove_self_loops(obs_actions_embed.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
+		# print(obs_actions_embed.shape)
+		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
+		# print(attention_values.shape)
+		aggregated_node_features = torch.matmul(weight, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features_ = self.attention_value_layer_norm(torch.sum(obs_actions_embed, dim=-2)+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features_.shape)
+		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
+		# print(aggregated_node_features.shape)
+
+		curr_agent_node_features = torch.cat([states_query_embed.squeeze(-2), aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+
+		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		# print(curr_agent_node_features.shape)
+		shape = curr_agent_node_features.shape
+		if self.rnn_hidden_state is not None:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state.view(-1, shape[-1])).reshape(*shape)
+		else:
+			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state).reshape(*shape)
+		V_value = self.v_value_layer(self.rnn_hidden_state) # Batch_size, Num agents, num_actions
+		# print(Q_value.shape)
+		
+		return V_value.squeeze(-1), weights, score, self.rnn_hidden_state
+
+
+	'''
+	def forward(self, states, actions):
 		states_query = states.unsqueeze(-2) # Batch_size, Num agents, sequence_length=1, dim
 		# print(states_query.shape)
 		states_key = states.unsqueeze(1).repeat(1,self.num_agents,1,1) # Batch_size, Num agents, Num Agents, dim
@@ -494,3 +659,5 @@ class V_network(nn.Module):
 		# print(V_value.shape)
 
 		return V_value.squeeze(-1), weights, score, self.rnn_hidden_state
+
+	'''
