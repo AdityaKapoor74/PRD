@@ -289,6 +289,8 @@ if __name__ == '__main__':
 				"rnn_hidden_v": 64,				
 				"q_value_lr": 1e-3, #1e-3
 				"v_value_lr": 1e-3, #1e-3
+				"temperature_v": 0.0,
+				"temperature_q": 0.0,
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic": True,
