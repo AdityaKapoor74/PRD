@@ -255,8 +255,8 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 10,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 5,
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -285,8 +285,8 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# CRITIC
-				"rnn_hidden_q": 128,
-				"rnn_hidden_v": 128,				
+				"rnn_hidden_q": 64,
+				"rnn_hidden_v": 64,				
 				"q_value_lr": 1e-3, #1e-3
 				"v_value_lr": 1e-3, #1e-3
 				"q_weight_decay": 5e-4,
@@ -303,7 +303,7 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
-				"rnn_hidden_actor": 128,
+				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.2,
