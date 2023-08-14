@@ -37,6 +37,8 @@ class PPOAgent:
 		self.max_time_steps = dictionary["max_time_steps"]
 
 		# Critic Setup
+		self.temperature_v = dictionary["temperature_v"]
+		self.temperature_q = dictionary["temperature_q"]
 		self.rnn_hidden_q = dictionary["rnn_hidden_q"]
 		self.rnn_hidden_v = dictionary["rnn_hidden_v"]
 		self.critic_observation_shape = dictionary["global_observation"]
@@ -89,16 +91,16 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 		# obs_input_dim = 2*3+1 # crossing_team_greedy
 		# Q-V Network
-		self.critic_network_q = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
-		self.critic_network_q_old = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_q = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_q).to(self.device)
+		self.critic_network_q_old = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_q).to(self.device)
 		# Copy network params
 		self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
 		# Disable updates for old network
 		for param in self.critic_network_q_old.parameters():
 			param.requires_grad_(False)
 
-		self.critic_network_v = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
-		self.critic_network_v_old = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention).to(self.device)
+		self.critic_network_v = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_v).to(self.device)
+		self.critic_network_v_old = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_v).to(self.device)
 		# Copy network params
 		self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
 		# Disable updates for old network
