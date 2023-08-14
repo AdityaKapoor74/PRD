@@ -60,7 +60,7 @@ class AttentionDropout(nn.Module):
 
 
 class Q_network(nn.Module):
-	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention):
+	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention, temperature):
 		super(Q_network, self).__init__()
 		
 		self.num_heads = num_heads
@@ -73,7 +73,7 @@ class Q_network(nn.Module):
 
 		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
-		self.temperature = 0.1
+		self.temperature = temperature
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
@@ -364,7 +364,7 @@ class Q_network(nn.Module):
 
 
 class V_network(nn.Module):
-	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention):
+	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention, temperature):
 		super(V_network, self).__init__()
 		
 		self.num_heads = num_heads
@@ -377,7 +377,7 @@ class V_network(nn.Module):
 
 		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
-		self.temperature = 0.2
+		self.temperature = temperature
 
 		# Embedding Networks
 		self.state_embed = nn.Sequential(
