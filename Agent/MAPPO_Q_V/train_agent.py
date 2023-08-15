@@ -295,7 +295,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic": True,
 				"grad_clip_critic": 10.0,
-				"value_clip": 0.2,
+				"value_clip": 0.1,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 5e-3,
@@ -308,15 +308,15 @@ if __name__ == '__main__':
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 10.0,
-				"policy_clip": 0.2,
+				"policy_clip": 0.1,
 				"policy_lr": 1e-3, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 0.0, #8e-3
+				"entropy_pen": 1e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0, #0.12
-				"steps_to_take": 1000,
+				"steps_to_take": 0,
 				"top_k": 0,
 				"norm_adv": False,
 
