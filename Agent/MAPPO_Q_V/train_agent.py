@@ -298,7 +298,7 @@ if __name__ == '__main__':
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
-				"critic_weight_entropy_pen": 1e-2,
+				"critic_weight_entropy_pen": 1e-3,
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
