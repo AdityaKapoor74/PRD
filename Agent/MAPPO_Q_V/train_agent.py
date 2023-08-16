@@ -131,7 +131,7 @@ class MAPPO:
 		for episode in range(1,self.max_episodes+1):
 
 			states, info = self.env.reset(return_info=True)
-			mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
+			mask_actions = np.array(info["avail_actions"])
 			states = np.array(states)
 
 			images = []
@@ -172,7 +172,7 @@ class MAPPO:
 				dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
-				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
+				next_mask_actions = np.array(info["avail_actions"])
 
 				if not self.gif:
 					self.agents.buffer.push(states, rnn_hidden_state_v, rnn_hidden_state_q, states, rnn_hidden_state_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
@@ -265,10 +265,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
