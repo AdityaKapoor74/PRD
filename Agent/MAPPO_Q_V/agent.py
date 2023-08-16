@@ -294,7 +294,10 @@ class PPOAgent:
 			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
-			advantage = advantage*(self.num_agents/self.top_k)
+			advantage *= self.num_agents
+			if "top" in self.experiment_type:
+				advantage /= self.top_k
+
 
 		return advantage.detach(), masking_rewards, mean_min_weight_value
 
