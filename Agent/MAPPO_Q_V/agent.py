@@ -217,7 +217,7 @@ class PPOAgent:
 		ret = target_qs * (1-terminated)
 		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
 		# Backwards  recursive  update  of the "forward  view"
-		for t in range(ret.shape[1] - 2, -1,  -1):
+		for t in range(ret.shape[1] - 2, -1, -1):
 			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t].unsqueeze(-1) \
 						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
 		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
@@ -288,16 +288,11 @@ class PPOAgent:
 				advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		elif "prd_soft_advantage" in self.experiment_type:
 			if episode > self.steps_to_take:
-				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd * self.num_agents,-1,-2), dim=-1)
+				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
 			else:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
-		elif "greedy" in self.experiment_type:
-			advantage = self.calculate_advantages(V_values, V_values_old, rewards, dones, masks)
-		elif "relevant_set" in self.experiment_type:
-			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * self.relevant_set, dim=-1)
-			advantage = self.calculate_advantages(V_values, V_values_old, rewards, dones, masks)
-
+		
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
 			advantage = advantage*(self.num_agents/self.top_k)
 
@@ -339,17 +334,23 @@ class PPOAgent:
 												old_one_hot_actions.to(self.device)
 												)
 
-		if "threshold" in self.experiment_type or "top" in self.experiment_type:
+		if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.detach().cpu(),-1,-2), dim=-1)
+		elif "threshold" in self.experiment_type and episode > self.steps_to_take:
+			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
+			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.detach().cpu(),-1,-2), dim=-1)
+		elif "top" in self.experiment_type and episode > self.steps_to_take:
+			values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k,dim=-1)
+			mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.detach().cpu(),-1,-2), dim=-1)
+		elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old, dim=1).reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents, self.num_agents), -1, -2), dim=-1)
 		else:
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
 		target_Q_values = self.build_td_lambda_targets(rewards.to(self.device), dones.to(self.device), masks.to(self.device), Q_values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
 		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents).to(self.device), dones.to(self.device), masks.to(self.device), Values_old.reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents)).reshape(-1, self.num_agents)
-
-		# target_Q_values = self.calculate_returns(rewards.to(self.device)).reshape(-1, self.num_agents)
-		# target_V_values = self.calculate_returns(target_V_rewards.to(self.device)).reshape(-1, self.num_agents)
 
 		if self.norm_returns:
 			target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
