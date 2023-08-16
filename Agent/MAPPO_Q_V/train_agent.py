@@ -131,7 +131,7 @@ class MAPPO:
 		for episode in range(1,self.max_episodes+1):
 
 			states, info = self.env.reset(return_info=True)
-			mask_actions = np.array(info["avail_actions"])
+			mask_actions = np.array(info["avail_actions"], dtype=int)
 			states = np.array(states)
 
 			images = []
@@ -172,7 +172,7 @@ class MAPPO:
 				dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
-				next_mask_actions = np.array(info["avail_actions"])
+				next_mask_actions = np.array(info["avail_actions"], dtype=int)
 
 				if not self.gif:
 					self.agents.buffer.push(states, rnn_hidden_state_v, rnn_hidden_state_q, states, rnn_hidden_state_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
@@ -313,7 +313,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 0.0, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
