@@ -12,6 +12,10 @@ class MLP_Policy(nn.Module):
 
 		self.name = "MLP Policy"
 
+		self.mask_value = torch.tensor(
+				torch.finfo(torch.float).min, dtype=torch.float
+			)
+
 		self.rnn_hidden_state = None
 		self.num_agents = num_agents
 		self.num_actions = num_actions
@@ -41,8 +45,9 @@ class MLP_Policy(nn.Module):
 			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
 		else:
 			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state).view(*intermediate.shape)
-		policy = self.Layer_2(self.rnn_hidden_state)
-		return F.softmax(policy, dim=-1)*mask_actions, self.rnn_hidden_state
+		logits = self.Layer_2(self.rnn_hidden_state)
+		logits = torch.where(mask_actions, logits, self.mask_value)
+		return F.softmax(logits, dim=-1), self.rnn_hidden_state
 
 
 
