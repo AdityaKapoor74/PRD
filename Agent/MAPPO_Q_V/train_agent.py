@@ -322,7 +322,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"norm_adv": False,
 
-				"network_update_interval": 1,
+				"network_update_interval": 200,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
