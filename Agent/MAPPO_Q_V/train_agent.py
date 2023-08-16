@@ -291,6 +291,8 @@ if __name__ == '__main__':
 				"v_value_lr": 1e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
+				"attention_dropout_prob_q": 0.0,
+				"attention_dropout_prob_v": 0.0,
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic": True,
@@ -298,7 +300,7 @@ if __name__ == '__main__':
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
-				"critic_weight_entropy_pen": 3e-3,
+				"critic_weight_entropy_pen": 0.0,
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
@@ -311,7 +313,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 4e-3, #8e-3
+				"entropy_pen": 8e-3, #8e-3
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0,
 				"threshold_min": 0.0, 
