@@ -41,8 +41,8 @@ class MLP_Policy(nn.Module):
 			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
 		else:
 			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state).view(*intermediate.shape)
-		policy = self.Layer_2(self.rnn_hidden_state) + mask_actions
-		return F.softmax(policy, dim=-1), self.rnn_hidden_state
+		policy = self.Layer_2(self.rnn_hidden_state)
+		return F.softmax(policy, dim=-1)*mask_actions, self.rnn_hidden_state
 
 
 
