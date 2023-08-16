@@ -174,7 +174,7 @@ class PPOAgent:
 	def get_action(self, state_policy, mask_actions, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).to(self.device)
-			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
+			mask_actions = torch.BoolTensor(mask_actions).to(self.device)
 			dists, rnn_hidden_state = self.policy_network_old(state_policy, mask_actions)
 			if self.warm_up:
 				available_actions = (mask_actions>=0).int()
@@ -318,7 +318,7 @@ class PPOAgent:
 		old_rnn_hidden_state_actor = torch.FloatTensor(np.array(self.buffer.rnn_hidden_state_actor)).reshape(-1, self.num_agents, self.rnn_hidden_actor)
 		old_actions = torch.FloatTensor(np.array(self.buffer.actions)).reshape(-1, self.num_agents)
 		old_one_hot_actions = torch.FloatTensor(np.array(self.buffer.one_hot_actions)).reshape(-1, self.num_agents, self.num_actions)
-		old_mask_actions = torch.FloatTensor(np.array(self.buffer.action_masks)).reshape(-1, self.num_agents, self.num_actions)
+		old_mask_actions = torch.BoolTensor(np.array(self.buffer.action_masks)).reshape(-1, self.num_agents, self.num_actions)
 		old_logprobs = torch.FloatTensor(self.buffer.logprobs).reshape(-1, self.num_agents)
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards))
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long()
@@ -392,7 +392,8 @@ class PPOAgent:
 				)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
-			
+
+
 			dists, rnn_hidden_state_actor = self.policy_network(old_states_actor.to(self.device), old_mask_actions.to(self.device))
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions.to(self.device))
