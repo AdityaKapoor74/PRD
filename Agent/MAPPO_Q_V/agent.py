@@ -391,8 +391,6 @@ class PPOAgent:
 				old_one_hot_actions.to(self.device)
 				)
 
-			print(torch.mean(weights_prd, dim=1))
-
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 			
 			dists, rnn_hidden_state_actor = self.policy_network(old_states_actor.to(self.device), old_mask_actions.to(self.device))
