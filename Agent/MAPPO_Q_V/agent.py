@@ -91,16 +91,16 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 		# obs_input_dim = 2*3+1 # crossing_team_greedy
 		# Q-V Network
-		self.critic_network_q = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_q).to(self.device)
-		self.critic_network_q_old = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_q).to(self.device)
+		self.critic_network_q = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_q"], temperature=self.temperature_q).to(self.device)
+		self.critic_network_q_old = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_q"], temperature=self.temperature_q).to(self.device)
 		# Copy network params
 		self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
 		# Disable updates for old network
 		for param in self.critic_network_q_old.parameters():
 			param.requires_grad_(False)
 
-		self.critic_network_v = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_v).to(self.device)
-		self.critic_network_v_old = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, temperature=self.temperature_v).to(self.device)
+		self.critic_network_v = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_v"], temperature=self.temperature_v).to(self.device)
+		self.critic_network_v_old = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_v"], temperature=self.temperature_v).to(self.device)
 		# Copy network params
 		self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
 		# Disable updates for old network
@@ -391,8 +391,10 @@ class PPOAgent:
 				old_one_hot_actions.to(self.device)
 				)
 
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
+			print(torch.mean(weights_prd, dim=1))
 
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
+			
 			dists, rnn_hidden_state_actor = self.policy_network(old_states_actor.to(self.device), old_mask_actions.to(self.device))
 			probs = Categorical(dists.squeeze(0))
 			logprobs = probs.log_prob(old_actions.to(self.device))
