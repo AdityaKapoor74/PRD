@@ -338,17 +338,17 @@ class PPOAgent:
 												)
 
 		if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
-			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
+			mask_rewards = (torch.mean(weights_prd_old.cpu(), dim=1)>self.select_above_threshold).int()
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.detach().cpu(),-1,-2), dim=-1)
 		elif "threshold" in self.experiment_type and episode > self.steps_to_take:
 			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.detach().cpu(),-1,-2), dim=-1)
 		elif "top" in self.experiment_type and episode > self.steps_to_take:
-			values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k,dim=-1)
+			values, indices = torch.topk(torch.mean(weights_prd_old.cpu(), dim=1), k=self.top_k,dim=-1)
 			mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.detach().cpu(),-1,-2), dim=-1)
 		elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old, dim=1).reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents, self.num_agents), -1, -2), dim=-1)
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1).reshape(self.update_ppo_agent, self.max_time_steps, self.num_agents, self.num_agents), -1, -2), dim=-1)
 		else:
 			target_V_rewards = torch.sum(rewards.reshape(-1, self.num_agents).unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
