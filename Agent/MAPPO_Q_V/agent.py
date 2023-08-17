@@ -391,7 +391,7 @@ class PPOAgent:
 				old_one_hot_actions.to(self.device)
 				)
 
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old.detach(), dim=1), masks.to(self.device), episode)
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Value, Value, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
 			dists, rnn_hidden_state_actor = self.policy_network(old_states_actor.to(self.device), old_mask_actions.to(self.device))
 			probs = Categorical(dists.squeeze(0))
@@ -480,12 +480,12 @@ class PPOAgent:
 
 
 		if episode % self.network_update_interval == 0:
-			# Copy new weights into old policy
-			self.policy_network_old.load_state_dict(self.policy_network.state_dict())
-
 			# Copy new weights into old critic
 			self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
 			self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
+
+			# Copy new weights into old policy
+			self.policy_network_old.load_state_dict(self.policy_network.state_dict())
 
 		# self.scheduler.step()
 		# print("learning rate of policy", self.scheduler.get_lr())
