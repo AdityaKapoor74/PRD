@@ -298,7 +298,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_critic": True,
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
-				"enable_hard_attention": False,
+				"enable_hard_attention": True,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 1.5e-3,
 				"critic_score_regularizer": 0.0,
