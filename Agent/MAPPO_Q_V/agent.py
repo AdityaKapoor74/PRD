@@ -20,6 +20,7 @@ class PPOAgent:
 		self.env = env
 		self.env_name = dictionary["env"]
 		self.num_agents = self.env.n_agents
+		self.num_enemies = self.env.n_enemies
 		self.num_actions = self.env.action_space[0].n
 
 		# Training setup
@@ -41,7 +42,8 @@ class PPOAgent:
 		self.temperature_q = dictionary["temperature_q"]
 		self.rnn_hidden_q = dictionary["rnn_hidden_q"]
 		self.rnn_hidden_v = dictionary["rnn_hidden_v"]
-		self.critic_observation_shape = dictionary["global_observation"]
+		self.critic_ally_observation = dictionary["ally_observation"]
+		self.critic_enemy_observation = dictionary["enemy_observation"]
 		self.q_value_lr = dictionary["q_value_lr"]
 		self.v_value_lr = dictionary["v_value_lr"]
 		self.q_weight_decay = dictionary["q_weight_decay"]
@@ -91,16 +93,60 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 		# obs_input_dim = 2*3+1 # crossing_team_greedy
 		# Q-V Network
-		self.critic_network_q = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_q"], temperature=self.temperature_q).to(self.device)
-		self.critic_network_q_old = Q_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_q"], temperature=self.temperature_q).to(self.device)
+		self.critic_network_q = Q_network(
+			ally_obs_input_dim=self.critic_ally_observation, 
+			enemy_obs_input_dim=self.critic_enemy_observation, 
+			num_heads=self.num_heads, 
+			num_agents=self.num_agents, 
+			num_enemies=self.num_enemies, 
+			num_actions=self.num_actions, 
+			device=self.device, 
+			enable_hard_attention=self.enable_hard_attention, 
+			attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
+			temperature=self.temperature_q
+			).to(self.device)
+		self.critic_network_q_old = Q_network(
+			ally_obs_input_dim=self.critic_ally_observation, 
+			enemy_obs_input_dim=self.critic_enemy_observation, 
+			num_heads=self.num_heads, 
+			num_agents=self.num_agents, 
+			num_enemies=self.num_enemies, 
+			num_actions=self.num_actions, 
+			device=self.device, 
+			enable_hard_attention=self.enable_hard_attention, 
+			attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
+			temperature=self.temperature_q
+			).to(self.device)
 		# Copy network params
 		self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
 		# Disable updates for old network
 		for param in self.critic_network_q_old.parameters():
 			param.requires_grad_(False)
 
-		self.critic_network_v = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_v"], temperature=self.temperature_v).to(self.device)
-		self.critic_network_v_old = V_network(obs_input_dim=self.critic_observation_shape, num_heads=self.num_heads, num_agents=self.num_agents, num_actions=self.num_actions, device=self.device, enable_hard_attention=self.enable_hard_attention, attention_dropout_prob=dictionary["attention_dropout_prob_v"], temperature=self.temperature_v).to(self.device)
+		self.critic_network_v = V_network(
+			ally_obs_input_dim=self.critic_ally_observation, 
+			enemy_obs_input_dim=self.critic_enemy_observation, 
+			num_heads=self.num_heads, 
+			num_agents=self.num_agents, 
+			num_enemies=self.num_enemies, 
+			num_actions=self.num_actions, 
+			device=self.device, 
+			enable_hard_attention=self.enable_hard_attention, 
+			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
+			temperature=self.temperature_v
+			).to(self.device)
+		self.critic_network_v_old = V_network(
+			ally_obs_input_dim=self.critic_ally_observation, 
+			enemy_obs_input_dim=self.critic_enemy_observation, 
+			num_heads=self.num_heads, 
+			num_agents=self.num_agents, 
+			num_enemies=self.num_enemies, 
+			num_actions=self.num_actions, 
+			device=self.device, 
+			enable_hard_attention=self.enable_hard_attention, 
+			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
+			temperature=self.temperature_v
+			).to(self.device)
 		# Copy network params
 		self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
 		# Disable updates for old network
@@ -124,7 +170,9 @@ class PPOAgent:
 			num_episodes=self.update_ppo_agent, 
 			max_time_steps=self.max_time_steps, 
 			num_agents=self.num_agents, 
-			obs_shape_critic=self.critic_observation_shape, 
+			num_enemies=self.num_enemies,
+			obs_shape_critic_ally=self.critic_ally_observation, 
+			obs_shape_critic_enemy=self.critic_enemy_observation, 
 			obs_shape_actor=self.actor_observation_shape, 
 			num_actions=self.num_actions,
 			rnn_hidden_actor=self.rnn_hidden_actor,
@@ -157,12 +205,13 @@ class PPOAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
-	def get_value_rnn_state(self, state, one_hot_actions):
+	def get_value_rnn_state(self, state_allies, state_enemies, one_hot_actions):
 		with torch.no_grad():
-			state = torch.FloatTensor(state).unsqueeze(0)
+			state_allies = torch.FloatTensor(state_allies).unsqueeze(0)
+			state_enemies = torch.FloatTensor(state_enemies).unsqueeze(0)
 			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0)
-			_, _, _, rnn_hidden_state_v = self.critic_network_v_old(state.to(self.device), one_hot_actions.to(self.device))
-			_, _, _, rnn_hidden_state_q = self.critic_network_q_old(state.to(self.device), one_hot_actions.to(self.device))
+			_, _, _, rnn_hidden_state_v = self.critic_network_v_old(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device))
+			_, _, _, rnn_hidden_state_q = self.critic_network_q_old(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device))
 
 			return rnn_hidden_state_v.cpu().numpy(), rnn_hidden_state_q.cpu().numpy()
 
@@ -311,7 +360,8 @@ class PPOAgent:
 
 	def update(self, episode):
 		# convert list to tensor
-		old_states_critic = torch.FloatTensor(np.array(self.buffer.states_critic)).reshape(-1, self.num_agents, self.critic_observation_shape)
+		old_states_critic_allies = torch.FloatTensor(np.array(self.buffer.states_critic_allies)).reshape(-1, self.num_agents, self.critic_ally_observation)
+		old_states_critic_enemies = torch.FloatTensor(np.array(self.buffer.states_critic_enemies)).reshape(-1, self.num_enemies, self.critic_enemy_observation)
 		old_rnn_hidden_state_v = torch.FloatTensor(np.array(self.buffer.rnn_hidden_state_v)).reshape(-1, self.num_agents, self.rnn_hidden_v)
 		old_rnn_hidden_state_q = torch.FloatTensor(np.array(self.buffer.rnn_hidden_state_q)).reshape(-1, self.num_agents, self.rnn_hidden_q)
 		old_states_actor = torch.FloatTensor(np.array(self.buffer.states_actor)).reshape(-1, self.num_agents, self.actor_observation_shape)
@@ -328,12 +378,14 @@ class PPOAgent:
 			# OLD VALUES
 			self.critic_network_q_old.rnn_hidden_state = old_rnn_hidden_state_q.to(self.device)
 			Q_values_old, weights_prd_old, _, _ = self.critic_network_q_old(
-												old_states_critic.to(self.device),
+												old_states_critic_allies.to(self.device),
+												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device)
 												)
 			self.critic_network_v_old.rnn_hidden_state = old_rnn_hidden_state_v.to(self.device)
 			Values_old, _, _, _ = self.critic_network_v_old(
-												old_states_critic.to(self.device),
+												old_states_critic_allies.to(self.device),
+												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device)
 												)
 
@@ -383,11 +435,13 @@ class PPOAgent:
 		for _ in range(self.n_epochs):
 
 			Q_value, weights_prd, score_q, rnn_hidden_state_q = self.critic_network_q(
-				old_states_critic.to(self.device), 
+				old_states_critic_allies.to(self.device),
+				old_states_critic_enemies.to(self.device),
 				old_one_hot_actions.to(self.device)
 				)
 			Value, weight_v, score_v, rnn_hidden_state_v = self.critic_network_v(
-				old_states_critic.to(self.device),  
+				old_states_critic_allies.to(self.device),
+				old_states_critic_enemies.to(self.device),
 				old_one_hot_actions.to(self.device)
 				)
 
