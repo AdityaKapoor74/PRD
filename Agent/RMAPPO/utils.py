@@ -153,9 +153,9 @@ class RolloutBuffer:
 
 		if self.time_step < self.max_time_steps-1:
 			self.time_step += 1
-		else:
-			self.episode_num += 1
-			self.time_step = 0
+		# else:
+		# 	self.episode_num += 1
+		# 	self.time_step = 0
 
 	def end_episode(self, t):
 		self.episode_length[self.episode_num] = t
