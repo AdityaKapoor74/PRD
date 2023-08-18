@@ -76,11 +76,26 @@ class RolloutBuffer:
 
 
 class RolloutBuffer:
-	def __init__(self, num_episodes, max_time_steps, num_agents, obs_shape_critic, obs_shape_actor, num_actions, rnn_hidden_actor, rnn_hidden_q, rnn_hidden_v):
+	def __init__(
+		self, 
+		num_episodes, 
+		max_time_steps, 
+		num_agents, 
+		num_enemies,
+		obs_shape_critic_ally, 
+		obs_shape_critic_enemy, 
+		obs_shape_actor, 
+		num_actions, 
+		rnn_hidden_actor, 
+		rnn_hidden_q, 
+		rnn_hidden_v
+		):
 		self.num_episodes = num_episodes
 		self.max_time_steps = max_time_steps
 		self.num_agents = num_agents
-		self.obs_shape_critic = obs_shape_critic
+		self.num_enemies = num_enemies
+		self.obs_shape_critic_ally = obs_shape_critic_ally
+		self.obs_shape_critic_enemy = obs_shape_critic_enemy
 		self.obs_shape_actor = obs_shape_actor
 		self.num_actions = num_actions
 		self.rnn_hidden_actor = rnn_hidden_actor
@@ -89,7 +104,8 @@ class RolloutBuffer:
 		self.episode_num = 0
 		self.time_step = 0
 
-		self.states_critic = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_critic))
+		self.states_critic_allies = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_critic_ally))
+		self.states_critic_enemies = np.zeros((num_episodes, max_time_steps, num_enemies, obs_shape_critic_enemy))
 		self.rnn_hidden_state_v = np.zeros((num_episodes, max_time_steps, num_agents, rnn_hidden_v))
 		self.rnn_hidden_state_q = np.zeros((num_episodes, max_time_steps, num_agents, rnn_hidden_q))
 		self.states_actor = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_actor))
@@ -104,7 +120,8 @@ class RolloutBuffer:
 	
 
 	def clear(self):
-		self.states_critic = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_critic))
+		self.states_critic_allies = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_critic_ally))
+		self.states_critic_enemies = np.zeros((self.num_episodes, self.max_time_steps, self.num_enemies, self.obs_shape_critic_enemy))
 		self.rnn_hidden_state_v = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.rnn_hidden_v))
 		self.rnn_hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.rnn_hidden_q))
 		self.states_actor = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_actor))
@@ -120,9 +137,10 @@ class RolloutBuffer:
 		self.time_step = 0
 		self.episode_num = 0
 
-	def push(self, state_critic, rnn_hidden_v, rnn_hidden_q, state_actor, rnn_hidden_actor, logprobs, actions, one_hot_actions, action_masks, rewards, dones):
+	def push(self, state_critic_allies, state_critic_enemies, rnn_hidden_v, rnn_hidden_q, state_actor, rnn_hidden_actor, logprobs, actions, one_hot_actions, action_masks, rewards, dones):
 
-		self.states_critic[self.episode_num][self.time_step] = state_critic
+		self.states_critic_allies[self.episode_num][self.time_step] = state_critic_allies
+		self.states_critic_enemies[self.episode_num][self.time_step] = state_critic_enemies
 		self.rnn_hidden_state_v[self.episode_num][self.time_step] = rnn_hidden_v
 		self.rnn_hidden_state_q[self.episode_num][self.time_step] = rnn_hidden_q
 		self.states_actor[self.episode_num][self.time_step] = state_actor
