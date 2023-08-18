@@ -24,7 +24,7 @@ class MLP_Policy(nn.Module):
 		self.RNN = nn.GRUCell(input_size=64, hidden_size=64)
 		self.Layer_2 = nn.Sequential(nn.Linear(64, 64), nn.GELU(), nn.Linear(64, num_actions))
 
-		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
+		# self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
 		self.reset_parameters()
 
@@ -36,11 +36,11 @@ class MLP_Policy(nn.Module):
 
 
 	def forward(self, local_observations, mask_actions=None):
-		if len(local_observations.shape) == 3:
-			positional_embedding = self.positional_embedding.unsqueeze(0)
-		else:
-			positional_embedding = self.positional_embedding
-		intermediate = self.Layer_1(local_observations) + positional_embedding
+		# if len(local_observations.shape) == 3:
+		# 	positional_embedding = self.positional_embedding.unsqueeze(0)
+		# else:
+		# 	positional_embedding = self.positional_embedding
+		intermediate = self.Layer_1(local_observations) #+ positional_embedding
 		if self.rnn_hidden_state is not None:
 			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
 		else:
@@ -65,28 +65,52 @@ class AttentionDropout(nn.Module):
 
 
 class Q_network(nn.Module):
-	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention, attention_dropout_prob, temperature):
+	def __init__(
+		self, 
+		ally_obs_input_dim, 
+		enemy_obs_input_dim,
+		num_heads, 
+		num_agents, 
+		num_enemies,
+		num_actions, 
+		device, 
+		enable_hard_attention, 
+		attention_dropout_prob, 
+		temperature
+		):
 		super(Q_network, self).__init__()
 		
 		self.num_heads = num_heads
 		self.num_agents = num_agents
+		self.num_enemies = num_enemies
 		self.num_actions = num_actions
 		self.device = device
 		self.enable_hard_attention = enable_hard_attention
 
 		self.attention_dropout = AttentionDropout(dropout_prob=attention_dropout_prob)
 
-		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
+		# self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
 		self.temperature = temperature
 
 		# Embedding Networks
-		self.state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 64, bias=True), 
+		self.ally_state_embed_1 = nn.Sequential(
+			nn.Linear(ally_obs_input_dim, 64, bias=True), 
 			nn.GELU(),
 			)
-		self.state_act_embed = nn.Sequential(
-			nn.Linear(obs_input_dim+self.num_actions, 64, bias=True), 
+
+		self.ally_state_embed_2 = nn.Sequential(
+			nn.Linear(ally_obs_input_dim, 32, bias=True), 
+			nn.GELU(),
+			)
+
+		self.enemy_state_embed = nn.Sequential(
+			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
+			nn.GELU(),
+			)
+
+		self.ally_state_act_embed = nn.Sequential(
+			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
 			nn.GELU(),
 			)
 
@@ -130,7 +154,7 @@ class Q_network(nn.Module):
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			nn.Linear(64*2, 64, bias=True), 
+			nn.Linear(32+64+64, 64, bias=True), 
 			nn.GELU(),
 			)
 		self.RNN = nn.GRUCell(64, 64)
@@ -150,8 +174,10 @@ class Q_network(nn.Module):
 		# gain = nn.init.calculate_gain('tanh', 0.01)
 
 		# Embedding Networks
-		nn.init.xavier_uniform_(self.state_embed[0].weight)
-		nn.init.xavier_uniform_(self.state_act_embed[0].weight)
+		nn.init.xavier_uniform_(self.ally_state_embed_1[0].weight)
+		nn.init.xavier_uniform_(self.ally_state_embed_2[0].weight)
+		nn.init.xavier_uniform_(self.enemy_state_embed[0].weight)
+		nn.init.xavier_uniform_(self.ally_state_act_embed[0].weight)
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		for i in range(self.num_heads):
@@ -186,7 +212,7 @@ class Q_network(nn.Module):
 		return ret_states_keys.to(self.device)
 
 	# Setting weight value as 1 for the diagonal elements in the weight matrix
-	def weight_assignment(self,weights):
+	def weight_assignment(self, weights):
 		weights_new = torch.zeros(weights.shape[0], self.num_heads, self.num_agents, self.num_agents).to(self.device)
 		one = torch.ones(weights.shape[0], self.num_heads, 1).to(self.device)
 		for i in range(self.num_agents):
@@ -200,9 +226,9 @@ class Q_network(nn.Module):
 
 		return weights_new.to(self.device)
 
-	def forward(self, states, actions):
+	def forward(self, states, enemy_states, actions):
 		# EMBED STATES KEY & QUERY
-		states_embed = self.state_embed(states) + self.positional_embedding.unsqueeze(0) # Batch size, Num Agents, dim
+		states_embed = self.ally_state_embed_1(states) #+ self.positional_embedding.unsqueeze(0) # Batch size, Num Agents, dim
 		states_query_embed = states_embed.unsqueeze(-2) # Batch size, Num Agents, 1, dim
 		# print(states_query_embed.shape)
 		# EMBED STATES QUERY
@@ -242,8 +268,8 @@ class Q_network(nn.Module):
 
 		# EMBED STATE ACTION
 		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
-		obs_actions_embed = self.state_act_embed(obs_actions) + self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
-		obs_actions_embed = self.remove_self_loops(obs_actions_embed.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
+		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
+		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
 		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		# print(attention_values.shape)
@@ -251,14 +277,16 @@ class Q_network(nn.Module):
 		# print(aggregated_node_features.shape)
 		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		# print(aggregated_node_features.shape)
-		aggregated_node_features_ = self.attention_value_layer_norm(torch.sum(obs_actions_embed, dim=-2)+aggregated_node_features) # Batch_size, Num agents, dim
+		aggregated_node_features_ = self.attention_value_layer_norm(obs_actions_embed_+aggregated_node_features) # Batch_size, Num agents, dim
 		# print(aggregated_node_features_.shape)
 		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
 		# print(aggregated_node_features.shape)
 		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
 		# print(aggregated_node_features.shape)
+		final_states_embed = self.ally_state_embed_2(states)
+		enemy_state_embed = self.enemy_state_embed(enemy_states.reshape(enemy_states.shape[0], -1)).unsqueeze(1).repeat(1, self.num_agents, 1)
 
-		curr_agent_node_features = torch.cat([states_query_embed.squeeze(-2), aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		curr_agent_node_features = torch.cat([final_states_embed, enemy_state_embed, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 		# print(curr_agent_node_features.shape)
 
 		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
@@ -369,28 +397,52 @@ class Q_network(nn.Module):
 
 
 class V_network(nn.Module):
-	def __init__(self, obs_input_dim, num_heads, num_agents, num_actions, device, enable_hard_attention, attention_dropout_prob, temperature):
+	def __init__(
+		self, 
+		ally_obs_input_dim, 
+		enemy_obs_input_dim,
+		num_heads, 
+		num_agents, 
+		num_enemies,
+		num_actions, 
+		device, 
+		enable_hard_attention, 
+		attention_dropout_prob, 
+		temperature
+		):
 		super(V_network, self).__init__()
 		
 		self.num_heads = num_heads
 		self.num_agents = num_agents
+		self.num_enemies = num_enemies
 		self.num_actions = num_actions
 		self.device = device
 		self.enable_hard_attention = enable_hard_attention
 
 		self.attention_dropout = AttentionDropout(dropout_prob=attention_dropout_prob)
 
-		self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
+		# self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
 		self.temperature = temperature
 
 		# Embedding Networks
-		self.state_embed = nn.Sequential(
-			nn.Linear(obs_input_dim, 64, bias=True), 
+		self.ally_state_embed_1 = nn.Sequential(
+			nn.Linear(ally_obs_input_dim, 64, bias=True), 
 			nn.GELU(),
 			)
-		self.state_act_embed = nn.Sequential(
-			nn.Linear(obs_input_dim+self.num_actions, 64, bias=True), 
+
+		self.ally_state_embed_2 = nn.Sequential(
+			nn.Linear(ally_obs_input_dim, 32, bias=True), 
+			nn.GELU(),
+			)
+
+		self.enemy_state_embed = nn.Sequential(
+			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
+			nn.GELU(),
+			)
+
+		self.ally_state_act_embed = nn.Sequential(
+			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
 			nn.GELU(),
 			)
 
@@ -434,7 +486,7 @@ class V_network(nn.Module):
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			nn.Linear(64*2, 64, bias=True), 
+			nn.Linear(32+64+64, 64, bias=True), 
 			nn.GELU(),
 			)
 		self.RNN = nn.GRUCell(64, 64)
@@ -454,8 +506,10 @@ class V_network(nn.Module):
 		# gain = nn.init.calculate_gain('tanh', 0.01)
 
 		# Embedding Networks
-		nn.init.xavier_uniform_(self.state_embed[0].weight)
-		nn.init.xavier_uniform_(self.state_act_embed[0].weight)
+		nn.init.xavier_uniform_(self.ally_state_embed_1[0].weight)
+		nn.init.xavier_uniform_(self.ally_state_embed_2[0].weight)
+		nn.init.xavier_uniform_(self.enemy_state_embed[0].weight)
+		nn.init.xavier_uniform_(self.ally_state_act_embed[0].weight)
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		for i in range(self.num_heads):
@@ -490,7 +544,7 @@ class V_network(nn.Module):
 		return ret_states_keys.to(self.device)
 
 	# Setting weight value as 1 for the diagonal elements in the weight matrix
-	def weight_assignment(self,weights):
+	def weight_assignment(self, weights):
 		weights_new = torch.zeros(weights.shape[0], self.num_heads, self.num_agents, self.num_agents).to(self.device)
 		one = torch.ones(weights.shape[0], self.num_heads, 1).to(self.device)
 		for i in range(self.num_agents):
@@ -504,10 +558,9 @@ class V_network(nn.Module):
 
 		return weights_new.to(self.device)
 
-
-	def forward(self, states, actions):
+	def forward(self, states, enemy_states, actions):
 		# EMBED STATES KEY & QUERY
-		states_embed = self.state_embed(states) + self.positional_embedding.unsqueeze(0) # Batch size, Num Agents, dim
+		states_embed = self.ally_state_embed_1(states) #+ self.positional_embedding.unsqueeze(0) # Batch size, Num Agents, dim
 		states_query_embed = states_embed.unsqueeze(-2) # Batch size, Num Agents, 1, dim
 		# print(states_query_embed.shape)
 		# EMBED STATES QUERY
@@ -547,8 +600,8 @@ class V_network(nn.Module):
 
 		# EMBED STATE ACTION
 		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
-		obs_actions_embed = self.state_act_embed(obs_actions) + self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
-		obs_actions_embed = self.remove_self_loops(obs_actions_embed.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
+		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
+		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
 		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		# print(attention_values.shape)
@@ -556,14 +609,16 @@ class V_network(nn.Module):
 		# print(aggregated_node_features.shape)
 		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		# print(aggregated_node_features.shape)
-		aggregated_node_features_ = self.attention_value_layer_norm(torch.sum(obs_actions_embed, dim=-2)+aggregated_node_features) # Batch_size, Num agents, dim
+		aggregated_node_features_ = self.attention_value_layer_norm(obs_actions_embed_+aggregated_node_features) # Batch_size, Num agents, dim
 		# print(aggregated_node_features_.shape)
 		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
 		# print(aggregated_node_features.shape)
 		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
 		# print(aggregated_node_features.shape)
+		final_states_embed = self.ally_state_embed_2(states)
+		enemy_state_embed = self.enemy_state_embed(enemy_states.reshape(enemy_states.shape[0], -1)).unsqueeze(1).repeat(1, self.num_agents, 1)
 
-		curr_agent_node_features = torch.cat([states_query_embed.squeeze(-2), aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		curr_agent_node_features = torch.cat([final_states_embed, enemy_state_embed, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 		# print(curr_agent_node_features.shape)
 
 		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
@@ -576,8 +631,7 @@ class V_network(nn.Module):
 		else:
 			self.rnn_hidden_state = self.RNN(curr_agent_node_features.view(-1, shape[-1]), self.rnn_hidden_state).reshape(*shape)
 		V_value = self.v_value_layer(self.rnn_hidden_state) # Batch_size, Num agents, num_actions
-		# print(Q_value.shape)
-		
+
 		return V_value.squeeze(-1), weights, score, self.rnn_hidden_state
 
 
