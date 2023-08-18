@@ -159,7 +159,7 @@ class RolloutBuffer:
 			self.episode_num += 1
 			self.time_step = 0
 
-	def end_episode(self, t):
+	def end_episode(self):
 		self.episode_num += 1
 		self.time_step = 0
 
