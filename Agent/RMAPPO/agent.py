@@ -486,6 +486,7 @@ class PPOAgent:
 			critic_v_loss_1 = F.mse_loss(Value*masks[:, :max_episode_len].to(self.device), target_V_values[:, :max_episode_len]*masks[:, :max_episode_len].to(self.device), reduction="sum") / masks[:, :max_episode_len].sum()
 			critic_v_loss_2 = F.mse_loss(torch.clamp(Value, old_V_values[:, :max_episode_len].to(self.device)-self.value_clip, old_V_values[:, :max_episode_len].to(self.device)+self.value_clip)*masks[:, :max_episode_len].to(self.device), target_V_values[:, :max_episode_len]*masks[:, :max_episode_len].to(self.device), reduction="sum") / masks[:, :max_episode_len].sum()
 
+
 			critic_q_loss_1 = F.mse_loss(Q_value*masks[:, :max_episode_len].to(self.device), target_Q_values[:, :max_episode_len]*masks[:, :max_episode_len].to(self.device), reduction="sum") / masks[:, :max_episode_len].sum()
 			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_value, old_Q_values[:, :max_episode_len].to(self.device)-self.value_clip, old_Q_values[:, :max_episode_len].to(self.device)+self.value_clip)*masks[:, :max_episode_len].to(self.device), target_Q_values[:, :max_episode_len]*masks[:, :max_episode_len].to(self.device), reduction="sum") / masks[:, :max_episode_len].sum()
 
@@ -496,19 +497,21 @@ class PPOAgent:
 			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage * masks[:, :max_episode_len].to(self.device)
 
 			# final loss of clipped objective PPO
-			entropy = -torch.mean(torch.sum(dists*masks[:, :max_episode_len].unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks[:, :max_episode_len].unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=2))
+			entropy = -torch.mean(torch.sum(dists*masks[:, :max_episode_len].unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks[:, :max_episode_len].unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))
 			policy_loss = (-torch.min(surr1, surr2).mean() - self.entropy_pen*entropy)
 			
 			entropy_weights = 0
 			entropy_weights_v = 0
 			for i in range(self.num_heads):
-				entropy_weights += -torch.mean(torch.sum(weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10,1.0)), dim=2))
-				entropy_weights_v += -torch.mean(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10,1.0)), dim=2))
+				weights_prd = weights_prd.reshape(-1, self.num_heads, self.num_agents, self.num_agents)
+				weight_v = weight_v.reshape(-1, self.num_heads, self.num_agents, self.num_agents)
+				entropy_weights += -torch.mean(torch.sum(weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)), dim=-1))
+				entropy_weights_v += -torch.mean(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)), dim=-1))
+
 				
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights_v
 
-			
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
 			if self.enable_grad_clip_critic:
@@ -517,7 +520,7 @@ class PPOAgent:
 				grad_norm_value_q = torch.tensor([-1.0])
 			self.q_critic_optimizer.step()
 
-			self.critic_network_q.rnn_hidden_state = rnn_hidden_state_q.detach()
+			self.critic_network_q.rnn_hidden_state = None #rnn_hidden_state_q.detach()
 			
 			self.v_critic_optimizer.zero_grad()
 			critic_v_loss.backward()
@@ -527,7 +530,7 @@ class PPOAgent:
 				grad_norm_value_v = torch.tensor([-1.0])
 			self.v_critic_optimizer.step()
 
-			self.critic_network_v.rnn_hidden_state = rnn_hidden_state_v.detach()
+			self.critic_network_v.rnn_hidden_state = None #rnn_hidden_state_v.detach()
 			
 
 			self.policy_optimizer.zero_grad()
@@ -538,7 +541,7 @@ class PPOAgent:
 				grad_norm_policy = torch.tensor([-1.0])
 			self.policy_optimizer.step()
 
-			self.policy_network.rnn_hidden_state = rnn_hidden_state_actor.detach()
+			self.policy_network.rnn_hidden_state = None #rnn_hidden_state_actor.detach()
 
 			q_value_loss_batch += critic_q_loss.item()
 			v_value_loss_batch += critic_v_loss.item()
