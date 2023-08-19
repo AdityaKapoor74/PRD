@@ -477,7 +477,7 @@ class PPOAgent:
 			
 			if "threshold" in self.experiment_type or "top" in self.experiment_type:
 				masking_rewards = torch.stack(masking_rewards, dim=1)
-				agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.float(), dim=-2),dim=0)/masking_rewards.shape[0]
+				agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/masking_rewards.shape[0]
 				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
