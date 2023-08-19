@@ -292,7 +292,7 @@ if __name__ == '__main__':
 				"epsilon_start": 1.0,
 				"epsilon_end": 0.0,
 				"max_episodes": 30000,
-				"max_time_steps": 100,
+				"max_time_steps": 25,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -317,7 +317,7 @@ if __name__ == '__main__':
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
-				"critic_weight_entropy_pen": 2e-3,
+				"critic_weight_entropy_pen": 4e-3,
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
