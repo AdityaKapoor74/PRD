@@ -188,9 +188,9 @@ class PPOAgent:
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 
-		self.q_critic_optimizer = optim.Adam(self.critic_network_q.parameters(), lr=self.v_value_lr, weight_decay=self.v_weight_decay)
-		self.v_critic_optimizer = optim.Adam(self.critic_network_v.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=self.policy_weight_decay)
+		self.q_critic_optimizer = optim.AdamW(self.critic_network_q.parameters(), lr=self.v_value_lr, weight_decay=self.v_weight_decay)
+		self.v_critic_optimizer = optim.AdamW(self.critic_network_v.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay)
+		self.policy_optimizer = optim.AdamW(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=self.policy_weight_decay)
 
 		if self.scheduler_need:
 			self.scheduler_policy = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
@@ -562,7 +562,7 @@ class PPOAgent:
 		# clear buffer
 		self.buffer.clear()
 		
-		
+
 		q_value_loss_batch /= self.n_epochs
 		v_value_loss_batch /= self.n_epochs
 		policy_loss_batch /= self.n_epochs
