@@ -50,7 +50,7 @@ class PPOAgent:
 		self.v_weight_decay = dictionary["v_weight_decay"]
 		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
 		self.critic_weight_entropy_pen_final = dictionary["critic_weight_entropy_pen_final"]
-		self.critic_weight_entropy_pen_decay_rate = (dictionary["critic_weight_entropy_pen"] - dictionary["critic_weight_entropy_pen_final"]) / dictionary["critic_weight_entropy_pen_final_step"]
+		self.critic_weight_entropy_pen_decay_rate = (dictionary["critic_weight_entropy_pen"] - dictionary["critic_weight_entropy_pen_final"]) / dictionary["critic_weight_entropy_pen_steps"]
 		self.critic_score_regularizer = dictionary["critic_score_regularizer"]
 		self.lambda_ = dictionary["lambda"] # TD lambda
 		self.value_clip = dictionary["value_clip"]
