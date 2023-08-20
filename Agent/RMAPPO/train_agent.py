@@ -44,6 +44,14 @@ class MAPPO:
 		self.rnn_hidden_v = dictionary["rnn_hidden_v"]
 		self.rnn_hidden_actor = dictionary["rnn_hidden_actor"]
 
+		one_hot_ids = np.array([0 for i in range(self.num_agents)])
+		self.agent_ids = []
+		for i in range(self.num_agents):
+			agent_id = one_hot_ids
+			agent_id[i] = 1
+			self.agent_ids.append(agent_id)
+		self.agent_ids = np.array(self.agent_ids)
+
 
 		self.comet_ml = None
 		if self.save_comet_ml_plot:
@@ -141,10 +149,11 @@ class MAPPO:
 
 			states_actor, info = self.env.reset(return_info=True)
 			mask_actions = np.array(info["avail_actions"], dtype=int)
-			# concatenate state information with last action
-			states_allies_critic = np.concatenate((info["ally_states"], np.zeros((self.num_agents, self.num_actions))), axis=-1)
+			# concatenate state information with last action and agent id
+			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], np.zeros((self.num_agents, self.num_actions))), axis=-1)
 			states_enemies_critic = info["enemy_states"]
 			states_actor = np.array(states_actor)
+			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
 
 			images = []
 
@@ -160,6 +169,10 @@ class MAPPO:
 			# self.agents.critic_network_v_old.rnn_hidden_state = None
 			# self.agents.critic_network_v.rnn_hidden_state = init_rnn_hidden_v.to(self.device)
 
+			# rnn_hidden_state_q = np.zeros((1, self.num_agents, self.rnn_hidden_q))
+			# rnn_hidden_state_v = np.zeros((1, self.num_agents, self.rnn_hidden_v))
+			rnn_hidden_state_actor = np.zeros((1, self.num_agents, self.rnn_hidden_actor))
+
 			for step in range(1, self.max_time_steps+1):
 
 				if self.gif:
@@ -170,26 +183,27 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _, _ = self.agents.get_action(states_actor, mask_actions, greedy=True)
+						actions, _, rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor, greedy=True)
 				else:
-					actions, action_logprob = self.agents.get_action(states_actor, mask_actions)
+					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor)
 					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
 
-					V_value, Q_value, weights_prd = self.agents.get_values(states_allies_critic, states_enemies_critic, one_hot_actions)
+					# rnn_hidden_state_q, rnn_hidden_state_v = self.agents.get_critic_hidden_state(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
 
 				next_states_actor, rewards, dones, info = self.env.step(actions)
 				dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states_actor = np.array(next_states_actor)
-				next_states_allies_critic = np.concatenate((info["ally_states"], one_hot_actions), axis=-1)
+				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
+				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
 				next_states_enemies_critic = info["enemy_states"]
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
 
 				if not self.gif:
-					self.agents.buffer.push(states_allies_critic, states_enemies_critic, Q_value, V_value, weights_prd, states_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
+					self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
 
 				episode_reward += np.sum(rewards)
 
@@ -261,7 +275,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -273,7 +287,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 8, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -304,8 +318,8 @@ if __name__ == '__main__':
 				# CRITIC
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 1e-3, #1e-3
-				"v_value_lr": 1e-3, #1e-3
+				"q_value_lr": 5e-4, #1e-3
+				"v_value_lr": 5e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -317,7 +331,7 @@ if __name__ == '__main__':
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
-				"critic_weight_entropy_pen": 1e-2,
+				"critic_weight_entropy_pen": 1.0,
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
@@ -328,7 +342,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.2,
-				"policy_lr": 1e-3, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 0.0, #8e-3
 				"gae_lambda": 0.95,
@@ -346,8 +360,8 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["ally_observation"] = 4+env.action_space[0].n
+		dictionary["ally_observation"] = 4+env.action_space[0].n+env.n_agents
 		dictionary["enemy_observation"] = 3
-		dictionary["local_observation"] = obs[0].shape[0]
+		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
