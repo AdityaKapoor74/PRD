@@ -100,9 +100,9 @@ class RolloutBuffer:
 
 		self.states_critic_allies = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_critic_ally))
 		self.states_critic_enemies = np.zeros((num_episodes, max_time_steps, num_enemies, obs_shape_critic_enemy))
-		self.Q_values = np.zeros((num_episodes, max_time_steps, num_agents))
-		self.V_values = np.zeros((num_episodes, max_time_steps, num_agents))
-		self.weights_prd = np.zeros((num_episodes, max_time_steps, num_agents, num_agents))
+		# self.Q_values = np.zeros((num_episodes, max_time_steps, num_agents))
+		# self.V_values = np.zeros((num_episodes, max_time_steps, num_agents))
+		# self.weights_prd = np.zeros((num_episodes, max_time_steps, num_agents, num_agents))
 		self.states_actor = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_actor))
 		self.logprobs = np.zeros((num_episodes, max_time_steps, num_agents))
 		self.actions = np.zeros((num_episodes, max_time_steps, num_agents), dtype=int)
@@ -118,9 +118,9 @@ class RolloutBuffer:
 	def clear(self):
 		self.states_critic_allies = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_critic_ally))
 		self.states_critic_enemies = np.zeros((self.num_episodes, self.max_time_steps, self.num_enemies, self.obs_shape_critic_enemy))
-		self.Q_values = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
-		self.V_values = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
-		self.weights_prd = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_agents))
+		# self.Q_values = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
+		# self.V_values = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
+		# self.weights_prd = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_agents))
 		self.states_actor = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_actor))
 		self.logprobs = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
 		self.actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents), dtype=int)
@@ -135,13 +135,13 @@ class RolloutBuffer:
 		self.time_step = 0
 		self.episode_num = 0
 
-	def push(self, state_critic_allies, state_critic_enemies, Q_value, V_value, weights_prd, state_actor, logprobs, actions, one_hot_actions, action_masks, rewards, dones):
+	def push(self, state_critic_allies, state_critic_enemies, state_actor, logprobs, actions, one_hot_actions, action_masks, rewards, dones):
 
 		self.states_critic_allies[self.episode_num][self.time_step] = state_critic_allies
 		self.states_critic_enemies[self.episode_num][self.time_step] = state_critic_enemies
-		self.Q_values[self.episode_num][self.time_step] = Q_value
-		self.V_values[self.episode_num][self.time_step] = V_value
-		self.weights_prd[self.episode_num][self.time_step] = weights_prd
+		# self.Q_values[self.episode_num][self.time_step] = Q_value
+		# self.V_values[self.episode_num][self.time_step] = V_value
+		# self.weights_prd[self.episode_num][self.time_step] = weights_prd
 		self.states_actor[self.episode_num][self.time_step] = state_actor
 		self.logprobs[self.episode_num][self.time_step] = logprobs
 		self.actions[self.episode_num][self.time_step] = actions
