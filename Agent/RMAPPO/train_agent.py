@@ -332,7 +332,7 @@ if __name__ == '__main__':
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
-				"critic_weight_entropy_pen_final": 5e-4,
+				"critic_weight_entropy_pen_final": 1e-4,
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
