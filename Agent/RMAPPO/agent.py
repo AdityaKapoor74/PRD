@@ -72,6 +72,8 @@ class PPOAgent:
 		self.update_learning_rate_with_prd = dictionary["update_learning_rate_with_prd"]
 		self.gamma = dictionary["gamma"]
 		self.entropy_pen = dictionary["entropy_pen"]
+		self.entropy_pen_decay = (dictionary["entropy_pen"] - dictionary["entropy_pen_final"])/dictionary["entropy_pen_steps"]
+		self.entropy_pen_final = dictionary["entropy_pen_final"]
 		self.gae_lambda = dictionary["gae_lambda"]
 		self.top_k = dictionary["top_k"]
 		self.norm_adv = dictionary["norm_adv"]
@@ -359,8 +361,11 @@ class PPOAgent:
 		if self.threshold_max > self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
 
-		if self.critic_weight_entropy_pen_final >= self.critic_weight_entropy_pen:
+		if self.critic_weight_entropy_pen_final + self.critic_weight_entropy_pen_decay_rate > self.critic_weight_entropy_pen:
 			self.critic_weight_entropy_pen += self.critic_weight_entropy_pen_decay_rate 
+
+		if self.entropy_pen - self.entropy_pen_decay > self.entropy_pen_final:
+			self.entropy_pen -= self.entropy_pen_decay
 
 	def update(self, episode):
 		# convert list to tensor
