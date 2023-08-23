@@ -342,9 +342,9 @@ if __name__ == '__main__':
 				# ACTOR
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": False,
-				"grad_clip_actor": 10.0,
+				"grad_clip_actor": 10.0,	
 				"policy_clip": 0.2,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 3e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 8e-3, #8e-3
 				"entropy_pen_final": 8e-3,
