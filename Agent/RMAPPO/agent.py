@@ -501,7 +501,7 @@ class PPOAgent:
 			# entropy = -torch.mean(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))
 			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/(masks.sum()*self.num_agents)
 			# policy_loss = (-torch.min(surr1, surr2).mean() - self.entropy_pen*entropy)
-			policy_loss = ((-torch.min(surr1, surr2))/(masks.sum()*self.num_agents) - self.entropy_pen*entropy)
+			policy_loss = ((-torch.min(surr1, surr2).sum())/(masks.sum()*self.num_agents) - self.entropy_pen*entropy)
 			
 			entropy_weights = 0
 			entropy_weights_v = 0
