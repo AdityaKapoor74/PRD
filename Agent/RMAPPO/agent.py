@@ -278,7 +278,7 @@ class PPOAgent:
 
 
 
-	def plot(self, episode):
+	def plot(self, masks, episode):
 		self.comet_ml.log_metric('Q_Value_Loss',self.plotting_dict["q_value_loss"],episode)
 		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["v_value_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_V_Value',self.plotting_dict["grad_norm_value_v"],episode)
@@ -618,7 +618,7 @@ class PPOAgent:
 			self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
 
 		if self.comet_ml is not None:
-			self.plot(episode)
+			self.plot(masks, episode)
 
 		del q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_v_batch, grad_norm_value_q_batch, grad_norm_policy_batch, weight_prd_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
 		torch.cuda.empty_cache()
