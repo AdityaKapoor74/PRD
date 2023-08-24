@@ -306,7 +306,7 @@ if __name__ == '__main__':
 				"epsilon_start": 1.0,
 				"epsilon_end": 0.0,
 				"max_episodes": 30000,
-				"max_time_steps": 25,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
