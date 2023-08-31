@@ -385,7 +385,7 @@ class V_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.ModuleList([nn.Sequential(
 						nn.Linear(64*2, 64//self.num_heads),
-						nn.GELU(),
+						# nn.GELU(),
 						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
