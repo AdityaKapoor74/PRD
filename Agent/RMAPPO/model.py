@@ -20,15 +20,14 @@ class MLP_Policy(nn.Module):
 		self.device = device
 		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim, 64), nn.GELU())
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
-		self.Layer_2 = nn.Sequential(nn.Linear(64, 64), nn.GELU(), nn.Linear(64, num_actions))
+		self.Layer_2 = nn.Linear(64, num_actions)
 
 		self.reset_parameters()
 
 	def reset_parameters(self):
 
 		nn.init.xavier_uniform_(self.Layer_1[0].weight)
-		nn.init.xavier_uniform_(self.Layer_2[0].weight)
-		nn.init.xavier_uniform_(self.Layer_2[2].weight)
+		nn.init.xavier_uniform_(self.Layer_2.weight)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
