@@ -318,8 +318,8 @@ if __name__ == '__main__':
 				# CRITIC
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 8e-4, #1e-3
-				"v_value_lr": 8e-4, #1e-3
+				"q_value_lr": 7e-4, #1e-3
+				"v_value_lr": 7e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -344,7 +344,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 10.0,	
 				"policy_clip": 0.2,
-				"policy_lr": 6e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
 				"entropy_pen": 1e-2, #8e-3
 				"entropy_pen_final": 1e-2,
