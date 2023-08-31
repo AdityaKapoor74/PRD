@@ -117,22 +117,22 @@ class Q_network(nn.Module):
 		assert 64%self.num_heads == 0
 		self.key = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
-					nn.GELU()
+					# nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 		self.query = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
-					nn.GELU()
+					# nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 		self.attention_value = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64//self.num_heads, bias=True), 
-					nn.GELU()
+					# nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
 			nn.Linear(64, 64),
-			nn.GELU(),
+			# nn.GELU(),
 			)
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
@@ -140,7 +140,7 @@ class Q_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.ModuleList([nn.Sequential(
 						nn.Linear(64*2, 64//self.num_heads),
-						nn.GELU(),
+						# nn.GELU(),
 						).to(self.device) for _ in range(self.num_heads)])
 
 			self.hard_attention_linear = nn.Sequential(
@@ -362,22 +362,22 @@ class V_network(nn.Module):
 		assert 64%self.num_heads == 0
 		self.key = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
-					nn.GELU()
+					# nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 		self.query = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64, bias=True), 
-					nn.GELU()
+					# nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 		self.attention_value = nn.ModuleList([nn.Sequential(
 					nn.Linear(64, 64//self.num_heads, bias=True), 
-					nn.GELU()
+					# nn.GELU()
 					).to(self.device) for _ in range(self.num_heads)])
 
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
 			nn.Linear(64, 64),
-			nn.GELU(),
+			# nn.GELU(),
 			)
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
