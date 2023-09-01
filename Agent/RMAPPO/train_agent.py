@@ -150,10 +150,12 @@ class MAPPO:
 			states_actor, info = self.env.reset(return_info=True)
 			mask_actions = np.array(info["avail_actions"], dtype=int)
 			# concatenate state information with last action and agent id
-			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], np.zeros((self.num_agents, self.num_actions))), axis=-1)
+			# states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], np.zeros((self.num_agents, self.num_actions))), axis=-1)
+			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 			states_enemies_critic = info["enemy_states"]
 			states_actor = np.array(states_actor)
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
+			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 
 			images = []
 
@@ -183,12 +185,13 @@ class MAPPO:
 					time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _, rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor, greedy=True)
+						actions, _, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=True)
 				else:
-					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor)
-					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
-					for i,act in enumerate(actions):
-						one_hot_actions[i][act] = 1
+					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+				
+				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+				for i,act in enumerate(actions):
+					one_hot_actions[i][act] = 1
 
 					# rnn_hidden_state_q, rnn_hidden_state_v = self.agents.get_critic_hidden_state(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
@@ -198,16 +201,17 @@ class MAPPO:
 				rewards = info["indiv_rewards"]
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
-				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
+				# next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
+				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 				next_states_enemies_critic = info["enemy_states"]
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
 
 				if not self.gif:
-					self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, one_hot_actions, mask_actions, rewards, dones)
+					self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, rewards, dones)
 
 				episode_reward += np.sum(rewards)
 
-				states_actor, states_allies_critic, states_enemies_critic, mask_actions = next_states_actor, next_states_allies_critic, next_states_enemies_critic, next_mask_actions
+				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions
 
 				if all(dones) or step == self.max_time_steps:
 
@@ -275,7 +279,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -364,7 +368,7 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["ally_observation"] = 4+env.action_space[0].n+env.n_agents
+		dictionary["ally_observation"] = 4+env.n_agents #4+env.action_space[0].n+env.n_agents
 		dictionary["enemy_observation"] = 3
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MAPPO(env,dictionary)
