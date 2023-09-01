@@ -279,7 +279,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -322,8 +322,8 @@ if __name__ == '__main__':
 				# CRITIC
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 7e-4, #1e-3
-				"v_value_lr": 7e-4, #1e-3
+				"q_value_lr": 1e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -348,10 +348,10 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 100.0,	
 				"policy_clip": 0.2,
-				"policy_lr": 5e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 1e-3, #8e-3
-				"entropy_pen_final": 1e-3,
+				"entropy_pen": 0.0, #8e-3
+				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 500,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.1,
