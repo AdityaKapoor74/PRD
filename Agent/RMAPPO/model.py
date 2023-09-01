@@ -18,7 +18,7 @@ class MLP_Policy(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
-		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim, 64), nn.GELU())
+		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim+num_actions, 64), nn.GELU())
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Linear(64, num_actions)
 
