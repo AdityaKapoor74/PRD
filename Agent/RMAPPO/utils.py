@@ -106,6 +106,7 @@ class RolloutBuffer:
 		self.states_actor = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_actor))
 		self.logprobs = np.zeros((num_episodes, max_time_steps, num_agents))
 		self.actions = np.zeros((num_episodes, max_time_steps, num_agents), dtype=int)
+		self.last_one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.action_masks = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.rewards = np.zeros((num_episodes, max_time_steps, num_agents))
@@ -124,6 +125,7 @@ class RolloutBuffer:
 		self.states_actor = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_actor))
 		self.logprobs = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
 		self.actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents), dtype=int)
+		self.last_one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.action_masks = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.rewards = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
@@ -135,7 +137,7 @@ class RolloutBuffer:
 		self.time_step = 0
 		self.episode_num = 0
 
-	def push(self, state_critic_allies, state_critic_enemies, state_actor, logprobs, actions, one_hot_actions, action_masks, rewards, dones):
+	def push(self, state_critic_allies, state_critic_enemies, state_actor, logprobs, actions, last_one_hot_actions, one_hot_actions, action_masks, rewards, dones):
 
 		self.states_critic_allies[self.episode_num][self.time_step] = state_critic_allies
 		self.states_critic_enemies[self.episode_num][self.time_step] = state_critic_enemies
@@ -145,6 +147,7 @@ class RolloutBuffer:
 		self.states_actor[self.episode_num][self.time_step] = state_actor
 		self.logprobs[self.episode_num][self.time_step] = logprobs
 		self.actions[self.episode_num][self.time_step] = actions
+		self.last_one_hot_actions[self.episode_num][self.time_step] = last_one_hot_actions
 		self.one_hot_actions[self.episode_num][self.time_step] = one_hot_actions
 		self.action_masks[self.episode_num][self.time_step] = action_masks
 		self.rewards[self.episode_num][self.time_step] = rewards
