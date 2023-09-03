@@ -294,9 +294,9 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
-				"test_num":test_num,
-				"extension":extension,
+				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"test_num": test_num,
+				"extension": extension,
 				"gamma": 0.99,
 				"gif": False,
 				"gif_checkpoint":1,
@@ -342,7 +342,7 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen_final": 0.0,
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
-				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
+				"lambda": 0.8, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": False,
 				
 
