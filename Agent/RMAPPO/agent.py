@@ -250,7 +250,7 @@ class PPOAgent:
 		rewards = rewards.reshape(self.update_ppo_agent, -1, self.num_agents)
 		dones = dones.reshape(self.update_ppo_agent, -1, self.num_agents)
 		masks_ = masks_.reshape(self.update_ppo_agent, -1, 1)
-		advantages = dones.new_zeros(*dones.shape)
+		advantages = rewards.new_zeros(*rewards.shape)
 		# next_value = 0
 		advantage = 0
 		masks = 1 - dones
