@@ -215,6 +215,9 @@ class MAPPO:
 
 				if all(dones) or step == self.max_time_steps:
 
+					# add last observations
+					self.agents.buffer.append()
+
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
 					print("*"*100)
@@ -291,7 +294,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 1, # update ppo agent after every update_ppo_agent episodes
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
@@ -350,8 +353,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 2e-2, #8e-3
-				"entropy_pen_final": 2e-2,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 500,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.1,
