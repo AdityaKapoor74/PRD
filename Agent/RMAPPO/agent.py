@@ -250,8 +250,9 @@ class PPOAgent:
 		advantage = 0
 		masks = 1 - dones
 		for t in reversed(range(0, len(rewards))):
-			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
 			next_value = values_old.data[t]
+			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
+			# next_value = values_old.data[t]
 			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * masks[t]))*masks_[t]
 			advantages.insert(0, advantage)
 
@@ -475,7 +476,7 @@ class PPOAgent:
 					update=True
 					)
 
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
 
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
