@@ -216,7 +216,7 @@ class MAPPO:
 				if all(dones) or step == self.max_time_steps:
 
 					# add last observations
-					self.agents.buffer.append()
+					# self.agents.buffer.append()
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
