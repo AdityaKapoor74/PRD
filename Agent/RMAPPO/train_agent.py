@@ -236,7 +236,12 @@ class MAPPO:
 					# self.agents.update_epsilon()
 
 					# add final time to buffer
-					self.agents.buffer.end_episode(final_timestep)
+					actions, _, _ = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+				
+					one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+					for i,act in enumerate(actions):
+						one_hot_actions[i][act] = 1
+					self.agents.buffer.end_episode(final_timestep, states_allies_critic, states_enemies_critic, one_hot_actions)
 
 					break
 
