@@ -133,8 +133,6 @@ class QMIX:
 			self.rewards_mean_per_1000_eps = []
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
-			self.collision_rates = []
-			self.collison_rate_mean_per_1000_eps = []
 
 		for episode in range(1, self.max_episodes+1):
 
@@ -260,7 +258,7 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 30000,
-				"max_time_steps": 100,
+				"max_time_steps": 25,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
