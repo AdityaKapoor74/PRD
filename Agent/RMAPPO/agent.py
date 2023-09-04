@@ -192,9 +192,9 @@ class PPOAgent:
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 
-		self.q_critic_optimizer = optim.AdamW(self.critic_network_q.parameters(), lr=self.v_value_lr, weight_decay=self.v_weight_decay)
-		self.v_critic_optimizer = optim.AdamW(self.critic_network_v.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay)
-		self.policy_optimizer = optim.AdamW(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=self.policy_weight_decay)
+		self.q_critic_optimizer = optim.AdamW(self.critic_network_q.parameters(), lr=self.v_value_lr, weight_decay=self.v_weight_decay, eps=1e-05)
+		self.v_critic_optimizer = optim.AdamW(self.critic_network_v.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay, eps=1e-05)
+		self.policy_optimizer = optim.AdamW(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=self.policy_weight_decay, eps=1e-05)
 
 		if self.scheduler_need:
 			self.scheduler_policy = optim.lr_scheduler.MultiStepLR(self.policy_optimizer, milestones=[1000, 20000], gamma=0.1)
@@ -257,7 +257,7 @@ class PPOAgent:
 		# counter = 0
 		for t in reversed(range(0, rewards.shape[1])):
 			next_value = values_old.data[:,t+1,:]
-			td_error = rewards[:,t,:] + (self.gamma * next_value * masks[:,t,:]) - values.data[:,t,:]
+			td_error = rewards[:,t,:] + (self.gamma * next_value * masks[:,t+1,:]) - values.data[:,t,:]
 			# next_value = values_old.data[t]
 			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * masks[:,t,:]))*masks_[:,t,:]
 			# advantages.insert(0, advantage)
@@ -282,7 +282,7 @@ class PPOAgent:
 		# Backwards  recursive  update  of the "forward  view"
 		for t in range(ret.shape[1] - 2, -1, -1):
 			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t].unsqueeze(-1) \
-						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
+						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t+1]))
 		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
 		# return ret[:, 0:-1]
 		return ret
@@ -401,7 +401,7 @@ class PPOAgent:
 		batch, time_steps = masks.shape
 		rnn_hidden_state_q = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_q)
 		rnn_hidden_state_v = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_v)
-		rnn_hidden_state_actor = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_v)
+		rnn_hidden_state_actor = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_actor)
 
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
@@ -439,8 +439,10 @@ class PPOAgent:
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
 		shape = (batch, time_steps, self.num_agents)
-		target_Q_values = self.build_td_lambda_targets(rewards.reshape(*shape).to(self.device), dones.reshape(*shape).to(self.device), masks.reshape(*shape[:-1]).to(self.device), Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]).reshape(-1, self.num_agents)
-		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(*shape).to(self.device), dones.reshape(*shape).to(self.device), masks.reshape(*shape[:-1]).to(self.device), Values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]).reshape(-1, self.num_agents)
+		target_Qs = rewards.reshape(*shape).to(self.device) + self.gamma * (1-dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,1:,:]) * Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]
+		target_Vs = target_V_rewards.reshape(*shape).to(self.device) + self.gamma * (1-dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,1:,:]) * Values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]
+		target_Q_values = self.build_td_lambda_targets(rewards.reshape(*shape).to(self.device), dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,:-1,:], masks.reshape(*shape[:-1]).to(self.device), target_Qs).reshape(-1, self.num_agents)
+		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(*shape).to(self.device), dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,:-1,:], masks.reshape(*shape[:-1]).to(self.device), target_Vs).reshape(-1, self.num_agents)
 
 
 		if self.norm_returns:
@@ -490,7 +492,7 @@ class PPOAgent:
 					)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-			
+
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
 			
@@ -542,7 +544,11 @@ class PPOAgent:
 			if self.enable_grad_clip_critic:
 				grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
 			else:
-				grad_norm_value_q = torch.tensor([-1.0])
+				total_norm = 0
+				for p in self.critic_network_q.parameters():
+					param_norm = p.grad.detach().data.norm(2)
+					total_norm += param_norm.item() ** 2
+				grad_norm_value_q = torch.tensor([total_norm ** 0.5])
 			self.q_critic_optimizer.step()
 
 			# self.critic_network_q.rnn_hidden_state = None #rnn_hidden_state_q.detach()
@@ -552,7 +558,11 @@ class PPOAgent:
 			if self.enable_grad_clip_critic:
 				grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
 			else:
-				grad_norm_value_v = torch.tensor([-1.0])
+				total_norm = 0
+				for p in self.critic_network_v.parameters():
+					param_norm = p.grad.detach().data.norm(2)
+					total_norm += param_norm.item() ** 2
+				grad_norm_value_v = torch.tensor([total_norm ** 0.5])
 			self.v_critic_optimizer.step()
 
 			# self.critic_network_v.rnn_hidden_state = None #rnn_hidden_state_v.detach()
@@ -563,8 +573,14 @@ class PPOAgent:
 			if self.enable_grad_clip_actor:
 				grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), self.grad_clip_actor)
 			else:
-				grad_norm_policy = torch.tensor([-1.0])
+				total_norm = 0
+				for p in self.policy_network.parameters():
+					param_norm = p.grad.detach().data.norm(2)
+					total_norm += param_norm.item() ** 2
+				grad_norm_policy = torch.tensor([total_norm ** 0.5])
 			self.policy_optimizer.step()
+
+			# print(grad_norm_value_q, grad_norm_value_v, grad_norm_policy)
 
 			# self.policy_network.rnn_hidden_state = None #rnn_hidden_state_actor.detach()
 
