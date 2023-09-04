@@ -241,7 +241,11 @@ class MAPPO:
 					one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
-					self.agents.buffer.end_episode(final_timestep, states_allies_critic, states_enemies_critic, one_hot_actions)
+
+					_, _, dones, _ = self.env.step(actions)
+					dones = [int(dones)]*self.num_agents
+
+					self.agents.buffer.end_episode(final_timestep, states_allies_critic, states_enemies_critic, one_hot_actions, dones)
 
 					break
 
@@ -299,7 +303,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
@@ -330,16 +334,16 @@ if __name__ == '__main__':
 				# CRITIC
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 7e-4, #1e-3
-				"v_value_lr": 7e-4, #1e-3
+				"q_value_lr": 5e-4, #1e-3
+				"v_value_lr": 5e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
 				"attention_dropout_prob_v": 0.0,
-				"q_weight_decay": 0.0,
-				"v_weight_decay": 0.0,
+				"q_weight_decay": 5e-4,
+				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic": False,
-				"grad_clip_critic": 100.0,
+				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
@@ -354,10 +358,10 @@ if __name__ == '__main__':
 				# ACTOR
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": False,
-				"grad_clip_actor": 100.0,	
+				"grad_clip_actor": 10.0,	
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
-				"policy_weight_decay": 0.0,
+				"policy_weight_decay": 5e-4,
 				"entropy_pen": 1e-2, #8e-3
 				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 500,
