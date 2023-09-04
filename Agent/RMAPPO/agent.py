@@ -491,7 +491,10 @@ class PPOAgent:
 					update=True
 					)
 
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+			weights_prd = weights_prd.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
+			weight_v = weight_v.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
+
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), episode)
 
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
@@ -527,8 +530,6 @@ class PPOAgent:
 			
 			entropy_weights = 0
 			entropy_weights_v = 0
-			weights_prd = weights_prd.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
-			weight_v = weight_v.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
 			for i in range(self.num_heads):
 				# entropy_weights += -torch.mean(torch.sum((weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device)), dim=-1))
 				# entropy_weights_v += -torch.mean(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device), dim=-1))
