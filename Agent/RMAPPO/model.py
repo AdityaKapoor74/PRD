@@ -18,34 +18,49 @@ class MLP_Policy(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
+		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
 		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim+num_actions, 64), nn.GELU())
+		self.pre_rnn_layer_norm = nn.LayerNorm(64)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
+		self.post_rnn_layer_norm = nn.LayerNorm(64)
 		self.Layer_2 = nn.Linear(64, num_actions)
 
 		self.reset_parameters()
 
 	def reset_parameters(self):
-
-		nn.init.xavier_uniform_(self.Layer_1[0].weight)
-		nn.init.xavier_uniform_(self.Layer_2.weight)
+		nn.init.orthogonal_(self.Layer_1[0].weight)
+		for name, param in self.RNN.named_parameters():
+			if 'bias' in name:
+				nn.init.constant_(param, 0)
+			elif 'weight' in name:
+				# if self._use_orthogonal:
+				# 	nn.init.orthogonal_(param)
+				# else:
+				# 	nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
+		nn.init.orthogonal_(self.Layer_2.weight)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
+		local_observations = self.feature_norm(local_observations)
 		if update == False:
-			intermediate = self.Layer_1(local_observations)
+			intermediate = self.pre_rnn_layer_norm(self.Layer_1(local_observations))
 			output, h = self.RNN(intermediate, hidden_state)
+			output = self.post_rnn_layer_norm(output)
 			logits = self.Layer_2(output)
 			logits = torch.where(mask_actions, logits, self.mask_value)
 			return F.softmax(logits, dim=-1).squeeze(1), h
 		else:
 			# local_observations --> batch, timesteps, num_agents, dim
 			batch, timesteps, num_agents, _ = local_observations.shape
-			intermediate = self.Layer_1(local_observations)
+			intermediate = self.pre_rnn_layer_norm(self.Layer_1(local_observations))
 			intermediate = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 			output, h = self.RNN(intermediate, hidden_state)
 			output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+			output = self.post_rnn_layer_norm(output)
 			logits = self.Layer_2(output)
 			logits = torch.where(mask_actions, logits, self.mask_value)
+			# print(torch.sum(mask_actions), mask_actions.reshape(-1).shape, torch.sum(mask_actions)/mask_actions.reshape(-1).shape[0])
 			return F.softmax(logits, dim=-1), h
 
 
@@ -91,6 +106,9 @@ class Q_network(nn.Module):
 		# self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
 
 		self.temperature = temperature
+
+		self.allies_feature_norm = nn.LayerNorm(ally_obs_input_dim)
+		self.enemies_feature_norm = nn.LayerNorm(enemy_obs_input_dim)
 
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
@@ -172,26 +190,37 @@ class Q_network(nn.Module):
 		# gain = nn.init.calculate_gain('tanh', 0.01)
 
 		# Embedding Networks
-		nn.init.xavier_uniform_(self.ally_state_embed_1[0].weight)
-		nn.init.xavier_uniform_(self.ally_state_embed_2[0].weight)
-		nn.init.xavier_uniform_(self.enemy_state_embed[0].weight)
-		nn.init.xavier_uniform_(self.ally_state_act_embed[0].weight)
+		nn.init.orthogonal_(self.ally_state_embed_1[0].weight)
+		nn.init.orthogonal_(self.ally_state_embed_2[0].weight)
+		nn.init.orthogonal_(self.enemy_state_embed[0].weight)
+		nn.init.orthogonal_(self.ally_state_act_embed[0].weight)
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		for i in range(self.num_heads):
-			nn.init.xavier_uniform_(self.key[i][0].weight)
-			nn.init.xavier_uniform_(self.query[i][0].weight)
-			nn.init.xavier_uniform_(self.attention_value[i][0].weight)
+			nn.init.orthogonal_(self.key[i][0].weight)
+			nn.init.orthogonal_(self.query[i][0].weight)
+			nn.init.orthogonal_(self.attention_value[i][0].weight)
 			if self.enable_hard_attention:
-				nn.init.xavier_uniform_(self.hard_attention[i][0].weight)
+				nn.init.orthogonal_(self.hard_attention[i][0].weight)
 
-		nn.init.xavier_uniform_(self.attention_value_linear[0].weight)
+		nn.init.orthogonal_(self.attention_value_linear[0].weight)
 		if self.enable_hard_attention:
-			nn.init.xavier_uniform_(self.hard_attention_linear[0].weight)
+			nn.init.orthogonal_(self.hard_attention_linear[0].weight)
 
-		nn.init.xavier_uniform_(self.common_layer[0].weight)
-		nn.init.xavier_uniform_(self.q_value_layer[0].weight)
-		nn.init.xavier_uniform_(self.q_value_layer[2].weight)
+		nn.init.orthogonal_(self.common_layer[0].weight)
+
+		for name, param in self.RNN.named_parameters():
+			if 'bias' in name:
+				nn.init.constant_(param, 0)
+			elif 'weight' in name:
+				# if self._use_orthogonal:
+				# 	nn.init.orthogonal_(param)
+				# else:
+				# 	nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
+
+		nn.init.orthogonal_(self.q_value_layer[0].weight)
+		nn.init.orthogonal_(self.q_value_layer[2].weight)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -225,6 +254,8 @@ class Q_network(nn.Module):
 		return weights_new.to(self.device)
 
 	def forward(self, states, enemy_states, actions, rnn_hidden_state):
+		states = self.allies_feature_norm(states)
+		enemy_states = self.enemies_feature_norm(enemy_states)
 		batch, timesteps, num_agents, _ = states.shape
 		_, _, num_enemies, _ = enemy_states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
@@ -337,6 +368,9 @@ class V_network(nn.Module):
 
 		self.temperature = temperature
 
+		self.allies_feature_norm = nn.LayerNorm(ally_obs_input_dim)
+		self.enemies_feature_norm = nn.LayerNorm(enemy_obs_input_dim)
+
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
@@ -424,19 +458,30 @@ class V_network(nn.Module):
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		for i in range(self.num_heads):
-			nn.init.xavier_uniform_(self.key[i][0].weight)
-			nn.init.xavier_uniform_(self.query[i][0].weight)
-			nn.init.xavier_uniform_(self.attention_value[i][0].weight)
+			nn.init.orthogonal_(self.key[i][0].weight)
+			nn.init.orthogonal_(self.query[i][0].weight)
+			nn.init.orthogonal_(self.attention_value[i][0].weight)
 			if self.enable_hard_attention:
-				nn.init.xavier_uniform_(self.hard_attention[i][0].weight)
+				nn.init.orthogonal_(self.hard_attention[i][0].weight)
 
-		nn.init.xavier_uniform_(self.attention_value_linear[0].weight)
+		nn.init.orthogonal_(self.attention_value_linear[0].weight)
 		if self.enable_hard_attention:
-			nn.init.xavier_uniform_(self.hard_attention_linear[0].weight)
+			nn.init.orthogonal_(self.hard_attention_linear[0].weight)
 
-		nn.init.xavier_uniform_(self.common_layer[0].weight)
-		nn.init.xavier_uniform_(self.v_value_layer[0].weight)
-		nn.init.xavier_uniform_(self.v_value_layer[2].weight)
+		nn.init.orthogonal_(self.common_layer[0].weight)
+
+		for name, param in self.RNN.named_parameters():
+			if 'bias' in name:
+				nn.init.constant_(param, 0)
+			elif 'weight' in name:
+				# if self._use_orthogonal:
+				# 	nn.init.orthogonal_(param)
+				# else:
+				# 	nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
+
+		nn.init.orthogonal_(self.v_value_layer[0].weight)
+		nn.init.orthogonal_(self.v_value_layer[2].weight)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -470,6 +515,8 @@ class V_network(nn.Module):
 		return weights_new.to(self.device)
 
 	def forward(self, states, enemy_states, actions, rnn_hidden_state):
+		states = self.allies_feature_norm(states)
+		enemy_states = self.enemies_feature_norm(enemy_states)
 		batch, timesteps, num_agents, _ = states.shape
 		_, _, num_enemies, _ = enemy_states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
