@@ -42,6 +42,14 @@ class LICA:
 		self.critic_obs_shape = dictionary["global_observation"]
 		self.actor_obs_shape = dictionary["local_observation"]
 
+		one_hot_ids = np.array([0 for i in range(self.num_agents)])
+		self.agent_ids = []
+		for i in range(self.num_agents):
+			agent_id = one_hot_ids
+			agent_id[i] = 1
+			self.agent_ids.append(agent_id)
+		self.agent_ids = np.array(self.agent_ids)
+
 		self.buffer = RolloutBuffer(
 			num_episodes = self.update_episode_interval,
 			max_time_steps = self.max_time_steps,
@@ -134,13 +142,14 @@ class LICA:
 			states, info = self.env.reset(return_info=True)
 			mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 			states = np.array(states)
+			states = np.concatenate((self.agent_ids, states), axis=-1)
+			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
 
 			images = []
 
 			episode_reward = 0
 			final_timestep = self.max_time_steps
 
-			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
 			self.agents.actor.rnn_hidden_obs = None
 
 			for step in range(1, self.max_time_steps+1):
@@ -156,14 +165,15 @@ class LICA:
 				else:
 					actions = self.agents.get_action(states, last_one_hot_action, mask_actions)
 
-				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
+				next_last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
 				for i,act in enumerate(actions):
-					last_one_hot_action[i][act] = 1
+					next_last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
+				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				if not self.gif:
@@ -188,6 +198,18 @@ class LICA:
 						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
 						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
 						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
+
+					
+					# add final time to buffer
+					actions = self.agents.get_action(states, last_one_hot_action, mask_actions)
+				
+					one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+					for i,act in enumerate(actions):
+						one_hot_actions[i][act] = 1
+
+					_, _, dones, _ = self.env.step(actions)
+
+					self.buffer.end_episode(states, one_hot_actions, dones)
 
 					break
 
@@ -251,8 +273,8 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 30000,
-				"max_time_steps": 100,
+				"max_episodes": 20000,
+				"max_time_steps": 25,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"update_episode_interval": 32,
@@ -261,7 +283,6 @@ if __name__ == '__main__':
 				"lambda": 0.6,
 
 				# ENVIRONMENT
-				"team_size": 8,
 				"env": env_name,
 
 				# MODEL
@@ -284,7 +305,7 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["global_observation"] = obs[0].shape[0]
-		dictionary["local_observation"] = obs[0].shape[0]
+		dictionary["global_observation"] = obs[0].shape[0]+env.n_agents
+		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = LICA(env, dictionary)
 		ma_controller.run()
