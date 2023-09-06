@@ -118,12 +118,12 @@ class LICAAgent:
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
 		# Initialise  last  lambda -return  for  not  terminated  episodes
 		ret = target_qs.new_zeros(*target_qs.shape)
-		ret = target_qs * (1-terminated)
+		ret = target_qs * (1-terminated[:, 1:])
 		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
 		# Backwards  recursive  update  of the "forward  view"
 		for t in range(ret.shape[1] - 2, -1,  -1):
 			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t] \
-						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
+						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t+1]))
 		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
 		# return ret[:, 0:-1]
 		return ret
@@ -145,9 +145,9 @@ class LICAAgent:
 		for _ in range(self.num_updates):
 
 
-			Qs = self.critic(one_hot_actions_batch.to(self.device), critic_state_batch.to(self.device)).squeeze(-1) * mask_batch.to(self.device)
+			Qs = self.critic(one_hot_actions_batch[:, :-1, :].to(self.device), critic_state_batch[:, :-1, :].to(self.device)).squeeze(-1) * mask_batch.to(self.device)
 			
-			target_Qs = self.target_critic(one_hot_actions_batch.to(self.device), critic_state_batch.to(self.device)).squeeze(-1)
+			target_Qs = self.target_critic(one_hot_actions_batch[:, 1:, :].to(self.device), critic_state_batch[:, 1:, :].to(self.device)).squeeze(-1)
 			target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
 
 			Q_loss = self.loss_fn(Qs, target_Qs.detach()) / mask_batch.to(self.device).sum()
@@ -157,12 +157,11 @@ class LICAAgent:
 			if self.enable_grad_clip_critic:
 				critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.critic_grad_clip).item()
 			else:
-				critic_grad_norm = torch.tensor([1.0])
-			# grad_norm = 0
-			# for p in self.model_parameters:
-			# 	param_norm = p.grad.detach().data.norm(2)
-			# 	grad_norm += param_norm.item() ** 2
-			# grad_norm = torch.tensor(grad_norm) ** 0.5
+				grad_norm = 0
+				for p in self.critic.parameters():
+					param_norm = p.grad.detach().data.norm(2)
+					grad_norm += param_norm.item() ** 2
+				critic_grad_norm = torch.tensor(grad_norm) ** 0.5
 			self.critic_optimizer.step()
 
 			self.actor.rnn_hidden_obs = None
@@ -173,8 +172,8 @@ class LICAAgent:
 				# train in time order
 				mask_slice = mask_batch[:, t].reshape(-1)
 
-				if mask_slice.sum().cpu().numpy() < EPS:
-					break
+				# if mask_slice.sum().cpu().numpy() < EPS:
+				# 	break
 
 				actor_states_slice = actor_state_batch[:,t].reshape(-1, self.actor_obs_shape)
 				last_one_hot_action_slice = last_one_hot_actions_batch[:, t].reshape(-1, self.num_actions)
@@ -191,7 +190,7 @@ class LICAAgent:
 			probs = torch.stack(probs, dim=1).reshape(-1, mask_batch.shape[1], self.num_agents, self.num_actions)
 			entropy = torch.stack(entropy, dim=1).reshape(-1, mask_batch.shape[1])
 
-			mix_loss = self.critic(probs.to(self.device), critic_state_batch.to(self.device)).squeeze(-1)
+			mix_loss = self.critic(probs.to(self.device), critic_state_batch[:, :-1, :].to(self.device)).squeeze(-1)
 
 			mix_loss = (mix_loss * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
 
@@ -207,12 +206,11 @@ class LICAAgent:
 			if self.enable_grad_clip_actor:
 				actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.actor_grad_clip).item()
 			else:
-				actor_grad_norm = torch.tensor([1.0])
-			# grad_norm = 0
-			# for p in self.model_parameters:
-			# 	param_norm = p.grad.detach().data.norm(2)
-			# 	grad_norm += param_norm.item() ** 2
-			# grad_norm = torch.tensor(grad_norm) ** 0.5
+				grad_norm = 0
+				for p in self.actor.parameters():
+					param_norm = p.grad.detach().data.norm(2)
+					grad_norm += param_norm.item() ** 2
+				actor_grad_norm = torch.tensor(grad_norm) ** 0.5
 			self.actor_optimizer.step()
 			
 
