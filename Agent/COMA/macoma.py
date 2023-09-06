@@ -28,6 +28,14 @@ class MACOMA:
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
 
+		one_hot_ids = np.array([0 for i in range(self.num_agents)])
+		self.agent_ids = []
+		for i in range(self.num_agents):
+			agent_id = one_hot_ids
+			agent_id[i] = 1
+			self.agent_ids.append(agent_id)
+		self.agent_ids = np.array(self.agent_ids)
+
 
 		self.comet_ml = None
 		if self.save_comet_ml_plot:
@@ -138,6 +146,7 @@ class MACOMA:
 			states, info = self.env.reset(return_info=True)
 			mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 			states = np.array(states)
+			states = np.concatenate((self.agent_ids, states), axis=-1)
 
 			images = []
 
@@ -170,6 +179,7 @@ class MACOMA:
 				dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
+				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				episode_reward += np.sum(rewards)
