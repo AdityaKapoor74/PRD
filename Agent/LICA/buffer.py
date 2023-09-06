@@ -13,26 +13,26 @@ class RolloutBuffer:
 		self.episode_num = 0
 		self.time_step = 0
 
-		self.critic_states = np.zeros((num_episodes, max_time_steps, num_agents, critic_obs_shape))
+		self.critic_states = np.zeros((num_episodes, max_time_steps+1, num_agents, critic_obs_shape))
 		self.actor_states = np.zeros((num_episodes, max_time_steps, num_agents, actor_obs_shape))
 		self.last_one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.actions = np.zeros((num_episodes, max_time_steps, num_agents), dtype=int)
-		self.one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
+		self.one_hot_actions = np.zeros((num_episodes, max_time_steps+1, num_agents, num_actions))
 		self.mask_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.rewards = np.zeros((num_episodes, max_time_steps))
-		self.dones = np.zeros((num_episodes, max_time_steps))
+		self.dones = np.zeros((num_episodes, max_time_steps+1))
 		self.masks = np.zeros((num_episodes, max_time_steps))
 	
 
 	def clear(self):
-		self.critic_states = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.critic_obs_shape))
+		self.critic_states = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents, self.critic_obs_shape))
 		self.actor_states = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.actor_obs_shape))
 		self.last_one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents), dtype=int)
-		self.one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
+		self.one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents, self.num_actions))
 		self.mask_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.rewards = np.zeros((self.num_episodes, self.max_time_steps))
-		self.dones = np.zeros((self.num_episodes, self.max_time_steps))
+		self.dones = np.zeros((self.num_episodes, self.max_time_steps+1))
 		self.masks = np.zeros((self.num_episodes, self.max_time_steps))
 
 		self.time_step = 0
@@ -52,6 +52,14 @@ class RolloutBuffer:
 
 		if self.time_step < self.max_time_steps-1:
 			self.time_step += 1
-		else:
-			self.episode_num += 1
-			self.time_step = 0
+		# else:
+		# 	self.episode_num += 1
+		# 	self.time_step = 0
+
+	def end_episode(self, critic_states, one_hot_actions, dones):
+		self.critic_states[self.episode_num][self.time_step+1] = critic_states
+		self.one_hot_actions[self.episode_num][self.time_step+1] = one_hot_actions
+		self.dones[self.episode_num][self.time_step+1] = dones
+
+		self.episode_num += 1
+		self.time_step = 0
