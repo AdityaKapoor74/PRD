@@ -32,7 +32,10 @@ class MLP_Policy(nn.Module):
 
 	def forward(self, local_observations, mask_actions=None):
 		intermediate = self.Layer_1(local_observations)
-		self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
+		if self.rnn_hidden_state is not None:
+			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
+		else:
+			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state).view(*intermediate.shape)
 		policy = self.Layer_2(self.rnn_hidden_state) + mask_actions
 		return F.softmax(policy, dim=-1), self.rnn_hidden_state
 
@@ -126,7 +129,10 @@ class TransformerCritic(nn.Module):
 
 		node_features = torch.cat([curr_agent_state_action_embed, x], dim=-1)
 		shape = node_features.shape
-		self.rnn_hidden_state = self.RNN(node_features.view(-1, shape[-1])).reshape(*shape)
+		if self.rnn_hidden_state is not None:
+			self.rnn_hidden_state = self.RNN(node_features.view(-1, shape[-1]), self.rnn_hidden_state.view(-1, shape[-1])).view(*shape)
+		else:
+			self.rnn_hidden_state = self.RNN(node_features.view(-1, shape[-1]), self.rnn_hidden_state).view(*shape)
 		Value = self.final_value_layers(self.rnn_hidden_state)
 
 		return Value, weight, self.rnn_hidden_state
