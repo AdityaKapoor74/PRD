@@ -10,7 +10,6 @@ if __name__ == '__main__':
 
 	for i in range(1,6):
 		extension = "COMA_"+str(i)
-		test_num = "TEAM COLLISION AVOIDANCE"
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
 
@@ -30,8 +29,8 @@ if __name__ == '__main__':
 				"grad_clip_critic": 10.0,
 				"grad_clip_actor": 10.0,
 				"critic_entropy_pen": 0.0,
-				"epsilon_start": 0.5,
-				"epsilon_end": 0.02,
+				"epsilon_start": 1.0,
+				"epsilon_end": 0.05,
 				"entropy_pen": 1e-1, #8e-3
 				"epsilon_episode_steps": 750,
 				"target_critic_update": 200,
@@ -47,14 +46,14 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 30000,
-				"max_time_steps": 100,
+				"max_episodes": 20000,
+				"max_time_steps": 25,
 				"norm_adv": False,
 				"norm_rew": False,
 			}
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["global_observation"] = obs[0].shape[0]
-		dictionary["local_observation"] = obs[0].shape[0]
+		dictionary["global_observation"] = obs[0].shape[0]+env.n_agents
+		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MACOMA(env,dictionary)
 		ma_controller.run()
