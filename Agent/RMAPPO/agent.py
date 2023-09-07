@@ -277,7 +277,7 @@ class PPOAgent:
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
 		# Initialise  last  lambda -return  for  not  terminated  episodes
 		ret = target_qs.new_zeros(*target_qs.shape)
-		ret = target_qs * (1-terminated[:, 1:]) # some episodes end early so we can't assume that by copying the last target_qs in ret would be good enough
+		ret = target_qs * (1-terminated) # some episodes end early so we can't assume that by copying the last target_qs in ret would be good enough
 		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
 		# Backwards  recursive  update  of the "forward  view"
 		for t in range(ret.shape[1] - 2, -1, -1):
@@ -441,8 +441,8 @@ class PPOAgent:
 		shape = (batch, time_steps, self.num_agents)
 		# target_Qs = rewards.reshape(*shape).to(self.device) + self.gamma * (1-dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,1:,:]) * Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]
 		# target_Vs = target_V_rewards.reshape(*shape).to(self.device) + self.gamma * (1-dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,1:,:]) * Values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]
-		target_Q_values = self.build_td_lambda_targets(rewards.reshape(*shape).to(self.device), dones.reshape(batch, time_steps+1, self.num_agents).to(self.device), masks.reshape(*shape[:-1]).to(self.device), Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]).reshape(-1, self.num_agents)
-		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(*shape).to(self.device), dones.reshape(batch, time_steps+1, self.num_agents).to(self.device), masks.reshape(*shape[:-1]).to(self.device), Values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]).reshape(-1, self.num_agents)
+		target_Q_values = self.build_td_lambda_targets(rewards.reshape(*shape).to(self.device), dones.reshape(batch, time_steps+1, self.num_agents).to(self.device), masks.reshape(*shape[:-1]).to(self.device), Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:]).reshape(-1, self.num_agents)
+		target_V_values = self.build_td_lambda_targets(target_V_rewards.reshape(*shape).to(self.device), dones.reshape(batch, time_steps+1, self.num_agents).to(self.device), masks.reshape(*shape[:-1]).to(self.device), Values_old.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:]).reshape(-1, self.num_agents)
 
 
 		if self.norm_returns:
