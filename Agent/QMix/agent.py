@@ -144,7 +144,7 @@ class QMIXAgent:
 		# Backwards  recursive  update  of the "forward  view"
 		for t in range(ret.shape[1] - 2, -1,  -1):
 			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t] \
-						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
+						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t] * (1 - terminated[:, t]))
 		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
 		# return ret[:, 0:-1]
 		return ret
@@ -211,7 +211,7 @@ class QMIXAgent:
 		Q_mix_values = torch.stack(Q_mix_values, dim=1).to(self.device)
 		target_Q_mix_values = torch.stack(target_Q_mix_values, dim=1).to(self.device)
 
-		# target_Q_mix_values = self.build_td_lambda_targets(reward_batch[:, :max_episode_len].to(self.device), done_batch[:, :max_episode_len].to(self.device), mask_batch[:, :max_episode_len].to(self.device), target_Q_mix_values)
+		target_Q_mix_values = self.build_td_lambda_targets(reward_batch[:, :max_episode_len].to(self.device), done_batch[:, :max_episode_len].to(self.device), mask_batch[:, :max_episode_len].to(self.device), target_Q_mix_values)
 
 		Q_loss = self.loss_fn(Q_mix_values, target_Q_mix_values.detach()) / mask_batch.to(self.device).sum()
 
