@@ -89,12 +89,14 @@ class COMAAgent:
 			_, _, rnn_hidden_state_critic = self.critic_network(states.to(self.device), one_hot_actions.to(self.device))
 			return rnn_hidden_state_critic.cpu().numpy()
 
-	def get_actions(self, state, mask_actions, available_actions):
+	def get_actions(self, state, last_one_hot_actions, mask_actions, available_actions):
 		with torch.no_grad():
-			state = torch.FloatTensor(state).to(self.device)
+			state = torch.FloatTensor(state)
+			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions)
+			final_state = torch.cat([state, last_one_hot_actions], dim=-1).to(self.device)
 			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
 			available_actions = torch.FloatTensor(available_actions).to(self.device)
-			dists, rnn_hidden_state = self.policy_network(state, mask_actions)
+			dists, rnn_hidden_state = self.policy_network(final_state, mask_actions)
 			# dists = (1-self.epsilon)*dists + available_actions*self.epsilon/self.num_actions
 			action = [Categorical(dist).sample().cpu().detach().item() for dist in dists]
 			return action, rnn_hidden_state.cpu().numpy()
@@ -188,21 +190,48 @@ class COMAAgent:
 			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 
-	def update(self, states, rnn_hidden_state_critic, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards, dones, episode):		
+	def update(self, states, last_one_hot_actions, one_hot_actions, actions, mask_actions, rewards, dones, episode):		
 		'''
 		Getting the probability mass function over the action space for each agent
 		'''
-		self.policy_network.rnn_hidden_state = rnn_hidden_state_actor
-		probs, _ = self.policy_network(states, mask_actions)
+		timesteps, num_agents, _ = states.shape
+		probs, Q_values_act_chosen, weights_value, V_values_baseline, target_Q_values_act_chosen = [], [], [], [], []
+		for t in range(timesteps):
 
-		self.critic_network.rnn_hidden_state = rnn_hidden_state_critic
-		Q_values, weights_value, _ = self.critic_network(states, one_hot_actions)
-		Q_values_act_chosen = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
-		V_values_baseline = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * probs.detach(), dim=-1)
+			prob, _ = self.policy_network(torch.cat([states[t], last_one_hot_actions[t]], dim=-1).to(self.device), mask_actions[t])
+
+			Q_value, weight_value, _ = self.critic_network(states[t].unsqueeze(0), one_hot_actions[t].unsqueeze(0))
+			Q_value_act_chosen = torch.sum(Q_value.reshape(-1, self.num_agents, self.num_actions) * one_hot_actions[t], dim=-1)
+			V_value_baseline = torch.sum(Q_value.reshape(-1, self.num_agents, self.num_actions) * prob.detach(), dim=-1)
+			
+			target_Q_value, _, _ = self.target_critic_network(states[t].unsqueeze(0), one_hot_actions[t].unsqueeze(0))
+			target_Q_value_act_chosen = torch.sum(target_Q_value.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions[t], dim=-1)
+
+			probs.append(prob)
+			Q_values_act_chosen.append(Q_value_act_chosen.squeeze(0))
+			weights_value.append(weight_value)
+			V_values_baseline.append(V_value_baseline)
+			target_Q_values_act_chosen.append(target_Q_value_act_chosen.squeeze(0))
+
+		probs = torch.stack(probs, dim=0).to(self.device)
+		Q_values_act_chosen = torch.stack(Q_values_act_chosen, dim=0).to(self.device)
+		weights_value = torch.stack(weights_value, dim=0).to(self.device).squeeze(1)
+		V_values_baseline = torch.stack(V_values_baseline, dim=0).to(self.device).squeeze(1)
+		target_Q_values_act_chosen = torch.stack(target_Q_values_act_chosen, dim=0).to(self.device)
+
+
+
+		# self.policy_network.rnn_hidden_state = rnn_hidden_state_actor
+		# probs, _ = self.policy_network(states, mask_actions)
+
+		# self.critic_network.rnn_hidden_state = rnn_hidden_state_critic
+		# Q_values, weights_value, _ = self.critic_network(states, one_hot_actions)
+		# Q_values_act_chosen = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
+		# V_values_baseline = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * probs.detach(), dim=-1)
 		
-		self.target_critic_network.rnn_hidden_state = rnn_hidden_state_critic
-		target_Q_values, target_weights_value, _ = self.target_critic_network(states, one_hot_actions)
-		target_Q_values_act_chosen = torch.sum(target_Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
+		# self.target_critic_network.rnn_hidden_state = rnn_hidden_state_critic
+		# target_Q_values, target_weights_value, _ = self.target_critic_network(states, one_hot_actions)
+		# target_Q_values_act_chosen = torch.sum(target_Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
 
 		value_loss = self.calculate_value_loss(Q_values_act_chosen, target_Q_values_act_chosen, rewards, dones, weights_value)
 
