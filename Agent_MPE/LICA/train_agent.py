@@ -175,7 +175,7 @@ class LICA:
 
 				next_last_one_hot_action = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
-					last_one_hot_action[i][act] = 1
+					next_last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				next_states_critic, next_states_actor = self.split_states(next_states)
@@ -289,7 +289,7 @@ if __name__ == '__main__':
 				"scheduler_need": False,
 				"update_episode_interval": 32,
 				"num_updates": 1,
-				"entropy_coeff": 1e-1,
+				"entropy_coeff": 0.06,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
