@@ -290,14 +290,14 @@ if __name__ == '__main__':
 				"update_episode_interval": 32,
 				"num_updates": 1,
 				"entropy_coeff": 0.06,
-				"lambda": 0.6,
+				"lambda": 0.8,
 
 				# ENVIRONMENT
 				"team_size": 8,
 				"env": env_name,
 
 				# MODEL
-				"critic_learning_rate": 5e-4, #1e-3
+				"critic_learning_rate": 1e-4, #1e-3
 				"actor_learning_rate": 1e-4, #1e-3
 				"critic_grad_clip": 10.0,
 				"actor_grad_clip": 10.0,
