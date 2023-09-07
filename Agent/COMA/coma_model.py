@@ -17,17 +17,16 @@ class MLP_Policy(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
-		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.GELU())
-		self.RNN = nn.GRUCell(input_size=128, hidden_size=128)
-		self.Layer_2 = nn.Sequential(nn.Linear(128, 64), nn.GELU(), nn.Linear(64, num_actions))
+		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim+num_actions, 64), nn.GELU())
+		self.RNN = nn.GRUCell(input_size=64, hidden_size=64)
+		self.Layer_2 = nn.Linear(64, num_actions)
 
 		self.reset_parameters()
 
 	def reset_parameters(self):
 
 		nn.init.xavier_uniform_(self.Layer_1[0].weight)
-		nn.init.xavier_uniform_(self.Layer_2[0].weight)
-		nn.init.xavier_uniform_(self.Layer_2[2].weight)
+		nn.init.xavier_uniform_(self.Layer_2.weight)
 
 
 	def forward(self, local_observations, mask_actions=None):
