@@ -86,17 +86,16 @@ class MACOMA:
 	def update(self, trajectory, episode):
 
 		states = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
-		rnn_hidden_state_critic = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
-		rnn_hidden_state_actor = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
-
-		one_hot_actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
-		mask_actions = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
 		
-		rewards = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[7] for sars in trajectory])).to(self.device)
+		last_one_hot_actions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
+		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
+		actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
+		mask_actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
+		
+		rewards = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
+		dones = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
 
-		self.agents.update(states, rnn_hidden_state_critic, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards, dones, episode)
+		self.agents.update(states, last_one_hot_actions, one_hot_actions, actions, mask_actions, rewards, dones, episode)
 
 
 
@@ -147,6 +146,7 @@ class MACOMA:
 			mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 			states = np.array(states)
 			states = np.concatenate((self.agent_ids, states), axis=-1)
+			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 
 			images = []
 
@@ -165,15 +165,15 @@ class MACOMA:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, rnn_hidden_state_actor = self.agents.get_actions(states, mask_actions, np.array(info["avail_actions"]))
+						actions, _ = self.agents.get_actions(states, last_one_hot_actions, mask_actions, np.array(info["avail_actions"]))
 				else:
-					actions, rnn_hidden_state_actor = self.agents.get_actions(states, mask_actions, np.array(info["avail_actions"]))
+					actions, _ = self.agents.get_actions(states, last_one_hot_actions, mask_actions, np.array(info["avail_actions"]))
 
 				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				rnn_hidden_state_critic = self.agents.get_critic_hidden(states, one_hot_actions)
+				# rnn_hidden_state_critic = self.agents.get_critic_hidden(states, one_hot_actions)
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				dones = [int(dones)]*self.num_agents
@@ -189,26 +189,28 @@ class MACOMA:
 
 
 				if self.learn:
-					trajectory.append([states, rnn_hidden_state_critic, rnn_hidden_state_actor, one_hot_actions, actions, mask_actions, rewards_, dones])
+					trajectory.append([states, last_one_hot_actions, one_hot_actions, actions, mask_actions, rewards_, dones])
+				
+				states, mask_actions, last_one_hot_actions = next_states, next_mask_actions, one_hot_actions
+
+				if all(dones) or step == self.max_time_steps:
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
+					print("*"*100)
+
+					final_timestep = step
+
+					if self.save_comet_ml_plot:
+						self.comet_ml.log_metric('Episode_Length', step, episode)
+						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
+						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
+						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
+						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
+						
 					
-					if all(dones) or step == self.max_time_steps:
-						print("*"*100)
-						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
-						print("*"*100)
+					break
 
-						final_timestep = step
-
-						if self.save_comet_ml_plot:
-							self.comet_ml.log_metric('Episode_Length', step, episode)
-							self.comet_ml.log_metric('Reward', episode_reward, episode)
-							self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
-							self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
-							self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
-							self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
-							
-						break
-
-				states, mask_actions = next_states, next_mask_actions
 
 			if self.eval_policy:
 				self.rewards.append(episode_reward)
