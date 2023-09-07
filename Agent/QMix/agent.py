@@ -211,7 +211,7 @@ class QMIXAgent:
 		Q_mix_values = torch.stack(Q_mix_values, dim=1).to(self.device)
 		target_Q_mix_values = torch.stack(target_Q_mix_values, dim=1).to(self.device)
 
-		target_Q_mix_values = self.build_td_lambda_targets(reward_batch[:, :max_episode_len].to(self.device), done_batch[:, :max_episode_len].to(self.device), mask_batch[:, :max_episode_len].to(self.device), target_Q_mix_values)
+		# target_Q_mix_values = self.build_td_lambda_targets(reward_batch[:, :max_episode_len].to(self.device), done_batch[:, :max_episode_len].to(self.device), mask_batch[:, :max_episode_len].to(self.device), target_Q_mix_values)
 
 		Q_loss = self.loss_fn(Q_mix_values, target_Q_mix_values.detach()) / mask_batch.to(self.device).sum()
 
