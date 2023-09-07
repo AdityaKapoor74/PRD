@@ -193,7 +193,7 @@ class MAPPO:
 				for i,act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-					# rnn_hidden_state_q, rnn_hidden_state_v = self.agents.get_critic_hidden_state(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
+				# rnn_hidden_state_q, rnn_hidden_state_v = self.agents.get_critic_hidden_state(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
 
 				next_states_actor, rewards, dones, info = self.env.step(actions)
@@ -291,7 +291,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -345,7 +345,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_critic": False,
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_weight_entropy_pen_final": 0.0,
@@ -362,8 +362,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 2e-2, #8e-3
-				"entropy_pen_final": 2e-2,
+				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen_final": 8e-3,
 				"entropy_pen_steps": 500,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.11,
