@@ -353,7 +353,7 @@ class PPOAgent:
 				advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		elif "prd_soft_advantage" in self.experiment_type:
 			if episode > self.steps_to_take:
-				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
+				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd * self.num_agents, -1, -2), dim=-1)
 			else:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
@@ -433,8 +433,8 @@ class PPOAgent:
 			values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k, dim=-1)
 			mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
-		# elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
-		# 	target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+		elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1) * self.num_agents, -1, -2), dim=-1)
 		else:
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
