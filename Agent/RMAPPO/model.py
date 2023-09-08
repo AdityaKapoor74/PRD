@@ -114,21 +114,25 @@ class Q_network(nn.Module):
 		self.ally_state_embed_1 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(64)
 			)
 
 		self.ally_state_embed_2 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 32, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(32)
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
 			nn.GELU(),
+			nn.LayerNorm(64)
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
 			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(64)
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -150,7 +154,7 @@ class Q_network(nn.Module):
 
 		self.attention_value_linear = nn.Sequential(
 			nn.Linear(64, 64),
-			# nn.GELU(),
+			nn.GELU(),
 			)
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
@@ -173,11 +177,14 @@ class Q_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			nn.Linear(32+64+64, 64, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(64)
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
+			nn.LayerNorm(64),
 			nn.Linear(64, 64, bias=True),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			nn.Linear(64, self.num_actions)
 			)
 			
@@ -219,8 +226,8 @@ class Q_network(nn.Module):
 				# 	nn.init.xavier_uniform_(param)
 				nn.init.orthogonal_(param)
 
-		nn.init.orthogonal_(self.q_value_layer[0].weight)
-		nn.init.orthogonal_(self.q_value_layer[2].weight)
+		nn.init.orthogonal_(self.q_value_layer[1].weight)
+		nn.init.orthogonal_(self.q_value_layer[4].weight)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -375,21 +382,25 @@ class V_network(nn.Module):
 		self.ally_state_embed_1 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		self.ally_state_embed_2 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 32, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(32),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
 			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -411,7 +422,7 @@ class V_network(nn.Module):
 
 		self.attention_value_linear = nn.Sequential(
 			nn.Linear(64, 64),
-			# nn.GELU(),
+			nn.GELU(),
 			)
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
@@ -434,11 +445,14 @@ class V_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			nn.Linear(32+64+64, 64, bias=True), 
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
+			nn.LayerNorm(64),
 			nn.Linear(64, 64, bias=True),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			nn.Linear(64, 1)
 			)
 			
@@ -480,8 +494,8 @@ class V_network(nn.Module):
 				# 	nn.init.xavier_uniform_(param)
 				nn.init.orthogonal_(param)
 
-		nn.init.orthogonal_(self.v_value_layer[0].weight)
-		nn.init.orthogonal_(self.v_value_layer[2].weight)
+		nn.init.orthogonal_(self.v_value_layer[1].weight)
+		nn.init.orthogonal_(self.v_value_layer[4].weight)
 
 
 	# We assume that the agent in question's actions always impact its rewards
