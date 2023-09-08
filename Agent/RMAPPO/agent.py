@@ -447,7 +447,7 @@ class PPOAgent:
 
 		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
 		target_V_values = Values_old.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage.shape) + advantage # gae return
-		advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards, dones, masks)
+		advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
 		target_Q_values = Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage_Q.shape) + advantage_Q
 
 
