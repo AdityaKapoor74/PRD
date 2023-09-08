@@ -353,7 +353,7 @@ class PPOAgent:
 				advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
 		elif "prd_soft_advantage" in self.experiment_type:
 			if episode > self.steps_to_take:
-				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd * self.num_agents, -1, -2), dim=-1)
+				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
 			else:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 			advantage = self.calculate_advantages(V_values, V_values_old, rewards_, dones, masks)
