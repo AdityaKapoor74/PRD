@@ -337,9 +337,9 @@ if __name__ == '__main__':
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
 				"attention_dropout_prob_v": 0.0,
-				"q_weight_decay": 0.0,
-				"v_weight_decay": 0.0,
-				"enable_grad_clip_critic": True,
+				"q_weight_decay": 5e-4,
+				"v_weight_decay": 5e-4,
+				"enable_grad_clip_critic": False,
 				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
@@ -354,11 +354,11 @@ if __name__ == '__main__':
 
 				# ACTOR
 				"rnn_hidden_actor": 64,
-				"enable_grad_clip_actor": True,
+				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 10.0,	
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
-				"policy_weight_decay": 0.0,
+				"policy_weight_decay": 5e-4,
 				"entropy_pen": 3e-3, #8e-3
 				"entropy_pen_final": 3e-3,
 				"entropy_pen_steps": 500,
