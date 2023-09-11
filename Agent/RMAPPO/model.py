@@ -19,11 +19,16 @@ class MLP_Policy(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
-		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim+num_actions, 64), nn.GELU())
-		self.pre_rnn_layer_norm = nn.LayerNorm(64)
+		self.Layer_1 = nn.Sequential(
+			nn.Linear(obs_input_dim+num_actions, 64), 
+			nn.LayerNorm(64), 
+			nn.GELU()
+			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
-		self.post_rnn_layer_norm = nn.LayerNorm(64)
-		self.Layer_2 = nn.Linear(64, num_actions)
+		self.Layer_2 = nn.Sequential(
+			nn.LayerNorm(64),
+			nn.Linear(64, num_actions)
+			)
 
 		self.reset_parameters()
 
@@ -38,26 +43,26 @@ class MLP_Policy(nn.Module):
 				# else:
 				# 	nn.init.xavier_uniform_(param)
 				nn.init.orthogonal_(param)
-		nn.init.orthogonal_(self.Layer_2.weight)
+		nn.init.orthogonal_(self.Layer_2[1].weight)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
 		local_observations = self.feature_norm(local_observations)
 		if update == False:
-			intermediate = self.pre_rnn_layer_norm(self.Layer_1(local_observations))
+			intermediate = self.Layer_1(local_observations)
 			output, h = self.RNN(intermediate, hidden_state)
-			output = self.post_rnn_layer_norm(output)
+			# output = self.post_rnn_layer_norm(output)
 			logits = self.Layer_2(output)
 			logits = torch.where(mask_actions, logits, self.mask_value)
 			return F.softmax(logits, dim=-1).squeeze(1), h
 		else:
 			# local_observations --> batch, timesteps, num_agents, dim
 			batch, timesteps, num_agents, _ = local_observations.shape
-			intermediate = self.pre_rnn_layer_norm(self.Layer_1(local_observations))
+			intermediate = self.Layer_1(local_observations)
 			intermediate = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 			output, h = self.RNN(intermediate, hidden_state)
 			output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-			output = self.post_rnn_layer_norm(output)
+			# output = self.post_rnn_layer_norm(output)
 			logits = self.Layer_2(output)
 			logits = torch.where(mask_actions, logits, self.mask_value)
 			# print(torch.sum(mask_actions), mask_actions.reshape(-1).shape, torch.sum(mask_actions)/mask_actions.reshape(-1).shape[0])
@@ -113,26 +118,26 @@ class Q_network(nn.Module):
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
+			nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(64)
 			)
 
 		self.ally_state_embed_2 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 32, bias=True), 
+			nn.LayerNorm(32),
 			nn.GELU(),
-			nn.LayerNorm(32)
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
+			nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(64)
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
 			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
+			nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(64)
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -176,15 +181,15 @@ class Q_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			nn.Linear(32+64+64, 64, bias=True), 
+			nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(64)
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
 			nn.LayerNorm(64),
 			nn.Linear(64, 64, bias=True),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			nn.Linear(64, self.num_actions)
 			)
 			
@@ -381,26 +386,26 @@ class V_network(nn.Module):
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		self.ally_state_embed_2 = nn.Sequential(
 			nn.Linear(ally_obs_input_dim, 32, bias=True), 
-			nn.GELU(),
 			nn.LayerNorm(32),
+			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
 			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -444,15 +449,15 @@ class V_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			nn.Linear(32+64+64, 64, bias=True), 
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
 			nn.LayerNorm(64),
 			nn.Linear(64, 64, bias=True),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			nn.Linear(64, 1)
 			)
 			
