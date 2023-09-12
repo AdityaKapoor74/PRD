@@ -249,7 +249,8 @@ class PPOAgent:
 		values_old = values.reshape(self.update_ppo_agent, -1, self.num_agents)
 		rewards = rewards.reshape(self.update_ppo_agent, -1, self.num_agents)
 		dones = dones.reshape(self.update_ppo_agent, -1, self.num_agents)
-		masks_ = masks_.reshape(self.update_ppo_agent, -1, 1)
+		# masks_ = masks_.reshape(self.update_ppo_agent, -1, 1)
+		masks_ = masks_.reshape(self.update_ppo_agent, -1, self.num_agents)
 		advantages = rewards.new_zeros(*rewards.shape)
 		# next_value = 0
 		advantage = 0
@@ -396,9 +397,10 @@ class PPOAgent:
 		old_logprobs = torch.FloatTensor(self.buffer.logprobs).reshape(-1, self.num_agents)
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).reshape(-1, self.num_agents)
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().reshape(-1, self.num_agents)
-		masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
+		# masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
+		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)[:, :-1, :]
 
-		batch, time_steps = masks.shape
+		batch, time_steps, _ = masks.shape
 		rnn_hidden_state_q = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_q)
 		rnn_hidden_state_v = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_v)
 		rnn_hidden_state_actor = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_actor)
@@ -457,7 +459,8 @@ class PPOAgent:
 
 		rewards = rewards.reshape(-1, self.num_agents)
 		dones = dones.reshape(-1, self.num_agents)
-		masks = masks.reshape(-1, 1)
+		# masks = masks.reshape(-1, 1)
+		masks = masks.reshape(-1, self.num_agents)
 
 		q_value_loss_batch = 0
 		v_value_loss_batch = 0
@@ -514,13 +517,13 @@ class PPOAgent:
 
 			Values = Values.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
 			Values_old_ = Values_old.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
-			critic_v_loss_1 = F.mse_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / (self.num_agents*masks.sum())
-			critic_v_loss_2 = F.mse_loss(torch.clamp(Values, Values_old_.to(self.device)-self.value_clip, Values_old_.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / (self.num_agents*masks.sum())
+			critic_v_loss_1 = F.mse_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
+			critic_v_loss_2 = F.mse_loss(torch.clamp(Values, Values_old_.to(self.device)-self.value_clip, Values_old_.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
 
 			Q_values = Q_values.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
 			Q_values_old_ = Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
-			critic_q_loss_1 = F.mse_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / (self.num_agents*masks.sum())
-			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_values, Q_values_old_.to(self.device)-self.value_clip, Q_values_old_.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / (self.num_agents*masks.sum())
+			critic_q_loss_1 = F.mse_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
+			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_values, Q_values_old_.to(self.device)-self.value_clip, Q_values_old_.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp((logprobs - old_logprobs.to(self.device))*masks.to(self.device))
@@ -530,17 +533,18 @@ class PPOAgent:
 
 			# final loss of clipped objective PPO
 			# entropy = -torch.mean(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))
-			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/(masks.sum()*self.num_agents)
+			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks.sum() #(masks.sum()*self.num_agents)
 			# policy_loss = (-torch.min(surr1, surr2).mean() - self.entropy_pen*entropy)
-			policy_loss = ((-torch.min(surr1, surr2).sum())/(masks.sum()*self.num_agents) - self.entropy_pen*entropy)
+			# policy_loss = ((-torch.min(surr1, surr2).sum())/(masks.sum()*self.num_agents) - self.entropy_pen*entropy)
+			policy_loss = ((-torch.min(surr1, surr2).sum())/masks.sum() - self.entropy_pen*entropy)
 			
 			entropy_weights = 0
 			entropy_weights_v = 0
 			for i in range(self.num_heads):
 				# entropy_weights += -torch.mean(torch.sum((weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device)), dim=-1))
 				# entropy_weights_v += -torch.mean(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device), dim=-1))
-				entropy_weights += -torch.sum(torch.sum((weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device)), dim=-1))/(masks.sum()*self.num_agents)
-				entropy_weights_v += -torch.sum(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device), dim=-1))/(masks.sum()*self.num_agents)
+				entropy_weights += -torch.sum(torch.sum((weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device)), dim=-1))/masks.sum() #(masks.sum()*self.num_agents)
+				entropy_weights_v += -torch.sum(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device), dim=-1))/masks.sum() #(masks.sum()*self.num_agents)
 
 				
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights
