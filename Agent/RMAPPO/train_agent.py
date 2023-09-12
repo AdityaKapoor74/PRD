@@ -197,7 +197,7 @@ class MAPPO:
 
 
 				next_states_actor, rewards, dones, info = self.env.step(actions)
-				dones = [int(dones)]*self.num_agents
+				# dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
@@ -240,7 +240,7 @@ class MAPPO:
 						one_hot_actions[i][act] = 1
 
 					_, _, dones, _ = self.env.step(actions)
-					dones = [int(dones)]*self.num_agents
+					# dones = [int(dones)]*self.num_agents
 
 					self.agents.buffer.end_episode(final_timestep, states_allies_critic, states_enemies_critic, one_hot_actions, dones)
 
