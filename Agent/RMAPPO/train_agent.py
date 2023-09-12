@@ -359,8 +359,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.05,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 5e-2, #8e-3
-				"entropy_pen_final": 5e-2,
+				"entropy_pen": 6e-2, #8e-3
+				"entropy_pen_final": 6e-2,
 				"entropy_pen_steps": 500,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.105,
