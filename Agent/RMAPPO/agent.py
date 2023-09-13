@@ -451,7 +451,7 @@ class PPOAgent:
 
 		if self.norm_adv:
 			advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
-			advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks[:, :-1, :]
+			advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks
 			advantage = advantage.reshape(-1, self.num_agents)
 
 		if self.norm_returns:
