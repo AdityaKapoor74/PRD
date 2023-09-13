@@ -231,7 +231,7 @@ class PPOAgent:
 			hidden_state = torch.FloatTensor(hidden_state).to(self.device)
 			dists, hidden_state = self.policy_network(final_state_policy, hidden_state, mask_actions)
 			if self.warm_up:
-				available_actions = (mask_actions>=0).int()
+				available_actions = (mask_actions>0).int()
 				dists = (1.0-self.epsilon)*dists + available_actions*self.epsilon/torch.sum(available_actions, dim=-1).unsqueeze(-1)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
@@ -266,11 +266,11 @@ class PPOAgent:
 			# counter += 1
 
 		# advantages = torch.stack(advantages)
-		
+		advantages = advantages.reshape(-1, self.num_agents)
 		if self.norm_adv:
-			advantages = (advantages - advantages.mean()) / advantages.std()
+			advantages = ((advantages - advantages.mean(dim=0)) / advantages.std(dim=0))*masks[:, :-1, :].reshape(-1, self.num_agents)
 		
-		return advantages.reshape(-1, self.num_agents)
+		return advantages
 
 
 
@@ -309,13 +309,13 @@ class PPOAgent:
 		# ENTROPY OF Q WEIGHTS
 		for i in range(self.num_heads):
 			# entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_prd"][:,i]* torch.log(torch.clamp(self.plotting_dict["weights_prd"][:,i], 1e-10,1.0)), dim=-1))
-			entropy_weights = -torch.sum(torch.sum((self.plotting_dict["weights_prd"][:, i] * torch.log(torch.clamp(self.plotting_dict["weights_prd"][:, i], 1e-10, 1.0)) * masks.unsqueeze(-1)), dim=-1))/(masks.sum()*self.num_agents)
+			entropy_weights = -torch.sum(torch.sum((self.plotting_dict["weights_prd"][:, i] * torch.log(torch.clamp(self.plotting_dict["weights_prd"][:, i], 1e-10, 1.0)) * masks.unsqueeze(-1)), dim=-1))/masks.sum() #(masks.sum()*self.num_agents)
 			self.comet_ml.log_metric('Q_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
 
 		# ENTROPY OF V WEIGHTS
 		for i in range(self.num_heads):
 			# entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_v"][:,i]* torch.log(torch.clamp(self.plotting_dict["weights_v"][:,i], 1e-10,1.0)), dim=-1))
-			entropy_weights = -torch.sum(torch.sum((self.plotting_dict["weights_v"][:, i] * torch.log(torch.clamp(self.plotting_dict["weights_v"][:, i], 1e-10, 1.0)) * masks.unsqueeze(-1)), dim=-1))/(masks.sum()*self.num_agents)
+			entropy_weights = -torch.sum(torch.sum((self.plotting_dict["weights_v"][:, i] * torch.log(torch.clamp(self.plotting_dict["weights_v"][:, i], 1e-10, 1.0)) * masks.unsqueeze(-1)), dim=-1))/masks.sum() #(masks.sum()*self.num_agents)
 			self.comet_ml.log_metric('V_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
 
 
@@ -549,6 +549,8 @@ class PPOAgent:
 				
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights_v
+
+			print(policy_loss.item(), entropy.item(), critic_v_loss.item(), critic_q_loss.item())
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
