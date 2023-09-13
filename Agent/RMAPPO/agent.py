@@ -266,9 +266,6 @@ class PPOAgent:
 			# counter += 1
 
 		# advantages = torch.stack(advantages)
-		# advantages = advantages.reshape(-1, self.num_agents)
-		if self.norm_adv:
-			advantages = ((advantages - advantages.mean(dim=1).unsqueeze(1)) / advantages.std(dim=1).unsqueeze(1))*masks[:, :-1, :]
 		
 		return advantages.reshape(-1, self.num_agents)
 
@@ -452,6 +449,10 @@ class PPOAgent:
 		advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
 		target_Q_values = Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage_Q.shape) + advantage_Q
 
+		if self.norm_adv:
+			advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
+			advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks[:, :-1, :]
+			advantage = advantage.reshape(-1, self.num_agents)
 
 		if self.norm_returns:
 			target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
