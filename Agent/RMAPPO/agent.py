@@ -550,7 +550,7 @@ class PPOAgent:
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights_v
 
-			print(policy_loss.item(), entropy.item(), critic_v_loss.item(), critic_q_loss.item())
+			# print(policy_loss.item(), entropy.item(), critic_v_loss.item(), critic_q_loss.item())
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
