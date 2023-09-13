@@ -252,14 +252,14 @@ class PPOAgent:
 		# masks_ = masks_.reshape(self.update_ppo_agent, -1, 1)
 		masks_ = masks_.reshape(self.update_ppo_agent, -1, self.num_agents)
 		advantages = rewards.new_zeros(*rewards.shape)
-		# next_value = 0
+		next_value = 0
 		advantage = 0
 		masks = 1 - dones
 		# counter = 0
 		for t in reversed(range(0, rewards.shape[1])):
-			next_value = values_old.data[:,t+1,:]
+			# next_value = values_old.data[:,t+1,:]
 			td_error = rewards[:,t,:] + (self.gamma * next_value * masks[:,t,:]) - values.data[:,t,:]
-			# next_value = values_old.data[:, t, :]
+			next_value = values_old.data[:, t, :]
 			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * masks[:,t,:]))*masks_[:,t,:]
 			# advantages.insert(0, advantage)
 			advantages[:,t,:] = advantage
