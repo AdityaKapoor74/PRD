@@ -340,7 +340,7 @@ if __name__ == '__main__':
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic": True,
-				"grad_clip_critic": 1.0,
+				"grad_clip_critic": 10.0,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
@@ -355,7 +355,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
-				"grad_clip_actor": 1.0,	
+				"grad_clip_actor": 10.0,	
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
@@ -368,7 +368,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": False,
+				"norm_adv": True,
 
 				"network_update_interval": 1,
 			}
