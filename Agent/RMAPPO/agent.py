@@ -266,11 +266,11 @@ class PPOAgent:
 			# counter += 1
 
 		# advantages = torch.stack(advantages)
-		advantages = advantages.reshape(-1, self.num_agents)
+		# advantages = advantages.reshape(-1, self.num_agents)
 		if self.norm_adv:
-			advantages = ((advantages - advantages.mean(dim=0)) / advantages.std(dim=0))*masks[:, :-1, :].reshape(-1, self.num_agents)
+			advantages = ((advantages - advantages.mean(dim=1).unsqueeze(1)) / advantages.std(dim=1).unsqueeze(1))*masks[:, :-1, :]
 		
-		return advantages
+		return advantages.reshape(-1, self.num_agents)
 
 
 
