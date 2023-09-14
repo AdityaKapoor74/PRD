@@ -237,9 +237,11 @@ class Q_network(nn.Module):
 		# print(states_key_embed.shape)
 		# KEYS
 		key_obs = self.key(states_key_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		print(key_obs.shape)
 		# print(key_obs.shape)
 		# QUERIES
 		query_obs = self.query(states_query_embed).reshape(batch*timesteps, num_agents, 1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		print(query_obs.shape)
 		# print(query_obs.shape)
 		# HARD ATTENTION
 		if self.enable_hard_attention:
@@ -256,7 +258,7 @@ class Q_network(nn.Module):
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
 			# print(hard_attention_weights.shape)
 		# SOFT ATTENTION
-		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt((self.d_k//self.num_heads)) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
 		weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
@@ -475,7 +477,7 @@ class V_network(nn.Module):
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
 			# print(hard_attention_weights.shape)
 		# SOFT ATTENTION
-		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt(self.d_k//self.num_heads) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
 		weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
