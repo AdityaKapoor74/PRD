@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -205,6 +206,23 @@ class PPOAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
+	def get_lr(self, it, learning_rate):
+		# 1) linear warmup for warmup_iters steps
+		warmup_iters = 500
+		lr_decay_iters = 30000
+		min_lr = 5e-5
+		if it < warmup_iters:
+			learning_rate = 5e-4
+			return learning_rate * it / warmup_iters
+		# 2) if it > lr_decay_iters, return min learning rate
+		if it > lr_decay_iters:
+			return min_lr
+		# 3) in between, use cosine decay down to min learning rate
+		decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+		assert 0 <= decay_ratio <= 1
+		coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
+		return min_lr + coeff * (learning_rate - min_lr)
+
 	def get_critic_hidden_state(self, state_allies, state_enemies, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v):
 		with torch.no_grad():
 			state_allies = torch.FloatTensor(state_allies).unsqueeze(0)
@@ -404,6 +422,20 @@ class PPOAgent:
 
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
+		self.v_value_lr = self.get_lr(episode, self.v_value_lr)
+		for param_group in self.v_critic_optimizer.param_groups:
+			param_group['lr'] = self.v_value_lr
+
+		self.q_value_lr = self.get_lr(episode, self.q_value_lr)
+		for param_group in self.q_critic_optimizer.param_groups:
+			param_group['lr'] = self.q_value_lr
+
+		self.policy_lr = self.get_lr(episode, self.policy_lr)
+		for param_group in self.policy_optimizer.param_groups:
+			param_group['lr'] = self.policy_lr
+
+		print(self.v_value_lr, self.q_value_lr, self.policy_lr)
+
 		with torch.no_grad():
 			# OLD VALUES
 			Q_values_old, weights_prd_old, _, _ = self.critic_network_q(
@@ -546,8 +578,9 @@ class PPOAgent:
 				# entropy_weights_v += -torch.mean(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device), dim=-1))
 				entropy_weights += -torch.sum(torch.sum((weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device)), dim=-1))/masks.sum() #(masks.sum()*self.num_agents)
 				entropy_weights_v += -torch.sum(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.unsqueeze(-1).to(self.device), dim=-1))/masks.sum() #(masks.sum()*self.num_agents)
+			
+			# print(entropy_weights.item()/4, entropy_weights_v.item()/4)
 
-				
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights_v
 
