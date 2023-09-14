@@ -237,11 +237,9 @@ class Q_network(nn.Module):
 		# print(states_key_embed.shape)
 		# KEYS
 		key_obs = self.key(states_key_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
-		print(key_obs.shape)
 		# print(key_obs.shape)
 		# QUERIES
 		query_obs = self.query(states_query_embed).reshape(batch*timesteps, num_agents, 1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
-		print(query_obs.shape)
 		# print(query_obs.shape)
 		# HARD ATTENTION
 		if self.enable_hard_attention:
