@@ -5,6 +5,17 @@ import numpy as np
 import math
 from utils import gumbel_sigmoid
 
+def init(module, weight_init, bias_init, gain=1):
+    weight_init(module.weight.data, gain=gain)
+    if module.bias is not None:
+        bias_init(module.bias.data)
+    return module
+
+def init_(m, gain=0.01, activate=False):
+    if activate:
+        gain = nn.init.calculate_gain('relu')
+    return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
+
 
 class MLP_Policy(nn.Module):
 	def __init__(self, obs_input_dim, num_actions, num_agents, device):
@@ -20,30 +31,21 @@ class MLP_Policy(nn.Module):
 		self.device = device
 		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
 		self.Layer_1 = nn.Sequential(
-			nn.Linear(obs_input_dim+num_actions, 64), 
+			init_(nn.Linear(obs_input_dim+num_actions, 64)), 
 			nn.LayerNorm(64), 
 			nn.GELU()
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Sequential(
 			nn.LayerNorm(64),
-			nn.Linear(64, num_actions)
+			init_(nn.Linear(64, num_actions))
 			)
 
-		self.reset_parameters()
-
-	def reset_parameters(self):
-		nn.init.orthogonal_(self.Layer_1[0].weight)
 		for name, param in self.RNN.named_parameters():
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				# if self._use_orthogonal:
-				# 	nn.init.orthogonal_(param)
-				# else:
-				# 	nn.init.xavier_uniform_(param)
 				nn.init.orthogonal_(param)
-		nn.init.orthogonal_(self.Layer_2[1].weight)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
@@ -109,8 +111,6 @@ class Q_network(nn.Module):
 
 		self.attention_dropout = AttentionDropout(dropout_prob=attention_dropout_prob)
 
-		# self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
-
 		self.temperature = temperature
 
 		self.allies_feature_norm = nn.LayerNorm(ally_obs_input_dim)
@@ -118,66 +118,48 @@ class Q_network(nn.Module):
 
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
-			nn.Linear(ally_obs_input_dim, 64, bias=True), 
+			init_(nn.Linear(ally_obs_input_dim, 64, bias=True)),
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
-		# self.ally_state_embed_2 = nn.Sequential(
-		# 	nn.Linear(ally_obs_input_dim, 32, bias=True), 
-		# 	nn.LayerNorm(32),
-		# 	nn.GELU(),
-		# 	)
-
 		self.enemy_state_embed = nn.Sequential(
-			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
+			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True)),
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
-			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
+			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True)), 
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 64%self.num_heads == 0
-		self.key = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64, bias=True), 
-					# nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)])
-		self.query = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64, bias=True), 
-					# nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)])
-		self.attention_value = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64//self.num_heads, bias=True), 
-					# nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)])
+		self.key = init_(nn.Linear(64, 64, bias=True))
+		self.query = init_(nn.Linear(64, 64, bias=True))
+		self.attention_value = init_(nn.Linear(64, 64, bias=True))
 
 		self.attention_value_dropout = nn.Dropout(0.2)
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			nn.Linear(64, 2048),
+			init_(nn.Linear(64, 2048)),
 			nn.LayerNorm(2048),
 			nn.GELU(),
 			nn.Dropout(0.2),
-			nn.Linear(2048, 64)
+			init_(nn.Linear(2048, 64))
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
-			self.hard_attention = nn.ModuleList([nn.Sequential(
-						nn.Linear(64*2, 64//self.num_heads),
-						# nn.GELU(),
-						).to(self.device) for _ in range(self.num_heads)])
-
-			self.hard_attention_linear = nn.Sequential(
-				nn.Linear(64, 2)
+			self.hard_attention = nn.Sequential(
+				init_(nn.Linear(64+64, 64)), 
+				nn.GELU(), 
+				init_(nn.Linear(64, 2))
 				)
 
 
@@ -186,60 +168,24 @@ class Q_network(nn.Module):
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			nn.Linear(64+64+64, 128, bias=True), 
+			init_(nn.Linear(64+64+64, 128, bias=True)), 
 			nn.LayerNorm(128),
 			nn.GELU(),
-			nn.Linear(128, 64),
+			init_(nn.Linear(128, 64)),
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
 			nn.LayerNorm(64),
-			nn.Linear(64, self.num_actions)
+			init_(nn.Linear(64, self.num_actions))
 			)
-			
-		# ********************************************************************************************************
-		self.reset_parameters()
-
-
-	def reset_parameters(self):
-		"""Reinitialize learnable parameters."""
-		# gain = nn.init.calculate_gain('tanh', 0.01)
-
-		# Embedding Networks
-		nn.init.orthogonal_(self.ally_state_embed_1[0].weight)
-		# nn.init.orthogonal_(self.ally_state_embed_2[0].weight)
-		nn.init.orthogonal_(self.enemy_state_embed[0].weight)
-		nn.init.orthogonal_(self.ally_state_act_embed[0].weight)
-
-		# Key, Query, Attention Value, Hard Attention Networks
-		for i in range(self.num_heads):
-			nn.init.orthogonal_(self.key[i][0].weight)
-			nn.init.orthogonal_(self.query[i][0].weight)
-			nn.init.orthogonal_(self.attention_value[i][0].weight)
-			if self.enable_hard_attention:
-				nn.init.orthogonal_(self.hard_attention[i][0].weight)
-
-		nn.init.orthogonal_(self.attention_value_linear[0].weight)
-		nn.init.orthogonal_(self.attention_value_linear[4].weight)
-		if self.enable_hard_attention:
-			nn.init.orthogonal_(self.hard_attention_linear[0].weight)
-
-		nn.init.orthogonal_(self.common_layer[0].weight)
-		nn.init.orthogonal_(self.common_layer[3].weight)
 
 		for name, param in self.RNN.named_parameters():
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				# if self._use_orthogonal:
-				# 	nn.init.orthogonal_(param)
-				# else:
-				# 	nn.init.xavier_uniform_(param)
 				nn.init.orthogonal_(param)
-
-		nn.init.orthogonal_(self.q_value_layer[1].weight)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -290,21 +236,21 @@ class Q_network(nn.Module):
 		states_key_embed = self.remove_self_loops(states_key_embed) # Batch_size, Num agents, Num Agents - 1, dim
 		# print(states_key_embed.shape)
 		# KEYS
-		key_obs = torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		key_obs = self.key(states_key_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
 		# print(key_obs.shape)
 		# QUERIES
-		query_obs = torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		query_obs = self.query(states_query_embed).reshape(batch*timesteps, num_agents, 1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
 		# print(query_obs.shape)
 		# HARD ATTENTION
 		if self.enable_hard_attention:
-			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1).permute(0, 2, 3, 1, 4).reshape(batch*timesteps, num_agents, num_agents-1, -1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
 			# print(query_key_concat.shape)
-			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
+			query_key_concat_intermediate = self.hard_attention(query_key_concat)#torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
 			# print(query_key_concat_intermediate.shape)
 			# GUMBEL SIGMOID, did not work that well
 			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
 			# GUMBEL SOFTMAX
-			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
+			hard_attention_weights = F.gumbel_softmax(query_key_concat_intermediate, hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
@@ -325,7 +271,7 @@ class Q_network(nn.Module):
 		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
-		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
+		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		# print(attention_values.shape)
 		aggregated_node_features = self.attention_value_dropout(torch.matmul(weight, attention_values).squeeze(-2)) # Batch_size, Num heads, Num agents, dim//num_heads
 		# print(aggregated_node_features.shape)
@@ -384,8 +330,6 @@ class V_network(nn.Module):
 
 		self.attention_dropout = AttentionDropout(dropout_prob=attention_dropout_prob)
 
-		# self.positional_embedding = nn.Parameter(torch.randn(num_agents, 64))
-
 		self.temperature = temperature
 
 		self.allies_feature_norm = nn.LayerNorm(ally_obs_input_dim)
@@ -393,66 +337,48 @@ class V_network(nn.Module):
 
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
-			nn.Linear(ally_obs_input_dim, 64, bias=True), 
+			init_(nn.Linear(ally_obs_input_dim, 64, bias=True)),
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
-		# self.ally_state_embed_2 = nn.Sequential(
-		# 	nn.Linear(ally_obs_input_dim, 32, bias=True), 
-		# 	nn.LayerNorm(32),
-		# 	nn.GELU(),
-		# 	)
-
 		self.enemy_state_embed = nn.Sequential(
-			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
+			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True)),
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
-			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
+			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True)), 
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 64%self.num_heads == 0
-		self.key = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64, bias=True), 
-					# nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)])
-		self.query = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64, bias=True), 
-					# nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)])
-		self.attention_value = nn.ModuleList([nn.Sequential(
-					nn.Linear(64, 64//self.num_heads, bias=True), 
-					# nn.GELU()
-					).to(self.device) for _ in range(self.num_heads)])
+		self.key = init_(nn.Linear(64, 64, bias=True))
+		self.query = init_(nn.Linear(64, 64, bias=True))
+		self.attention_value = init_(nn.Linear(64, 64, bias=True))
 
 		self.attention_value_dropout = nn.Dropout(0.2)
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			nn.Linear(64, 2048),
+			init_(nn.Linear(64, 2048)),
 			nn.LayerNorm(2048),
 			nn.GELU(),
 			nn.Dropout(0.2),
-			nn.Linear(2048, 64)
+			init_(nn.Linear(2048, 64))
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
-			self.hard_attention = nn.ModuleList([nn.Sequential(
-						nn.Linear(64*2, 64//self.num_heads),
-						# nn.GELU(),
-						).to(self.device) for _ in range(self.num_heads)])
-
-			self.hard_attention_linear = nn.Sequential(
-				nn.Linear(64, 2)
+			self.hard_attention = nn.Sequential(
+				init_(nn.Linear(64+64, 64)), 
+				nn.GELU(), 
+				init_(nn.Linear(64, 2))
 				)
 
 
@@ -461,60 +387,24 @@ class V_network(nn.Module):
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			nn.Linear(64+64+64, 128, bias=True), 
+			init_(nn.Linear(64+64+64, 128, bias=True)), 
 			nn.LayerNorm(128),
 			nn.GELU(),
-			nn.Linear(128, 64),
+			init_(nn.Linear(128, 64)),
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
 			nn.LayerNorm(64),
-			nn.Linear(64, 1)
+			init_(nn.Linear(64, 1))
 			)
-			
-		# ********************************************************************************************************
-		self.reset_parameters()
-
-
-	def reset_parameters(self):
-		"""Reinitialize learnable parameters."""
-		# gain = nn.init.calculate_gain('tanh', 0.01)
-
-		# Embedding Networks
-		nn.init.orthogonal_(self.ally_state_embed_1[0].weight)
-		# nn.init.orthogonal_(self.ally_state_embed_2[0].weight)
-		nn.init.orthogonal_(self.enemy_state_embed[0].weight)
-		nn.init.orthogonal_(self.ally_state_act_embed[0].weight)
-
-		# Key, Query, Attention Value, Hard Attention Networks
-		for i in range(self.num_heads):
-			nn.init.orthogonal_(self.key[i][0].weight)
-			nn.init.orthogonal_(self.query[i][0].weight)
-			nn.init.orthogonal_(self.attention_value[i][0].weight)
-			if self.enable_hard_attention:
-				nn.init.orthogonal_(self.hard_attention[i][0].weight)
-
-		nn.init.orthogonal_(self.attention_value_linear[0].weight)
-		nn.init.orthogonal_(self.attention_value_linear[4].weight)
-		if self.enable_hard_attention:
-			nn.init.orthogonal_(self.hard_attention_linear[0].weight)
-
-		nn.init.orthogonal_(self.common_layer[0].weight)
-		nn.init.orthogonal_(self.common_layer[3].weight)
 
 		for name, param in self.RNN.named_parameters():
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				# if self._use_orthogonal:
-				# 	nn.init.orthogonal_(param)
-				# else:
-				# 	nn.init.xavier_uniform_(param)
 				nn.init.orthogonal_(param)
-
-		nn.init.orthogonal_(self.v_value_layer[1].weight)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -565,21 +455,21 @@ class V_network(nn.Module):
 		states_key_embed = self.remove_self_loops(states_key_embed) # Batch_size, Num agents, Num Agents - 1, dim
 		# print(states_key_embed.shape)
 		# KEYS
-		key_obs = torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		key_obs = self.key(states_key_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
 		# print(key_obs.shape)
 		# QUERIES
-		query_obs = torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		query_obs = self.query(states_query_embed).reshape(batch*timesteps, num_agents, 1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
 		# print(query_obs.shape)
 		# HARD ATTENTION
 		if self.enable_hard_attention:
-			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1).permute(0, 2, 3, 1, 4).reshape(batch*timesteps, num_agents, num_agents-1, -1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
 			# print(query_key_concat.shape)
-			query_key_concat_intermediate = torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
+			query_key_concat_intermediate = self.hard_attention(query_key_concat)#torch.cat([self.hard_attention[i](query_key_concat[:,i]) for i in range(self.num_heads)], dim=-1) # Batch_size, Num agents, Num agents-1, dim
 			# print(query_key_concat_intermediate.shape)
 			# GUMBEL SIGMOID, did not work that well
 			# hard_attention_weights = gumbel_sigmoid(self.hard_attention_linear(query_key_concat_intermediate), hard=True) # Batch_size, Num agents, Num Agents - 1, 1
 			# GUMBEL SOFTMAX
-			hard_attention_weights = F.gumbel_softmax(self.hard_attention_linear(query_key_concat_intermediate), hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
+			hard_attention_weights = F.gumbel_softmax(query_key_concat_intermediate, hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
@@ -600,7 +490,7 @@ class V_network(nn.Module):
 		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
-		attention_values = torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
+		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		# print(attention_values.shape)
 		aggregated_node_features = self.attention_value_dropout(torch.matmul(weight, attention_values).squeeze(-2)) # Batch_size, Num heads, Num agents, dim//num_heads
 		# print(aggregated_node_features.shape)
@@ -626,7 +516,7 @@ class V_network(nn.Module):
 		output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
 		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
 		V_value = self.v_value_layer(output) # Batch_size, Num agents, num_actions
-
+		
 		return V_value.squeeze(-1), weights, score, h
 
 
