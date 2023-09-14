@@ -6,7 +6,7 @@ import math
 from utils import gumbel_sigmoid
 
 def init(module, weight_init, bias_init, gain=1):
-    weight_init(module.weight.data, mean=0.0, std=0.02)
+    weight_init(module.weight.data)
     if module.bias is not None:
         bias_init(module.bias.data)
     return module
@@ -14,7 +14,7 @@ def init(module, weight_init, bias_init, gain=1):
 def init_(m, gain=0.01, activate=False):
     if activate:
         gain = nn.init.calculate_gain('relu')
-    return init(m, nn.init.normal_, lambda x: nn.init.constant_(x, 0), gain=gain)
+    return init(m, nn.init.xavier_uniform_, lambda x: nn.init.constant_(x, 0), gain=gain)
 
 
 class MLP_Policy(nn.Module):
