@@ -6,7 +6,7 @@ import math
 from utils import gumbel_sigmoid
 
 def init(module, weight_init, bias_init, gain=1):
-    weight_init(module.weight.data, gain=gain)
+    weight_init(module.weight.data, mean=0.0, std=0.02)
     if module.bias is not None:
         bias_init(module.bias.data)
     return module
@@ -14,7 +14,7 @@ def init(module, weight_init, bias_init, gain=1):
 def init_(m, gain=0.01, activate=False):
     if activate:
         gain = nn.init.calculate_gain('relu')
-    return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
+    return init(m, nn.init.normal_, lambda x: nn.init.constant_(x, 0), gain=gain)
 
 
 class MLP_Policy(nn.Module):
@@ -32,8 +32,8 @@ class MLP_Policy(nn.Module):
 		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
 		self.Layer_1 = nn.Sequential(
 			init_(nn.Linear(obs_input_dim+num_actions, 64)),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Sequential(
@@ -119,20 +119,20 @@ class Q_network(nn.Module):
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True)),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True)),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True)), 
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -146,9 +146,9 @@ class Q_network(nn.Module):
 
 		self.attention_value_linear = nn.Sequential(
 			init_(nn.Linear(64, 2048)),
-			nn.GELU(),
 			nn.LayerNorm(2048),
 			nn.Dropout(0.2),
+			nn.GELU(),
 			init_(nn.Linear(2048, 64))
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -169,11 +169,11 @@ class Q_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 128, bias=True)), 
-			nn.GELU(),
 			nn.LayerNorm(128),
-			init_(nn.Linear(128, 64)),
 			nn.GELU(),
+			init_(nn.Linear(128, 64)),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
@@ -261,6 +261,7 @@ class Q_network(nn.Module):
 		weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
+		# print(weights[-11])
 		# print(weights.shape)
 
 		for head in range(self.num_heads):
@@ -338,20 +339,20 @@ class V_network(nn.Module):
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True)),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True)),
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True)), 
-			nn.GELU(),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -365,9 +366,9 @@ class V_network(nn.Module):
 
 		self.attention_value_linear = nn.Sequential(
 			init_(nn.Linear(64, 2048)),
-			nn.GELU(),
 			nn.LayerNorm(2048),
 			nn.Dropout(0.2),
+			nn.GELU(),
 			init_(nn.Linear(2048, 64))
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -388,11 +389,11 @@ class V_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 128, bias=True)), 
-			nn.GELU(),
 			nn.LayerNorm(128),
-			init_(nn.Linear(128, 64)),
 			nn.GELU(),
+			init_(nn.Linear(128, 64)),
 			nn.LayerNorm(64),
+			nn.GELU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
