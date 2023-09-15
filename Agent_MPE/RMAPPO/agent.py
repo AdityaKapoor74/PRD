@@ -162,6 +162,10 @@ class PPOAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
+		if self.norm_returns:
+			self.v_value_norm = ValueNorm(input_shape=self.num_agents, norm_axes=1, device=self.device)
+			self.q_value_norm = ValueNorm(input_shape=self.num_agents, norm_axes=1, device=self.device)
+
 	def get_lr(self, it, learning_rate, warmup_iters, lr_decay_iters, min_lr):
 		# 1) linear warmup for warmup_iters steps
 		if it < warmup_iters:
