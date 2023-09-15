@@ -506,9 +506,9 @@ class PPOAgent:
 			advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks.to(self.device)
 			advantage = advantage.reshape(-1, self.num_agents)
 
-		if self.norm_returns:
-			target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
-			target_V_values = (target_V_values - target_V_values.mean()) / target_V_values.std()
+		# if self.norm_returns:
+		# 	target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
+		# 	target_V_values = (target_V_values - target_V_values.mean()) / target_V_values.std()
 
 		rewards = rewards.reshape(-1, self.num_agents)
 		dones = dones.reshape(-1, self.num_agents)
