@@ -311,7 +311,7 @@ if __name__ == '__main__':
 				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": False,
+				"save_comet_ml_plot": True,
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
@@ -358,8 +358,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_final": 8e-3,
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen_final": 1e-3,
 				"entropy_pen_steps": 1000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.1,
