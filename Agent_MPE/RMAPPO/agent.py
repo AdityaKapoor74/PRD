@@ -163,8 +163,8 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 		if self.norm_returns:
-			self.v_value_norm = ValueNorm(input_shape=self.num_agents, norm_axes=1, device=self.device)
-			self.q_value_norm = ValueNorm(input_shape=self.num_agents, norm_axes=1, device=self.device)
+			self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
+			self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
 
 	def get_lr(self, it, learning_rate, warmup_iters, lr_decay_iters, min_lr):
 		# 1) linear warmup for warmup_iters steps
@@ -416,9 +416,9 @@ class PPOAgent:
 
 		if self.norm_returns:
 			values_shape = Values_old.shape
-			Values_old = self.v_value_norm.denormalize(Values_old).view(values_shape)
+			Values_old = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
 			values_shape = Q_values_old.shape
-			Q_values_old = self.q_value_norm.denormalize(Q_values_old).view(values_shape)
+			Q_values_old = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
 
 		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
 		target_V_values = Values_old + advantage # gae return
@@ -427,12 +427,12 @@ class PPOAgent:
 
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
-			self.v_value_norm.update(target_V_values)
-			target_V_values = self.v_value_norm.normalize(target_V_values).view(targets_shape)
+			self.v_value_norm.update(target_V_values.view(-1))
+			target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape)
 
 			targets_shape = target_Q_values.shape
-			self.q_value_norm.update(target_Q_values)
-			target_Q_values = self.q_value_norm.normalize(target_Q_values).view(targets_shape)
+			self.q_value_norm.update(target_Q_values.view(-1))
+			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape)
 		
 		if self.norm_adv:
 			advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
