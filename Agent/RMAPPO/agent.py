@@ -208,8 +208,8 @@ class PPOAgent:
 
 	def get_lr(self, it, learning_rate):
 		# 1) linear warmup for warmup_iters steps
-		warmup_iters = 500
-		lr_decay_iters = 30000
+		warmup_iters = 250
+		lr_decay_iters = 20000
 		min_lr = 5e-5
 		if it < warmup_iters:
 			learning_rate = 5e-4
