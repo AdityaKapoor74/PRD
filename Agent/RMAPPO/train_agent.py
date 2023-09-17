@@ -287,7 +287,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -308,10 +308,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
@@ -358,7 +358,7 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 1e-3, #8e-3
 				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
@@ -376,8 +376,8 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["ally_observation"] = 4+env.n_agents #4+env.action_space[0].n+env.n_agents
-		dictionary["enemy_observation"] = 3
+		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #4+env.action_space[0].n+env.n_agents
+		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
