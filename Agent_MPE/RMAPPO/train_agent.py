@@ -288,7 +288,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 5,
+				"n_epochs": 1,
 				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
@@ -298,10 +298,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 20000,
 				"max_time_steps": 50,
@@ -354,7 +354,7 @@ if __name__ == '__main__':
 				"policy_lr_decay_iters": 20000, # usually till end
 				"policy_min_lr": 5e-5, # lr/10
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen": 0.0, #8e-3
 				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
