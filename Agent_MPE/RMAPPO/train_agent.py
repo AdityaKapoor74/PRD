@@ -316,14 +316,14 @@ if __name__ == '__main__':
 				# CRITIC
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 5e-4, #1e-3
-				"v_value_lr": 5e-4, #1e-3
+				"q_value_lr": 1e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
 				"q_lr_warmup_iters": 250, # arbitrary (should not be ~ to total training epochs)
 				"q_lr_decay_iters": 20000, # usually till end
-				"q_min_lr": 5e-5, # lr/10
+				"q_min_lr": 1e-5, # lr/10
 				"v_lr_warmup_iters": 250, # arbitrary (should not be ~ to total training epochs)
 				"v_lr_decay_iters": 20000, # usually till end
-				"v_min_lr": 5e-5, # lr/10
+				"v_min_lr": 1e-5, # lr/10
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -349,12 +349,12 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 10.0,	
 				"policy_clip": 0.2,
-				"policy_lr": 5e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"policy_lr_warmup_iters": 250, # arbitrary (should not be ~ to total training epochs)
 				"policy_lr_decay_iters": 20000, # usually till end
-				"policy_min_lr": 5e-5, # lr/10
+				"policy_min_lr": 1e-5, # lr/10
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 3e-3, #8e-3
+				"entropy_pen": 4e-3, #8e-3
 				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
