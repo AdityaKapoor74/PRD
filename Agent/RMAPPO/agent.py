@@ -207,8 +207,8 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 		if self.norm_returns:
-			self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
-			self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
+			self.v_value_norm = ValueNorm(input_shape=1, beta=0.9, norm_axes=1, device=self.device)
+			self.q_value_norm = ValueNorm(input_shape=1, beta=0.9, norm_axes=1, device=self.device)
 
 	def get_lr(self, it, learning_rate):
 		# 1) linear warmup for warmup_iters steps
