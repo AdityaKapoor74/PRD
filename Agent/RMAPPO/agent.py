@@ -207,8 +207,8 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 		if self.norm_returns:
-			self.v_value_norm = ValueNorm(input_shape=self.num_agents, norm_axes=1, device=self.device)
-			self.q_value_norm = ValueNorm(input_shape=self.num_agents, norm_axes=1, device=self.device)
+			self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
+			self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
 
 	def get_lr(self, it, learning_rate):
 		# 1) linear warmup for warmup_iters steps
@@ -318,6 +318,10 @@ class PPOAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
 
+		self.comet_ml.log_metric('Q_Value_LR',self.plotting_dict["q_value_lr"],episode)
+		self.comet_ml.log_metric('V_Value_LR',self.plotting_dict["v_value_lr"],episode)
+		self.comet_ml.log_metric('Policy_LR',self.plotting_dict["policy_lr"],episode)
+
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
 				agent_name = "agent"+str(i)
@@ -426,19 +430,19 @@ class PPOAgent:
 
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
-		self.v_value_lr = self.get_lr(episode, self.v_value_lr)
+		v_value_lr = self.get_lr(episode, self.v_value_lr)
 		for param_group in self.v_critic_optimizer.param_groups:
-			param_group['lr'] = self.v_value_lr
+			param_group['lr'] = v_value_lr
 
-		self.q_value_lr = self.get_lr(episode, self.q_value_lr)
+		q_value_lr = self.get_lr(episode, self.q_value_lr)
 		for param_group in self.q_critic_optimizer.param_groups:
-			param_group['lr'] = self.q_value_lr
+			param_group['lr'] = q_value_lr
 
-		self.policy_lr = self.get_lr(episode, self.policy_lr)
+		policy_lr = self.get_lr(episode, self.policy_lr)
 		for param_group in self.policy_optimizer.param_groups:
-			param_group['lr'] = self.policy_lr
+			param_group['lr'] = policy_lr
 
-		print(self.v_value_lr, self.q_value_lr, self.policy_lr)
+		print(v_value_lr, q_value_lr, policy_lr)
 
 		with torch.no_grad():
 			# OLD VALUES
@@ -481,9 +485,9 @@ class PPOAgent:
 
 		if self.norm_returns:
 			values_shape = Values_old.shape
-			Values_old = self.v_value_norm.denormalize(Values_old).view(values_shape)
+			Values_old = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
 			values_shape = Q_values_old.shape
-			Q_values_old = self.q_value_norm.denormalize(Q_values_old).view(values_shape)
+			Q_values_old = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
 
 		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
 		target_V_values = Values_old.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage.shape) + advantage # gae return
@@ -494,12 +498,12 @@ class PPOAgent:
 			targets_shape = target_V_values.shape
 			# targets = targets.reshape(-1)
 			self.v_value_norm.update(target_V_values)
-			target_V_values = self.v_value_norm.normalize(target_V_values).view(targets_shape)
+			target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape)
 
 			targets_shape = target_Q_values.shape
 			# targets = targets.reshape(-1)
 			self.q_value_norm.update(target_Q_values)
-			target_Q_values = self.q_value_norm.normalize(target_Q_values).view(targets_shape)
+			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape)
 
 		if self.norm_adv:
 			advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
@@ -604,7 +608,7 @@ class PPOAgent:
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights_v
 
-			# print(policy_loss.item(), entropy.item(), critic_v_loss.item(), critic_q_loss.item())
+			print(policy_loss.item(), entropy.item(), critic_v_loss.item(), critic_q_loss.item())
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
@@ -715,6 +719,9 @@ class PPOAgent:
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_prd": weight_prd_batch,
 		"weights_v": weight_v_batch,
+		"v_value_lr": v_value_lr,
+		"q_value_lr": q_value_lr,
+		"policy_lr": policy_lr,
 		}
 
 		if "threshold" in self.experiment_type:
