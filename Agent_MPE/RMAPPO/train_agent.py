@@ -354,7 +354,7 @@ if __name__ == '__main__':
 				"policy_lr_decay_iters": 20000, # usually till end
 				"policy_min_lr": 5e-5, # lr/10
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 0.0, #8e-3
+				"entropy_pen": 4e-3, #8e-3
 				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
