@@ -207,8 +207,8 @@ class PPOAgent:
 			self.comet_ml = comet_ml
 
 		if self.norm_returns:
-			self.v_value_norm = ValueNorm(input_shape=1, beta=0.9, norm_axes=1, device=self.device)
-			self.q_value_norm = ValueNorm(input_shape=1, beta=0.9, norm_axes=1, device=self.device)
+			self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
+			self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=self.device)
 
 	def get_lr(self, it, learning_rate):
 		# 1) linear warmup for warmup_iters steps
@@ -485,14 +485,14 @@ class PPOAgent:
 
 		if self.norm_returns:
 			values_shape = Values_old.shape
-			Values_old = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
+			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
 			values_shape = Q_values_old.shape
-			Q_values_old = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
+			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
 
-		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-		target_V_values = Values_old.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage.shape) + advantage # gae return
-		advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-		target_Q_values = Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage_Q.shape) + advantage_Q
+		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+		target_V_values = Values_old_.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage.shape) + advantage # gae return
+		advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
+		target_Q_values = Q_values_old_.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage_Q.shape) + advantage_Q
 
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
