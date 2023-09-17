@@ -82,6 +82,7 @@ class PPOAgent:
 		self.top_k = dictionary["top_k"]
 		self.norm_adv = dictionary["norm_adv"]
 		self.norm_returns = dictionary["norm_returns"]
+		self.norm_rewards = dictionary["norm_rewards"]
 		self.threshold_min = dictionary["threshold_min"]
 		self.threshold_max = dictionary["threshold_max"]
 		self.steps_to_take = dictionary["steps_to_take"]
@@ -416,14 +417,14 @@ class PPOAgent:
 
 		if self.norm_returns:
 			values_shape = Values_old.shape
-			Values_old = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
+			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
 			values_shape = Q_values_old.shape
-			Q_values_old = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
+			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
 
-		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-		target_V_values = Values_old + advantage # gae return
-		advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-		target_Q_values = Q_values_old + advantage_Q
+		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+		target_V_values = Values_old_ + advantage # gae return
+		advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
+		target_Q_values = Q_values_old_ + advantage_Q
 
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
@@ -434,6 +435,7 @@ class PPOAgent:
 			self.q_value_norm.update(target_Q_values.view(-1))
 			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape)
 		
+
 		if self.norm_adv:
 			advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
 			advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks.to(self.device)
@@ -514,6 +516,8 @@ class PPOAgent:
 			
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*(score_q**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*(score_v**2).sum(dim=-1).mean() + self.critic_weight_entropy_pen*entropy_weights_v
+
+			# print(critic_v_loss.item(), critic_q_loss.item())
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
