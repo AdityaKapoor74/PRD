@@ -37,13 +37,18 @@ class ValueNorm(nn.Module):
 		return debiased_mean, debiased_var
 
 	@torch.no_grad()
-	def update(self, input_vector):
+	def update(self, input_vector, mask):
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
 		input_vector = input_vector.to(**self.tpdv)
 
-		batch_mean = input_vector.mean(dim=tuple(range(self.norm_axes)))
-		batch_sq_mean = (input_vector ** 2).mean(dim=tuple(range(self.norm_axes)))
+		# batch_mean = input_vector.mean(dim=tuple(range(self.norm_axes)))
+		# batch_sq_mean = (input_vector ** 2).mean(dim=tuple(range(self.norm_axes)))
+		batch_mean = input_vector.sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+		batch_sq_mean = (input_vector ** 2).sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+
+		print("batch mean 1")
+		print(batch_mean)
 
 		if self.per_element_update:
 			batch_size = np.prod(input_vector.size()[:self.norm_axes])
@@ -73,6 +78,10 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
+		print("mean")
+		print(mean)
+		print("var")
+		print(var)
 		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
 		
 		return out
@@ -370,7 +379,7 @@ class Q_network(nn.Module):
 		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 		output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
 		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-		Q_value = self.q_value_layer(output) # Batch_size, Num agents, num_actions
+		Q_value = self.q_value_layer(output+curr_agent_node_features.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)) # Batch_size, Num agents, num_actions
 		# print(Q_value.shape)
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
 		# print(Q_value.shape)
@@ -589,7 +598,7 @@ class V_network(nn.Module):
 		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 		output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
 		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-		V_value = self.v_value_layer(output) # Batch_size, Num agents, num_actions
+		V_value = self.v_value_layer(output+curr_agent_node_features.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)) # Batch_size, Num agents, num_actions
 		
 		return V_value.squeeze(-1), weights, score, h
 
