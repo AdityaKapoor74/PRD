@@ -36,13 +36,18 @@ class ValueNorm(nn.Module):
 		return debiased_mean, debiased_var
 
 	@torch.no_grad()
-	def update(self, input_vector):
+	def update(self, input_vector, mask):
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
 		input_vector = input_vector.to(**self.tpdv)
 
-		batch_mean = input_vector.mean(dim=tuple(range(self.norm_axes)))
-		batch_sq_mean = (input_vector ** 2).mean(dim=tuple(range(self.norm_axes)))
+		# batch_mean = input_vector.mean(dim=tuple(range(self.norm_axes)))
+		# batch_sq_mean = (input_vector ** 2).mean(dim=tuple(range(self.norm_axes)))
+		batch_mean = input_vector.sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+		batch_sq_mean = (input_vector ** 2).sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+
+		print("batch mean 1")
+		print(batch_mean)
 
 		if self.per_element_update:
 			batch_size = np.prod(input_vector.size()[:self.norm_axes])
@@ -61,9 +66,8 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
-		
 		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
-	
+		
 		return out
 
 	def denormalize(self, input_vector):
@@ -73,6 +77,10 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
+		print("mean")
+		print(mean)
+		print("var")
+		print(var)
 		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
 		
 		return out
@@ -109,42 +117,47 @@ class MLP_Policy(nn.Module):
 			init_(nn.Linear(256, 64)),
 			nn.LayerNorm(64),
 			nn.GELU(),
-			)
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
-		self.Layer_2 = nn.Sequential(
-			nn.LayerNorm(64),
+
 			init_(nn.Linear(64, num_actions))
 			)
+		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
+		# self.Layer_2 = nn.Sequential(
+			# nn.LayerNorm(64),
+			# init_(nn.Linear(64, num_actions))
+			# )
 
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		# for name, param in self.RNN.named_parameters():
+		# 	if 'bias' in name:
+		# 		nn.init.constant_(param, 0)
+		# 	elif 'weight' in name:
+		# 		nn.init.orthogonal_(param)
 
 
-	def forward(self, local_observations, hidden_state, update=False):
+	def forward(self, local_observations, hidden_state=None, update=False):
 		local_observations = self.feature_norm(local_observations)
-		if update == False:
-			intermediate = self.Layer_1(local_observations)
-			output, h = self.RNN(intermediate, hidden_state)
-			# output = self.post_rnn_layer_norm(output)
-			logits = self.Layer_2(output+intermediate)
-			# logits = torch.where(mask_actions, logits, self.mask_value)
-			return F.softmax(logits, dim=-1).squeeze(1), h
-		else:
-			# local_observations --> batch, timesteps, num_agents, dim
-			batch, timesteps, num_agents, _ = local_observations.shape
-			intermediate = self.Layer_1(local_observations)
-			intermediate_ = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-			output, h = self.RNN(intermediate_, hidden_state)
-			output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-			intermediate = intermediate.reshape(batch*timesteps, num_agents, -1)
-			# output = self.post_rnn_layer_norm(output)
-			logits = self.Layer_2(output+intermediate)
-			# logits = torch.where(mask_actions, logits, self.mask_value)
-			# print(torch.sum(mask_actions), mask_actions.reshape(-1).shape, torch.sum(mask_actions)/mask_actions.reshape(-1).shape[0])
-			return F.softmax(logits, dim=-1), h
+		# if update == False:
+		# 	intermediate = self.Layer_1(local_observations)
+		# 	output, h = self.RNN(intermediate, hidden_state)
+		# 	# output = self.post_rnn_layer_norm(output)
+		# 	logits = self.Layer_2(output+intermediate)
+		# 	# logits = torch.where(mask_actions, logits, self.mask_value)
+		# 	return F.softmax(logits, dim=-1).squeeze(1), h
+		# else:
+		# 	# local_observations --> batch, timesteps, num_agents, dim
+		# 	batch, timesteps, num_agents, _ = local_observations.shape
+		# 	intermediate = self.Layer_1(local_observations)
+		# 	intermediate_ = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+		# 	output, h = self.RNN(intermediate_, hidden_state)
+		# 	output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+		# 	intermediate = intermediate.reshape(batch*timesteps, num_agents, -1)
+		# 	# output = self.post_rnn_layer_norm(output)
+		# 	logits = self.Layer_2(output+intermediate)
+		# 	# logits = torch.where(mask_actions, logits, self.mask_value)
+		# 	# print(torch.sum(mask_actions), mask_actions.reshape(-1).shape, torch.sum(mask_actions)/mask_actions.reshape(-1).shape[0])
+		# 	return F.softmax(logits, dim=-1), h
+
+		logits = self.Layer_1(local_observations)
+		return F.softmax(logits, dim=-1).squeeze(1), None
 
 
 
@@ -240,17 +253,17 @@ class Q_network(nn.Module):
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
+		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
 			nn.LayerNorm(64),
 			init_(nn.Linear(64, self.num_actions))
 			)
 
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		# for name, param in self.RNN.named_parameters():
+		# 	if 'bias' in name:
+		# 		nn.init.constant_(param, 0)
+		# 	elif 'weight' in name:
+		# 		nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -283,7 +296,7 @@ class Q_network(nn.Module):
 
 		return weights_new.to(self.device)
 
-	def forward(self, states, actions, rnn_hidden_state):
+	def forward(self, states, actions, rnn_hidden_state=None):
 		states = self.allies_feature_norm(states)
 		batch, timesteps, num_agents, _ = states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
@@ -336,15 +349,15 @@ class Q_network(nn.Module):
 		# CURRENT AGENTS FINAL REPRESENTATION
 		curr_agent_node_features = torch.cat([states_embed, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
-		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
-		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+		# curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+		# output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
+		# output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
 		
 		# Q VALUE
-		Q_value = self.q_value_layer(output) # Batch_size, Num agents, num_actions
+		Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
 
-		return Q_value.squeeze(-1), weights, score, h
+		return Q_value.squeeze(-1), weights, score, None#h
 
 
 
@@ -427,17 +440,17 @@ class V_network(nn.Module):
 			nn.LayerNorm(64),
 			nn.GELU(),
 			)
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
+		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
 			nn.LayerNorm(64),
 			init_(nn.Linear(64, 1))
 			)
 
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		# for name, param in self.RNN.named_parameters():
+		# 	if 'bias' in name:
+		# 		nn.init.constant_(param, 0)
+		# 	elif 'weight' in name:
+		# 		nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -470,7 +483,7 @@ class V_network(nn.Module):
 
 		return weights_new.to(self.device)
 
-	def forward(self, states, actions, rnn_hidden_state):
+	def forward(self, states, actions, rnn_hidden_state=None):
 		states = self.allies_feature_norm(states)
 		batch, timesteps, num_agents, _ = states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
@@ -523,14 +536,14 @@ class V_network(nn.Module):
 		# CURRENT AGENTS FINAL REPRESENTATION
 		curr_agent_node_features = torch.cat([states_embed, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
-		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
-		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+		# curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+		# output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
+		# output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
 		
 		# Q VALUE
-		V_value = self.v_value_layer(output) # Batch_size, Num agents, num_actions
+		V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
 
-		return V_value.squeeze(-1), weights, score, h
+		return V_value.squeeze(-1), weights, score, None#h
 
 
 
