@@ -427,9 +427,9 @@ class PPOAgent:
 			target_Q_values = Q_values_old_ + advantage_Q
 		else:
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-			target_V_values = Values_old_ + advantage # gae return
+			target_V_values = Values_old + advantage # gae return
 			advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-			target_Q_values = Q_values_old_ + advantage_Q
+			target_Q_values = Q_values_old + advantage_Q
 
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
