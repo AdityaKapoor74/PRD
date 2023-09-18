@@ -178,13 +178,14 @@ class MAPPO:
 
 				if self.gif:
 					# At each step, append an image to list
-					if not(episode%self.gif_checkpoint):
-						images.append(np.squeeze(self.env.render(mode='rgb_array')))
-					import time
-					time.sleep(0.1)
+					# if not(episode%self.gif_checkpoint):
+					# 	images.append(np.squeeze(self.env.render(mode='rgb_array')))
+					# import time
+					# time.sleep(0.1)
+					self.env.render()
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=True)
+						actions, _, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
 				else:
 					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
 				
@@ -215,7 +216,7 @@ class MAPPO:
 				if all(dones) or step == self.max_time_steps:
 
 					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
 					print("*"*100)
 
 					final_timestep = step
@@ -266,9 +267,9 @@ class MAPPO:
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode)
 
-			elif self.gif and not(episode%self.gif_checkpoint):
-				print("GENERATING GIF")
-				self.make_gif(np.array(images),self.gif_path)
+			# elif self.gif and not(episode%self.gif_checkpoint):
+			# 	print("GENERATING GIF")
+			# 	self.make_gif(np.array(images),self.gif_path)
 
 
 			if self.eval_policy and not(episode%self.save_model_checkpoint) and episode!=0:
@@ -286,8 +287,8 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		env_name = "10m_vs_11m"
-		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		env_name = "bane_vs_bane"
+		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -362,7 +363,7 @@ if __name__ == '__main__':
 				"entropy_pen_final": 8e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.1,
+				"select_above_threshold": 0.04, #0.1,
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 0,
