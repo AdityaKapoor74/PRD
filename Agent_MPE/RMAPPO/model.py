@@ -61,8 +61,9 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
-		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
 		
+		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
+	
 		return out
 
 	def denormalize(self, input_vector):
@@ -85,7 +86,7 @@ def init(module, weight_init, bias_init, gain=1):
 def init_(m, gain=0.01, activate=False):
     if activate:
         gain = nn.init.calculate_gain('relu')
-    return init(m, nn.init.xavier_uniform_, lambda x: nn.init.constant_(x, 0), gain=gain)
+    return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
 
 
 class MLP_Policy(nn.Module):
