@@ -79,7 +79,7 @@ class ValueNorm(nn.Module):
 		
 
 def init(module, weight_init, bias_init, gain=1):
-	weight_init(module.weight.data, mean=0.0, std=0.02)
+	weight_init(module.weight.data)
 	if module.bias is not None:
 		bias_init(module.bias.data)
 	return module
@@ -118,7 +118,7 @@ class MLP_Policy(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.orthogonal_(param, mean=0.0, std=0.02)
+				nn.init.orthogonal_(param)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
@@ -258,7 +258,7 @@ class Q_network(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.orthogonal_(param, mean=0.0, std=0.02)
+				nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -478,7 +478,7 @@ class V_network(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.orthogonal_(param, mean=0.0, std=0.02)
+				nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
