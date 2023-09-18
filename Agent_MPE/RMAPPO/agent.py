@@ -193,13 +193,13 @@ class PPOAgent:
 			return V_value.squeeze(0).cpu().numpy(), Q_value.squeeze(0).cpu().numpy(), torch.mean(weights_prd, dim=1).cpu().numpy()
 
 
-	def get_action(self, state_policy, last_one_hot_actions, hidden_state, greedy=False):
+	def get_action(self, state_policy, last_one_hot_actions, hidden_state=None, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).unsqueeze(1)
 			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions).unsqueeze(1)
 			final_state_policy = torch.cat([state_policy, last_one_hot_actions], dim=-1).to(self.device)
-			hidden_state = torch.FloatTensor(hidden_state).to(self.device)
-			dists, hidden_state = self.policy_network(final_state_policy, hidden_state)
+			# hidden_state = torch.FloatTensor(hidden_state).to(self.device)
+			dists, hidden_state = self.policy_network(final_state_policy)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
 				action_logprob = None
@@ -209,7 +209,7 @@ class PPOAgent:
 				probs = Categorical(dists)
 				action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device)).cpu().numpy()
 
-			return actions, action_logprob, hidden_state.cpu().numpy()
+			return actions, action_logprob, None#hidden_state.cpu().numpy()
 
 
 	def calculate_advantages(self, values, values_old, rewards, dones, masks_):
@@ -364,9 +364,9 @@ class PPOAgent:
 		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)
 
 		batch, time_steps, _ = masks.shape
-		rnn_hidden_state_q = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_q)
-		rnn_hidden_state_v = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_v)
-		rnn_hidden_state_actor = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_actor)
+		# rnn_hidden_state_q = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_q)
+		# rnn_hidden_state_v = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_v)
+		# rnn_hidden_state_actor = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_actor)
 
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
@@ -389,12 +389,12 @@ class PPOAgent:
 			Q_values_old, weights_prd_old, _, _ = self.critic_network_q(
 												old_states_critic.to(self.device),
 												old_one_hot_actions.to(self.device),
-												rnn_hidden_state_q.to(self.device)
+												# rnn_hidden_state_q.to(self.device)
 												)
 			Values_old, _, _, _ = self.critic_network_v(
 												old_states_critic.to(self.device),
 												old_one_hot_actions.to(self.device),
-												rnn_hidden_state_v.to(self.device)
+												# rnn_hidden_state_v.to(self.device)
 												)
 
 
@@ -417,27 +417,30 @@ class PPOAgent:
 
 		if self.norm_returns:
 			values_shape = Values_old.shape
-			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
+			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
 			values_shape = Q_values_old.shape
-			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
+			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-			target_V_values = Values_old_ + advantage # gae return
+			target_V_values = (Values_old_ + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
 			advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-			target_Q_values = Q_values_old_ + advantage_Q
+			target_Q_values = (Q_values_old_ + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
+
 		else:
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-			target_V_values = Values_old + advantage # gae return
+			target_V_values = (Values_old + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
 			advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-			target_Q_values = Q_values_old + advantage_Q
+			target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
 
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
-			self.v_value_norm.update(target_V_values.view(-1))
+			# targets = targets.reshape(-1)
+			self.v_value_norm.update(target_V_values.view(-1), masks.view(-1))
 			target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape)
 
 			targets_shape = target_Q_values.shape
-			self.q_value_norm.update(target_Q_values.view(-1))
+			# targets = targets.reshape(-1)
+			self.q_value_norm.update(target_Q_values.view(-1), masks.view(-1))
 			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape)
 		
 
@@ -470,23 +473,24 @@ class PPOAgent:
 			Q_values, weights_prd, score_q, _ = self.critic_network_q(
 												old_states_critic.to(self.device),
 												old_one_hot_actions.to(self.device),
-												rnn_hidden_state_q.to(self.device)
+												# rnn_hidden_state_q.to(self.device)
 												)
 			Values, weight_v, score_v, _ = self.critic_network_v(
 												old_states_critic.to(self.device),
 												old_one_hot_actions.to(self.device),
-												rnn_hidden_state_v.to(self.device)
+												# rnn_hidden_state_v.to(self.device)
 												)
 
 
 			dists, _ = self.policy_network(
 					torch.cat([old_states_actor, old_last_one_hot_actions], dim=-1).to(self.device),
-					rnn_hidden_state_actor.to(self.device),
-					update=True
+					# rnn_hidden_state_actor.to(self.device),
+					# update=True
 					)
 
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
+			dists = dists.reshape(-1, self.num_agents, self.num_actions)
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
 			
