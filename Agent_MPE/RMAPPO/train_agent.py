@@ -303,7 +303,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 30000,
 				"max_time_steps": 50,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -332,7 +332,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic": True,
 				"grad_clip_critic": 10.0,
-				"value_clip": 0.2,
+				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
@@ -340,7 +340,7 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns": True,
+				"norm_returns": False,
 				"norm_rewards": False,
 				
 
@@ -348,14 +348,14 @@ if __name__ == '__main__':
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 10.0,	
-				"policy_clip": 0.2,
+				"policy_clip": 0.05,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_lr_warmup_iters": 250, # arbitrary (should not be ~ to total training epochs)
 				"policy_lr_decay_iters": 20000, # usually till end
 				"policy_min_lr": 1e-5, # lr/10
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_final": 0.0,
+				"entropy_pen_final": 8e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.1,
