@@ -489,15 +489,15 @@ class PPOAgent:
 			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-			target_V_values = (Values_old_ + advantage)*masks.reshape(-1, self.num_agents) # gae return
+			target_V_values = (Values_old_ + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
 			advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-			target_Q_values = (Q_values_old_ + advantage_Q)*masks.reshape(-1, self.num_agents)
+			target_Q_values = (Q_values_old_ + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
 
 		else:
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-			target_V_values = (Values_old + advantage)*masks.reshape(-1, self.num_agents) # gae return
+			target_V_values = (Values_old + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
 			advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-			target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents)
+			target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
 
 		# print("target_V_values")
 		# print(target_V_values[0])
