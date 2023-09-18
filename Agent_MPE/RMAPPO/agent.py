@@ -421,10 +421,15 @@ class PPOAgent:
 			values_shape = Q_values_old.shape
 			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
 
-		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-		target_V_values = Values_old_ + advantage # gae return
-		advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-		target_Q_values = Q_values_old_ + advantage_Q
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+			target_V_values = Values_old_ + advantage # gae return
+			advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
+			target_Q_values = Q_values_old_ + advantage_Q
+		else:
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+			target_V_values = Values_old_ + advantage # gae return
+			advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
+			target_Q_values = Q_values_old_ + advantage_Q
 
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
