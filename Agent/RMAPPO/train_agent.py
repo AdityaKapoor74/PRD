@@ -233,16 +233,7 @@ class MAPPO:
 					# self.agents.update_epsilon()
 
 					# add final time to buffer
-					actions, _, _ = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
-				
-					one_hot_actions = np.zeros((self.num_agents, self.num_actions))
-					for i,act in enumerate(actions):
-						one_hot_actions[i][act] = 1
-
-					_, _, dones, _ = self.env.step(actions)
-					# dones = [int(dones)]*self.num_agents
-
-					self.agents.buffer.end_episode(final_timestep, states_allies_critic, states_enemies_critic, one_hot_actions, dones)
+					self.agents.buffer.end_episode(final_timestep)
 
 					break
 
@@ -288,7 +279,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -368,7 +359,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": False,
+				"norm_adv": True,
 
 				"network_update_interval": 1,
 			}
