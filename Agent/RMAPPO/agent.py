@@ -257,13 +257,14 @@ class PPOAgent:
 				dists = (1.0-self.epsilon)*dists + available_actions*self.epsilon/torch.sum(available_actions, dim=-1).unsqueeze(-1)
 			if greedy:
 				actions = [dist.argmax().detach().cpu().item() for dist in dists]
+				action_logprob = None
 			else:
 				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
 				probs = Categorical(dists)
-				action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device))
+				action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device)).cpu().numpy()
 
-			return actions, action_logprob.cpu().numpy(), hidden_state.cpu().numpy()
+			return actions, action_logprob, hidden_state.cpu().numpy()
 
 
 	def calculate_advantages(self, values, values_old, rewards, dones, masks_):
@@ -421,7 +422,7 @@ class PPOAgent:
 		rewards = torch.FloatTensor(np.array(self.buffer.rewards)).reshape(-1, self.num_agents)
 		dones = torch.FloatTensor(np.array(self.buffer.dones)).long().reshape(-1, self.num_agents)
 		# masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
-		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)[:, :-1, :]
+		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)
 
 		batch, time_steps, _ = masks.shape
 		rnn_hidden_state_q = torch.zeros(1, batch*self.num_agents, self.rnn_hidden_q)
@@ -459,8 +460,6 @@ class PPOAgent:
 												rnn_hidden_state_v.to(self.device)
 												)
 
-			weights_prd_old = weights_prd_old.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
-
 
 		if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
@@ -485,24 +484,35 @@ class PPOAgent:
 
 		if self.norm_returns:
 			values_shape = Values_old.shape
-			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)
+			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
 			values_shape = Q_values_old.shape
-			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)
+			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
 
-		advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
-		target_V_values = Values_old_.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage.shape) + advantage # gae return
-		advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
-		target_Q_values = Q_values_old_.reshape(batch, time_steps+1, self.num_agents)[:, :time_steps, :].reshape(*advantage_Q.shape) + advantage_Q
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, Values_old_, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+			target_V_values = (Values_old_ + advantage)*masks.reshape(-1, self.num_agents) # gae return
+			advantage_Q = self.calculate_advantages(Q_values_old_, Q_values_old_, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
+			target_Q_values = (Q_values_old_ + advantage_Q)*masks.reshape(-1, self.num_agents)
+
+		else:
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), episode)
+			target_V_values = (Values_old + advantage)*masks.reshape(-1, self.num_agents) # gae return
+			advantage_Q = self.calculate_advantages(Q_values_old, Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device))
+			target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents)
+
+		# print("target_V_values")
+		# print(target_V_values[0])
+		# print("advantages")
+		# print(advantage[0])
 
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
 			# targets = targets.reshape(-1)
-			self.v_value_norm.update(target_V_values.view(-1))
+			self.v_value_norm.update(target_V_values.view(-1), masks.view(-1))
 			target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape)
 
 			targets_shape = target_Q_values.shape
 			# targets = targets.reshape(-1)
-			self.q_value_norm.update(target_Q_values.view(-1))
+			self.q_value_norm.update(target_Q_values.view(-1), masks.view(-1))
 			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape)
 
 		if self.norm_adv:
@@ -557,8 +567,8 @@ class PPOAgent:
 					update=True
 					)
 
-			weights_prd = weights_prd.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
-			weight_v = weight_v.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
+			# weights_prd = weights_prd.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
+			# weight_v = weight_v.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
 
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
@@ -572,15 +582,11 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 
-			Values = Values.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
-			Values_old_ = Values_old.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
 			critic_v_loss_1 = F.mse_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
-			critic_v_loss_2 = F.mse_loss(torch.clamp(Values, Values_old_.to(self.device)-self.value_clip, Values_old_.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
+			critic_v_loss_2 = F.mse_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
 
-			Q_values = Q_values.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
-			Q_values_old_ = Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,:-1,:].reshape(-1, self.num_agents)
 			critic_q_loss_1 = F.mse_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
-			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_values, Q_values_old_.to(self.device)-self.value_clip, Q_values_old_.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
+			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp((logprobs - old_logprobs.to(self.device))*masks.to(self.device))
