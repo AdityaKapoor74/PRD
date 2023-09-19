@@ -516,9 +516,13 @@ class PPOAgent:
 			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape)
 
 		if self.norm_adv:
-			advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
-			advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks.to(self.device)
-			advantage = advantage.reshape(-1, self.num_agents)
+			# advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
+			# advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks.to(self.device)
+			# advantage = advantage.reshape(-1, self.num_agents)
+			advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
+			advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
+			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+
 
 		# if self.norm_returns:
 		# 	target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
