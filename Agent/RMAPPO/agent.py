@@ -431,19 +431,19 @@ class PPOAgent:
 
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
-		v_value_lr = self.get_lr(episode, self.v_value_lr)
-		for param_group in self.v_critic_optimizer.param_groups:
-			param_group['lr'] = v_value_lr
+		# v_value_lr = self.get_lr(episode, self.v_value_lr)
+		# for param_group in self.v_critic_optimizer.param_groups:
+		# 	param_group['lr'] = v_value_lr
 
-		q_value_lr = self.get_lr(episode, self.q_value_lr)
-		for param_group in self.q_critic_optimizer.param_groups:
-			param_group['lr'] = q_value_lr
+		# q_value_lr = self.get_lr(episode, self.q_value_lr)
+		# for param_group in self.q_critic_optimizer.param_groups:
+		# 	param_group['lr'] = q_value_lr
 
-		policy_lr = self.get_lr(episode, self.policy_lr)
-		for param_group in self.policy_optimizer.param_groups:
-			param_group['lr'] = policy_lr
+		# policy_lr = self.get_lr(episode, self.policy_lr)
+		# for param_group in self.policy_optimizer.param_groups:
+		# 	param_group['lr'] = policy_lr
 
-		print(v_value_lr, q_value_lr, policy_lr)
+		# print(v_value_lr, q_value_lr, policy_lr)
 
 		with torch.no_grad():
 			# OLD VALUES
@@ -586,11 +586,11 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 
-			critic_v_loss_1 = F.mse_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
-			critic_v_loss_2 = F.mse_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
+			critic_v_loss_1 = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			critic_v_loss_2 = F.huber_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
-			critic_q_loss_1 = F.mse_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
-			critic_q_loss_2 = F.mse_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum") / masks.sum() #(self.num_agents*masks.sum())
+			critic_q_loss_1 = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			critic_q_loss_2 = F.huber_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp((logprobs - old_logprobs.to(self.device))*masks.to(self.device))
