@@ -508,12 +508,12 @@ class PPOAgent:
 		if self.norm_returns:
 			targets_shape = target_V_values.shape
 			# targets = targets.reshape(-1)
-			self.v_value_norm.update(target_V_values.view(-1, self.num_agents), masks.view(-1, self.num_agents))
+			self.v_value_norm.update(target_V_values.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
 			target_V_values = self.v_value_norm.normalize(target_V_values.view(-1, self.num_agents)).view(targets_shape)
 
 			targets_shape = target_Q_values.shape
 			# targets = targets.reshape(-1)
-			self.q_value_norm.update(target_Q_values.view(-1, self.num_agents), masks.view(-1, self.num_agents))
+			self.q_value_norm.update(target_Q_values.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
 			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1, self.num_agents)).view(targets_shape)
 
 		if self.norm_adv:
