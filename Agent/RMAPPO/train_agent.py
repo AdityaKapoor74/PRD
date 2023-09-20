@@ -233,7 +233,17 @@ class MAPPO:
 					# self.agents.update_epsilon()
 
 					# add final time to buffer
-					self.agents.buffer.end_episode(final_timestep)
+					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+				
+					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+					for i,act in enumerate(actions):
+						one_hot_actions[i][act] = 1
+
+					_, _, dones, info = self.env.step(actions)
+					next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+					next_states_enemies_critic = info["enemy_states"]
+					
+					self.agents.buffer.end_episode(final_timestep, next_states_allies_critic, next_states_enemies_critic, one_hot_actions, dones)
 
 					break
 
@@ -350,8 +360,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 8e-3, #8e-3
-				"entropy_pen_final": 8e-3,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 5000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.1, #0.1,
