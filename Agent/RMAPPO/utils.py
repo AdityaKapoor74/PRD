@@ -98,8 +98,8 @@ class RolloutBuffer:
 		self.episode_num = 0
 		self.time_step = 0
 
-		self.states_critic_allies = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_critic_ally))
-		self.states_critic_enemies = np.zeros((num_episodes, max_time_steps, num_enemies, obs_shape_critic_enemy))
+		self.states_critic_allies = np.zeros((num_episodes, max_time_steps+1, num_agents, obs_shape_critic_ally))
+		self.states_critic_enemies = np.zeros((num_episodes, max_time_steps+1, num_enemies, obs_shape_critic_enemy))
 		# self.Q_values = np.zeros((num_episodes, max_time_steps, num_agents))
 		# self.V_values = np.zeros((num_episodes, max_time_steps, num_agents))
 		# self.weights_prd = np.zeros((num_episodes, max_time_steps, num_agents, num_agents))
@@ -107,18 +107,18 @@ class RolloutBuffer:
 		self.logprobs = np.zeros((num_episodes, max_time_steps, num_agents))
 		self.actions = np.zeros((num_episodes, max_time_steps, num_agents), dtype=int)
 		self.last_one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
-		self.one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
+		self.one_hot_actions = np.zeros((num_episodes, max_time_steps+1, num_agents, num_actions))
 		self.action_masks = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.rewards = np.zeros((num_episodes, max_time_steps, num_agents))
-		self.dones = np.ones((num_episodes, max_time_steps, num_agents))
-		self.masks = np.zeros((num_episodes, max_time_steps))
+		self.dones = np.ones((num_episodes, max_time_steps+1, num_agents))
+		# self.masks = np.zeros((num_episodes, max_time_steps))
 
 		self.episode_length = np.zeros(num_episodes)
 	
 
 	def clear(self):
-		self.states_critic_allies = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_critic_ally))
-		self.states_critic_enemies = np.zeros((self.num_episodes, self.max_time_steps, self.num_enemies, self.obs_shape_critic_enemy))
+		self.states_critic_allies = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents, self.obs_shape_critic_ally))
+		self.states_critic_enemies = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_enemies, self.obs_shape_critic_enemy))
 		# self.Q_values = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
 		# self.V_values = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
 		# self.weights_prd = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_agents))
@@ -126,11 +126,11 @@ class RolloutBuffer:
 		self.logprobs = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
 		self.actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents), dtype=int)
 		self.last_one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
-		self.one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
+		self.one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents, self.num_actions))
 		self.action_masks = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.rewards = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
-		self.dones = np.ones((self.num_episodes, self.max_time_steps, self.num_agents))
-		self.masks = np.zeros((self.num_episodes, self.max_time_steps))
+		self.dones = np.ones((self.num_episodes, self.max_time_steps+1, self.num_agents))
+		# self.masks = np.zeros((self.num_episodes, self.max_time_steps))
 
 		self.episode_length = np.zeros(self.num_episodes)
 
@@ -152,7 +152,7 @@ class RolloutBuffer:
 		self.action_masks[self.episode_num][self.time_step] = action_masks
 		self.rewards[self.episode_num][self.time_step] = rewards
 		self.dones[self.episode_num][self.time_step] = dones
-		self.masks[self.episode_num][self.time_step] = 1.
+		# self.masks[self.episode_num][self.time_step] = 1.
 
 		if self.time_step < self.max_time_steps-1:
 			self.time_step += 1
@@ -160,7 +160,11 @@ class RolloutBuffer:
 		# 	self.episode_num += 1
 		# 	self.time_step = 0
 
-	def end_episode(self, t):
+	def end_episode(self, t, state_critic_allies, state_critic_enemies, one_hot_actions, dones):
+		self.states_critic_allies[self.episode_num][self.time_step+1] = state_critic_allies
+		self.states_critic_enemies[self.episode_num][self.time_step+1] = state_critic_enemies
+		self.one_hot_actions[self.episode_num][self.time_step+1] = one_hot_actions
+		self.dones[self.episode_num][self.time_step+1] = dones
 
 		self.episode_length[self.episode_num] = t
 		self.episode_num += 1
