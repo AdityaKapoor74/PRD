@@ -114,8 +114,8 @@ class MLP_Policy(nn.Module):
 		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
 		self.Layer_1 = nn.Sequential(
 			init_(nn.Linear(obs_input_dim+num_actions, 64), activate=True),
-			nn.LayerNorm(64),
-			nn.LeakyReLU(),
+			# nn.LayerNorm(64),
+			nn.GELU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Sequential(
@@ -203,21 +203,21 @@ class Q_network(nn.Module):
 			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			)
 
 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-			nn.LeakyReLU(),
+			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -233,7 +233,7 @@ class Q_network(nn.Module):
 			init_(nn.Linear(64, 2048), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			init_(nn.Linear(2048, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -243,7 +243,7 @@ class Q_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
 				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.LeakyReLU(), 
+				nn.GELU(), 
 				init_(nn.Linear(64, 2))
 				)
 
@@ -254,7 +254,7 @@ class Q_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			nn.LayerNorm(64),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
@@ -422,21 +422,21 @@ class V_network(nn.Module):
 			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			)
 
 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-			nn.LeakyReLU(),
+			nn.GELU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -452,7 +452,7 @@ class V_network(nn.Module):
 			init_(nn.Linear(64, 2048), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			init_(nn.Linear(2048, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -462,7 +462,7 @@ class V_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
 				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.LeakyReLU(), 
+				nn.GELU(), 
 				init_(nn.Linear(64, 2))
 				)
 
@@ -473,7 +473,7 @@ class V_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.LeakyReLU(),
+			nn.GELU(),
 			nn.LayerNorm(64),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
