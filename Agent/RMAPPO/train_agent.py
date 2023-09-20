@@ -266,20 +266,23 @@ class MAPPO:
 
 						break
 
-				if self.save_comet_ml_plot:
-					avg_episode_reward /= 10
-					avg_episode_length /= 10
-					avg_num_allies /= 10
-					avg_num_enemies /= 10
-					avg_num_enemies /= 10
-					avg_all_allies_dead /= 10
-					avg_all_enemies_dead /= 10
-					self.comet_ml.log_metric('Episode_Length', avg_episode_length, episode)
-					self.comet_ml.log_metric('Reward', avg_episode_reward, episode)
-					self.comet_ml.log_metric('Num Enemies', avg_num_enemies, episode)
-					self.comet_ml.log_metric('Num Allies', avg_num_allies, episode)
-					self.comet_ml.log_metric('All Enemies Dead', avg_all_enemies_dead, episode)
-					self.comet_ml.log_metric('All Allies Dead', avg_all_allies_dead, episode)
+
+				
+			if self.save_comet_ml_plot:
+				avg_episode_reward /= 10
+				avg_episode_length /= 10
+				avg_num_allies /= 10
+				avg_num_enemies /= 10
+				avg_num_enemies /= 10
+				avg_all_allies_dead /= 10
+				avg_all_enemies_dead /= 10
+				print(avg_episode_reward, avg_episode_length, avg_num_allies)
+				self.comet_ml.log_metric('Episode_Length', avg_episode_length, episode)
+				self.comet_ml.log_metric('Reward', avg_episode_reward, episode)
+				self.comet_ml.log_metric('Num Enemies', avg_num_enemies, episode)
+				self.comet_ml.log_metric('Num Allies', avg_num_allies, episode)
+				self.comet_ml.log_metric('All Enemies Dead', avg_all_enemies_dead, episode)
+				self.comet_ml.log_metric('All Allies Dead', avg_all_allies_dead, episode)
 
 			if self.agents.scheduler_need:
 				self.agents.scheduler_policy.step()
