@@ -236,7 +236,6 @@ class MAPPO:
 						avg_episode_length += final_timestep
 						avg_num_allies += info["num_allies"]
 						avg_num_enemies += info["num_enemies"]
-						avg_num_enemies += info["num_enemies"]
 						avg_all_allies_dead += info["all_allies_dead"]
 						avg_all_enemies_dead += info["all_allies_dead"]
 
@@ -273,10 +272,8 @@ class MAPPO:
 				avg_episode_length /= 10
 				avg_num_allies /= 10
 				avg_num_enemies /= 10
-				avg_num_enemies /= 10
 				avg_all_allies_dead /= 10
 				avg_all_enemies_dead /= 10
-				print(avg_episode_reward, avg_episode_length, avg_num_allies)
 				self.comet_ml.log_metric('Episode_Length', avg_episode_length, episode)
 				self.comet_ml.log_metric('Reward', avg_episode_reward, episode)
 				self.comet_ml.log_metric('Num Enemies', avg_num_enemies, episode)
