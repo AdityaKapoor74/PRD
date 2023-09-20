@@ -432,19 +432,19 @@ class PPOAgent:
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
 		v_value_lr, q_value_lr, policy_lr = self.v_value_lr, self.q_value_lr, self.policy_lr
-		# v_value_lr = self.get_lr(episode, self.v_value_lr)
-		# for param_group in self.v_critic_optimizer.param_groups:
-		# 	param_group['lr'] = v_value_lr
+		v_value_lr = self.get_lr(episode, self.v_value_lr)
+		for param_group in self.v_critic_optimizer.param_groups:
+			param_group['lr'] = v_value_lr
 
-		# q_value_lr = self.get_lr(episode, self.q_value_lr)
-		# for param_group in self.q_critic_optimizer.param_groups:
-		# 	param_group['lr'] = q_value_lr
+		q_value_lr = self.get_lr(episode, self.q_value_lr)
+		for param_group in self.q_critic_optimizer.param_groups:
+			param_group['lr'] = q_value_lr
 
-		# policy_lr = self.get_lr(episode, self.policy_lr)
-		# for param_group in self.policy_optimizer.param_groups:
-		# 	param_group['lr'] = policy_lr
+		policy_lr = self.get_lr(episode, self.policy_lr)
+		for param_group in self.policy_optimizer.param_groups:
+			param_group['lr'] = policy_lr
 
-		# print(v_value_lr, q_value_lr, policy_lr)
+		print(v_value_lr, q_value_lr, policy_lr)
 
 		with torch.no_grad():
 			# OLD VALUES
