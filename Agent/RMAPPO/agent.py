@@ -25,6 +25,7 @@ class PPOAgent:
 		self.num_actions = self.env.action_space[0].n
 
 		# Training setup
+		self.max_episodes = dictionary["max_episodes"]
 		self.test_num = dictionary["test_num"]
 		self.gif = dictionary["gif"]
 		self.experiment_type = dictionary["experiment_type"]
@@ -227,6 +228,13 @@ class PPOAgent:
 		coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
 		return min_lr + coeff * (learning_rate - min_lr)
 
+	def lr_decay(self, episode, initial_lr):
+		"""Decreases the learning rate linearly"""
+		lr = initial_lr - (initial_lr * (episode / float(self.max_episodes)))
+		# for param_group in optimizer.param_groups:
+		# 	param_group['lr'] = lr
+		return lr
+
 	def get_critic_hidden_state(self, state_allies, state_enemies, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v):
 		with torch.no_grad():
 			state_allies = torch.FloatTensor(state_allies).unsqueeze(0)
@@ -427,16 +435,16 @@ class PPOAgent:
 
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
-		v_value_lr, q_value_lr, policy_lr = self.v_value_lr, self.q_value_lr, self.policy_lr
-		v_value_lr = self.get_lr(episode, self.v_value_lr)
+		# v_value_lr, q_value_lr, policy_lr = self.v_value_lr, self.q_value_lr, self.policy_lr
+		v_value_lr = self.lr_decay(episode, self.v_value_lr)
 		for param_group in self.v_critic_optimizer.param_groups:
 			param_group['lr'] = v_value_lr
 
-		q_value_lr = self.get_lr(episode, self.q_value_lr)
+		q_value_lr = self.lr_decay(episode, self.q_value_lr)
 		for param_group in self.q_critic_optimizer.param_groups:
 			param_group['lr'] = q_value_lr
 
-		policy_lr = self.get_lr(episode, self.policy_lr)
+		policy_lr = self.lr_decay(episode, self.policy_lr)
 		for param_group in self.policy_optimizer.param_groups:
 			param_group['lr'] = policy_lr
 
