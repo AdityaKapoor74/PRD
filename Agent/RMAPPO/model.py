@@ -6,6 +6,55 @@ import math
 from utils import gumbel_sigmoid
 
 
+class RunningMeanStd(object):
+	def __init__(self, epsilon: float = 1e-4, shape = (1), device="cpu"):
+		"""
+		https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+		"""
+		self.mean = torch.zeros(shape, dtype=torch.float32, device=device)
+		self.var = torch.ones(shape, dtype=torch.float32, device=device)
+		self.count = epsilon
+
+	def update(self, arr, mask):
+		arr = arr.reshape(-1, arr.size(-1))
+		# batch_mean = torch.mean(arr, dim=0)
+		# batch_var = torch.var(arr, dim=0)
+		batch_mean = torch.sum(arr, dim=0) / mask.sum(dim=0)
+		batch_var = torch.sum((arr - batch_mean)**2, dim=0) / mask.sum(dim=0)
+		batch_count = mask.sum() #arr.shape[0]
+		self.update_from_moments(batch_mean, batch_var, batch_count)
+
+	def update_from_moments(self, batch_mean, batch_var, batch_count: int):
+		delta = batch_mean - self.mean
+		tot_count = self.count + batch_count
+
+		new_mean = self.mean + delta * batch_count / tot_count
+		m_a = self.var * self.count
+		m_b = batch_var * batch_count
+		m_2 = (
+			m_a
+			+ m_b
+			+ torch.square(delta)
+			* self.count
+			* batch_count
+			/ (self.count + batch_count)
+		)
+		new_var = m_2 / (self.count + batch_count)
+
+		new_count = batch_count + self.count
+
+		self.mean = new_mean
+		self.var = new_var
+		self.count = new_count
+
+		print("mean")
+		print(self.mean)
+		print("var")
+		print(self.var)
+		print("count")
+		print(self.count)
+
+
 class ValueNorm(nn.Module):
 	""" Normalize a vector of observations - across the first norm_axes dimensions"""
 
@@ -131,7 +180,7 @@ class MLP_Policy(nn.Module):
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
-		local_observations = self.feature_norm(local_observations)
+		# local_observations = self.feature_norm(local_observations)
 		if update == False:
 			intermediate = self.Layer_1(local_observations)
 			output, h = self.RNN(intermediate, hidden_state)
@@ -200,20 +249,20 @@ class Q_network(nn.Module):
 
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
-			nn.LayerNorm(ally_obs_input_dim),
+			# nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
-			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
+			# nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
-		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
+		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
@@ -255,10 +304,10 @@ class Q_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			nn.GELU(),
-			nn.LayerNorm(64),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, self.num_actions))
 			)
 
@@ -349,8 +398,8 @@ class Q_network(nn.Module):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
 		# EMBED STATE ACTION
-		obs_norm = self.obs_act_obs_norm(states)
-		obs_actions = torch.cat([obs_norm, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
+		# obs_norm = self.obs_act_obs_norm(states)
+		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
@@ -419,22 +468,22 @@ class V_network(nn.Module):
 
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
-			nn.LayerNorm(ally_obs_input_dim),
+			# nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
-			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
+			# nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
-		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
+		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
-			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
+			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
 			nn.GELU(),
 			)
@@ -474,10 +523,10 @@ class V_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			nn.GELU(),
-			nn.LayerNorm(64),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, 1))
 			)
 
@@ -568,8 +617,8 @@ class V_network(nn.Module):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
 		# EMBED STATE ACTION
-		obs_norm = self.obs_act_obs_norm(states)
-		obs_actions = torch.cat([obs_norm, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
+		# obs_norm = self.obs_act_obs_norm(states)
+		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
