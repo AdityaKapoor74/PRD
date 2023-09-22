@@ -196,11 +196,12 @@ class MAPPO:
 						self.env.render()
 						# Advance a step and render a new image
 						with torch.no_grad():
-							actions, _, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
+							actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
 					else:
 						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
 					
-					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+					# print(mask_actions)
+					one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 					for i, act in enumerate(actions):
 						one_hot_actions[i][act] = 1
 
@@ -217,7 +218,7 @@ class MAPPO:
 					next_states_enemies_critic = info["enemy_states"]
 					next_mask_actions = np.array(info["avail_actions"], dtype=int)
 
-					if not self.gif:
+					if self.learn:
 						self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, rewards, dones)
 
 					episode_reward += np.sum(rewards)
@@ -334,12 +335,12 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 15,
+				"n_epochs": 5,
 				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
-				"gif": False,
+				"gif": True,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
@@ -376,7 +377,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic": True,
 				"grad_clip_critic": 10.0,
-				"value_clip": 0.05,
+				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
@@ -391,7 +392,7 @@ if __name__ == '__main__':
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 10.0,
-				"policy_clip": 0.05,
+				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 1e-2, #8e-3
