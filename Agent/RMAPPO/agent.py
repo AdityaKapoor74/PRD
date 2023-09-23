@@ -437,7 +437,7 @@ class PPOAgent:
 		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)
 
 		if self.norm_rewards:
-			self.reward_norm.update(rewards.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
+			self.reward_norm.update(rewards.view(-1, self.num_agents), masks.view(-1, self.num_agents))
 			rewards = (rewards - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)
 
 		# batch, _, _ = masks.shape
