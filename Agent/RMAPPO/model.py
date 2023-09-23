@@ -168,7 +168,7 @@ class MLP_Policy(nn.Module):
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Sequential(
-			# nn.LayerNorm(64),
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, num_actions))
 			)
 
@@ -307,7 +307,7 @@ class Q_network(nn.Module):
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
-			# nn.LayerNorm(64),
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, self.num_actions))
 			)
 
@@ -526,7 +526,7 @@ class V_network(nn.Module):
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
-			# nn.LayerNorm(64),
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, 1))
 			)
 
