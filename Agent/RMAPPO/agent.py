@@ -483,7 +483,7 @@ class PPOAgent:
 										h_q.to(self.device)
 										)
 
-			next_mask = torch.FloatTensor(np.array(self.buffer.dones))[:, -1, :].long().reshape(-1, self.num_agents)
+			next_mask = 1-torch.FloatTensor(np.array(self.buffer.dones))[:, -1, :].long().reshape(-1, self.num_agents)
 
 
 		# if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
