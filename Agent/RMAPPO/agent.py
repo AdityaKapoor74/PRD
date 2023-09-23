@@ -438,7 +438,7 @@ class PPOAgent:
 
 		if self.norm_rewards:
 			self.reward_norm.update(rewards.view(-1, self.num_agents).to(self.device), masks.view(-1, self.num_agents).to(self.device))
-			rewards = (rewards - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)
+			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu()
 
 		# batch, _, _ = masks.shape
 		rnn_hidden_state_q = torch.zeros(1, self.update_ppo_agent*self.num_agents, self.rnn_hidden_q)
