@@ -31,6 +31,7 @@ class PPOAgent:
 		self.experiment_type = dictionary["experiment_type"]
 		self.n_epochs = dictionary["n_epochs"]
 		self.scheduler_need = dictionary["scheduler_need"]
+		self.norm_rewards = dictionary["norm_rewards"]
 		if dictionary["device"] == "gpu":
 			self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		else:
@@ -213,6 +214,10 @@ class PPOAgent:
 
 			# self.v_value_norm = RunningMeanStd(shape=(self.num_agents), device=self.device)
 			# self.q_value_norm = RunningMeanStd(shape=(self.num_agents), device=self.device)
+
+		if self.norm_rewards:
+			self.reward_norm = RunningMeanStd(shape=(self.num_agents), device=self.device)
+
 
 	def get_lr(self, it, learning_rate):
 		# 1) linear warmup for warmup_iters steps
@@ -431,6 +436,9 @@ class PPOAgent:
 		# masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)
 
+		if self.norm_rewards:
+			self.reward_norm.update(rewards.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
+			rewards = (rewards - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)
 
 		# batch, _, _ = masks.shape
 		rnn_hidden_state_q = torch.zeros(1, self.update_ppo_agent*self.num_agents, self.rnn_hidden_q)
