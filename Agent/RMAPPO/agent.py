@@ -631,7 +631,8 @@ class PPOAgent:
 										h_v.to(self.device)
 										)
 
-			next_Values = self.v_value_norm.denormalize(next_Values.view(-1, self.num_agents))*next_mask.to(self.device)
+			if self.norm_returns:
+				next_Values = self.v_value_norm.denormalize(next_Values.view(-1, self.num_agents))*next_mask.to(self.device)
 			
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
