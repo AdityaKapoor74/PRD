@@ -677,7 +677,7 @@ class PPOAgent:
 				score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.unsqueeze(-1).to(self.device)).sum()/masks.sum()
 			
 			print("weights entropy")
-			print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weights_v.shape[1])
+			print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
 			print(score_q.shape, score_v.shape)
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
