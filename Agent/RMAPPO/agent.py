@@ -216,7 +216,7 @@ class PPOAgent:
 			# self.q_value_norm = RunningMeanStd(shape=(self.num_agents), device=self.device)
 
 		if self.norm_rewards:
-			self.reward_norm = RunningMeanStd(shape=(self.num_agents), device=self.device)
+			self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
 
 
 	def get_lr(self, it, learning_rate):
@@ -569,11 +569,11 @@ class PPOAgent:
 			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
 
 		# print("target_qs")
-		# print(target_Q_values[0])
-		# print(target_Q_values[-1])
+		print(target_Q_values[0])
+		print(target_Q_values[-1])
 		# print("target_vs")
-		# print(target_V_values[0])
-		# print(target_V_values[-1])
+		print(target_V_values[0])
+		print(target_V_values[-1])
 
 		# if self.norm_returns:
 		# 	target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
