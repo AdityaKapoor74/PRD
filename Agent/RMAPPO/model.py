@@ -145,7 +145,7 @@ def init(module, weight_init, bias_init, gain=1):
 def init_(m, gain=0.01, activate=False):
 	if activate:
 		gain = nn.init.calculate_gain('relu')
-	return init(m, nn.init.xavier_uniform_, lambda x: nn.init.constant_(x, 0), gain=gain)
+	return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
 
 
 class MLP_Policy(nn.Module):
@@ -176,7 +176,7 @@ class MLP_Policy(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
@@ -315,7 +315,7 @@ class Q_network(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -534,7 +534,7 @@ class V_network(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
