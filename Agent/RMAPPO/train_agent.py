@@ -382,8 +382,8 @@ if __name__ == '__main__':
 				"enable_hard_attention": False,
 				"num_heads": 4,
 				"critic_weight_entropy_pen": 1e-2,
-				"critic_weight_entropy_pen_final": 0.0,
-				"critic_weight_entropy_pen_steps": 0, # number of updates
+				"critic_weight_entropy_pen_final": 1e-2,
+				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns": True,
