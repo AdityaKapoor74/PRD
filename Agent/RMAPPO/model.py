@@ -16,7 +16,7 @@ class RunningMeanStd(object):
 		self.count = epsilon
 
 	def update(self, arr, mask):
-		arr = arr.reshape(-1, arr.size(-1))
+		# arr = arr.reshape(-1, arr.size(-1))
 		# batch_mean = torch.mean(arr, dim=0)
 		# batch_var = torch.var(arr, dim=0)
 		batch_mean = torch.sum(arr, dim=0) / mask.sum(dim=0)
