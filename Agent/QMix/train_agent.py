@@ -153,9 +153,10 @@ class QMIX:
 
 				if self.gif:
 					# At each step, append an image to list
-					if not(episode%self.gif_checkpoint):
-						images.append(np.squeeze(self.env.render(mode='rgb_array')))
-					import time
+					# if not(episode%self.gif_checkpoint):
+						# images.append(np.squeeze(self.env.render(mode='rgb_array')))
+					self.env.render()
+					# import time
 					# time.sleep(0.1)
 					# Advance a step and render a new image
 					with torch.no_grad():
@@ -173,7 +174,7 @@ class QMIX:
 				next_states = np.array(next_states)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
-				if not self.gif:
+				if self.learn:
 					self.buffer.push(states, actions, last_one_hot_action, next_states, next_last_one_hot_action, next_mask_actions, np.sum(rewards), all(dones))
 
 				states, mask_actions, last_one_hot_action = next_states, next_mask_actions, next_last_one_hot_action
@@ -217,9 +218,9 @@ class QMIX:
 				sample = self.buffer.sample(num_episodes=self.batch_size)
 				self.agents.update(sample, episode)
 
-			elif self.gif and not(episode%self.gif_checkpoint):
-				print("GENERATING GIF")
-				self.make_gif(np.array(images),self.gif_path)
+			# elif self.gif and not(episode%self.gif_checkpoint):
+			# 	print("GENERATING GIF")
+			# 	self.make_gif(np.array(images),self.gif_path)
 
 			if self.eval_policy and not(episode%self.save_model_checkpoint) and episode!=0:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"reward_list"), np.array(self.rewards), allow_pickle=True, fix_imports=True)
@@ -247,7 +248,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
-				"gif": False,
+				"gif": True,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
@@ -267,7 +268,7 @@ if __name__ == '__main__':
 				"num_updates": 1,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.05,
-				"epsilon_greedy_decay_episodes": 500,
+				"epsilon_greedy_decay_episodes": 2000,
 				"lambda": 0.6,
 
 				# ENVIRONMENT
