@@ -277,8 +277,14 @@ class PPOAgent:
 			else:
 				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
-				probs = Categorical(dists)
-				action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device)).cpu().numpy()
+				# probs = Categorical(dists)
+				# action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device)).cpu().numpy()
+
+				dists_taken = torch.gather(dists, dim=-1, index=torch.LongTensor(actions).unsqueeze(-1).to(self.device))
+				action_logprob = torch.log(dists_taken + 1e-10).squeeze(-1).cpu().numpy()
+
+				# old_pi_taken = th.gather(old_pi, dim=3, index=actions).squeeze(3)
+				# old_log_pi_taken = th.log(old_pi_taken + 1e-10)
 
 			return actions, action_logprob, hidden_state.cpu().numpy()
 
@@ -357,17 +363,17 @@ class PPOAgent:
 			self.comet_ml.log_metric('V_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
 
 
-	def calculate_advantages_based_on_exp(self, V_values, next_Values_old, rewards, dones, weights_prd, masks, next_mask, episode):
+	def calculate_advantages_based_on_exp(self, V_values, next_Values, rewards, dones, weights_prd, masks, next_mask, episode):
 		advantage = None
 		masking_rewards = None
 		mean_min_weight_value = -1
 		if "shared" in self.experiment_type:
 			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-			advantage = self.calculate_advantages(V_values, next_Values_old, rewards_, dones, masks, next_mask)
+			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		elif "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 			masking_rewards = (weights_prd>self.select_above_threshold).int()
 			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(masking_rewards,-1,-2), dim=-1)
-			advantage = self.calculate_advantages(V_values, next_Values_old, rewards_, dones, masks, next_mask)
+			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		elif "prd_above_threshold" in self.experiment_type:
 			if episode > self.steps_to_take:
 				masking_rewards = (weights_prd>self.select_above_threshold).int()
@@ -375,11 +381,11 @@ class PPOAgent:
 			else:
 				masking_rewards = torch.ones(weights_prd.shape).to(self.device)
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-			advantage = self.calculate_advantages(V_values, next_Values_old, rewards_, dones, masks, next_mask)
+			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		elif "top" in self.experiment_type:
 			if episode > self.steps_to_take:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-				advantage = self.calculate_advantages(V_values, next_Values_old, rewards_, dones, masks, next_mask)
+				advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 				masking_rewards = torch.ones(weights_prd.shape).to(self.device)
 				min_weight_values, _ = torch.min(weights_prd, dim=-1)
 				mean_min_weight_value = torch.mean(min_weight_values)
@@ -389,14 +395,14 @@ class PPOAgent:
 				mean_min_weight_value = torch.mean(min_weight_values)
 				masking_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 				rewards_ = torch.sum(masking_rewards * torch.transpose(masking_rewards,-1,-2), dim=-1)
-				advantage = self.calculate_advantages(V_values, next_Values_old, rewards_, dones, masks, next_mask)
+				advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		elif "prd_soft_advantage" in self.experiment_type:
 			if episode > self.steps_to_take:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
 			else:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 			
-			advantage = self.calculate_advantages(V_values, next_Values_old, rewards_, dones, masks, next_mask)
+			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
 			advantage *= self.num_agents
@@ -647,10 +653,19 @@ class PPOAgent:
 				next_Values = self.v_value_norm.denormalize(next_Values.view(-1, self.num_agents))*next_mask.to(self.device)
 			
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
+			print("advantage")
+			print(advantage[0])
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
-			probs = Categorical(dists)
-			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
+			# probs = Categorical(dists)
+			# logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
+			# print("categorical logprobs")
+			# print(logprobs[0])
+			
+			dists_taken = torch.gather(dists, dim=-1, index=old_actions.unsqueeze(-1).long().to(self.device)).squeeze(-1)
+			logprobs = torch.log(dists_taken + 1e-10) * masks.to(self.device)
+			# print("logprobs")
+			# print(logprobs[0])
 			
 			if "threshold" in self.experiment_type or "top" in self.experiment_type:
 				agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/masking_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
