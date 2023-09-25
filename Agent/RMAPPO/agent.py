@@ -441,6 +441,7 @@ class PPOAgent:
 			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
 
 		if episode < 25:
+			self.buffer.clear()
 			return
 
 		# batch, _, _ = masks.shape
