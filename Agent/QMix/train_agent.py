@@ -168,7 +168,7 @@ class QMIX:
 					last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				dones = [int(dones)]*self.num_agents
+				# dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
@@ -235,7 +235,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "QMix_"+str(i)
 		test_num = "StarCraft"
-		env_name = "10m_vs_11m"
+		env_name = "3s_vs_5z"
 
 		dictionary = {
 				# TRAINING
