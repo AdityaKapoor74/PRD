@@ -404,7 +404,7 @@ class Q_network(nn.Module):
 		normalized_score = score_stable - log_sum_exp
 
 		# Step 5: Calculate the softmax probabilities.
-		weight = torch.exp(normalized_score)
+		weight = torch.exp(normalized_score) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights[-11])
@@ -639,7 +639,7 @@ class V_network(nn.Module):
 		normalized_score = score_stable - log_sum_exp
 
 		# Step 5: Calculate the softmax probabilities.
-		weight = torch.exp(normalized_score)
+		weight = torch.exp(normalized_score) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights[-11])
