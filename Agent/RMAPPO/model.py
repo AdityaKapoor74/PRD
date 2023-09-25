@@ -176,7 +176,7 @@ class MLP_Policy(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
@@ -410,7 +410,7 @@ class Q_network(nn.Module):
 			hard_attention_weights = F.gumbel_softmax(query_key_concat_intermediate, hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
-			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
+			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).float().to(self.device)
 			# print(hard_attention_weights.shape)
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt((self.d_k//self.num_heads)) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
@@ -645,7 +645,7 @@ class V_network(nn.Module):
 			hard_attention_weights = F.gumbel_softmax(query_key_concat_intermediate, hard=True, tau=1.0)[:,:,:,1].unsqueeze(-1) # Batch_size, Num agents, Num Agents - 1, 1
 			# print(hard_attention_weights.shape)
 		else:
-			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).to(self.device)
+			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).float().to(self.device)
 			# print(hard_attention_weights.shape)
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt((self.d_k//self.num_heads)) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
