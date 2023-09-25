@@ -448,17 +448,17 @@ class PPOAgent:
 		max_episode_len = int(np.max(self.buffer.episode_length))
 
 		v_value_lr, q_value_lr, policy_lr = self.v_value_lr, self.q_value_lr, self.policy_lr
-		# v_value_lr = self.lr_decay(episode, self.v_value_lr)
-		# for param_group in self.v_critic_optimizer.param_groups:
-		# 	param_group['lr'] = v_value_lr
+		v_value_lr = self.lr_decay(episode, self.v_value_lr)
+		for param_group in self.v_critic_optimizer.param_groups:
+			param_group['lr'] = v_value_lr
 
-		# q_value_lr = self.lr_decay(episode, self.q_value_lr)
-		# for param_group in self.q_critic_optimizer.param_groups:
-		# 	param_group['lr'] = q_value_lr
+		q_value_lr = self.lr_decay(episode, self.q_value_lr)
+		for param_group in self.q_critic_optimizer.param_groups:
+			param_group['lr'] = q_value_lr
 
-		# policy_lr = self.lr_decay(episode, self.policy_lr)
-		# for param_group in self.policy_optimizer.param_groups:
-		# 	param_group['lr'] = policy_lr
+		policy_lr = self.lr_decay(episode, self.policy_lr)
+		for param_group in self.policy_optimizer.param_groups:
+			param_group['lr'] = policy_lr
 
 		print(v_value_lr, q_value_lr, policy_lr)
 
@@ -679,7 +679,6 @@ class PPOAgent:
 			print("weights entropy")
 			print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
-			print(score_q.shape, score_v.shape)
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
