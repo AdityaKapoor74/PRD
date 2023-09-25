@@ -146,141 +146,109 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-			episode_collection = 10
 
-			avg_episode_reward = 0
-			avg_episode_length = 0
-			avg_num_enemies = 0
-			avg_num_allies = 0
-			avg_all_allies_dead = 0
-			avg_all_enemies_dead = 0
-			for _ in range(episode_collection):
 
-				# print("i", i)
-				states_actor, info = self.env.reset(return_info=True)
-				mask_actions = np.array(info["avail_actions"], dtype=int)
-				# concatenate state information with last action and agent id
-				# states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], np.zeros((self.num_agents, self.num_actions))), axis=-1)
-				states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-				states_enemies_critic = info["enemy_states"]
-				states_actor = np.array(states_actor)
-				states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
-				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+			states_actor, info = self.env.reset(return_info=True)
+			mask_actions = np.array(info["avail_actions"], dtype=int)
+			# concatenate state information with last action and agent id
+			# states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], np.zeros((self.num_agents, self.num_actions))), axis=-1)
+			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+			states_enemies_critic = info["enemy_states"]
+			states_actor = np.array(states_actor)
+			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
+			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 
-				images = []
+			images = []
 
-				episode_reward = 0
-				final_timestep = self.max_time_steps
+			episode_reward = 0
+			final_timestep = self.max_time_steps
 
-				# self.agents.policy_network_old.rnn_hidden_state = None
-				# self.agents.policy_network.rnn_hidden_state = init_rnn_hidden_actor.to(self.device)
+			# self.agents.policy_network_old.rnn_hidden_state = None
+			# self.agents.policy_network.rnn_hidden_state = init_rnn_hidden_actor.to(self.device)
 
-				# self.agents.critic_network_q_old.rnn_hidden_state = None
-				# self.agents.critic_network_q.rnn_hidden_state = init_rnn_hidden_q.to(self.device)
+			# self.agents.critic_network_q_old.rnn_hidden_state = None
+			# self.agents.critic_network_q.rnn_hidden_state = init_rnn_hidden_q.to(self.device)
 
-				# self.agents.critic_network_v_old.rnn_hidden_state = None
-				# self.agents.critic_network_v.rnn_hidden_state = init_rnn_hidden_v.to(self.device)
+			# self.agents.critic_network_v_old.rnn_hidden_state = None
+			# self.agents.critic_network_v.rnn_hidden_state = init_rnn_hidden_v.to(self.device)
 
-				# rnn_hidden_state_q = np.zeros((1, self.num_agents, self.rnn_hidden_q))
-				# rnn_hidden_state_v = np.zeros((1, self.num_agents, self.rnn_hidden_v))
-				rnn_hidden_state_actor = np.zeros((1, self.num_agents, self.rnn_hidden_actor))
+			# rnn_hidden_state_q = np.zeros((1, self.num_agents, self.rnn_hidden_q))
+			# rnn_hidden_state_v = np.zeros((1, self.num_agents, self.rnn_hidden_v))
+			rnn_hidden_state_actor = np.zeros((1, self.num_agents, self.rnn_hidden_actor))
 
-				for step in range(1, self.max_time_steps+1):
+			for step in range(1, self.max_time_steps+1):
 
-					if self.gif:
-						# At each step, append an image to list
-						# if not(episode%self.gif_checkpoint):
-						# 	images.append(np.squeeze(self.env.render(mode='rgb_array')))
-						# import time
-						# time.sleep(0.1)
-						self.env.render()
-						# Advance a step and render a new image
-						with torch.no_grad():
-							actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
-					else:
-						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
-					
-					# print(mask_actions)
-					one_hot_actions = np.zeros((self.num_agents, self.num_actions))
-					for i, act in enumerate(actions):
+				if self.gif:
+					# At each step, append an image to list
+					# if not(episode%self.gif_checkpoint):
+					# 	images.append(np.squeeze(self.env.render(mode='rgb_array')))
+					# import time
+					# time.sleep(0.1)
+					self.env.render()
+					# Advance a step and render a new image
+					with torch.no_grad():
+						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
+				else:
+					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+				
+				# print(mask_actions)
+				one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				for i, act in enumerate(actions):
+					one_hot_actions[i][act] = 1
+
+				# rnn_hidden_state_q, rnn_hidden_state_v = self.agents.get_critic_hidden_state(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
+
+
+				next_states_actor, rewards, dones, info = self.env.step(actions)
+				# dones = [int(dones)]*self.num_agents
+				rewards = info["indiv_rewards"]
+				next_states_actor = np.array(next_states_actor)
+				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
+				# next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
+				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+				next_states_enemies_critic = info["enemy_states"]
+				next_mask_actions = np.array(info["avail_actions"], dtype=int)
+
+				if self.learn:
+					self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, rewards, dones)
+
+				episode_reward += np.sum(rewards)
+
+				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions
+
+				if all(dones) or step == self.max_time_steps:
+
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
+					print("*"*100)
+
+					final_timestep = step
+
+					if self.save_comet_ml_plot:
+						self.comet_ml.log_metric('Episode_Length', step, episode)
+						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
+						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
+						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
+						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
+
+					# if warmup
+					# self.agents.update_epsilon()
+
+					# add final time to buffer
+					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+				
+					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+					for i,act in enumerate(actions):
 						one_hot_actions[i][act] = 1
 
-					# rnn_hidden_state_q, rnn_hidden_state_v = self.agents.get_critic_hidden_state(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
-
-
-					next_states_actor, rewards, dones, info = self.env.step(actions)
-					# dones = [int(dones)]*self.num_agents
-					rewards = info["indiv_rewards"]
-					next_states_actor = np.array(next_states_actor)
-					next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
-					# next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
+					_, _, dones, info = self.env.step(actions)
 					next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 					next_states_enemies_critic = info["enemy_states"]
-					next_mask_actions = np.array(info["avail_actions"], dtype=int)
-
-					if self.learn:
-						self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, rewards, dones)
-
-					episode_reward += np.sum(rewards)
-
-					states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions
-
-					if all(dones) or step == self.max_time_steps:
-
-						print("*"*100)
-						print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
-						print("*"*100)
-
-						final_timestep = step
-
-						avg_episode_reward += episode_reward
-						avg_episode_length += final_timestep
-						avg_num_allies += info["num_allies"]
-						avg_num_enemies += info["num_enemies"]
-						avg_all_allies_dead += info["all_allies_dead"]
-						avg_all_enemies_dead += info["all_allies_dead"]
-
-						# if self.save_comet_ml_plot:
-						# 	self.comet_ml.log_metric('Episode_Length', step, episode)
-						# 	self.comet_ml.log_metric('Reward', episode_reward, episode)
-						# 	self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
-						# 	self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
-						# 	self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
-						# 	self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
-
-						# if warmup
-						# self.agents.update_epsilon()
-
-						# add final time to buffer
-						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
 					
-						one_hot_actions = np.zeros((self.num_agents,self.num_actions))
-						for i,act in enumerate(actions):
-							one_hot_actions[i][act] = 1
+					self.agents.buffer.end_episode(final_timestep, next_states_allies_critic, next_states_enemies_critic, one_hot_actions, dones)
 
-						_, _, dones, info = self.env.step(actions)
-						next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-						next_states_enemies_critic = info["enemy_states"]
-						
-						self.agents.buffer.end_episode(final_timestep, next_states_allies_critic, next_states_enemies_critic, one_hot_actions, dones)
-
-						break
-
-
-				
-			if self.save_comet_ml_plot:
-				avg_episode_reward /= 10
-				avg_episode_length /= 10
-				avg_num_allies /= 10
-				avg_num_enemies /= 10
-				avg_all_allies_dead /= 10
-				avg_all_enemies_dead /= 10
-				self.comet_ml.log_metric('Episode_Length', avg_episode_length, episode)
-				self.comet_ml.log_metric('Reward', avg_episode_reward, episode)
-				self.comet_ml.log_metric('Num Enemies', avg_num_enemies, episode)
-				self.comet_ml.log_metric('Num Allies', avg_num_allies, episode)
-				self.comet_ml.log_metric('All Enemies Dead', avg_all_enemies_dead, episode)
-				self.comet_ml.log_metric('All Allies Dead', avg_all_allies_dead, episode)
+					break
 
 			if self.agents.scheduler_need:
 				self.agents.scheduler_policy.step()
@@ -300,7 +268,7 @@ class MAPPO:
 				torch.save(self.agents.critic_network_v.state_dict(), self.critic_model_path+'_V_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
-			if self.learn: #and not(episode%self.update_ppo_agent) and episode != 0:
+			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode)
 
 			# elif self.gif and not(episode%self.gif_checkpoint):
@@ -336,7 +304,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
@@ -397,8 +365,8 @@ if __name__ == '__main__':
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 5e-3, #8e-3
-				"entropy_pen_final": 5e-3,
-				"entropy_pen_steps": 1000,
+				"entropy_pen_final": 0.0,
+				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.1, #0.1,
 				"threshold_min": 0.0, 
