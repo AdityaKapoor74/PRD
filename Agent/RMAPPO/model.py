@@ -176,11 +176,11 @@ class MLP_Policy(nn.Module):
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+				nn.init.xavier_uniform_(param)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
-		# local_observations = self.feature_norm(local_observations)
+		local_observations = self.feature_norm(local_observations)
 		if update == False:
 			intermediate = self.Layer_1(local_observations)
 			output, h = self.RNN(intermediate, hidden_state)
@@ -249,20 +249,20 @@ class Q_network(nn.Module):
 
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
-			# nn.LayerNorm(ally_obs_input_dim),
+			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
-			# nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
+			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
-		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
+		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
@@ -398,8 +398,8 @@ class Q_network(nn.Module):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
 		# EMBED STATE ACTION
-		# obs_norm = self.obs_act_obs_norm(states)
-		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
+		obs_norm = self.obs_act_obs_norm(states)
+		obs_actions = torch.cat([obs_norm, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
@@ -468,22 +468,22 @@ class V_network(nn.Module):
 
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
-			# nn.LayerNorm(ally_obs_input_dim),
+			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
-			# nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
+			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
 
-		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
+		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
-			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
+			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
 			nn.GELU(),
 			)
@@ -617,8 +617,8 @@ class V_network(nn.Module):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
 		# EMBED STATE ACTION
-		# obs_norm = self.obs_act_obs_norm(states)
-		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
+		obs_norm = self.obs_act_obs_norm(states)
+		obs_actions = torch.cat([obs_norm, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		# print(obs_actions_embed.shape)
