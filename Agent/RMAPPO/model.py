@@ -388,8 +388,24 @@ class Q_network(nn.Module):
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt((self.d_k//self.num_heads)) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
-		weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
+		
+		# Step 1: Find the maximum value among the logits.
+		max_score = torch.max(score, dim=-1, keepdim=True).values
+
+		# Step 2: Subtract the maximum value from the logits for numerical stability.
+		score_stable = score - max_score
+
+		# Step 3: Calculate the log-sum-exp of the adjusted logits.
+		log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
+
+		# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+		normalized_score = score_stable - log_sum_exp
+
+		# Step 5: Calculate the softmax probabilities.
+		weight = torch.exp(normalized_score)
+		
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights[-11])
 		# print(weights.shape)
@@ -607,8 +623,24 @@ class V_network(nn.Module):
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt((self.d_k//self.num_heads)) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(score.shape)
-		weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# weight = F.softmax(score/self.temperature ,dim=-1)*hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# print(weight.shape)
+
+		# Step 1: Find the maximum value among the logits.
+		max_score = torch.max(score, dim=-1, keepdim=True).values
+
+		# Step 2: Subtract the maximum value from the logits for numerical stability.
+		score_stable = score - max_score
+
+		# Step 3: Calculate the log-sum-exp of the adjusted logits.
+		log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
+
+		# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+		normalized_score = score_stable - log_sum_exp
+
+		# Step 5: Calculate the softmax probabilities.
+		weight = torch.exp(normalized_score)
+
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		# print(weights[-11])
 		# print(weights.shape)
