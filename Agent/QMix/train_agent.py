@@ -276,8 +276,8 @@ if __name__ == '__main__':
 
 				# MODEL
 				"learning_rate": 5e-4, #1e-3
-				"enable_grad_clip": False,
-				"grad_clip": 10.0,
+				"enable_grad_clip": True,
+				"grad_clip": 0.5,
 				"rnn_hidden_dim": 64,
 				"hidden_dim": 32,
 				"norm_returns": False,
