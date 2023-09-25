@@ -248,7 +248,7 @@ if __name__ == '__main__':
 				"test_num":test_num,
 				"extension":extension,
 				"gamma": 0.99,
-				"gif": True,
+				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
 				"model_path": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
