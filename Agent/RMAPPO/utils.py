@@ -87,7 +87,7 @@ class RolloutBuffer:
 		obs_shape_actor, 
 		num_actions, 
 		):
-		num_episodes = 10
+		# num_episodes = 10
 		self.num_episodes = num_episodes
 		self.max_time_steps = max_time_steps
 		self.num_agents = num_agents
