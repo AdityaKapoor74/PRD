@@ -302,8 +302,11 @@ class PPOAgent:
 		masks = 1 - dones
 		for t in reversed(range(0, rewards.shape[1])):
 			td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:]
-			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * next_mask))#*masks_[:,t,:]
-			
+			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * next_mask)) * next_mask #*masks_[:,t,:]
+			# print("mask")
+			# print(next_mask)
+			# print("advantage")
+			# print(advantage)
 			next_value = values.data[:, t, :]
 			next_mask = masks[:,t,:]
 			
@@ -664,12 +667,12 @@ class PPOAgent:
 				next_Values = self.v_value_norm.normalize(next_Values.view(-1, self.num_agents)).view(targets_shape)
 
 			if self.norm_adv:
-				# advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
-				# advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks.to(self.device)
-				# advantage = advantage.reshape(-1, self.num_agents)
 				advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
 				advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
 				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+
+			# print(advantage[0])
+			# print(advantage[-1])
 
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
@@ -732,8 +735,8 @@ class PPOAgent:
 			policy_loss_ = (-torch.min(surr1, surr2).sum())/masks.sum()
 			policy_loss = policy_loss_ - self.entropy_pen*entropy
 
-			# print("loss", "*"*20)
-			# print(policy_loss_.item(), policy_loss.item(), entropy.item(), self.entropy_pen*entropy.item(), critic_v_loss.item(), critic_q_loss.item())
+			print("loss", "*"*20)
+			print(policy_loss_.item(), policy_loss.item(), entropy.item(), self.entropy_pen*entropy.item(), critic_v_loss.item(), critic_q_loss.item())
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
