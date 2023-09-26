@@ -47,12 +47,12 @@ class RunningMeanStd(object):
 		self.var = new_var
 		self.count = new_count
 
-		print("mean")
-		print(self.mean)
-		print("var")
-		print(self.var)
-		print("count")
-		print(self.count)
+		# print("mean")
+		# print(self.mean)
+		# print("var")
+		# print(self.var)
+		# print("count")
+		# print(self.count)
 
 
 class ValueNorm(nn.Module):
@@ -96,8 +96,8 @@ class ValueNorm(nn.Module):
 		batch_mean = input_vector.sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
 		batch_sq_mean = (input_vector ** 2).sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
 
-		print("batch mean 1")
-		print(batch_mean)
+		# print("batch mean 1")
+		# print(batch_mean)
 
 		if self.per_element_update:
 			batch_size = np.prod(input_vector.size()[:self.norm_axes])
@@ -116,6 +116,10 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
+		# print("mean")
+		# print(mean)
+		# print("var")
+		# print(var)
 		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
 		
 		return out
@@ -127,10 +131,10 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
-		print("mean")
-		print(mean)
-		print("var")
-		print(var)
+		# print("mean")
+		# print(mean)
+		# print("var")
+		# print(var)
 		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
 		
 		return out
@@ -188,20 +192,21 @@ class MLP_Policy(nn.Module):
 			logits = self.Layer_2(output+intermediate)
 
 			# Step 1: Find the maximum value among the logits.
-			max_logits = torch.max(logits, dim=-1, keepdim=True).values
+			# max_logits = torch.max(logits, dim=-1, keepdim=True).values
 
-			# Step 2: Subtract the maximum value from the logits for numerical stability.
-			logits_stable = logits - max_logits
+			# # Step 2: Subtract the maximum value from the logits for numerical stability.
+			# logits_stable = logits - max_logits
 
-			# Step 3: Calculate the log-sum-exp of the adjusted logits.
-			log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
+			# # Step 3: Calculate the log-sum-exp of the adjusted logits.
+			# log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
 
-			# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-			normalized_logits = logits_stable - log_sum_exp
+			# # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+			# normalized_logits = logits_stable - log_sum_exp
 			
-			normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
-			
-			return F.softmax(normalized_logits, dim=-1).squeeze(1), h
+			# normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
+				
+			logits = torch.where(mask_actions, logits, self.mask_value)
+			return F.softmax(logits, dim=-1).squeeze(1), h
 		else:
 			# local_observations --> batch, timesteps, num_agents, dim
 			batch, timesteps, num_agents, _ = local_observations.shape
@@ -214,20 +219,21 @@ class MLP_Policy(nn.Module):
 			logits = self.Layer_2(output+intermediate)
 			
 			# Step 1: Find the maximum value among the logits.
-			max_logits = torch.max(logits, dim=-1, keepdim=True).values
+			# max_logits = torch.max(logits, dim=-1, keepdim=True).values
 
-			# Step 2: Subtract the maximum value from the logits for numerical stability.
-			logits_stable = logits - max_logits
+			# # Step 2: Subtract the maximum value from the logits for numerical stability.
+			# logits_stable = logits - max_logits
 
-			# Step 3: Calculate the log-sum-exp of the adjusted logits.
-			log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
+			# # Step 3: Calculate the log-sum-exp of the adjusted logits.
+			# log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
 
-			# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-			normalized_logits = logits_stable - log_sum_exp
+			# # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+			# normalized_logits = logits_stable - log_sum_exp
 			
-			normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
+			# normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
 			# print(torch.sum(mask_actions), mask_actions.reshape(-1).shape, torch.sum(mask_actions)/mask_actions.reshape(-1).shape[0])
-			return F.softmax(normalized_logits, dim=-1), h
+			logits = torch.where(mask_actions, logits, self.mask_value)
+			return F.softmax(logits, dim=-1), h
 
 
 
