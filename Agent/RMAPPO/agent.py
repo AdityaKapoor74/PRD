@@ -277,11 +277,11 @@ class PPOAgent:
 			else:
 				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists]
 
-				# probs = Categorical(dists)
-				# action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device)).cpu().numpy()
+				probs = Categorical(dists)
+				action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device)).cpu().numpy()
 
-				dists_taken = torch.gather(dists, dim=-1, index=torch.LongTensor(actions).unsqueeze(-1).to(self.device))
-				action_logprob = torch.log(dists_taken + 1e-10).squeeze(-1).cpu().numpy()
+				# dists_taken = torch.gather(dists, dim=-1, index=torch.LongTensor(actions).unsqueeze(-1).to(self.device))
+				# action_logprob = torch.log(dists_taken + 1e-10).squeeze(-1).cpu().numpy()
 
 				# old_pi_taken = th.gather(old_pi, dim=3, index=actions).squeeze(3)
 				# old_log_pi_taken = th.log(old_pi_taken + 1e-10)
@@ -442,13 +442,14 @@ class PPOAgent:
 		# masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)
 
+		print(rewards[0])
 		if self.norm_rewards:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
-
-		if episode < 25:
-			self.buffer.clear()
-			return
+		print(rewards[0])
+		# if episode < 25:
+		# 	self.buffer.clear()
+		# 	return
 
 		# batch, _, _ = masks.shape
 		rnn_hidden_state_q = torch.zeros(1, self.update_ppo_agent*self.num_agents, self.rnn_hidden_q)
@@ -579,11 +580,11 @@ class PPOAgent:
 			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
 
 		# print("target_qs")
-		print(target_Q_values[0])
-		print(target_Q_values[-1])
+		# print(target_Q_values[0])
+		# print(target_Q_values[-1])
 		# print("target_vs")
-		print(target_V_values[0])
-		print(target_V_values[-1])
+		# print(target_V_values[0])
+		# print(target_V_values[-1])
 
 		# if self.norm_returns:
 		# 	target_Q_values = (target_Q_values - target_Q_values.mean()) / target_Q_values.std()
@@ -653,17 +654,17 @@ class PPOAgent:
 				next_Values = self.v_value_norm.denormalize(next_Values.view(-1, self.num_agents))*next_mask.to(self.device)
 			
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			print("advantage")
-			print(advantage[0])
+			# print("advantage")
+			# print(advantage[0])
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 
-			# probs = Categorical(dists)
-			# logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
+			probs = Categorical(dists)
+			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
 			# print("categorical logprobs")
 			# print(logprobs[0])
 			
-			dists_taken = torch.gather(dists, dim=-1, index=old_actions.unsqueeze(-1).long().to(self.device)).squeeze(-1)
-			logprobs = torch.log(dists_taken + 1e-10) * masks.to(self.device)
+			# dists_taken = torch.gather(dists, dim=-1, index=old_actions.unsqueeze(-1).long().to(self.device)).squeeze(-1)
+			# logprobs = torch.log(dists_taken + 1e-10) * masks.to(self.device)
 			# print("logprobs")
 			# print(logprobs[0])
 			
@@ -695,8 +696,8 @@ class PPOAgent:
 				score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.unsqueeze(-1).to(self.device)).sum()/masks.sum()
 				score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.unsqueeze(-1).to(self.device)).sum()/masks.sum()
 			
-			print("weights entropy")
-			print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
+			# print("weights entropy")
+			# print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
@@ -704,6 +705,8 @@ class PPOAgent:
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp((logprobs - old_logprobs.to(self.device))*masks.to(self.device))
+			# print("*"*20)
+			# print(ratios[12])
 			# Finding Surrogate Loss
 			surr1 = ratios * advantage * masks.to(self.device)
 			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage * masks.to(self.device)
@@ -716,8 +719,8 @@ class PPOAgent:
 			policy_loss_ = (-torch.min(surr1, surr2).sum())/masks.sum()
 			policy_loss = policy_loss_ - self.entropy_pen*entropy
 
-			print("loss")
-			print(policy_loss_.item(), policy_loss.item(), entropy.item(), self.entropy_pen*entropy.item(), critic_v_loss.item(), critic_q_loss.item())
+			# print("loss", "*"*20)
+			# print(policy_loss_.item(), policy_loss.item(), entropy.item(), self.entropy_pen*entropy.item(), critic_v_loss.item(), critic_q_loss.item())
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
@@ -760,8 +763,8 @@ class PPOAgent:
 				grad_norm_policy = torch.tensor([total_norm ** 0.5])
 			self.policy_optimizer.step()
 
-			print("grads")
-			print(grad_norm_value_q.item(), grad_norm_value_v.item(), grad_norm_policy.item())
+			# print("grads")
+			# print(grad_norm_value_q.item(), grad_norm_value_v.item(), grad_norm_policy.item())
 
 			# self.policy_network.rnn_hidden_state = None #rnn_hidden_state_actor.detach()
 
