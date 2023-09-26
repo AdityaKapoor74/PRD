@@ -292,7 +292,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "10m_vs_11m"
-		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -362,7 +362,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.05,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 0.0, #8e-3
 				"entropy_pen_final": 0.0,
@@ -373,7 +373,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": True,
+				"norm_adv": False,
 
 				"network_update_interval": 1,
 			}
