@@ -536,7 +536,9 @@ class PPOAgent:
 			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
 			# Q_values_old_ = (Values_old * torch.sqrt(self.q_value_norm.var) + self.q_value_norm.mean)*masks.view(values_shape).to(self.device)
 
+			values_shape = next_Values_old.shape
 			next_Values_old = self.v_value_norm.denormalize(next_Values_old.view(-1)).view(values_shape)*next_mask.view(values_shape).to(self.device)
+			values_shape = next_Q_values_old.shape
 			next_Q_values_old = self.q_value_norm.denormalize(next_Q_values_old.view(-1)).view(values_shape)*next_mask.view(values_shape).to(self.device)
 			# next_Values_old = (next_Values_old * torch.sqrt(self.v_value_norm.var) + self.v_value_norm.mean)*next_mask.to(self.device)
 			# next_Q_values_old = (next_Q_values_old * torch.sqrt(self.q_value_norm.var) + self.q_value_norm.mean)*next_mask.to(self.device)
@@ -561,12 +563,12 @@ class PPOAgent:
 			targets_shape = target_V_values.shape
 			# targets = targets.reshape(-1)
 			self.v_value_norm.update(target_V_values.view(-1), masks.view(-1).to(self.device))
-			target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape) * masks.to(self.device)
+			target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape) * masks.view(targets_shape).to(self.device)
 
 			targets_shape = target_Q_values.shape
 			# targets = targets.reshape(-1)
 			self.q_value_norm.update(target_Q_values.view(-1), masks.view(-1).to(self.device))
-			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape) * masks.to(self.device)
+			target_Q_values = self.q_value_norm.normalize(target_Q_values.view(-1)).view(targets_shape) * masks.view(targets_shape).to(self.device)
 
 			# self.v_value_norm.update(target_V_values.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
 			# target_V_values = (target_V_values - self.v_value_norm.mean) / (torch.sqrt(self.v_value_norm.var) + 1e-5)
