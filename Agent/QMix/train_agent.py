@@ -236,7 +236,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "QMix_"+str(i)
 		test_num = "StarCraft"
-		env_name = "3s_vs_5z"
+		env_name = "bane_vs_bane"
 
 		dictionary = {
 				# TRAINING
@@ -267,7 +267,7 @@ if __name__ == '__main__':
 				"update_episode_interval": 1,
 				"num_updates": 1,
 				"epsilon_greedy": 1.0,
-				"epsilon_greedy_min": 0.05,
+				"epsilon_greedy_min": 0.1,
 				"epsilon_greedy_decay_episodes": 2000,
 				"lambda": 0.8,
 
