@@ -338,17 +338,17 @@ class Q_network(nn.Module):
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			nn.GELU(),
 			)
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
+		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
-			nn.LayerNorm(64),
+			# nn.LayerNorm(64),
 			init_(nn.Linear(64, self.num_actions))
 			)
 
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		# for name, param in self.RNN.named_parameters():
+		# 	if 'bias' in name:
+		# 		nn.init.constant_(param, 0)
+		# 	elif 'weight' in name:
+		# 		nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -474,15 +474,16 @@ class Q_network(nn.Module):
 		# print(curr_agent_node_features.shape)
 		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		# print(curr_agent_node_features.shape)
-		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
-		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-		Q_value = self.q_value_layer(output+curr_agent_node_features.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)) # Batch_size, Num agents, num_actions
+		# curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+		# output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
+		# output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+		# Q_value = self.q_value_layer(output+curr_agent_node_features.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)) # Batch_size, Num agents, num_actions
+		Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
 		# print(Q_value.shape)
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
 		# print(Q_value.shape)
 
-		return Q_value.squeeze(-1), weights, score, h
+		return Q_value.squeeze(-1), weights, score, None #h
 
 
 class V_network(nn.Module):
@@ -573,17 +574,17 @@ class V_network(nn.Module):
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			nn.GELU(),
 			)
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
+		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.v_value_layer = nn.Sequential(
-			nn.LayerNorm(64),
+			# nn.LayerNorm(64),
 			init_(nn.Linear(64, 1))
 			)
 
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		# for name, param in self.RNN.named_parameters():
+		# 	if 'bias' in name:
+		# 		nn.init.constant_(param, 0)
+		# 	elif 'weight' in name:
+		# 		nn.init.orthogonal_(param)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -710,11 +711,12 @@ class V_network(nn.Module):
 		# curr_agent_node_features = self.RNN(curr_agent_node_features.reshape(-1, curr_agent_node_features.shape[-1]), history.reshape(-1, curr_agent_node_features.shape[-1])).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		# print(curr_agent_node_features.shape)
 		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
-		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-		V_value = self.v_value_layer(output+curr_agent_node_features.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)) # Batch_size, Num agents, num_actions
+		# output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
+		# output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+		# V_value = self.v_value_layer(output+curr_agent_node_features.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)) # Batch_size, Num agents, num_actions
+		V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
 
-		return V_value.squeeze(-1), weights, score, h
+		return V_value.squeeze(-1), weights, score, None#h
 
 
 # class V_network(nn.Module):
