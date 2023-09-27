@@ -483,7 +483,7 @@ class Q_network(nn.Module):
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
 		# print(Q_value.shape)
 
-		return Q_value.squeeze(-1), weights, score, None #h
+		return Q_value.squeeze(-1), weights, score, rnn_hidden_state #h
 
 
 class V_network(nn.Module):
@@ -716,7 +716,7 @@ class V_network(nn.Module):
 		# V_value = self.v_value_layer(output+curr_agent_node_features.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)) # Batch_size, Num agents, num_actions
 		V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
 
-		return V_value.squeeze(-1), weights, score, None#h
+		return V_value.squeeze(-1), weights, score, rnn_hidden_state #h
 
 
 # class V_network(nn.Module):
