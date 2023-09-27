@@ -331,6 +331,25 @@ class PPOAgent:
 		# return ret[:, 0:-1]
 		return ret
 
+	def nstep_returns(self, rewards, mask, values, next_values, nsteps):
+		# nstep_values = th.zeros_like(values[:, :-1])
+		nstep_values = torch.zeros_like(values)
+		for t_start in range(rewards.size(1)):
+			nstep_return_t = torch.zeros_like(values[:, 0])
+			for step in range(nsteps + 1):
+				t = t_start + step
+				if t >= rewards.size(1):
+					break
+				elif step == nsteps:
+					nstep_return_t += self.gamma ** (step) * values[:, t] * mask[:, t]
+				elif t == rewards.size(1) - 1: # and self.args.add_value_last_step:
+					nstep_return_t += self.gamma ** (step) * rewards[:, t] * mask[:, t]
+					nstep_return_t += self.gamma ** (step + 1) * next_values #values[:, t + 1]
+				else:
+					nstep_return_t += self.gamma ** (step) * rewards[:, t] * mask[:, t]
+			nstep_values[:, t_start, :] = nstep_return_t
+		return nstep_values
+
 
 
 	def plot(self, masks, episode):
@@ -507,20 +526,20 @@ class PPOAgent:
 			next_mask = 1-torch.FloatTensor(np.array(self.buffer.dones))[:, -1, :].long().reshape(-1, self.num_agents)
 
 
-		# if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
-		# 	mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-		# 	target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
-		# elif "threshold" in self.experiment_type and episode > self.steps_to_take:
-		# 	mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-		# 	target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
-		# elif "top" in self.experiment_type and episode > self.steps_to_take:
-		# 	values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k, dim=-1)
-		# 	mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-		# 	target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
-		# elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
-		# 	target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
-		# else:
-		# 	target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+		if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
+			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+		elif "threshold" in self.experiment_type and episode > self.steps_to_take:
+			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+		elif "top" in self.experiment_type and episode > self.steps_to_take:
+			values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k, dim=-1)
+			mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+		elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+		else:
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
 		# shape = (batch, time_steps, self.num_agents)
 		# target_Qs = rewards.reshape(*shape).to(self.device) + self.gamma * (1-dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,1:,:]) * Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]
@@ -549,10 +568,14 @@ class PPOAgent:
 			target_Q_values = (Q_values_old_ + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
 
 		else:
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			target_V_values = (Values_old + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
-			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
+			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
+			# target_V_values = (Values_old + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
+			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			# target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
+			shape = (self.update_ppo_agent, 25, self.num_agents)
+			target_V_values = self.nstep_returns(rewards=target_V_rewards.view(*shape), mask=masks.view(*shape), values=Values_old.view(*shape), next_values=next_Values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+			target_Q_values = self.nstep_returns(rewards=rewards.view(*shape), mask=masks.view(*shape), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+
 
 		# print("target_V_values")
 		# print(target_V_values[0])
