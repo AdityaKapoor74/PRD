@@ -331,7 +331,7 @@ class PPOAgent:
 		# return ret[:, 0:-1]
 		return ret
 
-	def nstep_returns(self, rewards, mask, values, next_values, nsteps):
+	def nstep_returns(self, rewards, mask, next_mask, values, next_values, nsteps):
 		# nstep_values = th.zeros_like(values[:, :-1])
 		nstep_values = torch.zeros_like(values)
 		for t_start in range(rewards.size(1)):
@@ -344,7 +344,7 @@ class PPOAgent:
 					nstep_return_t += self.gamma ** (step) * values[:, t] * mask[:, t]
 				elif t == rewards.size(1) - 1: # and self.args.add_value_last_step:
 					nstep_return_t += self.gamma ** (step) * rewards[:, t] * mask[:, t]
-					nstep_return_t += self.gamma ** (step + 1) * next_values #values[:, t + 1]
+					nstep_return_t += self.gamma ** (step + 1) * next_values * next_mask #values[:, t + 1]
 				else:
 					nstep_return_t += self.gamma ** (step) * rewards[:, t] * mask[:, t]
 			nstep_values[:, t_start, :] = nstep_return_t
@@ -573,8 +573,8 @@ class PPOAgent:
 			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			# target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
 			shape = (self.update_ppo_agent, 25, self.num_agents)
-			target_V_values = self.nstep_returns(rewards=target_V_rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), values=Values_old.view(*shape), next_values=next_Values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
-			target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+			target_V_values = self.nstep_returns(rewards=target_V_rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents), values=Values_old.view(*shape), next_values=next_Values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+			target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
 
 
 		# print("target_V_values")
