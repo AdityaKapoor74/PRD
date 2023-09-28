@@ -166,7 +166,10 @@ class MLP_Policy(nn.Module):
 		self.device = device
 		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
 		self.Layer_1 = nn.Sequential(
-			init_(nn.Linear(obs_input_dim+num_actions, 64), activate=True),
+			init_(nn.Linear(obs_input_dim+num_actions, 128), activate=True),
+			# nn.LayerNorm(64),
+			nn.GELU(),
+			init_(nn.Linear(128, 64), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
 			)
