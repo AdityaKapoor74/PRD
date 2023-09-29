@@ -304,7 +304,7 @@ class PPOAgent:
 		masks = 1 - dones
 		for t in reversed(range(0, rewards.shape[1])):
 			td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:]
-			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * next_mask)) * next_mask #* masks[:,t,:]
+			advantage = (td_error + (self.gamma * self.gae_lambda * advantage * next_mask)) #* next_mask #* masks[:,t,:]
 			# print("mask")
 			# print(next_mask)
 			# print("advantage")
@@ -467,7 +467,7 @@ class PPOAgent:
 		masks = 1 - dones.reshape(self.update_ppo_agent, -1, self.num_agents)
 
 		rewards = torch.clamp(rewards, min=0.0, max=2.0)
-
+		
 		if self.norm_rewards:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
