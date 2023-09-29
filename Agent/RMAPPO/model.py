@@ -168,10 +168,10 @@ class MLP_Policy(nn.Module):
 		self.Layer_1 = nn.Sequential(
 			init_(nn.Linear(obs_input_dim+num_actions, 128), activate=True),
 			# nn.LayerNorm(64),
-			nn.GELU(),
+			nn.ReLU(),
 			init_(nn.Linear(128, 64), activate=True),
 			# nn.LayerNorm(64),
-			nn.GELU(),
+			nn.ReLU(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Sequential(
@@ -287,21 +287,21 @@ class Q_network(nn.Module):
 			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.GELU(),
+			nn.ReLU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.LayerNorm(enemy_obs_input_dim),
 			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.GELU(),
+			nn.ReLU(),
 			)
 
 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-			nn.GELU(),
+			nn.ReLU(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -318,7 +318,7 @@ class Q_network(nn.Module):
 			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.GELU(),
+			nn.ReLU(),
 			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -328,7 +328,7 @@ class Q_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
 				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.GELU(), 
+				nn.ReLU(), 
 				init_(nn.Linear(64, 2))
 				)
 
@@ -350,7 +350,7 @@ class Q_network(nn.Module):
 			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.GELU(),
+			nn.ReLU(),
 			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -364,12 +364,12 @@ class Q_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.GELU(),
+			nn.ReLU(),
 			)
 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
 			init_(nn.Linear(64, 64, bias=True), activate=True),
-			nn.GELU(),
+			nn.ReLU(),
 			# nn.LayerNorm(64),
 			init_(nn.Linear(64, self.num_actions))
 			)
@@ -535,21 +535,21 @@ class V_network(nn.Module):
 			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.GELU(),
+			nn.ReLU(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.LayerNorm(enemy_obs_input_dim),
 			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.GELU(),
+			nn.ReLU(),
 			)
 
 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-			nn.GELU(),
+			nn.ReLU(),
 			)
 
 		# Attention for agents to agents
@@ -567,7 +567,7 @@ class V_network(nn.Module):
 			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.GELU(),
+			nn.ReLU(),
 			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -577,7 +577,7 @@ class V_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
 				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.GELU(), 
+				nn.ReLU(), 
 				init_(nn.Linear(64, 2))
 				)
 
@@ -600,7 +600,7 @@ class V_network(nn.Module):
 			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.GELU(),
+			nn.ReLU(),
 			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -614,12 +614,12 @@ class V_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.GELU(),
+			nn.ReLU(),
 			)
 
 		self.v_value_layer = nn.Sequential(
 			init_(nn.Linear(64, 64, bias=True), activate=True),
-			nn.GELU(),
+			nn.ReLU(),
 			# nn.LayerNorm(64),
 			init_(nn.Linear(64, 1))
 			)
@@ -788,21 +788,21 @@ class V_network(nn.Module):
 # 			nn.LayerNorm(ally_obs_input_dim),
 # 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 # 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 # 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
@@ -819,7 +819,7 @@ class V_network(nn.Module):
 # 			init_(nn.Linear(64, 64), activate=True),
 # 			# nn.LayerNorm(2048),
 # 			# nn.Dropout(0.2),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			init_(nn.Linear(64, 64))
 # 			)
 # 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -829,7 +829,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.Sequential(
 # 				init_(nn.Linear(64+64, 64), activate=True), 
-# 				nn.GELU(), 
+# 				nn.ReLU(), 
 # 				init_(nn.Linear(64, 2))
 # 				)
 
@@ -840,12 +840,12 @@ class V_network(nn.Module):
 # 		# FCN FINAL LAYER TO GET Q-VALUES
 # 		self.common_layer = nn.Sequential(
 # 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 # 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.q_value_layer = nn.Sequential(
 # 			init_(nn.Linear(64, 64, bias=True), activate=True),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			# nn.LayerNorm(64),
 # 			init_(nn.Linear(64, self.num_actions))
 # 			)
@@ -1028,21 +1028,21 @@ class V_network(nn.Module):
 # 			nn.LayerNorm(ally_obs_input_dim),
 # 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 # 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 # 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
@@ -1059,7 +1059,7 @@ class V_network(nn.Module):
 # 			init_(nn.Linear(64, 64), activate=True),
 # 			# nn.LayerNorm(2048),
 # 			# nn.Dropout(0.2),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			init_(nn.Linear(64, 64))
 # 			)
 # 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -1069,7 +1069,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.Sequential(
 # 				init_(nn.Linear(64+64, 64), activate=True), 
-# 				nn.GELU(), 
+# 				nn.ReLU(), 
 # 				init_(nn.Linear(64, 2))
 # 				)
 
@@ -1080,12 +1080,12 @@ class V_network(nn.Module):
 # 		# FCN FINAL LAYER TO GET Q-VALUES
 # 		self.common_layer = nn.Sequential(
 # 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 # 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.v_value_layer = nn.Sequential(
 # 			init_(nn.Linear(64, 64, bias=True), activate=True),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			# nn.LayerNorm(64),
 # 			init_(nn.Linear(64, 1))
 # 			)
@@ -1264,19 +1264,19 @@ class V_network(nn.Module):
 # 		self.ally_state_embed_1 = nn.Sequential(
 # 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True)),
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True)),
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True)), 
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
@@ -1292,7 +1292,7 @@ class V_network(nn.Module):
 # 			init_(nn.Linear(64, 2048)),
 # 			nn.LayerNorm(2048),
 # 			nn.Dropout(0.2),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			init_(nn.Linear(2048, 64))
 # 			)
 # 		self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -1302,7 +1302,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.Sequential(
 # 				init_(nn.Linear(64+64, 64)), 
-# 				nn.GELU(), 
+# 				nn.ReLU(), 
 # 				init_(nn.Linear(64, 2))
 # 				)
 
@@ -1314,10 +1314,10 @@ class V_network(nn.Module):
 # 		self.common_layer = nn.Sequential(
 # 			init_(nn.Linear(64+64+64, 128, bias=True)), 
 # 			nn.LayerNorm(128),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			init_(nn.Linear(128, 64)),
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 # 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.v_value_layer = nn.Sequential(
@@ -1482,47 +1482,47 @@ class V_network(nn.Module):
 # 		self.ally_state_embed_1 = nn.Sequential(
 # 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.ally_state_embed_2 = nn.Sequential(
 # 			nn.Linear(ally_obs_input_dim, 32, bias=True), 
 # 			nn.LayerNorm(32),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
 # 		assert 64%self.num_heads == 0
 # 		self.key = nn.ModuleList([nn.Sequential(
 # 					nn.Linear(64, 64, bias=True), 
-# 					# nn.GELU()
+# 					# nn.ReLU()
 # 					).to(self.device) for _ in range(self.num_heads)])
 # 		self.query = nn.ModuleList([nn.Sequential(
 # 					nn.Linear(64, 64, bias=True), 
-# 					# nn.GELU()
+# 					# nn.ReLU()
 # 					).to(self.device) for _ in range(self.num_heads)])
 # 		self.attention_value = nn.ModuleList([nn.Sequential(
 # 					nn.Linear(64, 64//self.num_heads, bias=True), 
-# 					# nn.GELU()
+# 					# nn.ReLU()
 # 					).to(self.device) for _ in range(self.num_heads)])
 
 # 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 # 		self.attention_value_linear = nn.Sequential(
 # 			nn.Linear(64, 64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 
 # 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
@@ -1530,7 +1530,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.ModuleList([nn.Sequential(
 # 						nn.Linear(64*2, 64//self.num_heads),
-# 						# nn.GELU(),
+# 						# nn.ReLU(),
 # 						).to(self.device) for _ in range(self.num_heads)])
 
 # 			self.hard_attention_linear = nn.Sequential(
@@ -1545,14 +1545,14 @@ class V_network(nn.Module):
 # 		self.common_layer = nn.Sequential(
 # 			nn.Linear(32+64+64, 64, bias=True), 
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			)
 # 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.v_value_layer = nn.Sequential(
 # 			nn.LayerNorm(64),
 # 			nn.Linear(64, 64, bias=True),
 # 			nn.LayerNorm(64),
-# 			nn.GELU(),
+# 			nn.ReLU(),
 # 			nn.Linear(64, 1)
 # 			)
 			
