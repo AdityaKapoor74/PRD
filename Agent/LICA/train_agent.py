@@ -209,7 +209,7 @@ class LICA:
 
 					_, _, dones, _ = self.env.step(actions)
 
-					self.buffer.end_episode(states, one_hot_actions, dones)
+					self.buffer.end_episode(states, one_hot_actions, all(dones))
 
 					break
 
