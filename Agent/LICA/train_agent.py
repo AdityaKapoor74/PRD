@@ -170,7 +170,7 @@ class LICA:
 					next_last_one_hot_action[i][act] = 1
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				dones = [int(dones)]*self.num_agents
+				# dones = [int(dones)]*self.num_agents
 				rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
 				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
