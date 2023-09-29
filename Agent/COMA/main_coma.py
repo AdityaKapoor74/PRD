@@ -11,7 +11,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_"+str(i)
 		test_num = "StarCraft"
-		env_name = "10m_vs_11m"
+		env_name = "bane_vs_bane"
 
 		dictionary = {
 				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
