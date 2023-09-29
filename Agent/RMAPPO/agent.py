@@ -59,8 +59,10 @@ class PPOAgent:
 		self.value_clip = dictionary["value_clip"]
 		self.num_heads = dictionary["num_heads"]
 		self.enable_hard_attention = dictionary["enable_hard_attention"]
-		self.enable_grad_clip_critic = dictionary["enable_grad_clip_critic"]
-		self.grad_clip_critic = dictionary["grad_clip_critic"]
+		self.enable_grad_clip_critic_v = dictionary["enable_grad_clip_critic_v"]
+		self.grad_clip_critic_v = dictionary["grad_clip_critic_v"]
+		self.enable_grad_clip_critic_q = dictionary["enable_grad_clip_critic_q"]
+		self.grad_clip_critic_q = dictionary["grad_clip_critic_q"]
 
 
 		# Actor Setup
@@ -769,8 +771,8 @@ class PPOAgent:
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
-			if self.enable_grad_clip_critic:
-				grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic)
+			if self.enable_grad_clip_critic_q:
+				grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic_q)
 			else:
 				total_norm = 0
 				for p in self.critic_network_q.parameters():
@@ -783,8 +785,8 @@ class PPOAgent:
 			
 			self.v_critic_optimizer.zero_grad()
 			critic_v_loss.backward()
-			if self.enable_grad_clip_critic:
-				grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic)
+			if self.enable_grad_clip_critic_v:
+				grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic_v)
 			else:
 				total_norm = 0
 				for p in self.critic_network_v.parameters():
