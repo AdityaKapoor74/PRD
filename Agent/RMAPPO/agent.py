@@ -114,23 +114,23 @@ class PPOAgent:
 			attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
 			temperature=self.temperature_q
 			).to(self.device)
-		# self.critic_network_q_old = Q_network(
-		# 	ally_obs_input_dim=self.critic_ally_observation, 
-		# 	enemy_obs_input_dim=self.critic_enemy_observation, 
-		# 	num_heads=self.num_heads, 
-		# 	num_agents=self.num_agents, 
-		# 	num_enemies=self.num_enemies, 
-		# 	num_actions=self.num_actions, 
-		# 	device=self.device, 
-		# 	enable_hard_attention=self.enable_hard_attention, 
-		# 	attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
-		# 	temperature=self.temperature_q
-		# 	).to(self.device)
+		self.target_critic_network_q = Q_network(
+			ally_obs_input_dim=self.critic_ally_observation, 
+			enemy_obs_input_dim=self.critic_enemy_observation, 
+			num_heads=self.num_heads, 
+			num_agents=self.num_agents, 
+			num_enemies=self.num_enemies, 
+			num_actions=self.num_actions, 
+			device=self.device, 
+			enable_hard_attention=self.enable_hard_attention, 
+			attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
+			temperature=self.temperature_q
+			).to(self.device)
 		# Copy network params
-		# self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
+		self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
 		# Disable updates for old network
-		# for param in self.critic_network_q_old.parameters():
-		# 	param.requires_grad_(False)
+		for param in self.target_critic_network_q.parameters():
+			param.requires_grad_(False)
 
 		self.critic_network_v = V_network(
 			ally_obs_input_dim=self.critic_ally_observation, 
@@ -144,23 +144,23 @@ class PPOAgent:
 			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
 			temperature=self.temperature_v
 			).to(self.device)
-		# self.critic_network_v_old = V_network(
-		# 	ally_obs_input_dim=self.critic_ally_observation, 
-		# 	enemy_obs_input_dim=self.critic_enemy_observation, 
-		# 	num_heads=self.num_heads, 
-		# 	num_agents=self.num_agents, 
-		# 	num_enemies=self.num_enemies, 
-		# 	num_actions=self.num_actions, 
-		# 	device=self.device, 
-		# 	enable_hard_attention=self.enable_hard_attention, 
-		# 	attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
-		# 	temperature=self.temperature_v
-		# 	).to(self.device)
+		self.target_critic_network_v = V_network(
+			ally_obs_input_dim=self.critic_ally_observation, 
+			enemy_obs_input_dim=self.critic_enemy_observation, 
+			num_heads=self.num_heads, 
+			num_agents=self.num_agents, 
+			num_enemies=self.num_enemies, 
+			num_actions=self.num_actions, 
+			device=self.device, 
+			enable_hard_attention=self.enable_hard_attention, 
+			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
+			temperature=self.temperature_v
+			).to(self.device)
 		# Copy network params
-		# self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
+		self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
 		# Disable updates for old network
-		# for param in self.critic_network_v_old.parameters():
-		# 	param.requires_grad_(False)
+		for param in self.target_critic_network_v.parameters():
+			param.requires_grad_(False)
 		
 		
 		# Policy Network
@@ -500,27 +500,27 @@ class PPOAgent:
 
 		with torch.no_grad():
 			# OLD VALUES
-			Q_values_old, weights_prd_old, _, h_q = self.critic_network_q(
+			Q_values_old, weights_prd_old, _, h_q = self.target_critic_network_q(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
 												rnn_hidden_state_q.to(self.device)
 												)
-			Values_old, _, _, h_v = self.critic_network_v(
+			Values_old, _, _, h_v = self.target_critic_network_v(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
 												rnn_hidden_state_v.to(self.device)
 												)
 
-			next_Values_old, _, _, _ = self.critic_network_v(
+			next_Values_old, _, _, _ = self.target_critic_network_v(
 										torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
 										h_v.to(self.device)
 										)
 
-			next_Q_values_old, _, _, _ = self.critic_network_q(
+			next_Q_values_old, _, _, _ = self.target_critic_network_q(
 										torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
@@ -722,13 +722,13 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 
-			critic_v_loss_1 = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
-			critic_v_loss_2 = F.huber_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum()
-			# critic_v_loss = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_v_loss_1 = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_v_loss_2 = F.huber_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum()
+			critic_v_loss = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
-			critic_q_loss_1 = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
-			critic_q_loss_2 = F.huber_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
-			# critic_q_loss = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_q_loss_1 = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_q_loss_2 = F.huber_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			critic_q_loss = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
 			entropy_weights = 0
 			entropy_weights_v = 0
@@ -746,8 +746,8 @@ class PPOAgent:
 			# print("weights entropy")
 			# print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
-			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
-			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
+			# critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
+			# critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
@@ -833,13 +833,10 @@ class PPOAgent:
 			
 
 
-		# if episode % self.network_update_interval == 0:
-		# 	# Copy new weights into old critic
-		# 	self.critic_network_q_old.load_state_dict(self.critic_network_q.state_dict())
-		# 	self.critic_network_v_old.load_state_dict(self.critic_network_v.state_dict())
-
-		# 	# Copy new weights into old policy
-		# 	self.policy_network_old.load_state_dict(self.policy_network.state_dict())
+		if episode % self.network_update_interval == 0:
+			# Copy new weights into old critic
+			self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
+			self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
 
 		# self.scheduler.step()
 		# print("learning rate of policy", self.scheduler.get_lr())
