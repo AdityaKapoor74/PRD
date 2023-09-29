@@ -258,8 +258,8 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 100000,
-				"max_time_steps": 50,
+				"max_episodes": 20000,
+				"max_time_steps": 25,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
@@ -275,7 +275,7 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# MODEL
-				"learning_rate": 1e-3, #1e-3
+				"learning_rate": 5e-4, #1e-3
 				"enable_grad_clip": True,
 				"grad_clip": 0.5,
 				"rnn_hidden_dim": 64,
