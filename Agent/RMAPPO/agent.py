@@ -572,7 +572,7 @@ class PPOAgent:
 			target_Q_values = (Q_values_old_ + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
 
 		else:
-			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			# target_V_values = (Values_old + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
 			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			# target_Q_values = (Q_values_old + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
@@ -602,13 +602,13 @@ class PPOAgent:
 			# self.q_value_norm.update(target_Q_values.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
 			# target_Q_values = (target_Q_values - self.q_value_norm.mean) / (torch.sqrt(self.q_value_norm.var) + 1e-5)
 
-		# if self.norm_adv:
-		# 	# advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
-		# 	# advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks.to(self.device)
-		# 	# advantage = advantage.reshape(-1, self.num_agents)
-		# 	advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
-		# 	advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
-		# 	advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+		if self.norm_adv:
+			# advantage = advantage.reshape(self.update_ppo_agent, -1, self.num_agents)
+			# advantage = ((advantage - advantage.mean(dim=1).unsqueeze(1)) / advantage.std(dim=1).unsqueeze(1))*masks.to(self.device)
+			# advantage = advantage.reshape(-1, self.num_agents)
+			advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
+			advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
+			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
 
 		# print("target_qs")
 		# print(target_Q_values[0])
@@ -674,33 +674,34 @@ class PPOAgent:
 			# weights_prd = weights_prd.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
 			# weight_v = weight_v.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
 
-			next_Values, _, _, _ = self.critic_network_v(
-										torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
-										torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
-										torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
-										h_v.to(self.device)
-										)
+			# next_Values, _, _, _ = self.critic_network_v(
+			# 							torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
+			# 							torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
+			# 							torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
+			# 							h_v.to(self.device)
+			# 							)
 
-			if self.norm_returns:
-				targets_shape = next_Values.shape
-				next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape)*next_mask.to(self.device)
-				targets_shape = Values.shape
-				Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape)*masks.to(self.device)
+			# if self.norm_returns:
+			# 	targets_shape = next_Values.shape
+			# 	next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape)*next_mask.to(self.device)
+			# 	targets_shape = Values.shape
+			# 	Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape)*masks.to(self.device)
 			
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
+			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			# print("advantage")
 			# print(advantage[0])
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
-			if self.norm_returns:
-				targets_shape = Values.shape
-				Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape)
-				targets_shape = next_Values.shape
-				next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape)
+			# if self.norm_returns:
+			# 	targets_shape = Values.shape
+			# 	Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape)
+			# 	targets_shape = next_Values.shape
+			# 	next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape)
 
-			if self.norm_adv:
-				advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
-				advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
-				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+			# if self.norm_adv:
+			# 	advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
+			# 	advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
+			# 	advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+				
 
 			# print(advantage[0])
 			# print(advantage[-1])
