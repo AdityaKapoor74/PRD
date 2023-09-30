@@ -375,7 +375,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": False,
+				"norm_adv": True,
 
 				"network_update_interval": 1,
 			}
