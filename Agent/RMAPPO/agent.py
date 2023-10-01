@@ -310,7 +310,7 @@ class PPOAgent:
 			advantage = td_error + self.gamma * self.gae_lambda * advantage
 			next_value = values.data[:, t, :]
 			next_mask = masks[:,t,:]
-			
+
 			advantages[:,t,:] = advantage
 
 		# advantages = torch.stack(advantages)
@@ -686,10 +686,7 @@ class PPOAgent:
 				Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape)*masks.to(self.device)
 			
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values*masks.to(self.device), next_Values*next_mask.to(self.device), rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			print("FULL ADV", "*"*20)
-			print(advantage)
-			# print("advantage")
-			# print(advantage[0])
+			
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
 			if self.norm_returns:
 				targets_shape = Values.shape
