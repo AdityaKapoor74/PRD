@@ -531,6 +531,11 @@ class PPOAgent:
 										h_q.to(self.device)
 										)
 
+			Values_old *= masks.to(self.device)
+			Q_values_old *= masks.to(self.device)
+			next_Values_old *= next_mask.to(self.device)
+			next_Q_values_old *= next_mask.to(self.device)
+
 
 		# if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 		# 	mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
@@ -555,31 +560,31 @@ class PPOAgent:
 
 		if self.norm_returns:
 			values_shape = Values_old.shape
-			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
+			Values_old_ = self.v_value_norm.denormalize(Values_old.view(-1)).view(values_shape) * masks.view(values_shape).to(self.device)
 			# Values_old_ = (Values_old * torch.sqrt(self.v_value_norm.var) + self.v_value_norm.mean)*masks.view(values_shape).to(self.device)
 			values_shape = Q_values_old.shape
-			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape)*masks.view(values_shape).to(self.device)
+			Q_values_old_ = self.q_value_norm.denormalize(Q_values_old.view(-1)).view(values_shape) * masks.view(values_shape).to(self.device)
 			# Q_values_old_ = (Values_old * torch.sqrt(self.q_value_norm.var) + self.q_value_norm.mean)*masks.view(values_shape).to(self.device)
 
 			values_shape = next_Values_old.shape
-			next_Values_old = self.v_value_norm.denormalize(next_Values_old.view(-1)).view(values_shape)*next_mask.view(values_shape).to(self.device)
+			next_Values_old = self.v_value_norm.denormalize(next_Values_old.view(-1)).view(values_shape) * next_mask.view(values_shape).to(self.device)
 			values_shape = next_Q_values_old.shape
-			next_Q_values_old = self.q_value_norm.denormalize(next_Q_values_old.view(-1)).view(values_shape)*next_mask.view(values_shape).to(self.device)
+			next_Q_values_old = self.q_value_norm.denormalize(next_Q_values_old.view(-1)).view(values_shape) * next_mask.view(values_shape).to(self.device)
 			# next_Values_old = (next_Values_old * torch.sqrt(self.v_value_norm.var) + self.v_value_norm.mean)*next_mask.to(self.device)
 			# next_Q_values_old = (next_Q_values_old * torch.sqrt(self.q_value_norm.var) + self.q_value_norm.mean)*next_mask.to(self.device)
 
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old_, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			target_V_values = (Values_old_ + advantage)*masks.reshape(-1, self.num_agents).to(self.device) # gae return
+			target_V_values = Values_old_ + advantage # gae return
 			advantage_Q = self.calculate_advantages(Q_values_old_, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			target_Q_values = (Q_values_old_ + advantage_Q)*masks.reshape(-1, self.num_agents).to(self.device)
+			target_Q_values = Q_values_old_ + advantage_Q 
 
 		else:
 			values_shape = Values_old.shape
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			target_V_values = Values_old*masks.reshape(-1, self.num_agents).to(self.device) + advantage # gae return
+			target_V_values = Values_old + advantage # gae return
 			values_shape = Q_values_old.shape
 			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			target_Q_values = Q_values_old*masks.reshape(-1, self.num_agents).to(self.device) + advantage_Q
+			target_Q_values = Q_values_old + advantage_Q
 			# shape = (self.update_ppo_agent, 25, self.num_agents)
 			# target_V_values = self.nstep_returns(rewards=target_V_rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Values_old.view(*shape), next_values=next_Values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
 			# target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
@@ -631,7 +636,6 @@ class PPOAgent:
 
 		rewards = rewards.reshape(-1, self.num_agents)
 		dones = dones.reshape(-1, self.num_agents)
-		# masks = masks.reshape(-1, 1)
 		masks = masks.reshape(-1, self.num_agents)
 
 		q_value_loss_batch = 0
@@ -682,11 +686,16 @@ class PPOAgent:
 										h_v.to(self.device)
 										)
 
+			Values *= masks.to(self.device)
+			Q_values *= masks.to(self.device)
+			next_Values *= next_mask.to(self.device)
+			next_Q_values *= next_mask.to(self.device)
+
 			if self.norm_returns:
 				targets_shape = next_Values.shape
-				next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape)*next_mask.to(self.device)
+				next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
 				targets_shape = Values.shape
-				Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape)*masks.to(self.device)
+				Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
 			
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			
@@ -703,18 +712,8 @@ class PPOAgent:
 				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
 				
 
-			# print(advantage[0])
-			# print(advantage[-1])
-
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
-			# print("categorical logprobs")
-			# print(logprobs[0])
-			
-			# dists_taken = torch.gather(dists, dim=-1, index=old_actions.unsqueeze(-1).long().to(self.device)).squeeze(-1)
-			# logprobs = torch.log(dists_taken + 1e-10) * masks.to(self.device)
-			# print("logprobs")
-			# print(logprobs[0])
 			
 			if "threshold" in self.experiment_type or "top" in self.experiment_type:
 				agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/masking_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
@@ -723,14 +722,12 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 
-			critic_v_loss_1 = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
-			value_pred_clipped = Values_old + (Values - Values_old).clamp(-self.value_clip, self.value_clip)
-			value_pred_clipped_ = torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)
-			critic_v_loss_2 = F.huber_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum()
+			critic_v_loss_1 = F.huber_loss(Values, target_V_values, reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			critic_v_loss_2 = F.huber_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), target_V_values, reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum()
 			# critic_v_loss = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
 			critic_q_loss_1 = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
-			critic_q_loss_2 = F.huber_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip)*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			critic_q_loss_2 = F.huber_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), target_Q_values, reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 			# critic_q_loss = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
 			entropy_weights = 0
@@ -754,12 +751,12 @@ class PPOAgent:
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
-			ratios = torch.exp((logprobs - old_logprobs.to(self.device))*masks.to(self.device))
+			ratios = torch.exp((logprobs - old_logprobs.to(self.device)))
 			# print("*"*20)
 			# print(ratios[12])
 			# Finding Surrogate Loss
-			surr1 = ratios * advantage * masks.to(self.device)
-			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage * masks.to(self.device)
+			surr1 = ratios * advantage
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage
 
 			# final loss of clipped objective PPO
 			# entropy = -torch.mean(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))
