@@ -264,8 +264,8 @@ class PPOAgent:
 
 	def get_action(self, state_policy, last_one_hot_actions, mask_actions, hidden_state, greedy=False):
 		with torch.no_grad():
-			state_policy = torch.FloatTensor(state_policy).unsqueeze(1)
-			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions).unsqueeze(1)
+			state_policy = torch.FloatTensor(state_policy).unsqueeze(1).to(self.device)
+			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions).unsqueeze(1).to(self.device)
 			# final_state_policy = torch.cat([state_policy, last_one_hot_actions], dim=-1).to(self.device)
 			mask_actions = torch.BoolTensor(mask_actions).unsqueeze(1).to(self.device)
 			hidden_state = torch.FloatTensor(hidden_state).to(self.device)
