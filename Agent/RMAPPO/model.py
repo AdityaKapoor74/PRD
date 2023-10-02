@@ -346,7 +346,7 @@ class Q_network(nn.Module):
 		self.projection_head_enemies = init_(nn.Linear(64, 64))
 
 		self.attention_value_dropout = nn.Dropout(0.2)
-		self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
+		# self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear_enemies = nn.Sequential(
 			init_(nn.Linear(64, 2048), activate=True),
