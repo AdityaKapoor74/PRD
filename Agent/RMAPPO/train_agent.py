@@ -345,9 +345,9 @@ if __name__ == '__main__':
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": True,
-				"grad_clip_critic_v": 0.5,
+				"grad_clip_critic_v": 5.0,
 				"enable_grad_clip_critic_q": True,
-				"grad_clip_critic_q": 0.5,
+				"grad_clip_critic_q": 1.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 1,
@@ -362,7 +362,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
-				"grad_clip_actor": 0.5,
+				"grad_clip_actor": 1.0,
 				"policy_clip": 0.05,
 				"policy_lr": 3e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
