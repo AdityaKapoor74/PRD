@@ -365,9 +365,9 @@ class Q_network(nn.Module):
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.Tanh(),
-			init_(nn.Linear(64, self.num_actions))
+			# init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
+			# nn.Tanh(),
+			init_(nn.Linear(64+64+64, self.num_actions))
 			)
 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		# self.q_value_layer = nn.Sequential(
@@ -619,9 +619,9 @@ class V_network(nn.Module):
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
-			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.Tanh(),
-			init_(nn.Linear(64, 1))
+			# init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
+			# nn.Tanh(),
+			init_(nn.Linear(64+64+64, 1))
 			)
 
 		# self.v_value_layer = nn.Sequential(
