@@ -367,14 +367,15 @@ class Q_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			nn.Tanh(),
-			)
-		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
-		self.q_value_layer = nn.Sequential(
-			# init_(nn.Linear(64, 64, bias=True), activate=True),
-			# nn.Tanh(),
-			# nn.LayerNorm(64),
 			init_(nn.Linear(64, self.num_actions))
 			)
+		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
+		# self.q_value_layer = nn.Sequential(
+		# 	# init_(nn.Linear(64, 64, bias=True), activate=True),
+		# 	# nn.Tanh(),
+		# 	# nn.LayerNorm(64),
+		# 	init_(nn.Linear(64, self.num_actions))
+		# 	)
 
 		# for name, param in self.RNN.named_parameters():
 		# 	if 'bias' in name:
@@ -497,8 +498,9 @@ class Q_network(nn.Module):
 
 		curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 
-		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
-		Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
+		# curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+		# Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
+		Q_value = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
 
 		return Q_value.squeeze(-1), weights, score, rnn_hidden_state #h
@@ -619,14 +621,15 @@ class V_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			nn.Tanh(),
-			)
-
-		self.v_value_layer = nn.Sequential(
-			# init_(nn.Linear(64, 64, bias=True), activate=True),
-			# nn.Tanh(),
-			# nn.LayerNorm(64),
 			init_(nn.Linear(64, 1))
 			)
+
+		# self.v_value_layer = nn.Sequential(
+		# 	# init_(nn.Linear(64, 64, bias=True), activate=True),
+		# 	# nn.Tanh(),
+		# 	# nn.LayerNorm(64),
+		# 	init_(nn.Linear(64, 1))
+		# 	)
 
 
 	# We assume that the agent in question's actions always impact its rewards
@@ -753,8 +756,9 @@ class V_network(nn.Module):
 
 		# FINAL LAYERS
 		curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
-		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
-		V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
+		# curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+		# V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
+		V_value = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, 1
 
 		return V_value.squeeze(-1), weights, score, rnn_hidden_state #h
 
