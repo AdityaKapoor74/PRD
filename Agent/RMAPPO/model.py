@@ -349,11 +349,11 @@ class Q_network(nn.Module):
 		# self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear_enemies = nn.Sequential(
-			init_(nn.Linear(64, 2048), activate=True),
+			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.Tanh(),
-			init_(nn.Linear(2048, 64))
+			init_(nn.Linear(64, 64))
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
 
@@ -570,11 +570,11 @@ class V_network(nn.Module):
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			init_(nn.Linear(64, 2048), activate=True),
+			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.Tanh(),
-			init_(nn.Linear(2048, 64))
+			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
 
