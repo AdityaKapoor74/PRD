@@ -304,7 +304,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
@@ -327,7 +327,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"norm_rewards": False,
+				"norm_rewards": True,
 
 
 				# ENVIRONMENT
@@ -345,7 +345,7 @@ if __name__ == '__main__':
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": True,
-				"grad_clip_critic_v": 5.0,
+				"grad_clip_critic_v": 0.5,
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.05,
@@ -356,7 +356,7 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns": False,
+				"norm_returns": True,
 				
 
 				# ACTOR
@@ -375,7 +375,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": False,
+				"norm_adv": True,
 
 				"network_update_interval": 1,
 			}
