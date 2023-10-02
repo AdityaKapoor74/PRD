@@ -146,10 +146,10 @@ def init(module, weight_init, bias_init, gain=1):
 		bias_init(module.bias.data)
 	return module
 
-def init_(m, gain=0.01, activate=False):
+def init_(m, gain=0.1, activate=False):
 	if activate:
-		gain = nn.init.calculate_gain('relu')
-	return init(m, nn.init.xavier_uniform_, lambda x: nn.init.constant_(x, 0), gain=gain)
+		gain = nn.init.calculate_gain('tanh')
+	return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
 
 
 class MLP_Policy(nn.Module):
@@ -166,24 +166,24 @@ class MLP_Policy(nn.Module):
 		self.device = device
 		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
 		self.Layer_1 = nn.Sequential(
-			init_(nn.Linear(obs_input_dim+num_actions, 128), activate=True),
+			init_(nn.Linear(obs_input_dim+num_actions, 64), activate=True),
 			# nn.LayerNorm(64),
-			nn.ReLU(),
-			init_(nn.Linear(128, 64), activate=True),
+			# nn.Tanh(),
+			# init_(nn.Linear(128, 64), activate=True),
 			# nn.LayerNorm(64),
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Sequential(
 			nn.LayerNorm(64),
-			init_(nn.Linear(64, num_actions))
+			init_(nn.Linear(64, num_actions), gain=0.01)
 			)
 
 		for name, param in self.RNN.named_parameters():
 			if 'bias' in name:
 				nn.init.constant_(param, 0)
 			elif 'weight' in name:
-				nn.init.xavier_uniform_(param)
+				nn.init.orthogonal_(param)
 
 
 	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
@@ -195,21 +195,22 @@ class MLP_Policy(nn.Module):
 			logits = self.Layer_2(output+intermediate)
 
 			# Step 1: Find the maximum value among the logits.
-			max_logits = torch.max(logits, dim=-1, keepdim=True).values
+			# max_logits = torch.max(logits, dim=-1, keepdim=True).values
 
 			# # Step 2: Subtract the maximum value from the logits for numerical stability.
-			logits_stable = logits - max_logits
+			# logits_stable = logits - max_logits
 
 			# # Step 3: Calculate the log-sum-exp of the adjusted logits.
-			log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
+			# log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
 
 			# # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-			normalized_logits = logits_stable - log_sum_exp
+			# normalized_logits = logits_stable - log_sum_exp
 			
-			normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
+			# normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
 				
 			logits = torch.where(mask_actions, logits, self.mask_value)
 			return F.softmax(logits, dim=-1).squeeze(1), h
+			# return torch.exp(normalized_logits).squeeze(1), h
 		else:
 			# local_observations --> batch, timesteps, num_agents, dim
 			batch, timesteps, num_agents, _ = local_observations.shape
@@ -222,21 +223,22 @@ class MLP_Policy(nn.Module):
 			logits = self.Layer_2(output+intermediate)
 			
 			# Step 1: Find the maximum value among the logits.
-			max_logits = torch.max(logits, dim=-1, keepdim=True).values
+			# max_logits = torch.max(logits, dim=-1, keepdim=True).values
 
 			# # Step 2: Subtract the maximum value from the logits for numerical stability.
-			logits_stable = logits - max_logits
+			# logits_stable = logits - max_logits
 
 			# # Step 3: Calculate the log-sum-exp of the adjusted logits.
-			log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
+			# log_sum_exp = max_logits + torch.log(torch.sum(torch.exp(logits_stable), dim=-1, keepdim=True))
 
 			# # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-			normalized_logits = logits_stable - log_sum_exp
+			# normalized_logits = logits_stable - log_sum_exp
 			
-			normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
+			# normalized_logits = torch.where(mask_actions, normalized_logits, self.mask_value)
 			# print(torch.sum(mask_actions), mask_actions.reshape(-1).shape, torch.sum(mask_actions)/mask_actions.reshape(-1).shape[0])
 			logits = torch.where(mask_actions, logits, self.mask_value)
 			return F.softmax(logits, dim=-1), h
+			# return torch.exp(normalized_logits), h
 
 
 
@@ -287,21 +289,21 @@ class Q_network(nn.Module):
 			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.LayerNorm(enemy_obs_input_dim),
 			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 
 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -315,11 +317,11 @@ class Q_network(nn.Module):
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			init_(nn.Linear(64, 64), activate=True),
+			init_(nn.Linear(64, 2048), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.ReLU(),
-			init_(nn.Linear(64, 64))
+			nn.Tanh(),
+			init_(nn.Linear(2048, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
 
@@ -328,7 +330,7 @@ class Q_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
 				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.ReLU(), 
+				nn.Tanh(), 
 				init_(nn.Linear(64, 2))
 				)
 
@@ -343,17 +345,17 @@ class Q_network(nn.Module):
 		self.attention_value_enemies = init_(nn.Linear(64, 64))
 		self.projection_head_enemies = init_(nn.Linear(64, 64))
 
-		# self.attention_value_dropout = nn.Dropout(0.2)
-		# self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
+		self.attention_value_dropout = nn.Dropout(0.2)
+		self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear_enemies = nn.Sequential(
-			init_(nn.Linear(64, 64), activate=True),
+			init_(nn.Linear(64, 2048), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.ReLU(),
-			init_(nn.Linear(64, 64))
+			nn.Tanh(),
+			init_(nn.Linear(2048, 64))
 			)
-		# self.attention_value_linear_dropout = nn.Dropout(0.2)
+		self.attention_value_linear_dropout = nn.Dropout(0.2)
 
 		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(64)
 
@@ -364,12 +366,12 @@ class Q_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.q_value_layer = nn.Sequential(
-			init_(nn.Linear(64, 64, bias=True), activate=True),
-			nn.ReLU(),
+			# init_(nn.Linear(64, 64, bias=True), activate=True),
+			# nn.Tanh(),
 			# nn.LayerNorm(64),
 			init_(nn.Linear(64, self.num_actions))
 			)
@@ -443,11 +445,12 @@ class Q_network(nn.Module):
 		# Step 2: Subtract the maximum value from the logits for numerical stability.
 		score_stable = score - max_score
 		# Step 3: Calculate the log-sum-exp of the adjusted logits.
-		log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
-		# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-		normalized_score = score_stable - log_sum_exp
+		# log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
+		# # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+		# normalized_score = score_stable - log_sum_exp
 		# Step 5: Calculate the softmax probabilities.
-		weight = torch.exp(normalized_score) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# weight = torch.exp(normalized_score) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weight = F.softmax(score_stable, dim=-1) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 		
@@ -470,22 +473,23 @@ class Q_network(nn.Module):
 		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
 		
 		# ATTENTION AGENTS TO ENEMIES
-		enemy_state_embed = self.enemy_state_embed(enemy_states) # Batch, num_enemies, dim
+		enemy_state_embed = self.enemy_state_embed(enemy_states.view(batch*timesteps, self.num_enemies, -1))
 		query_enemies = self.query_enemies(states_embed) # Batch, num_agents, dim
 		key_enemies = self.key_enemies(enemy_state_embed) # Batch, num_enemies, dim
 		attention_values_enemies = self.attention_value_enemies(enemy_state_embed) # Batch, num_enemies, dim
-		# SOFT ATTENTION
+		# # SOFT ATTENTION
 		score_enemies = torch.matmul(query_enemies,(key_enemies).transpose(-2,-1))/math.sqrt((self.d_k_enemies)) # Batch_size, Num agents, Num_enemies, dim
-		# Step 1: Find the maximum value among the logits.
+		# # Step 1: Find the maximum value among the logits.
 		max_score = torch.max(score_enemies, dim=-1, keepdim=True).values
-		# Step 2: Subtract the maximum value from the logits for numerical stability.
+		# # Step 2: Subtract the maximum value from the logits for numerical stability.
 		score_stable = score_enemies - max_score
-		# Step 3: Calculate the log-sum-exp of the adjusted logits.
-		log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
-		# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-		normalized_score = score_stable - log_sum_exp
-		# Step 5: Calculate the softmax probabilities.
-		weight_enemies = torch.exp(normalized_score) # Batch, num_agents, num_enemies
+		# # # Step 3: Calculate the log-sum-exp of the adjusted logits.
+		# # log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
+		# # # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+		# # normalized_score = score_stable - log_sum_exp
+		# # # Step 5: Calculate the softmax probabilities.
+		# # weight_enemies = torch.exp(normalized_score) # Batch, num_agents, num_enemies
+		weight_enemies = F.softmax(score_stable, dim=-1)
 		aggregated_attention_value_enemies = torch.matmul(weight_enemies, attention_values_enemies) # Batch, num agents, dim
 		aggregated_attention_value_enemies = self.projection_head_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
@@ -535,21 +539,21 @@ class V_network(nn.Module):
 			nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			nn.LayerNorm(enemy_obs_input_dim),
 			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 
 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 
 		# Attention for agents to agents
@@ -564,11 +568,11 @@ class V_network(nn.Module):
 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			init_(nn.Linear(64, 64), activate=True),
+			init_(nn.Linear(64, 2048), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.ReLU(),
-			init_(nn.Linear(64, 64))
+			nn.Tanh(),
+			init_(nn.Linear(2048, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
 
@@ -577,7 +581,7 @@ class V_network(nn.Module):
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
 				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.ReLU(), 
+				nn.Tanh(), 
 				init_(nn.Linear(64, 2))
 				)
 
@@ -593,17 +597,17 @@ class V_network(nn.Module):
 		self.attention_value_enemies = init_(nn.Linear(64, 64))
 		self.projection_head_enemies = init_(nn.Linear(64, 64))
 
-		# self.attention_value_dropout = nn.Dropout(0.2)
-		# self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
+		# # self.attention_value_dropout = nn.Dropout(0.2)
+		# # self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear_enemies = nn.Sequential(
-			init_(nn.Linear(64, 64), activate=True),
+			init_(nn.Linear(64, 2048), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
-			nn.ReLU(),
-			init_(nn.Linear(64, 64))
+			nn.Tanh(),
+			init_(nn.Linear(2048, 64))
 			)
-		# self.attention_value_linear_dropout = nn.Dropout(0.2)
+		# # self.attention_value_linear_dropout = nn.Dropout(0.2)
 
 		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(64)
 
@@ -614,12 +618,12 @@ class V_network(nn.Module):
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-			nn.ReLU(),
+			nn.Tanh(),
 			)
 
 		self.v_value_layer = nn.Sequential(
-			init_(nn.Linear(64, 64, bias=True), activate=True),
-			nn.ReLU(),
+			# init_(nn.Linear(64, 64, bias=True), activate=True),
+			# nn.Tanh(),
 			# nn.LayerNorm(64),
 			init_(nn.Linear(64, 1))
 			)
@@ -693,14 +697,15 @@ class V_network(nn.Module):
 		# Step 2: Subtract the maximum value from the logits for numerical stability.
 		score_stable = score - max_score
 
-		# Step 3: Calculate the log-sum-exp of the adjusted logits.
-		log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
+		# # Step 3: Calculate the log-sum-exp of the adjusted logits.
+		# log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
 
-		# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-		normalized_score = score_stable - log_sum_exp
+		# # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+		# normalized_score = score_stable - log_sum_exp
 
-		# Step 5: Calculate the softmax probabilities.
-		weight = torch.exp(normalized_score) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# # Step 5: Calculate the softmax probabilities.
+		# weight = torch.exp(normalized_score) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weight = F.softmax(score_stable, dim=-1) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 
@@ -724,22 +729,23 @@ class V_network(nn.Module):
 		aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
 		
 		# ATTENTION AGENTS TO ENEMIES
-		enemy_state_embed = self.enemy_state_embed(enemy_states) # Batch, num_enemies, dim
+		enemy_state_embed = self.enemy_state_embed(enemy_states.view(batch*timesteps, self.num_enemies, -1)) # Batch, num_enemies, dim
 		query_enemies = self.query_enemies(states_embed) # Batch, num_agents, dim
 		key_enemies = self.key_enemies(enemy_state_embed) # Batch, num_enemies, dim
 		attention_values_enemies = self.attention_value_enemies(enemy_state_embed) # Batch, num_enemies, dim
-		# SOFT ATTENTION
+		# # SOFT ATTENTION
 		score_enemies = torch.matmul(query_enemies,(key_enemies).transpose(-2,-1))/math.sqrt((self.d_k_enemies)) # Batch_size, Num agents, Num_enemies, dim
 		# Step 1: Find the maximum value among the logits.
 		max_score = torch.max(score_enemies, dim=-1, keepdim=True).values
-		# Step 2: Subtract the maximum value from the logits for numerical stability.
+		# # Step 2: Subtract the maximum value from the logits for numerical stability.
 		score_stable = score_enemies - max_score
-		# Step 3: Calculate the log-sum-exp of the adjusted logits.
-		log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
-		# Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
-		normalized_score = score_stable - log_sum_exp
-		# Step 5: Calculate the softmax probabilities.
-		weight_enemies = torch.exp(normalized_score) # Batch, num_agents, num_enemies
+		# # Step 3: Calculate the log-sum-exp of the adjusted logits.
+		# # log_sum_exp = max_score + torch.log(torch.sum(torch.exp(score_stable), dim=-1, keepdim=True))
+		# # # Step 4: Calculate the normalized logits by subtracting the log-sum-exp from the logits.
+		# # normalized_score = score_stable - log_sum_exp
+		# # # Step 5: Calculate the softmax probabilities.
+		# # weight_enemies = torch.exp(normalized_score) # Batch, num_agents, num_enemies
+		weight_enemies = F.softmax(score_stable, dim=-1) # Batch, num_agents, num_enemies
 		aggregated_attention_value_enemies = torch.matmul(weight_enemies, attention_values_enemies) # Batch, num agents, dim
 		aggregated_attention_value_enemies = self.projection_head_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
@@ -788,21 +794,21 @@ class V_network(nn.Module):
 # 			nn.LayerNorm(ally_obs_input_dim),
 # 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 # 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 # 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
@@ -819,7 +825,7 @@ class V_network(nn.Module):
 # 			init_(nn.Linear(64, 64), activate=True),
 # 			# nn.LayerNorm(2048),
 # 			# nn.Dropout(0.2),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			init_(nn.Linear(64, 64))
 # 			)
 # 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -829,7 +835,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.Sequential(
 # 				init_(nn.Linear(64+64, 64), activate=True), 
-# 				nn.ReLU(), 
+# 				nn.Tanh(), 
 # 				init_(nn.Linear(64, 2))
 # 				)
 
@@ -840,12 +846,12 @@ class V_network(nn.Module):
 # 		# FCN FINAL LAYER TO GET Q-VALUES
 # 		self.common_layer = nn.Sequential(
 # 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 # 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.q_value_layer = nn.Sequential(
 # 			init_(nn.Linear(64, 64, bias=True), activate=True),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			# nn.LayerNorm(64),
 # 			init_(nn.Linear(64, self.num_actions))
 # 			)
@@ -1028,21 +1034,21 @@ class V_network(nn.Module):
 # 			nn.LayerNorm(ally_obs_input_dim),
 # 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			nn.LayerNorm(enemy_obs_input_dim*self.num_enemies),
 # 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True), activate=True),
 # 			# nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 # 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
@@ -1059,7 +1065,7 @@ class V_network(nn.Module):
 # 			init_(nn.Linear(64, 64), activate=True),
 # 			# nn.LayerNorm(2048),
 # 			# nn.Dropout(0.2),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			init_(nn.Linear(64, 64))
 # 			)
 # 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -1069,7 +1075,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.Sequential(
 # 				init_(nn.Linear(64+64, 64), activate=True), 
-# 				nn.ReLU(), 
+# 				nn.Tanh(), 
 # 				init_(nn.Linear(64, 2))
 # 				)
 
@@ -1080,12 +1086,12 @@ class V_network(nn.Module):
 # 		# FCN FINAL LAYER TO GET Q-VALUES
 # 		self.common_layer = nn.Sequential(
 # 			init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 # 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.v_value_layer = nn.Sequential(
 # 			init_(nn.Linear(64, 64, bias=True), activate=True),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			# nn.LayerNorm(64),
 # 			init_(nn.Linear(64, 1))
 # 			)
@@ -1264,19 +1270,19 @@ class V_network(nn.Module):
 # 		self.ally_state_embed_1 = nn.Sequential(
 # 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True)),
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			init_(nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True)),
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True)), 
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
@@ -1292,7 +1298,7 @@ class V_network(nn.Module):
 # 			init_(nn.Linear(64, 2048)),
 # 			nn.LayerNorm(2048),
 # 			nn.Dropout(0.2),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			init_(nn.Linear(2048, 64))
 # 			)
 # 		self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -1302,7 +1308,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.Sequential(
 # 				init_(nn.Linear(64+64, 64)), 
-# 				nn.ReLU(), 
+# 				nn.Tanh(), 
 # 				init_(nn.Linear(64, 2))
 # 				)
 
@@ -1314,10 +1320,10 @@ class V_network(nn.Module):
 # 		self.common_layer = nn.Sequential(
 # 			init_(nn.Linear(64+64+64, 128, bias=True)), 
 # 			nn.LayerNorm(128),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			init_(nn.Linear(128, 64)),
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 # 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.v_value_layer = nn.Sequential(
@@ -1482,47 +1488,47 @@ class V_network(nn.Module):
 # 		self.ally_state_embed_1 = nn.Sequential(
 # 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.ally_state_embed_2 = nn.Sequential(
 # 			nn.Linear(ally_obs_input_dim, 32, bias=True), 
 # 			nn.LayerNorm(32),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.enemy_state_embed = nn.Sequential(
 # 			nn.Linear(enemy_obs_input_dim*self.num_enemies, 64, bias=True),
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.ally_state_act_embed = nn.Sequential(
 # 			nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), 
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		# Key, Query, Attention Value, Hard Attention Networks
 # 		assert 64%self.num_heads == 0
 # 		self.key = nn.ModuleList([nn.Sequential(
 # 					nn.Linear(64, 64, bias=True), 
-# 					# nn.ReLU()
+# 					# nn.Tanh()
 # 					).to(self.device) for _ in range(self.num_heads)])
 # 		self.query = nn.ModuleList([nn.Sequential(
 # 					nn.Linear(64, 64, bias=True), 
-# 					# nn.ReLU()
+# 					# nn.Tanh()
 # 					).to(self.device) for _ in range(self.num_heads)])
 # 		self.attention_value = nn.ModuleList([nn.Sequential(
 # 					nn.Linear(64, 64//self.num_heads, bias=True), 
-# 					# nn.ReLU()
+# 					# nn.Tanh()
 # 					).to(self.device) for _ in range(self.num_heads)])
 
 # 		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 # 		self.attention_value_linear = nn.Sequential(
 # 			nn.Linear(64, 64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 
 # 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
@@ -1530,7 +1536,7 @@ class V_network(nn.Module):
 # 		if self.enable_hard_attention:
 # 			self.hard_attention = nn.ModuleList([nn.Sequential(
 # 						nn.Linear(64*2, 64//self.num_heads),
-# 						# nn.ReLU(),
+# 						# nn.Tanh(),
 # 						).to(self.device) for _ in range(self.num_heads)])
 
 # 			self.hard_attention_linear = nn.Sequential(
@@ -1545,14 +1551,14 @@ class V_network(nn.Module):
 # 		self.common_layer = nn.Sequential(
 # 			nn.Linear(32+64+64, 64, bias=True), 
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			)
 # 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 # 		self.v_value_layer = nn.Sequential(
 # 			nn.LayerNorm(64),
 # 			nn.Linear(64, 64, bias=True),
 # 			nn.LayerNorm(64),
-# 			nn.ReLU(),
+# 			nn.Tanh(),
 # 			nn.Linear(64, 1)
 # 			)
 			
