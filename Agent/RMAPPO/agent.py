@@ -266,10 +266,10 @@ class PPOAgent:
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).unsqueeze(1)
 			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions).unsqueeze(1)
-			final_state_policy = torch.cat([state_policy, last_one_hot_actions], dim=-1).to(self.device)
+			# final_state_policy = torch.cat([state_policy, last_one_hot_actions], dim=-1).to(self.device)
 			mask_actions = torch.BoolTensor(mask_actions).unsqueeze(1).to(self.device)
 			hidden_state = torch.FloatTensor(hidden_state).to(self.device)
-			dists, hidden_state = self.policy_network(final_state_policy, hidden_state, mask_actions)
+			dists, hidden_state = self.policy_network(state_policy, last_one_hot_actions, hidden_state, mask_actions)
 			if self.warm_up:
 				available_actions = (mask_actions>0).int()
 				dists = (1.0-self.epsilon)*dists + available_actions*self.epsilon/torch.sum(available_actions, dim=-1).unsqueeze(-1)
@@ -670,11 +670,15 @@ class PPOAgent:
 
 
 			dists, _ = self.policy_network(
-					torch.cat([old_states_actor, old_last_one_hot_actions], dim=-1).to(self.device),
+					# torch.cat([old_states_actor, old_last_one_hot_actions], dim=-1).to(self.device),
+					old_states_actor.to(self.device),
+					old_last_one_hot_actions.to(self.device),
 					rnn_hidden_state_actor.to(self.device),
 					old_mask_actions.to(self.device),
 					update=True
 					)
+
+			# torch.set_printoptions(threshold=10_000)
 
 			# weights_prd = weights_prd.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
 			# weight_v = weight_v.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
