@@ -164,7 +164,7 @@ class MLP_Policy(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
-		self.feature_norm = nn.LayerNorm(obs_input_dim+num_actions)
+		self.feature_norm = nn.LayerNorm(obs_input_dim)
 		self.Layer_1 = nn.Sequential(
 			init_(nn.Linear(obs_input_dim+num_actions, 64), activate=True),
 			# nn.LayerNorm(64),
@@ -186,8 +186,9 @@ class MLP_Policy(nn.Module):
 				nn.init.orthogonal_(param)
 
 
-	def forward(self, local_observations, hidden_state, mask_actions=None, update=False):
+	def forward(self, local_observations, one_hot_actions, hidden_state, mask_actions=None, update=False):
 		local_observations = self.feature_norm(local_observations)
+		local_observations = torch.cat([local_observations, one_hot_actions], dim=-1)
 		if update == False:
 			intermediate = self.Layer_1(local_observations)
 			output, h = self.RNN(intermediate, hidden_state)
