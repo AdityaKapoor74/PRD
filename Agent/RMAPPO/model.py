@@ -312,7 +312,7 @@ class Q_network(nn.Module):
 		self.key = init_(nn.Linear(64, 64))
 		self.query = init_(nn.Linear(64, 64))
 		self.attention_value = init_(nn.Linear(64, 64))
-		self.projection_head = init_(nn.Linear(64, 64))
+		# self.projection_head = init_(nn.Linear(64, 64))
 
 		# self.attention_value_dropout = nn.Dropout(0.2)
 		self.attention_value_layer_norm = nn.LayerNorm(64)
@@ -344,7 +344,7 @@ class Q_network(nn.Module):
 		self.key_enemies = init_(nn.Linear(64, 64))
 		self.query_enemies = init_(nn.Linear(64, 64))
 		self.attention_value_enemies = init_(nn.Linear(64, 64))
-		self.projection_head_enemies = init_(nn.Linear(64, 64))
+		# self.projection_head_enemies = init_(nn.Linear(64, 64))
 
 		self.attention_value_dropout = nn.Dropout(0.2)
 		# self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
@@ -468,7 +468,7 @@ class Q_network(nn.Module):
 		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		
 		aggregated_node_features = torch.matmul(weight, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
-		aggregated_node_features = self.projection_head(aggregated_node_features)
+		# aggregated_node_features = self.projection_head(aggregated_node_features)
 		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		aggregated_node_features_ = self.attention_value_layer_norm(obs_actions_embed_+aggregated_node_features) # Batch_size, Num agents, dim
 		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
@@ -493,7 +493,7 @@ class Q_network(nn.Module):
 		# # weight_enemies = torch.exp(normalized_score) # Batch, num_agents, num_enemies
 		weight_enemies = F.softmax(score_stable, dim=-1)
 		aggregated_attention_value_enemies = torch.matmul(weight_enemies, attention_values_enemies) # Batch, num agents, dim
-		aggregated_attention_value_enemies = self.projection_head_enemies(aggregated_attention_value_enemies)
+		# aggregated_attention_value_enemies = self.projection_head_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
@@ -565,7 +565,7 @@ class V_network(nn.Module):
 		self.key = init_(nn.Linear(64, 64))
 		self.query = init_(nn.Linear(64, 64))
 		self.attention_value = init_(nn.Linear(64, 64))
-		self.projection_head = init_(nn.Linear(64, 64))
+		# self.projection_head = init_(nn.Linear(64, 64))
 
 		# self.attention_value_dropout = nn.Dropout(0.2)
 		self.attention_value_layer_norm = nn.LayerNorm(64)
@@ -598,7 +598,7 @@ class V_network(nn.Module):
 		self.key_enemies = init_(nn.Linear(64, 64))
 		self.query_enemies = init_(nn.Linear(64, 64))
 		self.attention_value_enemies = init_(nn.Linear(64, 64))
-		self.projection_head_enemies = init_(nn.Linear(64, 64))
+		# self.projection_head_enemies = init_(nn.Linear(64, 64))
 
 		# # self.attention_value_dropout = nn.Dropout(0.2)
 		# # self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
@@ -726,7 +726,7 @@ class V_network(nn.Module):
 		# ATTENTION VALUES
 		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		aggregated_node_features = torch.matmul(weight, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
-		aggregated_node_features = self.projection_head(aggregated_node_features)
+		# aggregated_node_features = self.projection_head(aggregated_node_features)
 		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		aggregated_node_features_ = self.attention_value_layer_norm(obs_actions_embed_+aggregated_node_features) # Batch_size, Num agents, dim
 		aggregated_node_features = self.attention_value_linear(aggregated_node_features_) # Batch_size, Num agents, dim
@@ -751,7 +751,7 @@ class V_network(nn.Module):
 		# # weight_enemies = torch.exp(normalized_score) # Batch, num_agents, num_enemies
 		weight_enemies = F.softmax(score_stable, dim=-1) # Batch, num_agents, num_enemies
 		aggregated_attention_value_enemies = torch.matmul(weight_enemies, attention_values_enemies) # Batch, num agents, dim
-		aggregated_attention_value_enemies = self.projection_head_enemies(aggregated_attention_value_enemies)
+		# aggregated_attention_value_enemies = self.projection_head_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
