@@ -292,7 +292,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -348,7 +348,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_v": 5.0,
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
-				"value_clip": 0.05,
+				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
@@ -356,14 +356,14 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns": False,
+				"norm_returns": True,
 				
 
 				# ACTOR
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 0.5,
-				"policy_clip": 0.05,
+				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 1e-3, #8e-3
