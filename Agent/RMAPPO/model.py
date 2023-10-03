@@ -719,7 +719,7 @@ class V_network(nn.Module):
 
 		# EMBED STATE ACTION
 		# obs_norm = self.obs_act_obs_norm(states)
-		obs_actions = torch.cat([obs_norm, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
+		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		obs_actions_embed_ = self.ally_state_act_embed(obs_actions) # Batch_size, Num agents, dim
 		obs_actions_embed = self.remove_self_loops(obs_actions_embed_.unsqueeze(1).repeat(1, self.num_agents, 1, 1)) # Batch_size, Num agents, Num agents - 1, dim
 		
