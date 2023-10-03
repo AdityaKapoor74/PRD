@@ -191,6 +191,8 @@ class MAPPO:
 				else:
 					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
 				
+				# print("actions")
+				# print(actions)
 				# print(mask_actions)
 				one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 				for i, act in enumerate(actions):
@@ -323,7 +325,7 @@ if __name__ == '__main__':
 				"epsilon_start": 10.0,
 				"epsilon_end": 0.0,
 				"max_episodes": 20000,
-				"max_time_steps": 25,
+				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
