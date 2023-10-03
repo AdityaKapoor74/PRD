@@ -337,7 +337,7 @@ if __name__ == '__main__':
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
 				"q_value_lr": 5e-4, #1e-3
-				"v_value_lr": 5e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -375,7 +375,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.0, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": False,
+				"norm_adv": True,
 
 				"network_update_interval": 1,
 			}
