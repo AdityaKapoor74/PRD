@@ -585,7 +585,8 @@ class PPOAgent:
 			# values_shape = Q_values_old.shape
 			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			# target_Q_values = Q_values_old + advantage_Q
-			shape = (self.update_ppo_agent, 25, self.num_agents)
+			timesteps = old_states_critic_allies.shape[1]
+			shape = (self.update_ppo_agent, timesteps, self.num_agents)
 			target_V_values = self.nstep_returns(rewards=target_V_rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Values_old.view(*shape), next_values=next_Values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
 			target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
 
