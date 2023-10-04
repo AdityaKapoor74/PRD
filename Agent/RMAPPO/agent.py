@@ -578,6 +578,9 @@ class PPOAgent:
 			advantage_Q = self.calculate_advantages(Q_values_old_, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old_ + advantage_Q 
 
+			self.v_value_norm.update(target_V_values.view(-1), masks.view(-1).to(self.device))
+			self.q_value_norm.update(target_Q_values.view(-1), masks.view(-1).to(self.device))
+
 		else:
 			values_shape = Values_old.shape
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
@@ -697,20 +700,21 @@ class PPOAgent:
 			# next_Values *= next_mask.to(self.device)
 
 			if self.norm_returns:
-				targets_shape = next_Values.shape
-				next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
+				# targets_shape = next_Values.shape
+				# next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
 				targets_shape = Values.shape
 				Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
+				target_V_values = self.v_value_norm.denormalize(target_V_values.view(-1)).view(targets_shape) * masks.to(self.device)
 			
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			advantage = (target_V_values - Values).detach()
 			
-			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
-			# if self.norm_returns:
-			# 	targets_shape = Values.shape
-			# 	Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
-			# 	targets_shape = next_Values.shape
-			# 	next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
+			if self.norm_returns:
+				targets_shape = Values.shape
+				Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
+				target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape) * masks.view(targets_shape).to(self.device)
+				# targets_shape = next_Values.shape
+				# next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
 
 			if self.norm_adv:
 				advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
