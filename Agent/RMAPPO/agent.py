@@ -585,6 +585,7 @@ class PPOAgent:
 			values_shape = Q_values_old.shape
 			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old + advantage_Q
+			
 			# timesteps = old_states_critic_allies.shape[1]
 			# shape = (self.update_ppo_agent, timesteps, self.num_agents)
 			# target_V_values = self.nstep_returns(rewards=target_V_rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Values_old.view(*shape), next_values=next_Values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
@@ -684,12 +685,12 @@ class PPOAgent:
 			# weights_prd = weights_prd.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
 			# weight_v = weight_v.reshape(batch, time_steps+1, -1, self.num_agents, self.num_agents)[:,:-1,:,:,:].reshape(batch*time_steps, -1, self.num_agents, self.num_agents)
 
-			next_Values, _, _, _ = self.critic_network_v(
-										torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
-										torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
-										torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
-										h_v.to(self.device)
-										)
+			# next_Values, _, _, _ = self.critic_network_v(
+			# 							torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
+			# 							torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
+			# 							torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
+			# 							h_v.to(self.device)
+			# 							)
 
 			Values *= masks.to(self.device)
 			Q_values *= masks.to(self.device)
@@ -705,11 +706,11 @@ class PPOAgent:
 			advantage = (target_V_values - Values).detach()
 			
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd.detach(), dim=1), masks.to(self.device), episode)
-			if self.norm_returns:
-				targets_shape = Values.shape
-				Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
-				targets_shape = next_Values.shape
-				next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
+			# if self.norm_returns:
+			# 	targets_shape = Values.shape
+			# 	Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
+			# 	targets_shape = next_Values.shape
+			# 	next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
 
 			if self.norm_adv:
 				advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
@@ -720,11 +721,11 @@ class PPOAgent:
 			probs = Categorical(dists)
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
 			
-			# if "threshold" in self.experiment_type or "top" in self.experiment_type:
-			# 	agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/masking_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
-			# 	avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
-			# 	agent_groups_over_episode_batch += agent_groups_over_episode
-			# 	avg_agent_group_over_episode_batch += avg_agent_group_over_episode
+			if "threshold" in self.experiment_type or "top" in self.experiment_type:
+				agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/masking_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
+				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
+				agent_groups_over_episode_batch += agent_groups_over_episode
+				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 
 			critic_v_loss_1 = F.huber_loss(Values, target_V_values, reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
