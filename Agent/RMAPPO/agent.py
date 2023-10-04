@@ -694,7 +694,7 @@ class PPOAgent:
 
 			Values *= masks.to(self.device)
 			Q_values *= masks.to(self.device)
-			next_Values *= next_mask.to(self.device)
+			# next_Values *= next_mask.to(self.device)
 
 			if self.norm_returns:
 				targets_shape = next_Values.shape
