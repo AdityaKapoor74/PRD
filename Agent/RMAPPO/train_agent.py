@@ -293,8 +293,8 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		env_name = "10m_vs_11m"
-		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		env_name = "5m_vs_6m"
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -347,9 +347,9 @@ if __name__ == '__main__':
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic_v": True,
-				"grad_clip_critic_v": 0.5,
+				"grad_clip_critic_v": 10.0,
 				"enable_grad_clip_critic_q": True,
-				"grad_clip_critic_q": 0.5,
+				"grad_clip_critic_q": 10.0,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 1,
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 				# ACTOR
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
-				"grad_clip_actor": 0.5,
+				"grad_clip_actor": 10.0,
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
