@@ -146,12 +146,8 @@ class MAPPO:
 
 		for episode in range(1,self.max_episodes+1):
 
-
-
 			states_actor, info = self.env.reset(return_info=True)
 			mask_actions = np.array(info["avail_actions"], dtype=int)
-			# concatenate state information with last action and agent id
-			# states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], np.zeros((self.num_agents, self.num_actions))), axis=-1)
 			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 			states_enemies_critic = info["enemy_states"]
 			states_actor = np.array(states_actor)
@@ -190,10 +186,7 @@ class MAPPO:
 						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
 				else:
 					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
-				
-				# print("actions")
-				# print(actions)
-				# print(mask_actions)
+
 				one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 				for i, act in enumerate(actions):
 					one_hot_actions[i][act] = 1
@@ -202,23 +195,25 @@ class MAPPO:
 
 
 				next_states_actor, rewards, dones, info = self.env.step(actions)
-				# dones = [int(dones)]*self.num_agents
-				rewards = info["indiv_rewards"]
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
-				# next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
 				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 				next_states_enemies_critic = info["enemy_states"]
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
 
 				if self.learn:
-					self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, rewards, dones)
+					if self.experiment_type == "shared":
+						rewards_to_send = [rewards]*self.n_agents
+					else:
+						rewards_to_send = info["indiv_rewards"] 
+
+					self.agents.buffer.push(states_allies_critic, states_enemies_critic, states_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, rewards_to_send, info["indiv_dones"])
 
 				episode_reward += np.sum(rewards)
 
 				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions
 
-				if all(dones) or step == self.max_time_steps:
+				if all(info["indiv_dones"]) or step == self.max_time_steps:
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
@@ -237,18 +232,19 @@ class MAPPO:
 					# if warmup
 					# self.agents.update_epsilon()
 
-					# add final time to buffer
-					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
-				
-					one_hot_actions = np.zeros((self.num_agents,self.num_actions))
-					for i,act in enumerate(actions):
-						one_hot_actions[i][act] = 1
-
-					_, _, dones, info = self.env.step(actions)
-					next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-					next_states_enemies_critic = info["enemy_states"]
+					if self.learn:
+						# add final time to buffer
+						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
 					
-					self.agents.buffer.end_episode(final_timestep, next_states_allies_critic, next_states_enemies_critic, one_hot_actions, dones)
+						one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+						for i,act in enumerate(actions):
+							one_hot_actions[i][act] = 1
+
+						_, _, _, info = self.env.step(actions)
+						next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+						next_states_enemies_critic = info["enemy_states"]
+						
+						self.agents.buffer.end_episode(final_timestep, next_states_allies_critic, next_states_enemies_critic, one_hot_actions, info["indiv_dones"])
 
 					break
 
@@ -294,7 +290,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -315,10 +311,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
@@ -368,8 +364,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 2e-3, #8e-3
-				"entropy_pen_final": 2e-3,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, #0.1,
