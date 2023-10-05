@@ -148,11 +148,12 @@ class MAPPO:
 
 			states_actor, info = self.env.reset(return_info=True)
 			mask_actions = np.array(info["avail_actions"], dtype=int)
-			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], last_one_hot_actions), axis=-1)
 			states_enemies_critic = info["enemy_states"]
 			states_actor = np.array(states_actor)
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
-			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+			
 
 			images = []
 
@@ -197,7 +198,7 @@ class MAPPO:
 				next_states_actor, rewards, dones, info = self.env.step(actions)
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
-				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
 				next_states_enemies_critic = info["enemy_states"]
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
 
@@ -241,7 +242,7 @@ class MAPPO:
 							one_hot_actions[i][act] = 1
 
 						_, _, _, info = self.env.step(actions)
-						next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+						next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
 						next_states_enemies_critic = info["enemy_states"]
 						
 						self.agents.buffer.end_episode(final_timestep, next_states_allies_critic, next_states_enemies_critic, one_hot_actions, info["indiv_dones"])
@@ -382,7 +383,7 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #4+env.action_space[0].n+env.n_agents
+		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
 		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MAPPO(env,dictionary)
