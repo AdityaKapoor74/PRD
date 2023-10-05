@@ -469,7 +469,7 @@ class PPOAgent:
 		masks = 1 - dones
 		next_mask = 1-torch.FloatTensor(np.array(self.buffer.dones))[:, -1, :].long().reshape(-1, self.num_agents)
 
-		rewards = torch.clamp(rewards, min=0.0, max=2.0)
+		# rewards = torch.clamp(rewards, min=0.0, max=2.0)
 		
 		if self.norm_rewards:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
