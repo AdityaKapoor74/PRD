@@ -294,7 +294,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "shared" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -322,7 +322,7 @@ if __name__ == '__main__':
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
-				"epsilon_start": 10.0,
+				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
 				"max_episodes": 20000,
 				"max_time_steps": 100,
@@ -347,9 +347,9 @@ if __name__ == '__main__':
 				"q_weight_decay": 5e-4,
 				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic_v": True,
-				"grad_clip_critic_v": 10.0,
+				"grad_clip_critic_v": 0.5,
 				"enable_grad_clip_critic_q": True,
-				"grad_clip_critic_q": 10.0,
+				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 1,
