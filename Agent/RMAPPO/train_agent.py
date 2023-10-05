@@ -30,6 +30,7 @@ class MAPPO:
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
 		self.num_agents = self.env.n_agents
+		self.num_enemies = self.env.n_enemies
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -50,6 +51,13 @@ class MAPPO:
 			agent_id[i] = 1
 			self.agent_ids.append(agent_id)
 		self.agent_ids = np.array(self.agent_ids)
+
+		self.enemy_ids = []
+		for i in range(self.num_enemies):
+			enemy_id = np.array([0 for i in range(self.num_enemies)])
+			enemy_id[i] = 1
+			self.enemy_ids.append(enemy_id)
+		self.enemy_ids = np.array(self.enemy_ids)
 
 
 		self.comet_ml = None
@@ -150,7 +158,7 @@ class MAPPO:
 			mask_actions = np.array(info["avail_actions"], dtype=int)
 			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], last_one_hot_actions), axis=-1)
-			states_enemies_critic = info["enemy_states"]
+			states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 			states_actor = np.array(states_actor)
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
 			
@@ -199,7 +207,7 @@ class MAPPO:
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
 				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
-				next_states_enemies_critic = info["enemy_states"]
+				next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
 
 				if self.learn:
@@ -243,7 +251,7 @@ class MAPPO:
 
 						_, _, _, info = self.env.step(actions)
 						next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
-						next_states_enemies_critic = info["enemy_states"]
+						next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 						
 						self.agents.buffer.end_episode(final_timestep, next_states_allies_critic, next_states_enemies_critic, one_hot_actions, info["indiv_dones"])
 
@@ -384,7 +392,7 @@ if __name__ == '__main__':
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
 		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
-		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]
+		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
