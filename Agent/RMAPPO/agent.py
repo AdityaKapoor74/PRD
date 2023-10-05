@@ -299,6 +299,7 @@ class PPOAgent:
 		advantages = rewards.new_zeros(*rewards.shape)
 		advantage = 0
 		masks = 1 - dones
+		next_value *= next_mask
 
 		for t in reversed(range(0, rewards.shape[1])):
 			# td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:]
@@ -306,11 +307,9 @@ class PPOAgent:
 			# next_value = values.data[:, t, :]
 			# next_mask = masks[:,t,:]
 
-			advantage = advantage * next_mask
-			next_value = next_value * next_mask
-
-			td_error = rewards[:,t,:] + (self.gamma * next_value) - values.data[:,t,:] * masks[:, t, :]
-			advantage = td_error + self.gamma * self.gae_lambda * advantage
+			td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:] * masks[:, t, :]
+			advantage = td_error + self.gamma * self.gae_lambda * advantage * masks[:, t, :]
+			advantage = advantage * masks[:, t, :]
 			
 			next_value = values.data[:, t, :]
 			next_mask = masks[:, t, :]
