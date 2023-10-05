@@ -613,10 +613,10 @@ class PPOAgent:
 			# self.q_value_norm.update(target_Q_values.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
 			# target_Q_values = (target_Q_values - self.q_value_norm.mean) / (torch.sqrt(self.q_value_norm.var) + 1e-5)
 
-		# if self.norm_adv:
-		# 	advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
-		# 	advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
-		# 	advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+		if self.norm_adv:
+			advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
+			advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
+			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
 
 		# print("target_qs")
 		# print(target_Q_values[0])
@@ -696,27 +696,27 @@ class PPOAgent:
 			Q_values *= masks.to(self.device)
 			# next_Values *= next_mask.to(self.device)
 
-			if self.norm_returns:
-				# targets_shape = next_Values.shape
-				# next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
-				targets_shape = Values.shape
-				Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
-				target_V_values = self.v_value_norm.denormalize(target_V_values.view(-1)).view(targets_shape) * masks.to(self.device)
+			# if self.norm_returns:
+			# 	# targets_shape = next_Values.shape
+			# 	# next_Values = self.v_value_norm.denormalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
+			# 	targets_shape = Values.shape
+			# 	Values = self.v_value_norm.denormalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
+			# 	target_V_values = self.v_value_norm.denormalize(target_V_values.view(-1)).view(targets_shape) * masks.to(self.device)
 			
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values, next_Values, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			advantage = (target_V_values - Values).detach()
+			# advantage = (target_V_values - Values).detach()
 			
-			if self.norm_returns:
-				targets_shape = Values.shape
-				Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
-				target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape) * masks.view(targets_shape).to(self.device)
-				# targets_shape = next_Values.shape
-				# next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
+			# if self.norm_returns:
+			# 	targets_shape = Values.shape
+			# 	Values = self.v_value_norm.normalize(Values.view(-1)).view(targets_shape) * masks.to(self.device)
+			# 	target_V_values = self.v_value_norm.normalize(target_V_values.view(-1)).view(targets_shape) * masks.view(targets_shape).to(self.device)
+			# 	# targets_shape = next_Values.shape
+			# 	# next_Values = self.v_value_norm.normalize(next_Values.view(-1)).view(targets_shape) * next_mask.to(self.device)
 
-			if self.norm_adv:
-				advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
-				advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
-				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+			# if self.norm_adv:
+			# 	advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
+			# 	advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
+			# 	advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
 				
 
 			probs = Categorical(dists)
@@ -750,8 +750,8 @@ class PPOAgent:
 				score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.unsqueeze(-1).to(self.device)).sum()/masks.sum()
 				score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.unsqueeze(-1).to(self.device)).sum()/masks.sum()
 			
-			# print("weights entropy")
-			# print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
+			print("weights entropy")
+			print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
