@@ -395,7 +395,7 @@ class PPOAgent:
 		masking_rewards = None
 		mean_min_weight_value = -1
 		if "shared" in self.experiment_type:
-			rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+			rewards_ = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		elif "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 			masking_rewards = (weights_prd>self.select_above_threshold).int()
@@ -427,7 +427,7 @@ class PPOAgent:
 			if episode > self.steps_to_take:
 				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
 			else:
-				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+				rewards_ = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 			
 			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		
@@ -550,7 +550,7 @@ class PPOAgent:
 		elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
 		else:
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+			target_V_rewards = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
 		# shape = (batch, time_steps, self.num_agents)
 		# target_Qs = rewards.reshape(*shape).to(self.device) + self.gamma * (1-dones.reshape(batch, time_steps+1, self.num_agents).to(self.device)[:,1:,:]) * Q_values_old.reshape(batch, time_steps+1, self.num_agents)[:,1:,:]
