@@ -217,8 +217,10 @@ class PPOAgent:
 			# self.v_value_norm = RunningMeanStd(shape=(self.num_agents), device=self.device)
 			# self.q_value_norm = RunningMeanStd(shape=(self.num_agents), device=self.device)
 
-		if self.norm_rewards:
-			self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
+		# if self.norm_rewards:
+		# 	self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
+
+		self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
 
 
 	def get_lr(self, it, learning_rate):
@@ -474,6 +476,9 @@ class PPOAgent:
 		if self.norm_rewards:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
+
+		self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
+		normalized_rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
 		
 		# if episode < 25:
 		# 	self.buffer.clear()
@@ -581,7 +586,7 @@ class PPOAgent:
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			target_V_values = Values_old + advantage # gae return
 			values_shape = Q_values_old.shape
-			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, normalized_rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old + advantage_Q
 			
 			# timesteps = old_states_critic_allies.shape[1]
@@ -778,6 +783,10 @@ class PPOAgent:
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
+			print(self.critic_network_q.key.weight.grad)
+			print(self.critic_network_q.query.weight.grad)
+			print(self.critic_network_q.ally_state_embed_1[0].weight.grad)
+			print(self.critic_network_q.common_layer[0].weight.grad)
 			if self.enable_grad_clip_critic_q:
 				grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic_q)
 			else:
