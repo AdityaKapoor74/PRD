@@ -170,21 +170,21 @@ class QMIX:
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				# dones = [int(dones)]*self.num_agents
-				rewards = info["indiv_rewards"]
+				# rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				if self.learn:
-					self.buffer.push(states, actions, last_one_hot_action, next_states, next_last_one_hot_action, next_mask_actions, np.sum(rewards), all(dones))
+					self.buffer.push(states, actions, last_one_hot_action, next_states, next_last_one_hot_action, next_mask_actions, rewards, dones)
 
 				states, mask_actions, last_one_hot_action = next_states, next_mask_actions, next_last_one_hot_action
 
 				episode_reward += np.sum(rewards)
 
-				if all(dones) or step == self.max_time_steps:
+				if dones or step == self.max_time_steps:
 
 					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
 					print("*"*100)
 
 					final_timestep = step
@@ -236,7 +236,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "QMix_"+str(i)
 		test_num = "StarCraft"
-		env_name = "bane_vs_bane"
+		env_name = "5m_vs_6m"
 
 		dictionary = {
 				# TRAINING
@@ -259,7 +259,7 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 25,
+				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
