@@ -172,6 +172,7 @@ class MLP_Policy(nn.Module):
 			# init_(nn.Linear(128, 64), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		self.Layer_2 = nn.Sequential(
