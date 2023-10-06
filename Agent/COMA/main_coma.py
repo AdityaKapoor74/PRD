@@ -11,7 +11,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "COMA_"+str(i)
 		test_num = "StarCraft"
-		env_name = "bane_vs_bane"
+		env_name = "5m_vs_6m"
 
 		dictionary = {
 				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 25,
+				"max_time_steps": 100,
 				"norm_adv": False,
 				"norm_rew": False,
 			}
