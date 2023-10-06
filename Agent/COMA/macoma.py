@@ -176,8 +176,8 @@ class MACOMA:
 				# rnn_hidden_state_critic = self.agents.get_critic_hidden(states, one_hot_actions)
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				# dones = [int(dones)]*self.num_agents
-				rewards = info["indiv_rewards"]
+				dones = [int(dones)]*self.num_agents
+				# rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
 				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
@@ -185,7 +185,7 @@ class MACOMA:
 				episode_reward += np.sum(rewards)
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
-				rewards_ = [np.sum(rewards)]*self.num_agents
+				rewards_ = [rewards]*self.num_agents
 
 
 				if self.learn:
