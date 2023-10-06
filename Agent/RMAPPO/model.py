@@ -146,7 +146,7 @@ def init(module, weight_init, bias_init, gain=1):
 		bias_init(module.bias.data)
 	return module
 
-def init_(m, gain=0.1, activate=False):
+def init_(m, gain=1.0, activate=False):
 	if activate:
 		gain = nn.init.calculate_gain('relu')
 	return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
@@ -427,9 +427,10 @@ class Q_network(nn.Module):
 		states_key_embed = self.remove_self_loops(states_key_embed) # Batch_size, Num agents, Num Agents - 1, dim
 		
 		# KEYS
-		key_obs = self.key(states_key_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.key[i](states_key_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
+		key_obs = self.key(states_key_embed).reshape(batch*timesteps, num_agents, num_agents-1, self.num_heads, -1).permute(0, 3, 1, 2, 4) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
 		# QUERIES
-		query_obs = self.query(states_query_embed).reshape(batch*timesteps, num_agents, 1, self.num_heads, -1).permute(0, 3, 1, 2, 4) #torch.stack([self.query[i](states_query_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4).to(self.device) # Batch_size, Num Heads, Num agents, 1, dim
+		query_obs = self.query(states_query_embed).reshape(batch*timesteps, num_agents, 1, self.num_heads, -1).permute(0, 3, 1, 2, 4) # Batch_size, Num Heads, Num agents, 1, dim
+
 		# HARD ATTENTION
 		if self.enable_hard_attention:
 			query_key_concat = torch.cat([query_obs.repeat(1,1,1,self.num_agents-1,1), key_obs], dim=-1).permute(0, 2, 3, 1, 4).reshape(batch*timesteps, num_agents, num_agents-1, -1) # Batch_size, Num Heads, Num agents, Num Agents - 1, dim
@@ -439,7 +440,7 @@ class Q_network(nn.Module):
 			hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).float().to(self.device)
 			
 		# SOFT ATTENTION
-		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/math.sqrt((self.d_k_agents//self.num_heads)) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# Step 1: Find the maximum value among the logits.
 		max_score = torch.max(score, dim=-1, keepdim=True).values
 		# Step 2: Subtract the maximum value from the logits for numerical stability.
@@ -453,7 +454,6 @@ class Q_network(nn.Module):
 		weight = F.softmax(score_stable, dim=-1) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
-		
 
 		# for head in range(self.num_heads):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
