@@ -291,6 +291,7 @@ class Q_network(nn.Module):
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
@@ -298,6 +299,7 @@ class Q_network(nn.Module):
 			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
@@ -305,6 +307,7 @@ class Q_network(nn.Module):
 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -322,6 +325,7 @@ class Q_network(nn.Module):
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -352,6 +356,7 @@ class Q_network(nn.Module):
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -542,6 +547,7 @@ class V_network(nn.Module):
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
@@ -549,6 +555,7 @@ class V_network(nn.Module):
 			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
@@ -556,6 +563,7 @@ class V_network(nn.Module):
 			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
 			nn.GELU(),
+			nn.LayerNorm(64),
 			)
 
 		# Attention for agents to agents
@@ -574,6 +582,7 @@ class V_network(nn.Module):
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
@@ -605,6 +614,7 @@ class V_network(nn.Module):
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
+			nn.LayerNorm(64),
 			init_(nn.Linear(64, 64))
 			)
 		# # self.attention_value_linear_dropout = nn.Dropout(0.2)
