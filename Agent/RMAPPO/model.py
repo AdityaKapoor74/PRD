@@ -330,9 +330,7 @@ class Q_network(nn.Module):
 
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
-				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.GELU(), 
-				init_(nn.Linear(64, 2))
+				init_(nn.Linear(64+64, 2))
 				)
 
 		# dimesion of key
@@ -368,7 +366,7 @@ class Q_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			# init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			# nn.GELU(),
-			init_(nn.Linear(64+64+64, self.num_actions))
+			init_(nn.Linear(64+64, self.num_actions))
 			)
 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		# self.q_value_layer = nn.Sequential(
@@ -497,7 +495,8 @@ class Q_network(nn.Module):
 		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
-		curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		# curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		curr_agent_node_features = torch.cat([states_embed+aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 
 		# curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		# Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
@@ -583,9 +582,7 @@ class V_network(nn.Module):
 
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
-				init_(nn.Linear(64+64, 64), activate=True), 
-				nn.GELU(), 
-				init_(nn.Linear(64, 2))
+				init_(nn.Linear(64+64, 2))
 				)
 
 		# dimesion of key
@@ -622,7 +619,7 @@ class V_network(nn.Module):
 		self.common_layer = nn.Sequential(
 			# init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			# nn.GELU(),
-			init_(nn.Linear(64+64+64, 1))
+			init_(nn.Linear(64+64, 1))
 			)
 
 		# self.v_value_layer = nn.Sequential(
@@ -756,7 +753,8 @@ class V_network(nn.Module):
 		aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
 		# FINAL LAYERS
-		curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		# curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+		curr_agent_node_features = torch.cat([states_embed+aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 		# curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		# V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, num_actions
 		V_value = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, 1
