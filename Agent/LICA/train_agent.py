@@ -171,19 +171,19 @@ class LICA:
 
 				next_states, rewards, dones, info = self.env.step(actions)
 				# dones = [int(dones)]*self.num_agents
-				rewards = info["indiv_rewards"]
+				# rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
 				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				if not self.gif:
-					self.buffer.push(states, states, last_one_hot_action, actions, next_last_one_hot_action, mask_actions, np.sum(rewards), all(dones))
+					self.buffer.push(states, states, last_one_hot_action, actions, next_last_one_hot_action, mask_actions, rewards, dones)
 
 				states, mask_actions, last_one_hot_action = next_states, next_mask_actions, next_last_one_hot_action
 
 				episode_reward += np.sum(rewards)
 
-				if all(dones) or step == self.max_time_steps:
+				if dones or step == self.max_time_steps:
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
@@ -209,7 +209,7 @@ class LICA:
 
 					_, _, dones, _ = self.env.step(actions)
 
-					self.buffer.end_episode(states, one_hot_actions, all(dones))
+					self.buffer.end_episode(states, one_hot_actions, dones)
 
 					break
 
@@ -247,10 +247,10 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 
-	for i in range(1,6):
+	for i in range(1,4):
 		extension = "LICA_"+str(i)
 		test_num = "StarCraft"
-		env_name = "bane_vs_bane"
+		env_name = "5m_vs_6m"
 
 		dictionary = {
 				# TRAINING
@@ -274,7 +274,7 @@ if __name__ == '__main__':
 				"norm_returns": False,
 				"learn":True,
 				"max_episodes": 20000,
-				"max_time_steps": 25,
+				"max_time_steps": 100,
 				"parallel_training": False,
 				"scheduler_need": False,
 				"update_episode_interval": 32,
