@@ -233,7 +233,7 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 
-	for i in range(1,6):
+	for i in range(1,4):
 		extension = "QMix_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
