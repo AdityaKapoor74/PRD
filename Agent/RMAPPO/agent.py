@@ -783,10 +783,6 @@ class PPOAgent:
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
-			print(self.critic_network_q.key.weight.grad)
-			print(self.critic_network_q.query.weight.grad)
-			print(self.critic_network_q.ally_state_embed_1[0].weight.grad)
-			print(self.critic_network_q.common_layer[0].weight.grad)
 			if self.enable_grad_clip_critic_q:
 				grad_norm_value_q = torch.nn.utils.clip_grad_norm_(self.critic_network_q.parameters(), self.grad_clip_critic_q)
 			else:
