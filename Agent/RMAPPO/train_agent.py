@@ -353,9 +353,9 @@ if __name__ == '__main__':
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": True,
-				"grad_clip_critic_v": 0.5,
+				"grad_clip_critic_v": 2.0,
 				"enable_grad_clip_critic_q": True,
-				"grad_clip_critic_q": 0.5,
+				"grad_clip_critic_q": 2.0,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 1,
@@ -384,7 +384,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.25, #0.12
 				"steps_to_take": 1000,
 				"top_k": 0,
-				"norm_adv": True,
+				"norm_adv": False,
 
 				"network_update_interval": 1,
 			}
