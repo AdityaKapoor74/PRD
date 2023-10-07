@@ -478,6 +478,7 @@ class PPOAgent:
 
 		# rewards = torch.clamp(rewards, min=0.0, max=2.0)
 
+		rewards_q = rewards
 		if self.norm_rewards_q:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards_q = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
@@ -485,7 +486,7 @@ class PPOAgent:
 		if self.norm_rewards_v:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
-			
+
 		# if episode < 25:
 		# 	self.buffer.clear()
 		# 	return
