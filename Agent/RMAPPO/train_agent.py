@@ -334,7 +334,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"norm_rewards_q": False,
+				"norm_rewards_q": True,
 				"norm_rewards_v": False,
 
 
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns_q": True,
+				"norm_returns_q": False,
 				"norm_returns_v": False,
 				
 
