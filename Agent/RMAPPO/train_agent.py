@@ -334,7 +334,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"norm_rewards_q": True,
+				"norm_rewards_q": False,
 				"norm_rewards_v": False,
 
 
@@ -345,7 +345,7 @@ if __name__ == '__main__':
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
 				"q_value_lr": 1e-4, #1e-3
-				"v_value_lr": 5e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
