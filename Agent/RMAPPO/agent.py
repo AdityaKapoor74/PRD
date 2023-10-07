@@ -477,8 +477,8 @@ class PPOAgent:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
 
-		# self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
-		# normalized_rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
+		self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
+		normalized_rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
 		
 		# if episode < 25:
 		# 	self.buffer.clear()
@@ -586,7 +586,7 @@ class PPOAgent:
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			target_V_values = Values_old + advantage # gae return
 			values_shape = Q_values_old.shape
-			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, normalized_rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old + advantage_Q
 			
 			# timesteps = old_states_critic_allies.shape[1]
