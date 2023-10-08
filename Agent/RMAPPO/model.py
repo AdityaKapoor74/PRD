@@ -621,7 +621,7 @@ class V_network(nn.Module):
 		# # self.attention_value_linear_dropout = nn.Dropout(0.2)
 
 		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(32)
-`
+
 		# dimesion of key
 		self.d_k_enemies = 32
 		
