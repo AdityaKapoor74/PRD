@@ -176,6 +176,11 @@ class PPOAgent:
 
 		self.network_update_interval_q = dictionary["network_update_interval_q"]
 		self.network_update_interval_v = dictionary["network_update_interval_v"]
+		self.soft_update_q = dictionary["soft_update_q"]
+		self.soft_update_v = dictionary["soft_update_v"]
+		self.tau_q = dictionary["tau_q"]
+		self.tau_v = dictionary["tau_v"]
+
 		
 		self.buffer = RolloutBuffer(
 			num_episodes=self.update_ppo_agent, 
@@ -864,12 +869,19 @@ class PPOAgent:
 				weight_v_batch += weight_v.detach().cpu()
 			
 
-
-		if episode % self.network_update_interval_q == 0:
-			# Copy new weights into old critic
+		# Copy new weights into old critic
+		
+		if self.soft_update_q:
+			for target_param, param in zip(self.target_critic_network_q.parameters(), self.critic_network_q.parameters()):
+				target_param.data.copy_(target_param.data * (1.0 - self.tau_q) + param.data * self.tau_q)
+		elif episode % self.network_update_interval_q == 0::
 			self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
 			
-		if episode % self.network_update_interval_v == 0:
+		
+		if self.soft_update_v:
+			for target_param, param in zip(self.target_critic_network_v.parameters(), self.critic_network_v.parameters()):
+				target_param.data.copy_(target_param.data * (1.0 - self.tau_v) + param.data * self.tau_v)
+		elif episode % self.network_update_interval_v == 0::
 			self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
 
 		# self.scheduler.step()
