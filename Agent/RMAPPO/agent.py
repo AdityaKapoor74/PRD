@@ -516,27 +516,27 @@ class PPOAgent:
 
 		with torch.no_grad():
 			# OLD VALUES
-			Q_values_old, weights_prd_old, _, h_q = self.critic_network_q(
+			Q_values_old, weights_prd_old, _, h_q = self.target_critic_network_q(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
 												rnn_hidden_state_q.to(self.device)
 												)
-			Values_old, _, _, h_v = self.critic_network_v(
+			Values_old, _, _, h_v = self.target_critic_network_v(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
 												rnn_hidden_state_v.to(self.device)
 												)
 
-			next_Values_old, _, _, _ = self.critic_network_v(
+			next_Values_old, _, _, _ = self.target_critic_network_v(
 										torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
 										h_v.to(self.device)
 										)
 
-			next_Q_values_old, _, _, _ = self.critic_network_q(
+			next_Q_values_old, _, _, _ = self.target_critic_network_q(
 										torch.FloatTensor(np.array(self.buffer.states_critic_allies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.states_critic_enemies))[:, -1, :, :].to(self.device).unsqueeze(1),
 										torch.FloatTensor(np.array(self.buffer.one_hot_actions))[:, -1, :].to(self.device).unsqueeze(1),
@@ -682,13 +682,13 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_values, weights_prd, score_q, _ = self.target_critic_network_q(
+			Q_values, weights_prd, score_q, _ = self.critic_network_q(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
 												rnn_hidden_state_q.to(self.device)
 												)
-			Values, weight_v, score_v, h_v = self.target_critic_network_v(
+			Values, weight_v, score_v, h_v = self.critic_network_v(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
