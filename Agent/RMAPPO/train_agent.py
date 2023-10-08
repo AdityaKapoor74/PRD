@@ -355,7 +355,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_critic_v": False,
 				"grad_clip_critic_v": 0.3,
 				"enable_grad_clip_critic_q": True,
-				"grad_clip_critic_q": 5.0,
+				"grad_clip_critic_q": 10.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 1,
