@@ -386,7 +386,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"norm_adv": False,
 
-				"network_update_interval_q": 100,
+				"network_update_interval_q": 200,
 				"network_update_interval_v": 1,
 			}
 
