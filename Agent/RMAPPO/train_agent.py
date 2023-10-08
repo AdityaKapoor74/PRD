@@ -354,7 +354,7 @@ if __name__ == '__main__':
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": False,
 				"grad_clip_critic_v": 0.5,
-				"enable_grad_clip_critic_q": True,
+				"enable_grad_clip_critic_q": False,
 				"grad_clip_critic_q": 10.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns_q": False,
+				"norm_returns_q": True,
 				"norm_returns_v": True,
 				
 
@@ -375,8 +375,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.05,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 1e-2, #8e-3
-				"entropy_pen_final": 1e-2,
+				"entropy_pen": 8e-3, #8e-3
+				"entropy_pen_final": 8e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, #0.1,
