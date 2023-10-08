@@ -352,7 +352,7 @@ if __name__ == '__main__':
 				"attention_dropout_prob_v": 0.0,
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
-				"enable_grad_clip_critic_v": True,
+				"enable_grad_clip_critic_v": False,
 				"grad_clip_critic_v": 0.3,
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 5.0,
