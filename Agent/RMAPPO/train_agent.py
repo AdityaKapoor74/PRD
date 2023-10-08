@@ -365,7 +365,7 @@ if __name__ == '__main__':
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"norm_returns_q": False,
-				"norm_returns_v": True,
+				"norm_returns_v": False,
 				
 
 				# ACTOR
