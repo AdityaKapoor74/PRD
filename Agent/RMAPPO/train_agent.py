@@ -354,8 +354,8 @@ if __name__ == '__main__':
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": False,
 				"grad_clip_critic_v": 0.5,
-				"enable_grad_clip_critic_q": False,
-				"grad_clip_critic_q": 0.5,
+				"enable_grad_clip_critic_q": True,
+				"grad_clip_critic_q": 10.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 1,
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 				"critic_weight_entropy_pen_steps": 100, # number of updates
 				"critic_score_regularizer": 0.0,
 				"lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
-				"norm_returns_q": True,
+				"norm_returns_q": False,
 				"norm_returns_v": True,
 				
 
