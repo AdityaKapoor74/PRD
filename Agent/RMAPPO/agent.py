@@ -874,14 +874,14 @@ class PPOAgent:
 		if self.soft_update_q:
 			for target_param, param in zip(self.target_critic_network_q.parameters(), self.critic_network_q.parameters()):
 				target_param.data.copy_(target_param.data * (1.0 - self.tau_q) + param.data * self.tau_q)
-		elif episode % self.network_update_interval_q == 0::
+		elif episode % self.network_update_interval_q == 0:
 			self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
 			
 		
 		if self.soft_update_v:
 			for target_param, param in zip(self.target_critic_network_v.parameters(), self.critic_network_v.parameters()):
 				target_param.data.copy_(target_param.data * (1.0 - self.tau_v) + param.data * self.tau_v)
-		elif episode % self.network_update_interval_v == 0::
+		elif episode % self.network_update_interval_v == 0:
 			self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
 
 		# self.scheduler.step()
