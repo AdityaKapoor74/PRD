@@ -171,7 +171,7 @@ class MLP_Policy(nn.Module):
 			# nn.GELU(),
 			# init_(nn.Linear(128, 64), activate=True),
 			# nn.LayerNorm(64),
-			nn.GELU(),
+			nn.ReLU(),
 			nn.LayerNorm(64),
 			)
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
@@ -621,7 +621,7 @@ class V_network(nn.Module):
 		# # self.attention_value_linear_dropout = nn.Dropout(0.2)
 
 		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(32)
-
+`
 		# dimesion of key
 		self.d_k_enemies = 32
 		
