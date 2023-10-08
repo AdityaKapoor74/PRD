@@ -436,12 +436,14 @@ class PPOAgent:
 				rewards_ = torch.sum(masking_rewards * torch.transpose(masking_rewards,-1,-2), dim=-1)
 				advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		elif "prd_soft_advantage" in self.experiment_type:
-			if episode > self.steps_to_take:
-				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
-			else:
-				rewards_ = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-			
+			# if episode > self.steps_to_take:
+			# 	rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
+			# else:
+			# 	rewards_ = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+			rewards_ = rewards
+
 			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
+			advantage = torch.sum(advantage.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
 		
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
 			advantage *= self.num_agents
@@ -565,7 +567,8 @@ class PPOAgent:
 			mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
 		elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+			# target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+			target_V_rewards = rewards
 		else:
 			target_V_rewards = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
@@ -587,7 +590,8 @@ class PPOAgent:
 			target_V_values = Values_old + advantage # gae return
 		else:
 			values_shape = Values_old.shape
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
+			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
+			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			target_V_values = Values_old + advantage # gae return
 			
 
