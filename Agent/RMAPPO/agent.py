@@ -338,7 +338,7 @@ class PPOAgent:
 		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
 		# Initialise  last  lambda -return  for  not  terminated  episodes
 		ret = target_qs.new_zeros(*target_qs.shape)
-		ret = target_qs * (1-terminated[:, :-1]) # some episodes end early so we can't assume that by copying the last target_qs in ret would be good enough
+		ret = target_qs * (1-terminated) # some episodes end early so we can't assume that by copying the last target_qs in ret would be good enough
 		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
 		# Backwards  recursive  update  of the "forward  view"
 		for t in range(ret.shape[1] - 2, -1, -1):
@@ -436,14 +436,12 @@ class PPOAgent:
 				rewards_ = torch.sum(masking_rewards * torch.transpose(masking_rewards,-1,-2), dim=-1)
 				advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
 		elif "prd_soft_advantage" in self.experiment_type:
-			# if episode > self.steps_to_take:
-			# 	rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
-			# else:
-			# 	rewards_ = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
-			rewards_ = rewards
-
+			if episode > self.steps_to_take:
+				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
+			else:
+				rewards_ = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+			
 			advantage = self.calculate_advantages(V_values, next_Values, rewards_, dones, masks, next_mask)
-			advantage = torch.sum(advantage.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(weights_prd, -1, -2), dim=-1)
 		
 		if "scaled" in self.experiment_type and episode > self.steps_to_take and "top" in self.experiment_type:
 			advantage *= self.num_agents
@@ -559,16 +557,24 @@ class PPOAgent:
 		if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
 			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
-		elif "threshold" in self.experiment_type and episode > self.steps_to_take:
-			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
-		elif "top" in self.experiment_type and episode > self.steps_to_take:
-			values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k, dim=-1)
-			mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
-		elif "prd_soft_advantage" in self.experiment_type and episode > self.steps_to_take:
-			# target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
-			target_V_rewards = rewards
+		elif "threshold" in self.experiment_type:
+			if episode > self.steps_to_take:
+				mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+			else:
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+		elif "top" in self.experiment_type:
+			if episode > self.steps_to_take:
+				values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k, dim=-1)
+				mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+			else:
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
+		elif "prd_soft_advantage" in self.experiment_type:
+			if episode > self.steps_to_take:
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+			else:
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 		else:
 			target_V_rewards = rewards #torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 
@@ -589,10 +595,16 @@ class PPOAgent:
 			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			target_V_values = Values_old + advantage # gae return
 		else:
-			values_shape = Values_old.shape
+			# values_shape = Values_old.shape
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Q_values_old, next_Q_values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
-			target_V_values = Values_old + advantage # gae return
+			# target_V_values = Values_old + advantage # gae return
+
+			timesteps = old_states_critic_allies.shape[1]
+			shape = (self.update_ppo_agent, timesteps, self.num_agents)
+			target_V_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+			target_V_values = torch.sum(target_V_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+
+			advantage = (target_V_values - Values_old).detach()
 			
 
 		if self.norm_returns_q:
@@ -608,14 +620,13 @@ class PPOAgent:
 			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old + advantage_Q
 		else:
-			values_shape = Q_values_old.shape
-			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			target_Q_values = Q_values_old + advantage_Q
+			# values_shape = Q_values_old.shape
+			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			# target_Q_values = Q_values_old + advantage_Q
 			
-			# timesteps = old_states_critic_allies.shape[1]
-			# shape = (self.update_ppo_agent, timesteps, self.num_agents)
-			# target_V_values = self.nstep_returns(rewards=target_V_rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Values_old.view(*shape), next_values=next_Values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
-			# target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+			timesteps = old_states_critic_allies.shape[1]
+			shape = (self.update_ppo_agent, timesteps, self.num_agents)
+			target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
 
 
 		# print("target_V_values")
