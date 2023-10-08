@@ -174,7 +174,8 @@ class PPOAgent:
 		# for param in self.policy_network_old.parameters():
 		# 	param.requires_grad_(False)
 
-		self.network_update_interval = dictionary["network_update_interval"]
+		self.network_update_interval_q = dictionary["network_update_interval_q"]
+		self.network_update_interval_v = dictionary["network_update_interval_v"]
 		
 		self.buffer = RolloutBuffer(
 			num_episodes=self.update_ppo_agent, 
@@ -681,13 +682,13 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
 
-			Q_values, weights_prd, score_q, _ = self.critic_network_q(
+			Q_values, weights_prd, score_q, _ = self.target_critic_network_q(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
 												rnn_hidden_state_q.to(self.device)
 												)
-			Values, weight_v, score_v, h_v = self.critic_network_v(
+			Values, weight_v, score_v, h_v = self.target_critic_network_v(
 												old_states_critic_allies.to(self.device),
 												old_states_critic_enemies.to(self.device),
 												old_one_hot_actions.to(self.device),
@@ -864,9 +865,11 @@ class PPOAgent:
 			
 
 
-		if episode % self.network_update_interval == 0:
+		if episode % self.network_update_interval_q == 0:
 			# Copy new weights into old critic
 			self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
+			
+		if episode % self.network_update_interval_v == 0:
 			self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
 
 		# self.scheduler.step()
