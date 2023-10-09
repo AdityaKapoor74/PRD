@@ -299,7 +299,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -334,7 +334,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"norm_rewards_q": False,
+				"norm_rewards_q": True,
 				"norm_rewards_v": False,
 
 
