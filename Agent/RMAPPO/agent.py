@@ -601,7 +601,8 @@ class PPOAgent:
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 		elif "prd_soft_advantage" in self.experiment_type:
 			if episode > self.steps_to_take:
-				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+				# target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(torch.mean(weights_prd_old.cpu(), dim=1), -1, -2), dim=-1)
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old.cpu(), dim=1), dim=-1)
 			else:
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 		else:
@@ -634,10 +635,10 @@ class PPOAgent:
 			# target_V_values = torch.sum(target_V_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			# advantage = (target_V_values - Values_old).detach()
 
-			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			target_Q_values = Q_values_old + advantage_Q
-			target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
-			advantage = (target_V_values - Values_old).detach()
+			advantage = self.calculate_advantages(Values_old, next_Values_old, target_V_rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			target_V_values = Values_old + advantage
+			# target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
+			# advantage = (target_V_values - Values_old).detach()
 			
 
 		if self.norm_returns_q:
@@ -695,7 +696,6 @@ class PPOAgent:
 			advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
 			advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
 			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
-
 		# print("target_qs")
 		# print(target_Q_values[0])
 		# print(target_Q_values[-1])
