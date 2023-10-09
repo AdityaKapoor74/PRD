@@ -657,16 +657,16 @@ class PPOAgent:
 			# target_V_values = Values_old + advantage
 
 			# PRD-SOFT
-			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			# target_Q_values = Q_values_old + advantage_Q
-			# target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
-			# advantage = (target_V_values - Values_old).detach()
-
-			# PRD THRESHOLD
 			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old + advantage_Q
-			target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int(), dim=-1)
+			target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			advantage = (target_V_values - Values_old).detach()
+
+			# PRD THRESHOLD
+			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			# target_Q_values = Q_values_old + advantage_Q
+			# target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int(), dim=-1)
+			# advantage = (target_V_values - Values_old).detach()
 
 			# returns = self.calculate_returns(rewards).to(self.device)
 			# target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
