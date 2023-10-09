@@ -375,8 +375,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 2e-3, #8e-3
-				"entropy_pen_final": 2e-3,
+				"entropy_pen": 4e-3, #8e-3
+				"entropy_pen_final": 4e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, #0.1,
@@ -388,10 +388,10 @@ if __name__ == '__main__':
 
 				"soft_update_q": False,
 				"tau_q": 0.05,
-				"network_update_interval_q": 200,
+				"network_update_interval_q": 1,
 				"soft_update_v": False,
 				"tau_v": 0.05,
-				"network_update_interval_v": 200,
+				"network_update_interval_v": 1,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
