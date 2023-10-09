@@ -304,6 +304,35 @@ class PPOAgent:
 			return actions, action_logprob, hidden_state.cpu().numpy()
 
 
+	def prd_calculate_advantages(self, values, next_value, rewards, dones, masks_, next_mask):
+		values = values.reshape(self.update_ppo_agent, -1, self.num_agents)
+		rewards = rewards.reshape(self.update_ppo_agent, -1, self.num_agents)
+		dones = dones.reshape(self.update_ppo_agent, -1, self.num_agents)
+
+		advantages = rewards.new_zeros(*rewards.shape)
+		advantage = 0
+		masks = 1 - dones
+		next_value *= next_mask
+
+		for t in reversed(range(0, rewards.shape[1])):
+			# td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:]
+			# advantage = (td_error + (self.gamma * self.gae_lambda * advantage * next_mask)) #* next_mask #* masks[:,t,:]
+			# next_value = values.data[:, t, :]
+			# next_mask = masks[:,t,:]
+
+			td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:] * masks[:, t, :]
+			advantage = td_error + self.gamma * self.gae_lambda * advantage * masks[:, t, :]
+			advantage = advantage * masks[:, t, :]
+			
+			next_value = values.data[:, t, :]
+			next_mask = masks[:, t, :]
+
+			advantages[:,t,:] = advantage
+
+		# advantages = torch.stack(advantages)
+		return advantages.reshape(-1, self.num_agents)
+
+
 	def calculate_advantages(self, values, next_value, rewards, dones, masks_, next_mask):
 		values = values.reshape(self.update_ppo_agent, -1, self.num_agents)
 		rewards = rewards.reshape(self.update_ppo_agent, -1, self.num_agents)
@@ -599,10 +628,15 @@ class PPOAgent:
 			# advantage, masking_rewards, mean_min_weight_value = self.calculate_advantages_based_on_exp(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), torch.mean(weights_prd_old, dim=1), masks.to(self.device), next_mask.to(self.device), episode)
 			# target_V_values = Values_old + advantage # gae return
 
-			timesteps = old_states_critic_allies.shape[1]
-			shape = (self.update_ppo_agent, timesteps, self.num_agents)
-			target_V_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
-			target_V_values = torch.sum(target_V_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
+			# timesteps = old_states_critic_allies.shape[1]
+			# shape = (self.update_ppo_agent, timesteps, self.num_agents)
+			# target_V_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+			# target_V_values = torch.sum(target_V_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
+			# advantage = (target_V_values - Values_old).detach()
+
+			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			target_Q_values = Q_values_old + advantage_Q
+			target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			advantage = (target_V_values - Values_old).detach()
 			
 
@@ -619,13 +653,13 @@ class PPOAgent:
 			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old + advantage_Q
 		else:
-			# values_shape = Q_values_old.shape
-			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			# target_Q_values = Q_values_old + advantage_Q
+			values_shape = Q_values_old.shape
+			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			target_Q_values = Q_values_old + advantage_Q
 			
-			timesteps = old_states_critic_allies.shape[1]
-			shape = (self.update_ppo_agent, timesteps, self.num_agents)
-			target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
+			# timesteps = old_states_critic_allies.shape[1]
+			# shape = (self.update_ppo_agent, timesteps, self.num_agents)
+			# target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
 
 
 		# print("target_V_values")
