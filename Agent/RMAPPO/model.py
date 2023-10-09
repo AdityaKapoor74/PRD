@@ -11,8 +11,8 @@ class RunningMeanStd(object):
 		"""
 		https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
 		"""
-		self.mean = torch.zeros(shape, dtype=torch.float32, device=device)
-		self.var = torch.ones(shape, dtype=torch.float32, device=device)
+		self.mean = torch.zeros(shape, dtype=torch.float64, device=device)
+		self.var = torch.ones(shape, dtype=torch.float64, device=device)
 		self.count = epsilon
 
 	def update(self, arr, mask):
@@ -66,7 +66,7 @@ class ValueNorm(nn.Module):
 		self.epsilon = epsilon
 		self.beta = beta
 		self.per_element_update = per_element_update
-		self.tpdv = dict(dtype=torch.float32, device=device)
+		self.tpdv = dict(dtype=torch.float64, device=device)
 
 		self.running_mean = nn.Parameter(torch.zeros(input_shape), requires_grad=False).to(**self.tpdv)
 		self.running_mean_sq = nn.Parameter(torch.zeros(input_shape), requires_grad=False).to(**self.tpdv)
@@ -110,7 +110,7 @@ class ValueNorm(nn.Module):
 		self.debiasing_term.mul_(weight).add_(1.0 * (1.0 - weight))
 
 	def normalize(self, input_vector):
-		# Make sure input is float32
+		# Make sure input is float64
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
 		input_vector = input_vector.to(**self.tpdv)
@@ -289,90 +289,90 @@ class Q_network(nn.Module):
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim),
-			init_(nn.Linear(ally_obs_input_dim, 32, bias=True), activate=True),
+			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(32),
+			nn.LayerNorm(64),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			# nn.LayerNorm(enemy_obs_input_dim),
-			init_(nn.Linear(enemy_obs_input_dim, 32, bias=True), activate=True),
+			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(32),
+			nn.LayerNorm(64),
 			)
 
 		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim+self.num_actions),
-			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 32, bias=True), activate=True), 
+			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
 			nn.GELU(),
-			nn.LayerNorm(32),
+			nn.LayerNorm(64),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
-		assert 32%self.num_heads == 0
-		self.key = init_(nn.Linear(32, 32))
-		self.query = init_(nn.Linear(32, 32))
-		self.attention_value = init_(nn.Linear(32, 32))
+		assert 64%self.num_heads == 0
+		self.key = init_(nn.Linear(64, 64))
+		self.query = init_(nn.Linear(64, 64))
+		self.attention_value = init_(nn.Linear(64, 64))
 		# self.projection_head = init_(nn.Linear(64, 64))
 
 		# self.attention_value_dropout = nn.Dropout(0.2)
-		self.attention_value_layer_norm = nn.LayerNorm(32)
+		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			init_(nn.Linear(32, 32), activate=True),
+			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
-			nn.LayerNorm(32),
-			init_(nn.Linear(32, 32))
+			nn.LayerNorm(64),
+			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
 
-		self.attention_value_linear_layer_norm = nn.LayerNorm(32)
+		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
-				init_(nn.Linear(32+32, 2))
+				init_(nn.Linear(64+64, 2))
 				)
 
 		# dimesion of key
-		self.d_k_agents = 32
+		self.d_k_agents = 64
 
 		# Attention for agents to enemies
 		# Key, Query, Attention Value, Hard Attention Networks
-		assert 32%self.num_heads == 0
-		self.key_enemies = init_(nn.Linear(32, 32))
-		self.query_enemies = init_(nn.Linear(32, 32))
-		self.attention_value_enemies = init_(nn.Linear(32, 32))
+		assert 64%self.num_heads == 0
+		self.key_enemies = init_(nn.Linear(64, 64))
+		self.query_enemies = init_(nn.Linear(64, 64))
+		self.attention_value_enemies = init_(nn.Linear(64, 64))
 		# self.projection_head_enemies = init_(nn.Linear(64, 64))
 
 		# self.attention_value_dropout = nn.Dropout(0.2)
 		# self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear_enemies = nn.Sequential(
-			init_(nn.Linear(32, 32), activate=True),
+			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
-			nn.LayerNorm(32),
-			init_(nn.Linear(32, 32))
+			nn.LayerNorm(64),
+			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
 
-		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(32)
+		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(64)
 
 		# dimesion of key
-		self.d_k_enemies = 32
+		self.d_k_enemies = 64
 
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			# init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			# nn.GELU(),
-			init_(nn.Linear(32+32, self.num_actions))
+			init_(nn.Linear(64+64, self.num_actions))
 			)
 		# self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=1, batch_first=True)
 		# self.q_value_layer = nn.Sequential(
@@ -545,92 +545,92 @@ class V_network(nn.Module):
 		# Embedding Networks
 		self.ally_state_embed_1 = nn.Sequential(
 			# nn.LayerNorm(ally_obs_input_dim),
-			init_(nn.Linear(ally_obs_input_dim, 32, bias=True), activate=True),
+			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(32),
+			nn.LayerNorm(64),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			# nn.LayerNorm(enemy_obs_input_dim),
-			init_(nn.Linear(enemy_obs_input_dim, 32, bias=True), activate=True),
+			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			# nn.LayerNorm(64),
 			nn.GELU(),
-			nn.LayerNorm(32),
+			nn.LayerNorm(64),
 			)
 
 		# self.obs_act_obs_norm = nn.LayerNorm(ally_obs_input_dim)
 		self.ally_state_act_embed = nn.Sequential(
 			nn.LayerNorm(ally_obs_input_dim+self.num_actions),
-			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 32, bias=True), activate=True), 
+			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
 			nn.GELU(),
-			nn.LayerNorm(32),
+			nn.LayerNorm(64),
 			)
 
 		# Attention for agents to agents
 		# Key, Query, Attention Value, Hard Attention Networks
-		assert 32%self.num_heads == 0
-		self.key = init_(nn.Linear(32, 32))
-		self.query = init_(nn.Linear(32, 32))
-		self.attention_value = init_(nn.Linear(32, 32))
+		assert 64%self.num_heads == 0
+		self.key = init_(nn.Linear(64, 64))
+		self.query = init_(nn.Linear(64, 64))
+		self.attention_value = init_(nn.Linear(64, 64))
 		# self.projection_head = init_(nn.Linear(64, 64))
 
 		# self.attention_value_dropout = nn.Dropout(0.2)
-		self.attention_value_layer_norm = nn.LayerNorm(32)
+		self.attention_value_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear = nn.Sequential(
-			init_(nn.Linear(32, 32), activate=True),
+			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
-			nn.LayerNorm(32),
-			init_(nn.Linear(32, 32))
+			nn.LayerNorm(64),
+			init_(nn.Linear(64, 64))
 			)
 		# self.attention_value_linear_dropout = nn.Dropout(0.2)
 
-		self.attention_value_linear_layer_norm = nn.LayerNorm(32)
+		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
 		if self.enable_hard_attention:
 			self.hard_attention = nn.Sequential(
-				init_(nn.Linear(32+32, 2))
+				init_(nn.Linear(64+64, 2))
 				)
 
 		# dimesion of key
-		self.d_k_agents = 32
+		self.d_k_agents = 64
 
 
 		# Attention for agents to enemies
 		# Key, Query, Attention Value, Hard Attention Networks
-		assert 32%self.num_heads == 0
-		self.key_enemies = init_(nn.Linear(32, 32))
-		self.query_enemies = init_(nn.Linear(32, 32))
-		self.attention_value_enemies = init_(nn.Linear(32, 32))
+		assert 64%self.num_heads == 0
+		self.key_enemies = init_(nn.Linear(64, 64))
+		self.query_enemies = init_(nn.Linear(64, 64))
+		self.attention_value_enemies = init_(nn.Linear(64, 64))
 		# self.projection_head_enemies = init_(nn.Linear(64, 64))
 
 		# # self.attention_value_dropout = nn.Dropout(0.2)
 		# # self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
 
 		self.attention_value_linear_enemies = nn.Sequential(
-			init_(nn.Linear(32, 32), activate=True),
+			init_(nn.Linear(64, 64), activate=True),
 			# nn.LayerNorm(2048),
 			# nn.Dropout(0.2),
 			nn.GELU(),
-			nn.LayerNorm(32),
-			init_(nn.Linear(32, 32))
+			nn.LayerNorm(64),
+			init_(nn.Linear(64, 64))
 			)
 		# # self.attention_value_linear_dropout = nn.Dropout(0.2)
 
-		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(32)
+		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(64)
 
 		# dimesion of key
-		self.d_k_enemies = 32
+		self.d_k_enemies = 64
 		
 
 		# FCN FINAL LAYER TO GET Q-VALUES
 		self.common_layer = nn.Sequential(
 			# init_(nn.Linear(64+64+64, 64, bias=True), activate=True),
 			# nn.GELU(),
-			init_(nn.Linear(32+32, 1))
+			init_(nn.Linear(64+64, 1))
 			)
 
 		# self.v_value_layer = nn.Sequential(
@@ -1506,8 +1506,8 @@ class V_network(nn.Module):
 # 			)
 
 # 		self.ally_state_embed_2 = nn.Sequential(
-# 			nn.Linear(ally_obs_input_dim, 32, bias=True), 
-# 			nn.LayerNorm(32),
+# 			nn.Linear(ally_obs_input_dim, 64, bias=True), 
+# 			nn.LayerNorm(64),
 # 			nn.GELU(),
 # 			)
 
@@ -1563,7 +1563,7 @@ class V_network(nn.Module):
 
 # 		# FCN FINAL LAYER TO GET Q-VALUES
 # 		self.common_layer = nn.Sequential(
-# 			nn.Linear(32+64+64, 64, bias=True), 
+# 			nn.Linear(64+64+64, 64, bias=True), 
 # 			nn.LayerNorm(64),
 # 			nn.GELU(),
 # 			)
