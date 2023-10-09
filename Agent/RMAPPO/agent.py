@@ -658,8 +658,8 @@ class PPOAgent:
 			# target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			# advantage = (target_V_values - Values_old).detach()
 
-			returns = self.calculate_returns(rewards_q)
-			target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1).to(self.device)
+			returns = self.calculate_returns(rewards_q).to(self.device)
+			target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			advantage = (target_V_values - Values_old)
 
 
