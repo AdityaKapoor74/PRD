@@ -509,15 +509,17 @@ class PPOAgent:
 		dones = torch.LongTensor(np.array(self.buffer.dones))[:, :-1, :].reshape(-1, self.num_agents)
 		# masks = torch.FloatTensor(np.array(self.buffer.masks)).long()
 		masks = 1 - dones
-		next_mask = 1-torch.FloatTensor(np.array(self.buffer.dones))[:, -1, :].long().reshape(-1, self.num_agents)
+		next_mask = 1-torch.LongTensor(np.array(self.buffer.dones))[:, -1, :].reshape(-1, self.num_agents)
 
 		# rewards = torch.clamp(rewards, min=0.0, max=2.0)
 
 		rewards_q = rewards
+
 		if self.norm_rewards_q:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards_q = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
-		
+			print(rewards_q.type())
+
 		if self.norm_rewards_v:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
@@ -655,6 +657,7 @@ class PPOAgent:
 			target_Q_values = Q_values_old + advantage_Q
 		else:
 			values_shape = Q_values_old.shape
+			print(Q_values_old.type(), next_Q_values_old.type(), rewards_q.type(), dones.type(), masks.type(), next_mask.type())
 			advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
 			target_Q_values = Q_values_old + advantage_Q
 			
@@ -687,10 +690,6 @@ class PPOAgent:
 			# target_V_values = (target_V_values - self.v_value_norm.mean) / (torch.sqrt(self.v_value_norm.var) + 1e-5)
 			# self.q_value_norm.update(target_Q_values.view(-1, self.num_agents), masks.view(-1, self.num_agents).to(self.device))
 			# target_Q_values = (target_Q_values - self.q_value_norm.mean) / (torch.sqrt(self.q_value_norm.var) + 1e-5)
-
-		
-
-
 
 		if self.norm_adv:
 			advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
@@ -811,9 +810,9 @@ class PPOAgent:
 			critic_v_loss_2 = F.huber_loss(torch.clamp(Values, Values_old.to(self.device)-self.value_clip, Values_old.to(self.device)+self.value_clip), target_V_values, reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum()
 			# critic_v_loss = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
-			critic_q_loss_1 = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
-			critic_q_loss_2 = F.huber_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), target_Q_values, reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
-			# critic_q_loss = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_q_loss_1 = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_q_loss_2 = F.huber_loss(torch.clamp(Q_values, Q_values_old.to(self.device)-self.value_clip, Q_values_old.to(self.device)+self.value_clip), target_Q_values, reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			critic_q_loss = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
 			entropy_weights = 0
 			entropy_weights_v = 0
@@ -831,7 +830,7 @@ class PPOAgent:
 			print("weights entropy")
 			print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
-			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
+			# critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
 
