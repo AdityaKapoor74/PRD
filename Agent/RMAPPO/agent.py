@@ -585,18 +585,18 @@ class PPOAgent:
 
 		if "prd_above_threshold_ascend" in self.experiment_type or "prd_above_threshold_decay" in self.experiment_type:
 			mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+			target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * mask_rewards.cpu(), dim=-1)
 		elif "threshold" in self.experiment_type:
 			if episode > self.steps_to_take:
 				mask_rewards = (torch.mean(weights_prd_old, dim=1)>self.select_above_threshold).int()
-				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * mask_rewards.cpu(), dim=-1)
 			else:
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 		elif "top" in self.experiment_type:
 			if episode > self.steps_to_take:
 				values, indices = torch.topk(torch.mean(weights_prd_old, dim=1), k=self.top_k, dim=-1)
 				mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.transpose(mask_rewards.cpu(),-1,-2), dim=-1)
+				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1) * mask_rewards.cpu(), dim=-1)
 			else:
 				target_V_rewards = torch.sum(rewards.unsqueeze(-2).repeat(1, self.num_agents, 1), dim=-1)
 		elif "prd_soft_advantage" in self.experiment_type:
@@ -801,7 +801,7 @@ class PPOAgent:
 			logprobs = probs.log_prob(old_actions.to(self.device) * masks.to(self.device))
 			
 			if "threshold" in self.experiment_type or "top" in self.experiment_type:
-				agent_groups_over_episode = torch.sum(torch.sum(masking_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/masking_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
+				agent_groups_over_episode = torch.sum(torch.sum(mask_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/mask_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
 				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
