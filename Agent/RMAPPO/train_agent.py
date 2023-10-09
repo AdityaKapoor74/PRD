@@ -357,7 +357,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 5.0,
 				"value_clip": 0.2,
-				"enable_hard_attention": True,
+				"enable_hard_attention": False,
 				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_weight_entropy_pen_final": 0.0,
@@ -386,7 +386,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"norm_adv": False,
 
-				"soft_update_q": True,
+				"soft_update_q": False,
 				"tau_q": 0.05,
 				"network_update_interval_q": 1,
 				"soft_update_v": False,
