@@ -8,10 +8,10 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 
-	for i in range(1,6):
+	for i in range(1,4):
 		extension = "COMA_"+str(i)
 		test_num = "StarCraft"
-		env_name = "5m_vs_6m"
+		env_name = "bane_vs_bane"
 
 		dictionary = {
 				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
