@@ -11,8 +11,8 @@ class RunningMeanStd(object):
 		"""
 		https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
 		"""
-		self.mean = torch.zeros(shape, dtype=torch.float64, device=device)
-		self.var = torch.ones(shape, dtype=torch.float64, device=device)
+		self.mean = torch.zeros(shape, dtype=torch.float32, device=device)
+		self.var = torch.ones(shape, dtype=torch.float32, device=device)
 		self.count = epsilon
 
 	def update(self, arr, mask):
@@ -66,7 +66,7 @@ class ValueNorm(nn.Module):
 		self.epsilon = epsilon
 		self.beta = beta
 		self.per_element_update = per_element_update
-		self.tpdv = dict(dtype=torch.float64, device=device)
+		self.tpdv = dict(dtype=torch.float32, device=device)
 
 		self.running_mean = nn.Parameter(torch.zeros(input_shape), requires_grad=False).to(**self.tpdv)
 		self.running_mean_sq = nn.Parameter(torch.zeros(input_shape), requires_grad=False).to(**self.tpdv)
