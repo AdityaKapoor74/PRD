@@ -388,10 +388,10 @@ if __name__ == '__main__':
 
 				"soft_update_q": False,
 				"tau_q": 0.05,
-				"network_update_interval_q": 1,
+				"network_update_interval_q": 200,
 				"soft_update_v": False,
 				"tau_v": 0.05,
-				"network_update_interval_v": 1,
+				"network_update_interval_v": 200,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
