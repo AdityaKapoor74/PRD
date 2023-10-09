@@ -320,10 +320,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
@@ -344,8 +344,8 @@ if __name__ == '__main__':
 				# CRITIC
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 5e-4, #1e-3
-				"v_value_lr": 5e-4, #1e-3
+				"q_value_lr": 1e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -373,7 +373,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": False,
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.05,
-				"policy_lr": 5e-4, #prd 1e-4
+				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 1e-2, #8e-3
 				"entropy_pen_final": 1e-2,
