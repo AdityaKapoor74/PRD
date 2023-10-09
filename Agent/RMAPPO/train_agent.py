@@ -299,7 +299,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
-		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -311,7 +311,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
@@ -353,9 +353,9 @@ if __name__ == '__main__':
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": True,
-				"grad_clip_critic_v": 0.5,
+				"grad_clip_critic_v": 1.0,
 				"enable_grad_clip_critic_q": True,
-				"grad_clip_critic_q": 10.0,
+				"grad_clip_critic_q": 5.0,
 				"value_clip": 0.05,
 				"enable_hard_attention": False,
 				"num_heads": 1,
