@@ -659,7 +659,7 @@ class PPOAgent:
 			# advantage = (target_V_values - Values_old).detach()
 
 			returns = self.calculate_returns(rewards_q)
-			target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
+			target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1).to(self.device)
 			advantage = (target_V_values - Values_old)
 
 
@@ -685,7 +685,7 @@ class PPOAgent:
 			# timesteps = old_states_critic_allies.shape[1]
 			# shape = (self.update_ppo_agent, timesteps, self.num_agents)
 			# target_Q_values = self.nstep_returns(rewards=rewards.view(*shape).to(self.device), mask=masks.view(*shape).to(self.device), next_mask=next_mask.view(self.update_ppo_agent, self.num_agents).to(self.device), values=Q_values_old.view(*shape), next_values=next_Q_values_old.view(self.update_ppo_agent, self.num_agents), nsteps=5).view(-1, self.num_agents)
-			target_Q_values = self.calculate_returns(rewards_q)
+			target_Q_values = self.calculate_returns(rewards_q).to(self.device)
 
 
 		# print("target_V_values")
