@@ -386,7 +386,7 @@ if __name__ == '__main__':
 				"top_k": 0,
 				"norm_adv": False,
 
-				"soft_update_q": False,
+				"soft_update_q": True,
 				"tau_q": 0.05,
 				"network_update_interval_q": 1,
 				"soft_update_v": False,
