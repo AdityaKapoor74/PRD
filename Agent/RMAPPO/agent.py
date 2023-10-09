@@ -652,14 +652,14 @@ class PPOAgent:
 			# target_V_values = torch.sum(target_V_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			# advantage = (target_V_values - Values_old).detach()
 
-			# advantage_Q = self.calculate_advantages(Q_values_old, next_Q_values_old, rewards_q.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
-			# target_Q_values = Q_values_old + advantage_Q
+			advantage = self.calculate_advantages(Values_old, next_Values_old, rewards.to(self.device), dones.to(self.device), masks.to(self.device), next_mask.to(self.device))
+			target_V_values = Values_old + advantage
 			# target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			# advantage = (target_V_values - Values_old).detach()
 
-			returns = self.calculate_returns(rewards).to(self.device)
-			target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
-			advantage = (target_V_values - Values_old)
+			# returns = self.calculate_returns(rewards).to(self.device)
+			# target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
+			# advantage = (target_V_values - Values_old)
 
 
 			
