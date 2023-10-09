@@ -534,7 +534,6 @@ class PPOAgent:
 		if self.norm_rewards_q:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
 			rewards_q = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
-			print(rewards_q.type())
 
 		if self.norm_rewards_v:
 			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
@@ -658,7 +657,7 @@ class PPOAgent:
 			# target_V_values = torch.sum(target_Q_values.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			# advantage = (target_V_values - Values_old).detach()
 
-			returns = self.calculate_returns(rewards_q).to(self.device)
+			returns = self.calculate_returns(rewards).to(self.device)
 			target_V_values = torch.sum(returns.unsqueeze(-2).repeat(1, self.num_agents, 1) * torch.mean(weights_prd_old, dim=1), dim=-1)
 			advantage = (target_V_values - Values_old)
 
