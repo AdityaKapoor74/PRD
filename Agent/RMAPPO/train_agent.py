@@ -334,7 +334,7 @@ if __name__ == '__main__':
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
-				"norm_rewards_q": False,
+				"norm_rewards_q": True,
 				"norm_rewards_v": False,
 
 
