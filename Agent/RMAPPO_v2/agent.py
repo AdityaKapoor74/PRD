@@ -392,9 +392,9 @@ class PPOAgent:
 		advantage = (target_values - values_old).detach()
 
 		if self.norm_adv:
-			advantage_mean = (advantage*masks.view(-1, self.num_agents).to(self.device)).sum()/masks.sum()
-			advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents).to(self.device))**2).sum()/masks.sum())**0.5
-			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents).to(self.device)
+			advantage_mean = (advantage*masks.view(-1, self.num_agents)).sum()/masks.sum()
+			advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents))**2).sum()/masks.sum())**0.5
+			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents)
 		
 		# print(states_critic_allies.shape, states_critic_enemies.shape, hidden_state_q.shape, hidden_state_v.shape)
 		# print(states_actor.shape, hidden_state_actor.shape, logprobs_old.shape, actions.shape, last_one_hot_actions.shape, one_hot_actions.shape, action_masks.shape)
@@ -489,8 +489,8 @@ class PPOAgent:
 			ratios = torch.exp((logprobs - logprobs_old.to(self.device)))
 			
 			# Finding Surrogate Loss
-			surr1 = ratios * advantage
-			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage
+			surr1 = ratios * advantage.to(self.device)
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.to(self.device)
 
 			# final loss of clipped objective PPO
 			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks.sum() #(masks.sum()*self.num_agents)
