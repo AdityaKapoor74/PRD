@@ -451,7 +451,7 @@ class PPOAgent:
 			logprobs = probs.log_prob(actions.to(self.device) * masks.to(self.device))
 			
 			if "threshold" in self.experiment_type or "top" in self.experiment_type:
-				agent_groups_over_episode = torch.sum(torch.sum(mask_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/mask_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
+				agent_groups_over_episode = torch.sum(torch.sum((weights_prd>self.select_above_threshold).int().reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/mask_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
 				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
