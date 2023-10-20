@@ -390,8 +390,9 @@ class PPOAgent:
 		advantage = (target_values - values_old).detach()
 
 		if self.norm_adv:
-			advantage_mean = (advantage*masks.view(-1, self.num_agents)).sum()/masks.sum()
-			advantage_std = ((((advantage-advantage_mean)*masks.view(-1, self.num_agents))**2).sum()/masks.sum())**0.5
+			shape = advantage.shape
+			advantage_mean = (advantage*masks.view(*shape)).sum()/masks.sum()
+			advantage_std = ((((advantage-advantage_mean)*masks.view(*shape))**2).sum()/masks.sum())**0.5
 			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents)
 		
 		# print(states_critic_allies.shape, states_critic_enemies.shape, hidden_state_q.shape, hidden_state_v.shape)
