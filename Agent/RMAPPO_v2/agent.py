@@ -393,7 +393,7 @@ class PPOAgent:
 			shape = advantage.shape
 			advantage_mean = (advantage*masks.view(*shape)).sum()/masks.sum()
 			advantage_std = ((((advantage-advantage_mean)*masks.view(*shape))**2).sum()/masks.sum())**0.5
-			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(-1, self.num_agents)
+			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(*shape)
 		
 		# print(states_critic_allies.shape, states_critic_enemies.shape, hidden_state_q.shape, hidden_state_v.shape)
 		# print(states_actor.shape, hidden_state_actor.shape, logprobs_old.shape, actions.shape, last_one_hot_actions.shape, one_hot_actions.shape, action_masks.shape)
