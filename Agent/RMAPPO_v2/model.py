@@ -146,7 +146,7 @@ def init(module, weight_init, bias_init, gain=1):
 		bias_init(module.bias.data)
 	return module
 
-def init_(m, gain=1.0, activate=False):
+def init_(m, gain=0.01, activate=False):
 	if activate:
 		gain = nn.init.calculate_gain('relu')
 	return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
@@ -259,7 +259,7 @@ class Q_network(nn.Module):
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
-			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64, bias=True), activate=True), 
+			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64), activate=True), 
 			nn.GELU(),
 			nn.LayerNorm(64),
 			)
