@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import math
-from utils import gumbel_sigmoid
+# from utils import gumbel_sigmoid
 
 
 class RunningMeanStd(object):
