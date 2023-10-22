@@ -205,7 +205,7 @@ class MAPPO:
 				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
 				next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
-				next_indiv_dones = info["indiv_rewards"]
+				next_indiv_dones = info["indiv_dones"]
 
 				if self.learn:
 					if self.experiment_type == "shared":
