@@ -164,6 +164,8 @@ class MAPPO:
 			states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 			states_actor = np.array(states_actor)
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
+			dones = [0]*self.num_agents
+			indiv_dones = np.array(dones)
 			
 
 			images = []
@@ -197,12 +199,13 @@ class MAPPO:
 				q_value, rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
 
-				next_states_actor, rewards, dones, info = self.env.step(actions)
+				next_states_actor, rewards, next_dones, info = self.env.step(actions)
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
 				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
 				next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
+				next_indiv_dones = info["indiv_rewards"]
 
 				if self.learn:
 					if self.experiment_type == "shared":
@@ -213,14 +216,14 @@ class MAPPO:
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
 						states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
-						rewards_to_send, info["indiv_dones"]
+						rewards_to_send, indiv_dones
 						)
 
 				episode_reward += np.sum(rewards)
 
-				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions
+				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_indiv_dones
 
-				if all(info["indiv_dones"]) or step == self.max_time_steps:
+				if all(indiv_dones) or step == self.max_time_steps:
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
@@ -252,7 +255,7 @@ class MAPPO:
 						states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 						q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
-						self.agents.buffer.end_episode(final_timestep, q_value, value, info["indiv_dones"])
+						self.agents.buffer.end_episode(final_timestep, q_value, value, indiv_dones)
 
 					break
 
@@ -309,7 +312,7 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 10,
+				"n_epochs": 15,
 				"update_ppo_agent": 32, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
@@ -391,7 +394,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.25, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": True,
+				"norm_adv": False,
 
 				"soft_update_q": False,
 				"tau_q": 0.05,
