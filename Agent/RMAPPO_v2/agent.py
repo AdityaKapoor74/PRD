@@ -387,6 +387,9 @@ class PPOAgent:
 		states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
 		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values  = self.buffer.sample_recurrent_policy(self.experiment_type, episode, self.select_above_threshold)
 
+		values_old *= masks
+		q_values_old *= masks
+		
 		advantage = (target_values - values_old).detach()
 
 		if self.norm_adv:
@@ -449,7 +452,7 @@ class PPOAgent:
 			target_q_values *= masks
 
 			probs = Categorical(dists)
-			logprobs = probs.log_prob(actions.to(self.device) * masks.to(self.device))
+			logprobs = probs.log_prob(actions.to(self.device))
 			
 			if "threshold" in self.experiment_type or "top" in self.experiment_type:
 				mask_rewards = (weights_prd>self.select_above_threshold).int()
@@ -489,8 +492,8 @@ class PPOAgent:
 			ratios = torch.exp((logprobs - logprobs_old.to(self.device)))
 			
 			# Finding Surrogate Loss
-			surr1 = ratios * advantage.to(self.device)
-			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.to(self.device)
+			surr1 = ratios * advantage.to(self.device) * masks.to(self.device)
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.to(self.device) * masks.to(self.device)
 
 			# final loss of clipped objective PPO
 			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks.sum() #(masks.sum()*self.num_agents)
