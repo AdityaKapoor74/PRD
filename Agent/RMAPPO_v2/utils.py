@@ -390,6 +390,9 @@ class RolloutBuffer:
 			values_shape = values.shape
 			values = self.v_value_norm.denormalize(values.view(-1)).view(values_shape) * masks.view(values_shape)
 
+			next_values_shape = next_values.shape
+			next_values = self.v_value_norm.denormalize(next_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
+
 		if self.clamp_rewards:
 			rewards = torch.clamp(rewards, min=self.clamp_rewards_value_min, max=self.clamp_rewards_value_max)
 
@@ -411,8 +414,11 @@ class RolloutBuffer:
 			weights_prd = torch.from_numpy(self.weights_prd)
 
 			if self.norm_returns_q:
-				values_shape = values.shape
+				values_shape = q_values.shape
 				q_values = self.q_value_norm.denormalize(q_values.view(-1)).view(values_shape) * masks.view(values_shape)
+
+				next_values_shape = next_q_values.shape
+				next_q_values = self.q_value_norm.denormalize(next_q_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
 
 			if self.target_calc_style == "GAE":
 				target_q_values = self.gae_targets(rewards, q_values, next_q_values, masks, next_mask)
