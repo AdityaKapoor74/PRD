@@ -408,7 +408,7 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
+		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
 		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MAPPO(env,dictionary)
