@@ -251,7 +251,7 @@ class MAPPO:
 							one_hot_actions[i][act] = 1
 
 						_, _, _, info = self.env.step(actions)
-						states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
+						states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 						states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 						q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
