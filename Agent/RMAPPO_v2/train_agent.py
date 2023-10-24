@@ -160,7 +160,7 @@ class MAPPO:
 			states_actor, info = self.env.reset(return_info=True)
 			mask_actions = np.array(info["avail_actions"], dtype=int)
 			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
-			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], last_one_hot_actions), axis=-1)
+			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 			states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 			states_actor = np.array(states_actor)
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
@@ -202,7 +202,7 @@ class MAPPO:
 				next_states_actor, rewards, next_dones, info = self.env.step(actions)
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
-				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"], one_hot_actions), axis=-1)
+				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 				next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 				next_mask_actions = np.array(info["avail_actions"], dtype=int)
 				next_indiv_dones = info["indiv_dones"]
@@ -322,10 +322,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
@@ -385,8 +385,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 5e-3, #8e-3
-				"entropy_pen_final": 5e-3,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, #0.043, 0.1
@@ -408,7 +408,7 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
+		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
 		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
 		ma_controller = MAPPO(env,dictionary)
