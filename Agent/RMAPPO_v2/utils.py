@@ -367,15 +367,15 @@ class RolloutBuffer:
 		action_masks = torch.from_numpy(self.action_masks).bool().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.num_actions)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.num_actions)
 		masks = 1-torch.from_numpy(self.dones[:, :-1]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		
-		target_values, target_q_values = self.calculate_targets(advantage_type, episode, select_above_threshold)
+		target_values, target_q_values, advantage = self.calculate_targets(advantage_type, episode, select_above_threshold)
 		q_values = torch.from_numpy(self.Q_values[:, :-1, :]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		values = torch.from_numpy(self.V_values[:, :-1, :]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		target_q_values = target_q_values.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		target_values = target_values.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
-		
+		advantage = advantage.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		
 		return states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs, \
-		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values 
+		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values, advantage
 
 	def calculate_targets(self, advantage_type, episode, select_above_threshold):
 		
@@ -457,6 +457,7 @@ class RolloutBuffer:
 				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 				q_values = self.q_value_norm.normalize(q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 			
+		advantage = (target_values - values).detach()
 
 		if self.norm_returns_v:
 			targets_shape = target_values.shape
@@ -466,7 +467,7 @@ class RolloutBuffer:
 			values = self.v_value_norm.normalize(values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
 
-		return target_values.cpu(), target_q_values.cpu()
+		return target_values.cpu(), target_q_values.cpu(), advantage.cpu()
 
 
 	def gae_targets(self, rewards, values, next_value, masks, next_mask):
