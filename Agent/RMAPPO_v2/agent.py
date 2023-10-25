@@ -385,12 +385,10 @@ class PPOAgent:
 
 		# SAMPLE DATA FROM BUFFER
 		states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values  = self.buffer.sample_recurrent_policy(self.experiment_type, episode, self.select_above_threshold)
+		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage  = self.buffer.sample_recurrent_policy(self.experiment_type, episode, self.select_above_threshold)
 
 		values_old *= masks
 		q_values_old *= masks
-		
-		advantage = (target_values - values_old).detach()
 
 		if self.norm_adv:
 			shape = advantage.shape
