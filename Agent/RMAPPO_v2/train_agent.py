@@ -245,15 +245,13 @@ class MAPPO:
 
 					if self.learn:
 						# add final time to buffer
-						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
 					
 						one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 						for i,act in enumerate(actions):
 							one_hot_actions[i][act] = 1
 
 						_, _, _, info = self.env.step(actions)
-						states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-						states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 						q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
 						self.agents.buffer.end_episode(final_timestep, q_value, value, indiv_dones)
@@ -359,9 +357,9 @@ if __name__ == '__main__':
 				"attention_dropout_prob_v": 0.0,
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
-				"enable_grad_clip_critic_v": False,
+				"enable_grad_clip_critic_v": True,
 				"grad_clip_critic_v": 0.5,
-				"enable_grad_clip_critic_q": False,
+				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
@@ -381,7 +379,7 @@ if __name__ == '__main__':
 				"data_chunk_length": 10,
 				"rnn_num_layers_actor": 1,
 				"rnn_hidden_actor": 64,
-				"enable_grad_clip_actor": False,
+				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
