@@ -373,7 +373,7 @@ if __name__ == '__main__':
 				"td_lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"n_steps": 5,
 				"norm_returns_q": False,
-				"norm_returns_v": True,
+				"norm_returns_v": False,
 				
 
 				# ACTOR
