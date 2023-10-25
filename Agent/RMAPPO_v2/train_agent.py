@@ -188,15 +188,15 @@ class MAPPO:
 					self.env.render()
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
+						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
 				else:
-					actions, action_logprob, rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+					actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
 
 				one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 				for i, act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				q_value, rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
+				q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
 
 
 				next_states_actor, rewards, next_dones, info = self.env.step(actions)
@@ -222,6 +222,7 @@ class MAPPO:
 				episode_reward += np.sum(rewards)
 
 				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_indiv_dones
+				rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor = next_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor
 
 				if all(indiv_dones) or step == self.max_time_steps:
 
@@ -385,8 +386,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 2e-2, #8e-3
-				"entropy_pen_final": 2e-2,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, #0.043, 0.1
