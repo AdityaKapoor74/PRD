@@ -164,8 +164,8 @@ class MAPPO:
 			states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 			states_actor = np.array(states_actor)
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
-			dones = [0]*self.num_agents
-			indiv_dones = np.array(dones)
+			indiv_dones = [0]*self.num_agents
+			indiv_dones = np.array(indiv_dones)
 			
 
 			images = []
@@ -311,7 +311,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 5, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
