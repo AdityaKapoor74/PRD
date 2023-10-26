@@ -478,12 +478,12 @@ class RolloutBuffer:
 		for t in reversed(range(0, rewards.shape[1])):
 
 			td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:] * masks[:, t, :]
-			advantage = td_error + self.gamma * self.gae_lambda * advantage
+			advantage = td_error + self.gamma * self.gae_lambda * advantage * next_mask
 			
 			next_value = values.data[:, t, :]
 			next_mask = masks[:, t, :]
 
-			advantage = advantage * masks[:, t]
+			# advantage = advantage * masks[:, t, :]
 
 			advantages[:,t,:] = advantage
 
