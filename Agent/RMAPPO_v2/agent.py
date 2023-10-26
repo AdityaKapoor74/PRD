@@ -382,19 +382,6 @@ class PPOAgent:
 		# 	param_group['lr'] = policy_lr
 
 		print(v_value_lr, q_value_lr, policy_lr)
-
-		# SAMPLE DATA FROM BUFFER
-		states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage  = self.buffer.sample_recurrent_policy(self.experiment_type, episode, self.select_above_threshold)
-
-		values_old *= masks
-		q_values_old *= masks
-
-		if self.norm_adv:
-			shape = advantage.shape
-			advantage_mean = (advantage*masks.view(*shape)).sum()/masks.sum()
-			advantage_std = ((((advantage-advantage_mean)*masks.view(*shape))**2).sum()/masks.sum())**0.5
-			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(*shape)
 		
 		# print(states_critic_allies.shape, states_critic_enemies.shape, hidden_state_q.shape, hidden_state_v.shape)
 		# print(states_actor.shape, hidden_state_actor.shape, logprobs_old.shape, actions.shape, last_one_hot_actions.shape, one_hot_actions.shape, action_masks.shape)
@@ -417,6 +404,19 @@ class PPOAgent:
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 		for _ in range(self.n_epochs):
+
+			# SAMPLE DATA FROM BUFFER
+			states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
+			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage  = self.buffer.sample_recurrent_policy(self.experiment_type, episode, self.select_above_threshold)
+
+			values_old *= masks
+			q_values_old *= masks
+
+			if self.norm_adv:
+				shape = advantage.shape
+				advantage_mean = (advantage*masks.view(*shape)).sum()/masks.sum()
+				advantage_std = ((((advantage-advantage_mean)*masks.view(*shape))**2).sum()/masks.sum())**0.5
+				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-6))*masks.view(*shape)
 
 			target_shape = q_values_old.shape
 			q_values, weights_prd, score_q, _ = self.critic_network_q(
