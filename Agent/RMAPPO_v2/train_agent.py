@@ -209,7 +209,8 @@ class MAPPO:
 
 				if self.learn:
 					if self.experiment_type == "shared":
-						rewards_to_send = [rewards]*self.num_agents
+						# rewards_to_send = [rewards]*self.num_agents
+						rewards_to_send = [rewards if info["indiv_dones"][i]==0 else 0 for i in range(self.num_agents)]
 					else:
 						rewards_to_send = info["indiv_rewards"] 
 
