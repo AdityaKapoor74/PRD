@@ -360,7 +360,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_v": 0.5,
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
-				"value_clip": 0.05,
+				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
@@ -380,7 +380,7 @@ if __name__ == '__main__':
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 0.5,
-				"policy_clip": 0.05,
+				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 1e-2, #8e-3
