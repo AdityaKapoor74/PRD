@@ -239,7 +239,7 @@ class RolloutBuffer:
 			self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
 			
 		if self.norm_returns_q:
-			self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
+			self.q_value_norm = ValueNorm(input_shape=self.num_agents, norm_axes=1, device=torch.device("cpu"))
 
 		if self.norm_rewards:
 			self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
@@ -416,10 +416,10 @@ class RolloutBuffer:
 
 			if self.norm_returns_q:
 				values_shape = q_values.shape
-				q_values = self.q_value_norm.denormalize(q_values.view(-1)).view(values_shape) * masks.view(values_shape)
+				q_values = self.q_value_norm.denormalize(q_values.view(-1, self.num_agents)).view(values_shape) * masks.view(values_shape)
 
 				next_values_shape = next_q_values.shape
-				next_q_values = self.q_value_norm.denormalize(next_q_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
+				next_q_values = self.q_value_norm.denormalize(next_q_values.view(-1, self.num_agents)).view(next_values_shape) * next_mask.view(next_values_shape)
 
 			if self.target_calc_style == "GAE":
 				target_q_values = self.gae_targets(rewards, q_values, next_q_values, masks, next_mask)
@@ -452,10 +452,10 @@ class RolloutBuffer:
 
 			if self.norm_returns_q:
 				targets_shape = target_q_values.shape
-				self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
+				self.q_value_norm.update(target_q_values.view(-1, self.num_agents), masks.view(-1))
 				
-				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-				q_values = self.q_value_norm.normalize(q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1, self.num_agents)).view(targets_shape) * masks.view(targets_shape)
+				q_values = self.q_value_norm.normalize(q_values.view(-1, self.num_agents)).view(targets_shape) * masks.view(targets_shape)
 			
 		advantage = (target_values - values).detach()
 
