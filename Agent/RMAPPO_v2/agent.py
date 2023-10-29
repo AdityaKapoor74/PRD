@@ -287,7 +287,7 @@ class PPOAgent:
 			Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device))
 			Q_value, weights_prd, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device))
 
-			return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), torch.mean(weights_prd, dim=1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
+			return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), torch.mean(weights_prd.transpose(-1, -2), dim=1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 
 	
 	def update_epsilon(self):
