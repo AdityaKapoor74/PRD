@@ -391,7 +391,7 @@ if __name__ == '__main__':
 				"select_above_threshold": 0.0, #0.043, 0.1
 				"threshold_min": 0.0, 
 				"threshold_max": 0.25, #0.12
-				"steps_to_take": 0,
+				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": True,
 
