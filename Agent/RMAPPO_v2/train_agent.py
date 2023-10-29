@@ -393,7 +393,7 @@ if __name__ == '__main__':
 				"threshold_max": 0.25, #0.12
 				"steps_to_take": 0,
 				"top_k": 0,
-				"norm_adv": False,
+				"norm_adv": True,
 
 				"soft_update_q": False,
 				"tau_q": 0.05,
