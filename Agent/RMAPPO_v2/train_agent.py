@@ -212,7 +212,9 @@ class MAPPO:
 						rewards_to_send = [rewards]*self.num_agents
 						# rewards_to_send = [rewards if indiv_dones[i]==0 else 0 for i in range(self.num_agents)]
 					else:
-						rewards_to_send = info["indiv_rewards"] 
+						rewards_to_send = info["indiv_rewards"]
+
+					print(rewards_to_send)
 
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
@@ -300,7 +302,7 @@ if __name__ == '__main__':
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -372,7 +374,7 @@ if __name__ == '__main__':
 				"td_lambda": 0.95, # 1 --> Monte Carlo; 0 --> TD(1)
 				"n_steps": 5,
 				"norm_returns_q": True,
-				"norm_returns_v": True,
+				"norm_returns_v": False,
 				
 
 				# ACTOR
