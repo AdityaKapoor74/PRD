@@ -172,7 +172,7 @@ class Policy(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 		self.Layer_1 = nn.Sequential(
-			init_(nn.Linear(obs_input_dim+num_actions, 64), activate=True),
+			init_(nn.Linear(obs_input_dim, 64), activate=True),
 			nn.GELU(),
 			nn.LayerNorm(64),
 			)
@@ -190,7 +190,7 @@ class Policy(nn.Module):
 
 
 	def forward(self, local_observations, one_hot_actions, hidden_state, mask_actions=None):
-		local_observations = torch.cat([local_observations, one_hot_actions], dim=-1)
+		# local_observations = torch.cat([local_observations, one_hot_actions], dim=-1)
 		batch, timesteps, num_agents, _ = local_observations.shape
 		intermediate = self.Layer_1(local_observations)
 		intermediate = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
