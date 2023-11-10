@@ -361,7 +361,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_v": 2.0,
 				"enable_grad_clip_critic_q": False,
 				"grad_clip_critic_q": 0.2,
-				"value_clip": 0.05,
+				"value_clip": 0.25,
 				"enable_hard_attention": False,
 				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
