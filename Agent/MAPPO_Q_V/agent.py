@@ -496,8 +496,8 @@ class PPOAgent:
 			# print("weights entropy")
 			# print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
-			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
-			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
+			# critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
+			# critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
