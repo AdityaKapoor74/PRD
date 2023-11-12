@@ -381,7 +381,7 @@ class PPOAgent:
 		# for param_group in self.policy_optimizer.param_groups:
 		# 	param_group['lr'] = policy_lr
 
-		print(v_value_lr, q_value_lr, policy_lr)
+		# print(v_value_lr, q_value_lr, policy_lr)
 		
 		# print(states_critic_allies.shape, states_critic_enemies.shape, hidden_state_q.shape, hidden_state_v.shape)
 		# print(states_actor.shape, hidden_state_actor.shape, logprobs_old.shape, actions.shape, last_one_hot_actions.shape, one_hot_actions.shape, action_masks.shape)
@@ -474,13 +474,13 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
 
-			critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-			critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-			# critic_v_loss = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
+			# critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
+			critic_v_loss = F.huber_loss(Values*masks.to(self.device), target_V_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
-			critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-			critic_q_loss_2 = F.huber_loss(torch.clamp(q_values, q_values_old.to(self.device)-self.value_clip, q_values_old.to(self.device)+self.value_clip), target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-			# critic_q_loss = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
+			# critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
+			# critic_q_loss_2 = F.huber_loss(torch.clamp(q_values, q_values_old.to(self.device)-self.value_clip, q_values_old.to(self.device)+self.value_clip), target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
+			critic_q_loss = F.huber_loss(Q_values*masks.to(self.device), target_Q_values*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
 			entropy_weights = 0
 			entropy_weights_v = 0
@@ -493,11 +493,11 @@ class PPOAgent:
 				score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
 				score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
 			
-			print("weights entropy")
-			print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
+			# print("weights entropy")
+			# print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
-			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
-			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
+			# critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
+			# critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
@@ -512,8 +512,10 @@ class PPOAgent:
 			policy_loss_ = (-torch.min(surr1, surr2).sum())/masks.sum()
 			policy_loss = policy_loss_ - self.entropy_pen*entropy
 
-			print("loss", "*"*20)
-			print(policy_loss_.item(), policy_loss.item(), entropy.item(), self.entropy_pen*entropy.item(), critic_v_loss.item(), critic_q_loss.item())
+			# print("Policy Loss", policy_loss_.item(), "Entropy", (-self.entropy_pen*entropy.item()))
+
+			# print("loss", "*"*20)
+			# print(policy_loss_.item(), policy_loss.item(), entropy.item(), self.entropy_pen*entropy.item(), critic_v_loss.item(), critic_q_loss.item())
 
 			self.q_critic_optimizer.zero_grad()
 			critic_q_loss.backward()
@@ -551,8 +553,8 @@ class PPOAgent:
 				grad_norm_policy = torch.tensor([total_norm ** 0.5])
 			self.policy_optimizer.step()
 
-			print("grads")
-			print(grad_norm_value_q.item(), grad_norm_value_v.item(), grad_norm_policy.item())
+			# print("grads")
+			# print(grad_norm_value_q.item(), grad_norm_value_v.item(), grad_norm_policy.item())
 
 			q_value_loss_batch += critic_q_loss.item()
 			v_value_loss_batch += critic_v_loss.item()
