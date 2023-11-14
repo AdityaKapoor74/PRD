@@ -244,6 +244,10 @@ class MAPPO:
 					# if warmup
 					# self.agents.update_epsilon()
 
+					# update prd threshold
+					if "threshold" in self.experiment_type:
+						self.agent.update_parameters()
+
 					if self.learn:
 						# add final time to buffer
 						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
