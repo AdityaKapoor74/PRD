@@ -246,7 +246,7 @@ class MAPPO:
 
 					# update prd threshold
 					if "threshold" in self.experiment_type:
-						self.agent.update_parameters()
+						self.agents.update_parameters()
 
 					if self.learn:
 						# add final time to buffer
