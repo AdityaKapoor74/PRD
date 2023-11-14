@@ -620,8 +620,6 @@ class PPOAgent:
 				for g in self.policy_optimizer.param_groups:
 					g['lr'] = self.policy_lr * self.num_agents/avg_agent_group_over_episode_batch
 
-		self.update_parameters()
-
 
 		self.plotting_dict = {
 		"q_value_loss": q_value_loss_batch,
