@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -400,6 +401,8 @@ class PPOAgent:
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
 
+		self.buffer.calculate_targets(self.experiment_type, episode, self.select_above_threshold)
+
 		
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
@@ -407,11 +410,14 @@ class PPOAgent:
 
 			# SAMPLE DATA FROM BUFFER
 			states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage  = self.buffer.sample_recurrent_policy(self.experiment_type, episode, self.select_above_threshold)
+			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage  = self.buffer.sample_recurrent_policy()
 
 
 			values_old *= masks
 			q_values_old *= masks
+
+			# print("pre advantage normalization")
+			# print(advantage[:, 0])
 
 			if self.norm_adv:
 				shape = advantage.shape
@@ -422,14 +428,16 @@ class PPOAgent:
 				# print("ADV MEAN", "ADC STD")
 				# print(advantage_mean, advantage_std)
 
-				advantage_copy = advantage.clone()
+				advantage_copy = copy.deepcopy(advantage)
 				advantage_copy[masks.view(*shape) == 0.0] = float('nan')
 				advantage_mean = torch.nanmean(advantage_copy.reshape(-1, self.num_agents), dim=0)
 				advantage_std = torch.from_numpy(np.nanstd(advantage_copy.reshape(-1, self.num_agents).cpu().numpy(), axis=0)).float()
-
 				# print(advantage_mean, advantage_std)
 
 				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
+
+			# print("post advantage normalization")
+			# print(advantage[:, 0])
 
 
 			target_shape = q_values_old.shape
@@ -512,7 +520,7 @@ class PPOAgent:
 			policy_loss_ = (-torch.min(surr1, surr2).sum())/masks.sum()
 			policy_loss = policy_loss_ - self.entropy_pen*entropy
 
-			# print("Policy Loss", policy_loss_.item(), "Entropy", (-self.entropy_pen*entropy.item()))
+			print("Policy Loss", policy_loss_.item(), "Entropy", (-self.entropy_pen*entropy.item()))
 
 			# print("loss", "*"*20)
 			# print(policy_loss_.item(), policy_loss.item(), entropy.item(), self.entropy_pen*entropy.item(), critic_v_loss.item(), critic_q_loss.item())
