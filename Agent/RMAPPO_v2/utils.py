@@ -455,7 +455,7 @@ class RolloutBuffer:
 				self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
 				
 				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-				q_values = self.q_value_norm.normalize(q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				# q_values = self.q_value_norm.normalize(q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 		
 		self.advantage = (target_values - values).detach()
 
@@ -464,7 +464,7 @@ class RolloutBuffer:
 			self.v_value_norm.update(target_values.view(-1), masks.view(-1))
 			
 			target_values = self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-			values = self.v_value_norm.normalize(values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+			# values = self.v_value_norm.normalize(values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
 		self.target_q_values = target_q_values.cpu()
 		self.target_values = target_values.cpu()
@@ -474,7 +474,8 @@ class RolloutBuffer:
 
 	def gae_targets(self, rewards, values, next_value, masks, next_mask):
 		
-		advantages = rewards.new_zeros(*rewards.shape)
+		# advantages = rewards.new_zeros(*rewards.shape)
+		target_values = rewards.new_zeros(*rewards.shape)
 		advantage = 0
 
 		for t in reversed(range(0, rewards.shape[1])):
@@ -482,14 +483,16 @@ class RolloutBuffer:
 			td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:] * masks[:, t, :]
 			advantage = td_error + self.gamma * self.gae_lambda * advantage * next_mask
 			
+			target_values[:, t, :] = advantage * next_mask + values.data[:, t, :] * masks[:, t, :]
+			
 			next_value = values.data[:, t, :]
 			next_mask = masks[:, t, :]
 
-			# advantage = advantage * masks[:, t, :]
+			# advantages[:,t,:] = advantage
 
-			advantages[:,t,:] = advantage
+		# target_values_ = advantages + values
 
-		target_values = advantages + values
+		# print(torch.sum(target_values - target_values_))
 
 		return target_values
 
