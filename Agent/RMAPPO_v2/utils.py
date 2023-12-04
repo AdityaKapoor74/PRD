@@ -483,7 +483,7 @@ class RolloutBuffer:
 			td_error = rewards[:,t,:] + (self.gamma * next_value * next_mask) - values.data[:,t,:] * masks[:, t, :]
 			advantage = td_error + self.gamma * self.gae_lambda * advantage * next_mask
 			
-			target_values[:, t, :] = advantage * next_mask + values.data[:, t, :] * masks[:, t, :]
+			target_values[:, t, :] = advantage + values.data[:, t, :] * masks[:, t, :]
 			
 			next_value = values.data[:, t, :]
 			next_mask = masks[:, t, :]
