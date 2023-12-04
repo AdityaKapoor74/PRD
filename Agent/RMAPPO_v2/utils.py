@@ -495,7 +495,7 @@ class RolloutBuffer:
 
 		# print(torch.sum(target_values - target_values_))
 
-		return target_values
+		return target_values*masks
 
 	
 	def build_td_lambda_targets(self, rewards, values, next_value, masks, next_mask):
