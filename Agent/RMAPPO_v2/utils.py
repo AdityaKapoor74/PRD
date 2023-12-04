@@ -444,10 +444,11 @@ class RolloutBuffer:
 				else:
 					target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
 			elif advantage_type == "prd_soft_advantage":
-				if episode > self.transition_after:
-					target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * weights_prd, dim=-1)
-				else:
-					target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+				# if episode > self.transition_after:
+				# 	target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * weights_prd, dim=-1)
+				# else:
+				# 	target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+				target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * weights_prd, dim=-1)
 
 
 			if self.norm_returns_q:
