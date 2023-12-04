@@ -430,8 +430,10 @@ class PPOAgent:
 
 				advantage_copy = copy.deepcopy(advantage)
 				advantage_copy[masks.view(*shape) == 0.0] = float('nan')
-				advantage_mean = torch.nanmean(advantage_copy.reshape(-1, self.num_agents), dim=0)
-				advantage_std = torch.from_numpy(np.nanstd(advantage_copy.reshape(-1, self.num_agents).cpu().numpy(), axis=0)).float()
+				# advantage_mean = torch.nanmean(advantage_copy.reshape(-1, self.num_agents), dim=0)
+				# advantage_std = torch.from_numpy(np.nanstd(advantage_copy.reshape(-1, self.num_agents).cpu().numpy(), axis=0)).float()
+				advantage_mean = torch.nanmean(advantage_copy.reshape(-1, self.num_agents))
+				advantage_std = torch.from_numpy(np.array(np.nanstd(advantage_copy.reshape(-1, self.num_agents).cpu().numpy()))).float()
 				# print(advantage_mean, advantage_std)
 
 				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
