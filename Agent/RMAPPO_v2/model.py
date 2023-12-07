@@ -394,9 +394,9 @@ class Q_network(nn.Module):
 			
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
-		max_score = torch.max(score, dim=-1, keepdim=True).values
-		score_stable = score - max_score
-		weight = F.softmax(score_stable, dim=-1) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# max_score = torch.max(score, dim=-1, keepdim=True).values
+		# score_stable = score - max_score
+		weight = F.softmax(score, dim=-1) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 
@@ -629,9 +629,9 @@ class V_network(nn.Module):
 			
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
-		max_score = torch.max(score, dim=-1, keepdim=True).values
-		score_stable = score - max_score
-		weight = F.softmax(score_stable, dim=-1) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# max_score = torch.max(score, dim=-1, keepdim=True).values
+		# score_stable = score - max_score
+		weight = F.softmax(score, dim=-1) * hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		
 		weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 
