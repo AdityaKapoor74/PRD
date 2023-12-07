@@ -425,7 +425,7 @@ class PPOAgent:
 				# advantage_mean = (advantage*masks.view(*shape)).sum()/masks.sum()
 				# advantage_std = ((((advantage-advantage_mean)*masks.view(*shape))**2).sum()/masks.sum())**0.5
 
-				# print("ADV MEAN", "ADC STD")
+				# print("ADV MEAN", "ADV STD")
 				# print(advantage_mean, advantage_std)
 
 				advantage_copy = copy.deepcopy(advantage)
@@ -494,20 +494,20 @@ class PPOAgent:
 
 			entropy_weights = 0
 			entropy_weights_v = 0
-			score_q_cum = 0
-			score_v_cum = 0
+			# score_q_cum = 0
+			# score_v_cum = 0
 			for i in range(self.num_heads):
 				entropy_weights += -torch.sum(torch.sum((weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)) * masks.view(-1, self.num_agents, 1).to(self.device)), dim=-1))/masks.sum()
 				entropy_weights_v += -torch.sum(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.view(-1, self.num_agents, 1).to(self.device), dim=-1))/masks.sum()
 				
-				score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
-				score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
+				# score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
+				# score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
 			
 			# print("weights entropy")
 			# print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
 
-			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) + self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
-			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
+			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) #+ self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
+			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) #+ self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
 
 			# Finding the ratio (pi_theta / pi_theta__old)
