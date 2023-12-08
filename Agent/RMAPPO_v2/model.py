@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import math
+import copy
 # from utils import gumbel_sigmoid
 
 
@@ -100,7 +101,7 @@ class ValueNorm(nn.Module):
 		# print(batch_mean)
 
 		if self.per_element_update:
-			batch_size = np.prod(input_vector.size()[:self.norm_axes])
+			batch_size = mask.sum() #np.prod(input_vector.size()[:self.norm_axes])
 			weight = self.beta ** batch_size
 		else:
 			weight = self.beta
@@ -116,6 +117,7 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
+		print(mean, var)
 		# print("mean")
 		# print(mean)
 		# print("var")
@@ -335,16 +337,24 @@ class Q_network(nn.Module):
 			init_(nn.Linear(64, self.num_actions))
 			)
 
-		mask_value = torch.tensor(
+		self.mask_value = torch.tensor(
 				torch.finfo(torch.float).min, dtype=torch.float
 			)
 
-		self.attention_mask = torch.zeros(self.num_agents, self.num_agents)
+		# self.attention_mask = torch.zeros(self.num_agents, self.num_agents)
+		# for i in range(self.num_agents):
+		# 	self.attention_mask[i, i] = mask_value
+
+	def get_attention_masks(self, agent_masks):
+		attention_masks = copy.deepcopy(agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+		attention_masks[attention_masks[:, :, :, :] == 0.0] = self.mask_value
+		attention_masks[attention_masks[:, :, :, :] == 1.0] = 0.0
 		for i in range(self.num_agents):
-			self.attention_mask[i, i] = mask_value
+			attention_masks[:, :, i, i] = self.mask_value
+		return attention_masks
 
 
-	def forward(self, states, enemy_states, actions, rnn_hidden_state):
+	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks):
 		batch, timesteps, num_agents, _ = states.shape
 		_, _, num_enemies, _ = enemy_states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
@@ -369,7 +379,8 @@ class Q_network(nn.Module):
 			
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, Num Agents
-		score = score + self.attention_mask.to(score.device)
+		attention_masks = self.get_attention_masks(agent_masks)
+		score = score + attention_masks.reshape(*score.shape).to(score.device)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
 		weights = F.softmax(score, dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
@@ -546,16 +557,25 @@ class V_network(nn.Module):
 			init_(nn.Linear(64, 1))
 			)
 
-		mask_value = torch.tensor(
+		self.mask_value = torch.tensor(
 				torch.finfo(torch.float).min, dtype=torch.float
 			)
 
-		self.attention_mask = torch.zeros(self.num_agents, self.num_agents)
+		# self.attention_mask = torch.zeros(self.num_agents, self.num_agents)
+		# for i in range(self.num_agents):
+		# 	self.attention_mask[i, i] = mask_value
+
+
+	def get_attention_masks(self, agent_masks):
+		attention_masks = copy.deepcopy(agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+		attention_masks[attention_masks[:, :, :, :] == 0.0] = self.mask_value
+		attention_masks[attention_masks[:, :, :, :] == 1.0] = 0.0
 		for i in range(self.num_agents):
-			self.attention_mask[i, i] = mask_value
+			attention_masks[:, :, i, i] = self.mask_value
+		return attention_masks
 
 
-	def forward(self, states, enemy_states, actions, rnn_hidden_state):
+	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks):
 		batch, timesteps, num_agents, _ = states.shape
 		_, _, num_enemies, _ = enemy_states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
@@ -580,7 +600,8 @@ class V_network(nn.Module):
 			
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, Num Agents
-		score = score + self.attention_mask.to(score.device)
+		attention_masks = self.get_attention_masks(agent_masks)
+		score = score + attention_masks.reshape(*score.shape).to(score.device)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
 		weights = F.softmax(score, dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
