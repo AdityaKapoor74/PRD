@@ -278,15 +278,17 @@ class PPOAgent:
 		return lr
 
 	
-	def get_q_v_values(self, state_allies, state_enemies, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v):
+	def get_q_v_values(self, state_allies, state_enemies, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones):
 		with torch.no_grad():
+			indiv_masks = [1-d for d in indiv_dones]
+			indiv_masks = torch.FloatTensor(indiv_masks).unsqueeze(0).unsqueeze(0)
 			state_allies = torch.FloatTensor(state_allies).unsqueeze(0).unsqueeze(0)
 			state_enemies = torch.FloatTensor(state_enemies).unsqueeze(0).unsqueeze(0)
 			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0).unsqueeze(0)
 			rnn_hidden_state_q = torch.FloatTensor(rnn_hidden_state_q)
 			rnn_hidden_state_v = torch.FloatTensor(rnn_hidden_state_v)
-			Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device))
-			Q_value, weights_prd, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device))
+			Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+			Q_value, weights_prd, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 
 			return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), torch.mean(weights_prd.transpose(-1, -2), dim=1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 
@@ -432,8 +434,8 @@ class PPOAgent:
 				advantage_copy[masks.view(*shape) == 0.0] = float('nan')
 				# advantage_mean = torch.nanmean(advantage_copy.reshape(-1, self.num_agents), dim=0)
 				# advantage_std = torch.from_numpy(np.nanstd(advantage_copy.reshape(-1, self.num_agents).cpu().numpy(), axis=0)).float()
-				advantage_mean = torch.nanmean(advantage_copy.reshape(-1, self.num_agents))
-				advantage_std = torch.from_numpy(np.array(np.nanstd(advantage_copy.reshape(-1, self.num_agents).cpu().numpy()))).float()
+				advantage_mean = torch.nanmean(advantage_copy)
+				advantage_std = torch.from_numpy(np.array(np.nanstd(advantage_copy.cpu().numpy()))).float()
 				# print(advantage_mean, advantage_std)
 
 				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
@@ -447,7 +449,8 @@ class PPOAgent:
 												states_critic_allies.to(self.device),
 												states_critic_enemies.to(self.device),
 												one_hot_actions.to(self.device),
-												hidden_state_q.to(self.device)
+												hidden_state_q.to(self.device),
+												masks.to(self.device),
 												)
 			q_values = q_values.reshape(*target_shape)
 
@@ -456,10 +459,10 @@ class PPOAgent:
 												states_critic_allies.to(self.device),
 												states_critic_enemies.to(self.device),
 												one_hot_actions.to(self.device),
-												hidden_state_v.to(self.device)
+												hidden_state_v.to(self.device),
+												masks.to(self.device),
 												)
 			values = values.reshape(*target_shape)
-
 
 			dists, _ = self.policy_network(
 					states_actor.to(self.device),
