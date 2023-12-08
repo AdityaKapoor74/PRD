@@ -171,6 +171,7 @@ class MAPPO:
 			images = []
 
 			episode_reward = 0
+			episode_indiv_rewards = [0 for i in range(self.num_agents)]
 			final_timestep = self.max_time_steps
 
 			rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, self.num_agents, self.rnn_hidden_q))
@@ -196,7 +197,7 @@ class MAPPO:
 				for i, act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
+				q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 
 				next_states_actor, rewards, next_dones, info = self.env.step(actions)
@@ -221,6 +222,7 @@ class MAPPO:
 						)
 
 				episode_reward += np.sum(rewards)
+				episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
 
 				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_indiv_dones
 				rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor = next_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor
@@ -229,6 +231,7 @@ class MAPPO:
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
+					print("INDIV REWARD STREAMS", episode_indiv_rewards, "AGENTS DEAD", info["indiv_dones"])
 					print("*"*100)
 
 					final_timestep = step
@@ -256,7 +259,7 @@ class MAPPO:
 						for i,act in enumerate(actions):
 							one_hot_actions[i][act] = 1
 
-						q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v)
+						q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 						self.agents.buffer.end_episode(final_timestep, q_value, value, indiv_dones)
 
@@ -315,8 +318,8 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 15,
-				"update_ppo_agent": 30, # update ppo agent after every update_ppo_agent episodes
+				"n_epochs": 5,
+				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
@@ -365,7 +368,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_v": 0.5,
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
-				"value_clip": 0.05,
+				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
@@ -385,7 +388,7 @@ if __name__ == '__main__':
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 0.5,
-				"policy_clip": 0.05,
+				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 1e-2, #8e-3
