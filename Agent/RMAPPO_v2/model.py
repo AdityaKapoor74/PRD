@@ -431,7 +431,7 @@ class Q_network(nn.Module):
 		Q_value = torch.sum(actions*Q_value, dim=-1).unsqueeze(-1) # Batch_size, Num agents, 1
 
 		
-		prd_weights = weights.clone()
+		prd_weights = F.softmax(score.clone(), dim=-2)
 		for i in range(self.num_agents):
 			prd_weights[:, :, i, i] = 1.0
 
