@@ -132,12 +132,13 @@ class PopArt(torch.nn.Module):
 	def normalize(self, input_vector):
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
+		input_vector_device = input_vector.device
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.debiased_mean_var()
-		out = (input_vector - mean.cpu()[(None,) * self.norm_axes]) / torch.sqrt(var.cpu())[(None,) * self.norm_axes]
+		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
 		
-		return out
+		return out.to(input_vector_device)
 
 	def denormalize(self, input_vector):
 		if type(input_vector) == np.ndarray:
@@ -145,11 +146,11 @@ class PopArt(torch.nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.debiased_mean_var()
-		out = input_vector * torch.sqrt(var.cpu())[(None,) * self.norm_axes] + mean.cpu()[(None,) * self.norm_axes]
+		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
 		
 		# out = out.cpu().numpy()
 
-		return out
+		return out.to(input_vector_device)
 
 
 
