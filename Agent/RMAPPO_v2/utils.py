@@ -204,6 +204,8 @@ class RolloutBuffer:
 		gae_lambda,
 		n_steps,
 		gamma,
+		V_PopArt,
+		Q_PopArt,
 		):
 		self.num_episodes = num_episodes
 		self.max_time_steps = max_time_steps
@@ -236,10 +238,12 @@ class RolloutBuffer:
 		self.n_steps = n_steps
 
 		if self.norm_returns_v:
-			self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
+			# self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
+			self.v_value_norm = V_PopArt
 			
 		if self.norm_returns_q:
-			self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
+			# self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
+			self.q_value_norm = Q_PopArt
 
 		if self.norm_rewards:
 			self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
