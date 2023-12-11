@@ -135,7 +135,7 @@ class PopArt(torch.nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.debiased_mean_var()
-		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
+		out = (input_vector - mean.cpu()[(None,) * self.norm_axes]) / torch.sqrt(var.cpu())[(None,) * self.norm_axes]
 		
 		return out
 
@@ -145,7 +145,7 @@ class PopArt(torch.nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.debiased_mean_var()
-		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
+		out = input_vector * torch.sqrt(var.cpu())[(None,) * self.norm_axes] + mean.cpu()[(None,) * self.norm_axes]
 		
 		# out = out.cpu().numpy()
 
