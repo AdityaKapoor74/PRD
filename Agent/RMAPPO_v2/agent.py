@@ -224,6 +224,8 @@ class PPOAgent:
 			gae_lambda=self.gae_lambda,
 			n_steps=self.n_steps,
 			gamma=self.gamma,
+			V_PopArt=self.critic_network_v.v_value_layer[-1],
+			Q_PopArt=self.critic_network_q.q_value_layer[-1],
 			)
 
 		# Loading models
