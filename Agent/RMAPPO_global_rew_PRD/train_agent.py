@@ -214,6 +214,7 @@ class MAPPO:
 					if self.experiment_type == "shared":
 						rewards_to_send = [rewards]*self.num_agents
 						# rewards_to_send = [rewards if indiv_dones[i]==0 else 0 for i in range(self.num_agents)]
+						indiv_rewards = [0]*self.num_agents
 					else:
 						# rewards_to_send = info["indiv_rewards"]
 						# assuming only global rewards are available
@@ -224,7 +225,7 @@ class MAPPO:
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, q_i_value, indiv_rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
 						states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
-						rewards_to_send, indiv_dones
+						rewards_to_send, indiv_rewards, indiv_dones
 						)
 
 				episode_reward += np.sum(rewards)
