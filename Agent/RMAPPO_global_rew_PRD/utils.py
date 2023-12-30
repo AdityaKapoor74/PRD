@@ -268,6 +268,7 @@ class RolloutBuffer:
 		self.one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.action_masks = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.rewards = np.zeros((num_episodes, max_time_steps, num_agents))
+		self.indiv_rewards = np.zeros((num_episodes, max_time_steps, num_agents))
 		self.dones = np.ones((num_episodes, max_time_steps+1, num_agents))
 
 		self.episode_length = np.zeros(num_episodes)
@@ -292,6 +293,7 @@ class RolloutBuffer:
 		self.one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.action_masks = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.rewards = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
+		self.indiv_rewards = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
 		self.dones = np.ones((self.num_episodes, self.max_time_steps+1, self.num_agents))
 
 		self.episode_length = np.zeros(self.num_episodes)
@@ -318,6 +320,7 @@ class RolloutBuffer:
 		one_hot_actions, 
 		action_masks, 
 		rewards, 
+		indiv_rewards,
 		dones
 		):
 
@@ -338,6 +341,7 @@ class RolloutBuffer:
 		self.one_hot_actions[self.episode_num][self.time_step] = one_hot_actions
 		self.action_masks[self.episode_num][self.time_step] = action_masks
 		self.rewards[self.episode_num][self.time_step] = rewards
+		self.indiv_rewards[self.episode_num][self.time_step] = indiv_rewards
 		self.dones[self.episode_num][self.time_step] = dones
 
 		if self.time_step < self.max_time_steps-1:
@@ -399,6 +403,8 @@ class RolloutBuffer:
 
 		rewards = torch.from_numpy(self.rewards)
 
+		indiv_rewards = torch.from_numpy(self.indiv_rewards)
+
 		values = torch.from_numpy(self.V_values[:, :-1, :]) * masks
 		next_values = torch.from_numpy(self.V_values[:, -1, :]) * next_mask
 
@@ -452,9 +458,9 @@ class RolloutBuffer:
 				next_q_i_values = self.q_value_norm.denormalize(next_q_i_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
 
 			if self.target_calc_style == "GAE":
-				target_q_i_values = self.gae_targets(rewards, q_i_values, next_q_i_values, masks, next_mask)
+				target_q_i_values = self.gae_targets(indiv_rewards, q_i_values, next_q_i_values, masks, next_mask)
 			elif self.target_calc_style == "N_steps":
-				target_q_i_values = self.nstep_returns(rewards, q_i_values, next_q_i_values, masks, next_mask)
+				target_q_i_values = self.nstep_returns(indiv_rewards, q_i_values, next_q_i_values, masks, next_mask)
 
 			
 			if advantage_type in ["prd_above_threshold_ascend", "prd_above_threshold_decay"]:
