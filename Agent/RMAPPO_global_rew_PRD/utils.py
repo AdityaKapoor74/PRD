@@ -487,10 +487,10 @@ class RolloutBuffer:
 				
 				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 				
-				targets_shape = target_q_i_values.shape
-				self.q_value_norm.update(target_q_i_values.view(-1), masks.view(-1))
+				# targets_shape = target_q_i_values.shape
+				# self.q_value_norm.update(target_q_i_values.view(-1), masks.view(-1))
 				
-				target_q_i_values = self.q_value_norm.normalize(target_q_i_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				# target_q_i_values = self.q_value_norm.normalize(target_q_i_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 		
 		self.advantage = (target_values - values).detach()
 
