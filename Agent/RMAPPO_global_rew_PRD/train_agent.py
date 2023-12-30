@@ -199,7 +199,7 @@ class MAPPO:
 				for i, act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v, q_i_value, next_indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
+				q_value, next_rnn_hidden_state_q, weights_prd, approx_agent_contri_to_rew, value, next_rnn_hidden_state_v, q_i_value, next_indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
 
 
 				next_states_actor, rewards, next_dones, info = self.env.step(actions)
@@ -218,6 +218,8 @@ class MAPPO:
 						# rewards_to_send = info["indiv_rewards"]
 						# assuming only global rewards are available
 						rewards_to_send = [rewards]*self.num_agents
+						indiv_rewards = [rewards]*self.num_agents
+						indiv_rewards = [r*c for r, c in zip(indiv_rewards, approx_agent_contri_to_rew[0])]
 
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, q_i_value, indiv_rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
@@ -263,7 +265,7 @@ class MAPPO:
 						for i,act in enumerate(actions):
 							one_hot_actions[i][act] = 1
 
-						q_value, _, _, value, _, q_i_value, indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
+						q_value, _, _, _, value, _, q_i_value, indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
 
 						self.agents.buffer.end_episode(final_timestep, q_value, q_i_value, value, indiv_dones)
 
