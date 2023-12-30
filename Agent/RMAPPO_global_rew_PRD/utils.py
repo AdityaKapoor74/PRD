@@ -425,21 +425,21 @@ class RolloutBuffer:
 
 			target_q_values = rewards.new_zeros(*rewards.shape)
 		else:
-			# q_values = torch.from_numpy(self.Q_values[:, :-1, :]) * masks
-			# next_q_values = torch.from_numpy(self.Q_values[:, -1, :]) * next_mask
+			q_values = torch.from_numpy(self.Q_values[:, :-1, :]) * masks
+			next_q_values = torch.from_numpy(self.Q_values[:, -1, :]) * next_mask
 			weights_prd = torch.from_numpy(self.weights_prd)
 
-			# if self.norm_returns_q:
-			# 	values_shape = q_values.shape
-			# 	q_values = self.q_value_norm.denormalize(q_values.view(-1)).view(values_shape) * masks.view(values_shape)
+			if self.norm_returns_q:
+				values_shape = q_values.shape
+				q_values = self.q_value_norm.denormalize(q_values.view(-1)).view(values_shape) * masks.view(values_shape)
 
-			# 	next_values_shape = next_q_values.shape
-			# 	next_q_values = self.q_value_norm.denormalize(next_q_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
+				next_values_shape = next_q_values.shape
+				next_q_values = self.q_value_norm.denormalize(next_q_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
 
-			# if self.target_calc_style == "GAE":
-			# 	target_q_values = self.gae_targets(rewards, q_values, next_q_values, masks, next_mask)
-			# elif self.target_calc_style == "N_steps":
-			# 	target_q_values = self.nstep_returns(rewards, q_values, next_q_values, masks, next_mask)
+			if self.target_calc_style == "GAE":
+				target_q_values = self.gae_targets(rewards, q_values, next_q_values, masks, next_mask)
+			elif self.target_calc_style == "N_steps":
+				target_q_values = self.nstep_returns(rewards, q_values, next_q_values, masks, next_mask)
 
 			q_i_values = torch.from_numpy(self.Q_i_values[:, :-1, :]) * masks
 			next_q_i_values = torch.from_numpy(self.Q_i_values[:, -1, :]) * next_mask
@@ -482,10 +482,10 @@ class RolloutBuffer:
 
 
 			if self.norm_returns_q:
-				# targets_shape = target_q_values.shape
-				# self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
+				targets_shape = target_q_values.shape
+				self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
 				
-				# target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 				
 				targets_shape = target_q_i_values.shape
 				self.q_value_norm.update(target_q_i_values.view(-1), masks.view(-1))
@@ -501,7 +501,7 @@ class RolloutBuffer:
 			target_values = self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 			# values = self.v_value_norm.normalize(values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
-		self.target_q_values = target_q_i_values.cpu() #target_q_values.cpu()
+		self.target_q_values = target_q_values.cpu()
 		self.target_values = target_values.cpu()
 
 		# return target_values.cpu(), target_q_values.cpu(), advantage.cpu()
