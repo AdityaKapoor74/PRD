@@ -352,7 +352,7 @@ class PPOAgent:
 
 				# final loss of clipped objective PPO
 				entropy = -torch.sum(torch.sum(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks[:, :, agent_id].sum()
-				policy_loss_ = ((-torch.min(surr1, surr2)*factor*masks[:, :, agent_id]).sum())/masks[:, :, agent_id].sum()
+				policy_loss_ = ((-torch.min(surr1, surr2)*factor.to(self.device)*masks[:, :, agent_id]).sum())/masks[:, :, agent_id].sum()
 				policy_loss = policy_loss_ - self.entropy_pen*entropy
 
 				self.policy_optimizer[agent_id].zero_grad()
