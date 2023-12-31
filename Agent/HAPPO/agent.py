@@ -367,7 +367,7 @@ class PPOAgent:
 					grad_norm_policy = torch.tensor([total_norm ** 0.5])
 				self.policy_optimizer[agent_id].step()
 
-				factor = factor*torch.prod(torch.exp(logprobs.unsqueeze(-1)-logprobs_old[:, :, agent_id].unsqueeze(-1).to(self.device)), dim=-1).reshape(self.max_time_steps, self.update_ppo_agent).detach()
+				factor = factor.to(self.device)*torch.prod(torch.exp(logprobs.unsqueeze(-1)-logprobs_old[:, :, agent_id].unsqueeze(-1).to(self.device)), dim=-1).reshape(self.max_time_steps, self.update_ppo_agent).detach()
 
 				policy_loss_collect += policy_loss.item()
 				policy_entropy_collect += entropy.item()
