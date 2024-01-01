@@ -286,12 +286,6 @@ class MAPPO:
 				for agent_id in range(self.num_agents):
 					torch.save(self.agents.policy_network[agent_id].state_dict(), self.actor_model_path+'actor'+str(agent_id)+'_epsiode_'+str(episode)+'.pt')
 					torch.save(self.agents.policy_optimizer[agent_id].state_dict(), self.optim_model_path+'policy_optim'+str(agent_id)+'_epsiode_'+str(episode)+'.pt') 
-				
-
-				if self.use_reward_model:
-					torch.save(self.agents.reward_model.state_dict(), self.reward_model_path+'reward_model_epsiode_'+str(episode)+'.pt')
-					torch.save(self.agents.reward_optimizer.state_dict(), self.reward_model_path+'reward_optim_epsiode_'+str(episode)+'.pt')
-
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				self.agents.update(episode)
