@@ -282,41 +282,19 @@ class MAPPO:
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				# save actor, critic, reward and optims
 				torch.save(self.agents.critic_network_q.state_dict(), self.critic_model_path+'critic_Q_epsiode_'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'actor_epsiode_'+str(episode)+'.pt')
 				torch.save(self.agents.q_critic_optimizer.state_dict(), self.optim_model_path+'critic_optim_epsiode_'+str(episode)+'.pt')
-				torch.save(self.agents.policy_optimizer.state_dict(), self.optim_model_path+'policy_optim_epsiode_'+str(episode)+'.pt')  
+				for agent_id in range(self.num_agents):
+					torch.save(self.agents.policy_network[agent_id].state_dict(), self.actor_model_path+'actor'+str(agent_id)+'_epsiode_'+str(episode)+'.pt')
+					torch.save(self.agents.policy_optimizer[agent_id].state_dict(), self.optim_model_path+'policy_optim'+str(agent_id)+'_epsiode_'+str(episode)+'.pt') 
+				
 
 				if self.use_reward_model:
 					torch.save(self.agents.reward_model.state_dict(), self.reward_model_path+'reward_model_epsiode_'+str(episode)+'.pt')
 					torch.save(self.agents.reward_optimizer.state_dict(), self.reward_model_path+'reward_optim_epsiode_'+str(episode)+'.pt')
-			
-			if self.experiment_type == "AREL":
-				if episode % self.update_reward_model_freq == 0 and self.agents.reward_buffer.episode_num >= self.batch_size:
-					# epoch_train_episode_reward_loss = []
-					# epoch_grad_norms = []
-					# epoch_variance_loss = []
-					for i in range(self.reward_model_update_epochs):
-						loss, reward_var, grad_norm_value_reward = self.agents.update_reward_model()
-						# epoch_train_episode_reward_loss.append(loss.item())
-						# epoch_grad_norms.append(grad_norm_value_reward.item())
-						# epoch_variance_loss.append(reward_var.item())
-
-						if self.save_comet_ml_plot:
-							self.comet_ml.log_metric("Reward_Loss", loss.item(), step=self.reward_plot_counter)
-							self.comet_ml.log_metric("Reward_Var", grad_norm_value_reward.item(), step=self.reward_plot_counter)
-							self.comet_ml.log_metric("Reward_Grad_Norm", reward_var.item(), step=self.reward_plot_counter)
-
-							self.reward_plot_counter += 1
 
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
-				if self.experiment_type != "AREL":
-					self.agents.update(episode)
-				else:
-					if episode >= self.reward_warmup:
-						self.agents.update(episode)
-					else:
-						self.agents.buffer.clear()
+				self.agents.update(episode)
 
 			# elif self.gif and not(episode%self.gif_checkpoint):
 			# 	print("GENERATING GIF")
