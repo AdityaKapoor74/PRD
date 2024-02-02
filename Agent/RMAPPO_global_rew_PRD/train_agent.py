@@ -310,7 +310,7 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 
-	for i in range(1,4):
+	for i in range(1,6):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "3s5z"
