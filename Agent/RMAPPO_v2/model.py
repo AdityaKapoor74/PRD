@@ -451,9 +451,13 @@ class Q_network(nn.Module):
 		# 	self.attention_mask[i, i] = mask_value
 
 	def get_attention_masks(self, agent_masks):
-		attention_masks = copy.deepcopy(agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
-		attention_masks[attention_masks[:, :, :, :] == 0.0] = self.mask_value
-		attention_masks[attention_masks[:, :, :, :] == 1.0] = 0.0
+		# since we add the attention masks to the score we want to have 0s where the agent is alive and -inf when agent is dead
+		attention_masks = copy.deepcopy(1-agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+		# choose columns in each row where the agent is dead and make it -inf
+		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)[:, :, :, :] == 0.0] = self.mask_value
+		# choose rows of the agent which is dead and make it -inf
+		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).transpose(-1,-2)[:, :, :, :] == 0.0] = self.mask_value
+		
 		for i in range(self.num_agents):
 			attention_masks[:, :, i, i] = self.mask_value
 		return attention_masks
