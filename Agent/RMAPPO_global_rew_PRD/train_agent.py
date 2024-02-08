@@ -221,6 +221,9 @@ class MAPPO:
 						indiv_rewards = [rewards]*self.num_agents
 						indiv_rewards = [r*c for r, c in zip(indiv_rewards, approx_agent_contri_to_rew[0])]
 
+						# attempt 1
+						q_i_value = [q*c for q, c in zip(q_value, approx_agent_contri_to_rew[0])]
+
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, q_i_value, indiv_rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
 						states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
