@@ -556,7 +556,14 @@ class Q_network(nn.Module):
 		# for i in range(self.num_agents):
 		# 	prd_weights[:, :, i, i] = 1.0
 
-		only_curr_node_features = torch.cat([aggregated_attention_value_enemies, attention_values.reshape(-1, self.num_agents, attention_values.shape[-1])], dim=-1)
+		aggregated_curr_node_features = self.attention_value_dropout(attention_values)
+		aggregated_curr_node_features = aggregated_curr_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
+		aggregated_curr_node_features_ = self.attention_value_layer_norm(obs_actions_embed+aggregated_curr_node_features) # Batch_size, Num agents, dim
+		aggregated_curr_node_features = self.attention_value_linear(aggregated_curr_node_features_) # Batch_size, Num agents, dim
+		aggregated_curr_node_features = self.attention_value_linear_dropout(aggregated_curr_node_features)
+		aggregated_curr_node_features = self.attention_value_linear_layer_norm(aggregated_curr_node_features_+aggregated_curr_node_features) # Batch_size, Num agents, dim
+
+		only_curr_node_features = torch.cat([aggregated_attention_value_enemies, aggregated_curr_node_features.reshape(-1, self.num_agents, attention_values.shape[-1])], dim=-1)
 		only_curr_node_features = self.common_layer(only_curr_node_features) # Batch_size, Num agents, dim
 		only_curr_node_features = only_curr_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 		only_curr_agent_rnn_output, only_curr_agent_hidden_state = self.RNN(only_curr_node_features, only_curr_agent_hidden_state)
