@@ -201,7 +201,6 @@ class MAPPO:
 
 				q_value, next_rnn_hidden_state_q, weights_prd, approx_agent_contri_to_rew, value, next_rnn_hidden_state_v, q_i_value, next_indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
 
-
 				next_states_actor, rewards, next_dones, info = self.env.step(actions)
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
