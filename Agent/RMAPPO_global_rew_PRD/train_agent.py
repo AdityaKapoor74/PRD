@@ -222,7 +222,7 @@ class MAPPO:
 						indiv_rewards = [r*c for r, c in zip(indiv_rewards, approx_agent_contri_to_rew[0])]
 
 						# attempt 1
-						# q_i_value = [q*c for q, c in zip(q_value, approx_agent_contri_to_rew[0])]
+						q_i_value = [q*c for q, c in zip(q_value, approx_agent_contri_to_rew[0])]
 
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, q_i_value, indiv_rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
@@ -389,6 +389,12 @@ if __name__ == '__main__':
 				"n_steps": 5,
 				"norm_returns_q": True,
 				"norm_returns_v": True,
+				"soft_update_q": False,
+				"tau_q": 0.05,
+				"network_update_interval_q": 1,
+				"soft_update_v": False,
+				"tau_v": 0.05,
+				"network_update_interval_v": 1,
 				
 
 				# ACTOR
@@ -410,13 +416,6 @@ if __name__ == '__main__':
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": True,
-
-				"soft_update_q": False,
-				"tau_q": 0.05,
-				"network_update_interval_q": 1,
-				"soft_update_v": False,
-				"tau_v": 0.05,
-				"network_update_interval_v": 1,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
