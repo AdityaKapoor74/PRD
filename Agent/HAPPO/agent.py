@@ -266,8 +266,6 @@ class PPOAgent:
 		grad_norm_policy_batch = 0
 
 		self.buffer.calculate_targets(episode)
-
-		agent_permutation = torch.randperm(self.num_agents)
 		
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
@@ -332,6 +330,8 @@ class PPOAgent:
 			policy_loss_collect = 0
 			policy_grad_norm_collect = 0
 			policy_entropy_collect = 0
+
+			agent_permutation = torch.randperm(self.num_agents)
 
 			for agent_id in agent_permutation:
 				dists, _ = self.policy_network[agent_id](
