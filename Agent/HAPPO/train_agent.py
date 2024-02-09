@@ -310,7 +310,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "HAPPO_"+str(i)
 		test_num = "StarCraft"
-		env_name = "3s_5z"
+		env_name = "3s_vs_5z"
 		experiment_type = "HAPPO"
 
 		dictionary = {
