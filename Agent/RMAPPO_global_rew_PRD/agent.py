@@ -299,7 +299,7 @@ class PPOAgent:
 
 			# since we add the attention masks to the score we want to have 0s where the agent is alive and -inf when agent is dead
 			attention_masks = copy.deepcopy(1-indiv_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
-			score_q *= attention_masks
+			score_q = score_q.cpu() * attention_masks
 			# choose columns in each row where the agent is dead and make it -inf so that their softmax after the sum is 0.0
 			attention_masks[indiv_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)[:, :, :, :] == 0.0] = mask_value
 			# make the diagonal elements 0.0 so that their contribution is none in the sum
@@ -308,7 +308,7 @@ class PPOAgent:
 			# choose rows of the agent which is dead and make it 0.0 so that the contribution in the sum is none from their end
 			attention_masks[indiv_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).transpose(-1,-2)[:, :, :, :] == 0.0] = 0.0
 
-			reward_redistribution = F.softmax((score_q.cpu() + attention_masks).mean(dim=1).sum(dim=1), dim=-1).numpy()
+			reward_redistribution = F.softmax((score_q + attention_masks).mean(dim=1).sum(dim=1), dim=-1).numpy()
 			
 			return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).sum(dim=1).numpy(), reward_redistribution, Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy(), Q_i.squeeze(0).cpu().numpy(), indiv_rnn_hidden_state_q.cpu().numpy()
 
