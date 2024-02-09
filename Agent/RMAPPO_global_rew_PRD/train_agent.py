@@ -222,7 +222,13 @@ class MAPPO:
 						indiv_rewards = [r*c for r, c in zip(indiv_rewards, approx_agent_contri_to_rew[0])]
 
 						# attempt 1
-						# q_i_value = [q*c for q, c in zip(q_value, approx_agent_contri_to_rew[0])]
+						q_i_value = [q*c for q, c in zip(q_value, approx_agent_contri_to_rew[0])]
+
+						print("Agents alive", indiv_dones)
+						print("Q value", q_value)
+						print("Q_i value", q_i_value)
+						print("weight contri", approx_agent_contri_to_rew[0])
+						print("-"*10)
 
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, q_i_value, indiv_rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
@@ -406,8 +412,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 5e-3, #8e-3
-				"entropy_pen_final": 5e-3,
+				"entropy_pen": 2e-3, #8e-3
+				"entropy_pen_final": 2e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, #0.043, 0.1
