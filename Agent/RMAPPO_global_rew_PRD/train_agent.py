@@ -321,7 +321,7 @@ if __name__ == '__main__':
 	for i in range(1,6):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		env_name = "3s5z"
+		env_name = "3s_vs_5z"
 		experiment_type = "prd_soft_advantage_global" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
