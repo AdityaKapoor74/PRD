@@ -2,7 +2,7 @@ import os
 import time
 from comet_ml import Experiment
 import numpy as np
-from agent import PPOAgent
+from agent_v2 import PPOAgent
 import torch
 import datetime
 
