@@ -492,7 +492,7 @@ class PPOAgent:
 			# because q_value returned by the model is one single value for each timesteps but it expects N (num_agents) q_values for each timestep
 			q_values = q_values.reshape(target_shape[0], target_shape[1], 1).repeat(1, 1, self.num_agents)
 
-			q_values = q_values.reshape().reshape(*target_shape)
+			q_values = q_values.reshape(*target_shape)
 
 			target_shape = values_old.shape
 			values, weight_v, score_v, h_v = self.critic_network_v(
