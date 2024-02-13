@@ -561,7 +561,7 @@ class Q_network(nn.Module):
 		agent_values = self.attention_value(obs_actions_embed)
 		global_score = torch.matmul(global_query,(agent_keys).transpose(-2,-1))/(agent_keys.shape[-1])**(1/2) # Batch_size, Num agents, 1
 		vector_attn_masks = self.get_vector_attention_masks(agent_masks)
-		global_weights = F.softmax(global_score + vector_attn_masks.to(global_score.device), dim=-1)
+		global_weights = F.softmax(global_score + vector_attn_masks.reshape(*global_score.shape).to(global_score.device), dim=-1)
 		global_aggregated_node_features = torch.matmul(global_weights, agent_values).squeeze(1)
 		global_aggregated_node_features = self.attention_value_dropout(global_aggregated_node_features)
 		global_aggregated_node_features_ = self.attention_value_layer_norm(obs_actions_embed.mean(dim=1)+global_aggregated_node_features) # Batch_size, dim
