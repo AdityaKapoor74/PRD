@@ -312,7 +312,7 @@ class PPOAgent:
 			# reward_redistribution = F.softmax((score_q + attention_masks).mean(dim=1).sum(dim=1), dim=-1).numpy()
 			reward_redistribution = (((weights_prd.cpu() * attention_masks).mean(dim=1).sum(dim=1))/indiv_masks.sum(dim=-1)).numpy()
 			
-			return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).sum(dim=1).numpy(), reward_redistribution, Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy(), Q_i.squeeze(0).cpu().numpy(), indiv_rnn_hidden_state_q.cpu().numpy()
+			return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).numpy(), reward_redistribution, Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy(), Q_i.squeeze(0).cpu().numpy(), indiv_rnn_hidden_state_q.cpu().numpy()
 
 	
 	def update_epsilon(self):
