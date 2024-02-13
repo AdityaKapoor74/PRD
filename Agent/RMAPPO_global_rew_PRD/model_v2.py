@@ -350,19 +350,19 @@ class Q_network(nn.Module):
 		self.ally_state_embed_1 = nn.Sequential(
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
 			nn.GELU(),
-			nn.LayerNorm(64),
+			# nn.LayerNorm(64),
 			)
 
 		self.enemy_state_embed = nn.Sequential(
 			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			nn.GELU(),
-			nn.LayerNorm(64),
+			# nn.LayerNorm(64),
 			)
 
 		self.ally_state_act_embed = nn.Sequential(
 			init_(nn.Linear(ally_obs_input_dim+self.num_actions, 64), activate=True), 
 			nn.GELU(),
-			nn.LayerNorm(64),
+			# nn.LayerNorm(64),
 			)
 
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -496,21 +496,27 @@ class Q_network(nn.Module):
 		# 	hard_attention_weights = torch.ones(states.shape[0], self.num_agents, self.num_agents-1, 1).float().to(self.device)
 			
 		# SOFT ATTENTION
-		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, Num Agents
+		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/((self.d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num agents, Num Agents
 		attention_masks = self.get_attention_masks(agent_masks)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
-		weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
-		
+		weights = F.softmax((score/(torch.max(score, dim=-1).values-torch.min(score, dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		# attn_to_self = self.diagonal_matrix.repeat(score.shape[0], score.shape[1], 1, 1).to(score.device)
 		# attn_to_self[attn_to_self[:, :, :, :] == 0.0] = self.mask_value.to(score.device)
 		# attn_to_self = attn_to_self + attention_masks.reshape(*score.shape).to(score.device)
 		
 		final_weights = weights.clone()
-		prd_weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-2)
+		prd_weights = F.softmax((score/(torch.max(score, dim=-1).values-torch.min(score, dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-2)
 		for i in range(self.num_agents):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
+
+			if agent_masks[:,:,i] == 0.0:
+				final_weights[:, :, i, :] = torch.zeros(self.num_agents).to(final_weights.device)
+				prd_weights[:, :, i, :] = torch.zeros(self.num_agents).to(final_weights.device)
+
+		weights[agent_masks.unsqueeze(-2).repeat(1,1,self.num_agents,1)==0.0] = 0.0
+		prd_weights[agent_masks.unsqueeze(-2).repeat(1,1,self.num_agents,1)==0.0] = 0.0
 
 		# weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 
