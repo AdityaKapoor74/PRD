@@ -388,7 +388,7 @@ if __name__ == '__main__':
 				"rnn_num_layers_v": 1,
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 5e-4, #1e-3
+				"q_value_lr": 1e-3, #1e-3
 				"v_value_lr": 5e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
