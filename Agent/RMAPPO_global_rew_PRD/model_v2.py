@@ -530,8 +530,8 @@ class Q_network(nn.Module):
 		# aggregated_node_features = self.attention_value_linear_dropout(aggregated_node_features)
 		# aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
 
-		global_score = score.sum(dim=-2)/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1)
-		global_weights = final_weights.sum(dim=-2)/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1)
+		global_score = score.sum(dim=-2)*agent_masks.reshape(batch*timesteps, 1, self.num_agents).to(score.device)/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1)
+		global_weights = (final_weights.sum(dim=-2)*agent_masks.reshape(batch*timesteps, 1, self.num_agents).to(final_weights.device))/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1)
 		aggregated_node_features = (global_weights.unsqueeze(-1)*attention_values).sum(dim=-2) # Batch_size, Num heads, dim//num_heads
 		aggregated_node_features = self.attention_value_dropout(aggregated_node_features)
 		aggregated_node_features = aggregated_node_features.reshape(states.shape[0], -1) # Batch_size, dim
@@ -558,7 +558,7 @@ class Q_network(nn.Module):
 		# aggregated_attention_value_enemies_ = self.attention_value_linear_enemies_dropout(aggregated_attention_value_enemies_)
 		# aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
-		global_enemy_weights = weight_enemies.mean(dim=-2)
+		global_enemy_weights = (weight_enemies*agent_masks.reshape(batch*timesteps, self.num_agents, 1)).sum(dim=-2)/(agent_masks.reshape(batch*timesteps, self.num_agents, 1).sum(dim=1)+1e-5)
 		aggregated_attention_value_enemies = (global_enemy_weights.unsqueeze(-1)*attention_values_enemies).sum(dim=-2)  # Batch, dim
 		aggregated_attention_value_enemies = self.attention_value_enemies_dropout(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies = self.attention_value_enemies_layer_norm(enemy_state_embed.sum(dim=-2)+states_embed.sum(dim=-2)+aggregated_attention_value_enemies)
