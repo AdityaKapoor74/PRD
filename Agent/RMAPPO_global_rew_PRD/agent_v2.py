@@ -6,8 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
-from model import Policy, Q_network, V_network
-from utils import RolloutBuffer
+from model_v2 import Policy, Q_network, V_network
+from utils_v2 import RolloutBuffer
 
 class PPOAgent:
 
