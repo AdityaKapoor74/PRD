@@ -511,12 +511,10 @@ class Q_network(nn.Module):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
 
-			if agent_masks[:,:,i] == 0.0:
-				final_weights[:, :, i, :] = torch.zeros(self.num_agents).to(final_weights.device)
-				prd_weights[:, :, i, :] = torch.zeros(self.num_agents).to(final_weights.device)
-
-		weights[agent_masks.unsqueeze(-2).repeat(1,1,self.num_agents,1)==0.0] = 0.0
-		prd_weights[agent_masks.unsqueeze(-2).repeat(1,1,self.num_agents,1)==0.0] = 0.0
+		final_weights = final_weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
+		final_weights = final_weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
+		prd_weights = prd_weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
+		prd_weights = prd_weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
 
 		# weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 
