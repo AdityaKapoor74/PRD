@@ -479,7 +479,8 @@ class Q_network(nn.Module):
 		actions = actions.reshape(batch*timesteps, num_agents, -1)
 
 		# EMBED STATES KEY & QUERY
-		states_embed = self.ally_state_embed_1(states)
+		# states_embed = self.ally_state_embed_1(states)
+		states_embed = self.ally_state_act_embed(torch.cat([states, torch.zeros(*actions.shape).to(states.device)], dim=-1))
 		
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
