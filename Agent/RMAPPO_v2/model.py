@@ -216,7 +216,7 @@ class ValueNorm(nn.Module):
 		input_vector = input_vector.to(**self.tpdv)
 
 		mean, var = self.running_mean_var()
-		print(mean, var)
+		# print(mean, var)
 		# print("mean")
 		# print(mean)
 		# print("var")
@@ -450,6 +450,14 @@ class Q_network(nn.Module):
 		# for i in range(self.num_agents):
 		# 	self.attention_mask[i, i] = mask_value
 
+	# def get_attention_masks(self, agent_masks):
+	# 	attention_masks = copy.deepcopy(agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+	# 	attention_masks[attention_masks[:, :, :, :] == 0.0] = self.mask_value
+	# 	attention_masks[attention_masks[:, :, :, :] == 1.0] = 0.0
+	# 	for i in range(self.num_agents):
+	# 		attention_masks[:, :, i, i] = self.mask_value
+	# 	return attention_masks
+
 	def get_attention_masks(self, agent_masks):
 		# since we add the attention masks to the score we want to have 0s where the agent is alive and -inf when agent is dead
 		attention_masks = copy.deepcopy(1-agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
@@ -457,13 +465,13 @@ class Q_network(nn.Module):
 		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)[:, :, :, :] == 0.0] = self.mask_value
 		# choose rows of the agent which is dead and make it -inf
 		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).transpose(-1,-2)[:, :, :, :] == 0.0] = self.mask_value
-		
+
 		for i in range(self.num_agents):
 			attention_masks[:, :, i, i] = self.mask_value
 		return attention_masks
 
 
-	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks):
+	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks, only_curr_agent_hidden_state):
 		batch, timesteps, num_agents, _ = states.shape
 		_, _, num_enemies, _ = enemy_states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
@@ -493,12 +501,21 @@ class Q_network(nn.Module):
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
 		weights = F.softmax(score, dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
-
+		
+		# attn_to_self = self.diagonal_matrix.repeat(score.shape[0], score.shape[1], 1, 1).to(score.device)
+		# attn_to_self[attn_to_self[:, :, :, :] == 0.0] = self.mask_value.to(score.device)
+		# attn_to_self = attn_to_self + attention_masks.reshape(*score.shape).to(score.device)
+		
 		final_weights = weights.clone()
 		prd_weights = F.softmax(score.clone(), dim=-2)
 		for i in range(self.num_agents):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
+
+		final_weights = final_weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
+		final_weights = final_weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
+		prd_weights = prd_weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
+		prd_weights = prd_weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
 
 		# weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 
@@ -686,10 +703,22 @@ class V_network(nn.Module):
 		# 	self.attention_mask[i, i] = mask_value
 
 
+	# def get_attention_masks(self, agent_masks):
+	# 	attention_masks = copy.deepcopy(agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+	# 	attention_masks[attention_masks[:, :, :, :] == 0.0] = self.mask_value
+	# 	attention_masks[attention_masks[:, :, :, :] == 1.0] = 0.0
+	# 	for i in range(self.num_agents):
+	# 		attention_masks[:, :, i, i] = self.mask_value
+	# 	return attention_masks
+
 	def get_attention_masks(self, agent_masks):
-		attention_masks = copy.deepcopy(agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
-		attention_masks[attention_masks[:, :, :, :] == 0.0] = self.mask_value
-		attention_masks[attention_masks[:, :, :, :] == 1.0] = 0.0
+		# since we add the attention masks to the score we want to have 0s where the agent is alive and -inf when agent is dead
+		attention_masks = copy.deepcopy(1-agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+		# choose columns in each row where the agent is dead and make it -inf
+		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)[:, :, :, :] == 0.0] = self.mask_value
+		# choose rows of the agent which is dead and make it -inf
+		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).transpose(-1,-2)[:, :, :, :] == 0.0] = self.mask_value
+
 		for i in range(self.num_agents):
 			attention_masks[:, :, i, i] = self.mask_value
 		return attention_masks
@@ -726,6 +755,9 @@ class V_network(nn.Module):
 		# score_stable = score - max_score
 		weights = F.softmax(score, dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 
+		weights = weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
+		weights = weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
+		
 		# weights = self.weight_assignment(weight.squeeze(-2)) # Batch_size, Num Heads, Num agents, Num agents
 
 		# for head in range(self.num_heads):
