@@ -471,7 +471,7 @@ class Q_network(nn.Module):
 		return attention_masks
 
 
-	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks, only_curr_agent_hidden_state):
+	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks):
 		batch, timesteps, num_agents, _ = states.shape
 		_, _, num_enemies, _ = enemy_states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
