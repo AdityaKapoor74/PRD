@@ -38,16 +38,25 @@ class QMIX:
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.update_episode_interval = dictionary["update_episode_interval"]
 
-		self.observation_shape = dictionary["observation_shape"]
+		self.q_observation_shape = dictionary["q_observation_shape"]
+		self.q_mix_observation_shape = dictionary["q_mix_observation_shape"]
 		self.replay_buffer_size = dictionary["replay_buffer_size"]
 		self.batch_size = dictionary["batch_size"] # number of datapoints to sample
 		self.buffer = ReplayMemory(
 			capacity = self.replay_buffer_size,
 			max_episode_len = self.max_time_steps,
 			num_agents = self.num_agents,
-			obs_shape = self.observation_shape,
+			q_obs_shape = self.q_observation_shape,
+			q_mix_obs_shape = self.q_mix_observation_shape,
 			action_shape = self.num_actions
 			)
+
+		self.agent_ids = []
+		for i in range(self.num_agents):
+			agent_id = np.array([0 for i in range(self.num_agents)])
+			agent_id[i] = 1
+			self.agent_ids.append(agent_id)
+		self.agent_ids = np.array(self.agent_ids)
 
 		self.epsilon_greedy = dictionary["epsilon_greedy"]
 		self.epsilon_greedy_min = dictionary["epsilon_greedy_min"]
@@ -138,14 +147,20 @@ class QMIX:
 
 			states, info = self.env.reset(return_info=True)
 			mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
+			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
 			states = np.array(states)
+			states = np.concatenate((self.agent_ids, states), axis=-1)
+			states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1).reshape(-1)
+			states_enemies = np.array(info["enemy_states"]).reshape(-1)
+			full_state = np.concatenate((states_allies, states_enemies), axis=-1)
+			indiv_dones = [0]*self.num_agents
+			indiv_dones = np.array(indiv_dones)
 
 			images = []
 
 			episode_reward = 0
 			final_timestep = self.max_time_steps
 
-			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
 			self.agents.Q_network.rnn_hidden_state = None
 			self.agents.target_Q_network.rnn_hidden_state = None
 
@@ -172,12 +187,16 @@ class QMIX:
 				# dones = [int(dones)]*self.num_agents
 				# rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
+				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
+				next_states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1).reshape(-1)
+				next_states_enemies = np.array(info["enemy_states"]).reshape(-1)
+				next_full_state = np.concatenate((next_states_allies, next_states_enemies), axis=-1)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
 
 				if self.learn:
-					self.buffer.push(states, actions, last_one_hot_action, next_states, next_last_one_hot_action, next_mask_actions, rewards, dones)
+					self.buffer.push(states, full_state, actions, last_one_hot_action, next_states, next_full_state, next_last_one_hot_action, next_mask_actions, rewards, dones)
 
-				states, mask_actions, last_one_hot_action = next_states, next_mask_actions, next_last_one_hot_action
+				states, full_state, mask_actions, last_one_hot_action = next_states, next_full_state, next_mask_actions, next_last_one_hot_action
 
 				episode_reward += np.sum(rewards)
 
@@ -233,10 +252,10 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 
-	for i in range(1,4):
+	for i in range(1,6):
 		extension = "QMix_"+str(i)
 		test_num = "StarCraft"
-		env_name = "bane_vs_bane"
+		env_name = "3s5z"
 
 		dictionary = {
 				# TRAINING
@@ -289,7 +308,8 @@ if __name__ == '__main__':
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
-		obs, _ = env.reset(return_info=True)
-		dictionary["observation_shape"] = obs[0].shape[0]
+		obs, info = env.reset(return_info=True)
+		dictionary["q_observation_shape"] = obs[0].shape[0]+env.n_agents
+		dictionary["q_mix_observation_shape"] = info["ally_states"].reshape(-1).shape[0] + info["enemy_states"].reshape(-1).shape[0] + env.n_agents**2
 		ma_controller = QMIX(env, dictionary)
 		ma_controller.run()
