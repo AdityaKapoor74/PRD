@@ -337,7 +337,7 @@ if __name__ == '__main__':
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
-				"max_episodes": 20000,
+				"max_episodes": 40000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
