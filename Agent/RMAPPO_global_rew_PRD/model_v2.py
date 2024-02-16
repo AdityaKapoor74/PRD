@@ -535,7 +535,7 @@ class Q_network(nn.Module):
 		# aggregated_node_features = self.attention_value_linear_layer_norm(aggregated_node_features_+aggregated_node_features) # Batch_size, Num agents, dim
 
 		global_score = score.sum(dim=-2)*agent_masks.reshape(batch*timesteps, 1, self.num_agents).to(score.device)/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1)
-		global_weights = F.softmax((final_weights.sum(dim=-2)*agent_masks.reshape(batch*timesteps, 1, self.num_agents).to(final_weights.device))/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1))
+		global_weights = F.softmax((final_weights.sum(dim=-2)*agent_masks.reshape(batch*timesteps, 1, self.num_agents).to(final_weights.device))/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1), dim=-1)
 		aggregated_node_features = (global_weights.unsqueeze(-1)*attention_values).sum(dim=-2) # Batch_size, Num heads, dim//num_heads
 		aggregated_node_features = self.attention_value_dropout(aggregated_node_features)
 		aggregated_node_features = aggregated_node_features.reshape(states.shape[0], -1) # Batch_size, dim
