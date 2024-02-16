@@ -323,7 +323,7 @@ class PPOAgent:
 				advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
 
 
-			factor = torch.ones((self.max_time_steps, self.update_ppo_agent)).float()
+			factor = torch.ones((self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length)).float()
 			shape = hidden_state_actor.shape
 			hidden_state_actor = hidden_state_actor.reshape(shape[0], self.max_time_steps, self.num_agents, -1)
 			
@@ -367,7 +367,7 @@ class PPOAgent:
 					grad_norm_policy = torch.tensor([total_norm ** 0.5])
 				self.policy_optimizer[agent_id].step()
 
-				factor = factor.to(self.device)*torch.prod(torch.exp(logprobs.unsqueeze(-1)-logprobs_old[:, :, agent_id].unsqueeze(-1).to(self.device)), dim=-1).reshape(self.max_time_steps, self.update_ppo_agent).detach()
+				factor = factor.to(self.device)*torch.prod(torch.exp(logprobs.unsqueeze(-1)-logprobs_old[:, :, agent_id].unsqueeze(-1).to(self.device)), dim=-1).reshape(self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length).detach()
 
 				policy_loss_collect += policy_loss.item()
 				policy_entropy_collect += entropy.item()
