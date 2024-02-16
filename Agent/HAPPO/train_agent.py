@@ -223,7 +223,7 @@ class HAPPO:
 				episode_reward += np.sum(rewards)
 				episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
 
-				states_actor, last_one_hot_actions, states_critic, indiv_dones = next_states_actor, one_hot_actions, next_states_critic, next_indiv_dones
+				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_indiv_dones
 				rnn_hidden_state_q, rnn_hidden_state_actor = next_rnn_hidden_state_q, next_rnn_hidden_state_actor
 
 				if all(indiv_dones) or step == self.max_time_steps:
