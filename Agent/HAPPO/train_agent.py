@@ -13,7 +13,7 @@ torch.autograd.set_detect_anomaly(True)
 
 
 
-class MAPPO:
+class HAPPO:
 
 	def __init__(self, env, dictionary):
 
@@ -204,7 +204,6 @@ class MAPPO:
 
 				q_value, next_rnn_hidden_state_q = self.agents.get_q_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, indiv_dones)
 
-
 				next_states_actor, rewards, next_dones, info = self.env.step(actions)
 				next_states_actor = np.array(next_states_actor)
 				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
@@ -214,28 +213,23 @@ class MAPPO:
 				next_indiv_dones = info["indiv_dones"]
 
 				if self.learn:
-					if self.experiment_type == "shared":
-						# rewards_to_send = [rewards]*self.num_agents
-						rewards_to_send = [rewards if indiv_dones[i]==0 else 0 for i in range(self.num_agents)]
-					else:
-						rewards_to_send = info["indiv_rewards"]
 
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, \
 						states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
-						rewards_to_send, indiv_dones
+						[np.sum(indiv_dones)]*self.num_agents, [all(indiv_dones)]*self.num_agents
 						)
 
 				episode_reward += np.sum(rewards)
 				episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
 
-				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_indiv_dones
+				states_actor, last_one_hot_actions, states_critic, indiv_dones = next_states_actor, one_hot_actions, next_states_critic, next_indiv_dones
 				rnn_hidden_state_q, rnn_hidden_state_actor = next_rnn_hidden_state_q, next_rnn_hidden_state_actor
 
 				if all(indiv_dones) or step == self.max_time_steps:
 
 					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps))
 					print("INDIV REWARD STREAMS", episode_indiv_rewards, "AGENTS DEAD", info["indiv_dones"])
 					print("*"*100)
 
@@ -339,7 +333,7 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 20000,
+				"max_episodes": 40000,
 				"max_time_steps": 100,
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -400,7 +394,7 @@ if __name__ == '__main__':
 		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
 		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
-		ma_controller = MAPPO(env,dictionary)
+		ma_controller = HAPPO(env,dictionary)
 		ma_controller.run()
 
 
