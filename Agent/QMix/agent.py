@@ -24,7 +24,8 @@ class QMIXAgent:
 		self.env_name = dictionary["env"]
 		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
-		self.obs_input_dim = dictionary["observation_shape"] # crossing_team_greedy
+		self.q_obs_input_dim = dictionary["q_observation_shape"]
+		self.q_mix_obs_input_dim = dictionary["q_mix_observation_shape"]
 
 		# Training setup
 		self.scheduler_need = dictionary["scheduler_need"]
@@ -52,12 +53,12 @@ class QMIXAgent:
 
 
 		# Q Network
-		self.Q_network = RNNQNetwork(self.obs_input_dim, self.num_actions, self.rnn_hidden_dim).to(self.device)
-		self.target_Q_network = RNNQNetwork(self.obs_input_dim, self.num_actions, self.rnn_hidden_dim).to(self.device)
+		self.Q_network = RNNQNetwork(self.q_obs_input_dim, self.num_actions, self.rnn_hidden_dim).to(self.device)
+		self.target_Q_network = RNNQNetwork(self.q_obs_input_dim, self.num_actions, self.rnn_hidden_dim).to(self.device)
 		# self.Q_network = AgentQNetwork(self.obs_input_dim, self.num_actions).to(self.device)
 		# self.target_Q_network = AgentQNetwork(self.obs_input_dim, self.num_actions).to(self.device)
-		self.QMix_network = QMIXNetwork(self.num_agents, self.hidden_dim, self.obs_input_dim * self.num_agents).to(self.device)
-		self.target_QMix_network = QMIXNetwork(self.num_agents, self.hidden_dim, self.obs_input_dim * self.num_agents).to(self.device)
+		self.QMix_network = QMIXNetwork(self.num_agents, self.hidden_dim, self.q_mix_obs_input_dim).to(self.device)
+		self.target_QMix_network = QMIXNetwork(self.num_agents, self.hidden_dim, self.q_mix_obs_input_dim).to(self.device)
 
 		self.loss_fn = nn.HuberLoss(reduction="sum")
 
@@ -151,12 +152,14 @@ class QMIXAgent:
 
 	def update(self, sample, episode):
 		# # sample episodes from replay buffer
-		state_batch, actions_batch, last_one_hot_actions_batch, next_state_batch, next_last_one_hot_actions_batch, next_mask_actions_batch, reward_batch, done_batch, mask_batch, max_episode_len = sample
+		state_batch, full_state_batch, actions_batch, last_one_hot_actions_batch, next_state_batch, next_full_state_batch, next_last_one_hot_actions_batch, next_mask_actions_batch, reward_batch, done_batch, mask_batch, max_episode_len = sample
 		# # convert list to tensor
 		state_batch = torch.FloatTensor(state_batch)
+		full_state_batch = torch.FloatTensor(full_state_batch)
 		actions_batch = torch.FloatTensor(actions_batch).long()
 		last_one_hot_actions_batch = torch.FloatTensor(last_one_hot_actions_batch)
 		next_state_batch = torch.FloatTensor(next_state_batch)
+		next_full_state_batch = torch.FloatTensor(next_full_state_batch)
 		next_last_one_hot_actions_batch = torch.FloatTensor(next_last_one_hot_actions_batch)
 		next_mask_actions_batch = torch.FloatTensor(next_mask_actions_batch)
 		reward_batch = torch.FloatTensor(reward_batch)
@@ -174,10 +177,12 @@ class QMIXAgent:
 		for _ in range(self.num_updates):
 			for t in range(max_episode_len):
 				# train in time order
-				states_slice = state_batch[:,t].reshape(-1, self.obs_input_dim)
+				states_slice = state_batch[:,t].reshape(-1, self.q_obs_input_dim)
+				full_states_slice = full_state_batch[:,t].reshape(-1, self.q_mix_obs_input_dim)
 				last_one_hot_actions_slice = last_one_hot_actions_batch[:,t].reshape(-1, self.num_actions)
 				actions_slice = actions_batch[:, t].reshape(-1)
-				next_states_slice = next_state_batch[:,t].reshape(-1, self.obs_input_dim)
+				next_states_slice = next_state_batch[:,t].reshape(-1, self.q_obs_input_dim)
+				next_full_states_slice = next_full_state_batch[:,t].reshape(-1, self.q_mix_obs_input_dim)
 				next_last_one_hot_actions_slice = next_last_one_hot_actions_batch[:,t].reshape(-1, self.num_actions)
 				next_mask_actions_slice = next_mask_actions_batch[:,t].reshape(-1, self.num_actions)
 				reward_slice = reward_batch[:, t].reshape(-1)
@@ -190,11 +195,10 @@ class QMIXAgent:
 
 				# if mask_slice.sum().cpu().numpy() < EPS:
 				# 	break
-
 				final_state_slice = torch.cat([states_slice, last_one_hot_actions_slice], dim=-1)
 				Q_values = self.Q_network(final_state_slice.to(self.device))
 				Q_evals = torch.gather(Q_values, dim=-1, index=actions_slice.unsqueeze(-1).to(self.device)).squeeze(-1)
-				Q_mix = self.QMix_network(Q_evals, state_batch[:,t].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device)).squeeze(-1).squeeze(-1) * mask_slice.to(self.device)
+				Q_mix = self.QMix_network(Q_evals, full_states_slice.to(self.device)).squeeze(-1).squeeze(-1) * mask_slice.to(self.device)
 
 				with torch.no_grad():
 					next_final_state_slice = torch.cat([next_states_slice, next_last_one_hot_actions_slice], dim=-1)
@@ -202,7 +206,7 @@ class QMIXAgent:
 					Q_targets = self.target_Q_network(next_final_state_slice.to(self.device))
 					a_argmax = torch.argmax(Q_evals_next+next_mask_actions_slice.to(self.device), dim=-1, keepdim=True)
 					Q_targets = torch.gather(Q_targets, dim=-1, index=a_argmax.to(self.device)).squeeze(-1)
-					Q_mix_target = self.target_QMix_network(Q_targets, next_state_batch[:, t].reshape(-1, self.num_agents*self.obs_input_dim).to(self.device)).squeeze(-1).squeeze(-1)
+					Q_mix_target = self.target_QMix_network(Q_targets, next_full_states_slice.to(self.device)).squeeze(-1).squeeze(-1)
 					
 				Q_mix_values.append(Q_mix)
 				target_Q_mix_values.append(Q_mix_target)
