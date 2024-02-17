@@ -522,6 +522,8 @@ class PPOAgent:
 			surr1 = ratios * advantage.to(self.device) * masks.to(self.device)
 			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.to(self.device) * masks.to(self.device)
 
+			print(surr1.shape, surr2.shape)
+
 			# final loss of clipped objective PPO
 			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks.sum() #(masks.sum()*self.num_agents)
 			policy_loss_ = (-torch.min(surr1, surr2).sum())/masks.sum()
@@ -646,8 +648,6 @@ class PPOAgent:
 		if "threshold" in self.experiment_type:
 			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode_batch
 			self.plotting_dict["avg_agent_group_over_episode"] = avg_agent_group_over_episode_batch
-		if "prd_top" in self.experiment_type:
-			self.plotting_dict["mean_min_weight_value"] = mean_min_weight_value
 
 		if self.comet_ml is not None:
 			self.plot(masks, episode)
