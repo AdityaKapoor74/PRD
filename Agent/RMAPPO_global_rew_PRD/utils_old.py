@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 import numpy as np
 
-from model import ValueNorm, RunningMeanStd
+from model_old import ValueNorm, RunningMeanStd
 
 
 def gumbel_sigmoid(logits: Tensor, tau: float = 1, hard: bool = False, threshold: float = 0.5) -> Tensor:
