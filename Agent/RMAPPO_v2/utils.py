@@ -181,6 +181,7 @@ class RolloutBuffer:
 		max_time_steps, 
 		num_agents, 
 		num_enemies,
+		top_k,
 		obs_shape_critic_ally, 
 		obs_shape_critic_enemy, 
 		obs_shape_actor, 
@@ -211,6 +212,7 @@ class RolloutBuffer:
 		self.max_time_steps = max_time_steps
 		self.num_agents = num_agents
 		self.num_enemies = num_enemies
+		self.top_k = top_k
 		self.obs_shape_critic_ally = obs_shape_critic_ally
 		self.obs_shape_critic_enemy = obs_shape_critic_enemy
 		self.obs_shape_actor = obs_shape_actor
@@ -343,8 +345,8 @@ class RolloutBuffer:
 		value, 
 		dones
 		):
-		self.Q_values[self.episode_num][self.time_step] = q_value
-		self.V_values[self.episode_num][self.time_step] = value
+		self.Q_values[self.episode_num][self.time_step+1] = q_value
+		self.V_values[self.episode_num][self.time_step+1] = value
 		self.dones[self.episode_num][self.time_step+1] = dones
 
 		self.episode_length[self.episode_num] = t
@@ -536,10 +538,3 @@ class RolloutBuffer:
 			nstep_values[:, t_start, :] = nstep_return_t
 		
 		return nstep_values
-
-
-if __name__ == '__main__':
-
-	a = torch.tensor([[[[10.0], [-10.0]]]])
-
-	print(gumbel_sigmoid(a, hard=True))
