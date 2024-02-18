@@ -201,6 +201,7 @@ class PPOAgent:
 			max_time_steps=self.max_time_steps, 
 			num_agents=self.num_agents, 
 			num_enemies=self.num_enemies,
+			top_k=dictionary["top_k"],
 			obs_shape_critic_ally=self.critic_ally_observation, 
 			obs_shape_critic_enemy=self.critic_enemy_observation, 
 			obs_shape_actor=self.actor_observation_shape, 
