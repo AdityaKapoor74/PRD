@@ -445,7 +445,7 @@ class RolloutBuffer:
 					target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
 			elif "top" in advantage_type:
 				if episode > self.transition_after:
-					values, indices = torch.topk(weights_prd, k=self.top_k, dim=-1)
+					_, indices = torch.topk(weights_prd, k=self.top_k, dim=-1)
 					mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 					target_values = torch.sum(target_q_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
 				else:
