@@ -144,6 +144,11 @@ class LICA:
 			states = np.array(states)
 			states = np.concatenate((self.agent_ids, states), axis=-1)
 			last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
+			states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1).reshape(-1)
+			states_enemies = np.array(info["enemy_states"]).reshape(-1)
+			full_state = np.concatenate((states_allies, states_enemies), axis=-1)
+			indiv_dones = [0]*self.num_agents
+			indiv_dones = np.array(indiv_dones)
 
 			images = []
 
@@ -175,11 +180,14 @@ class LICA:
 				next_states = np.array(next_states)
 				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
 				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
+				next_states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1).reshape(-1)
+				next_states_enemies = np.array(info["enemy_states"]).reshape(-1)
+				next_full_state = np.concatenate((next_states_allies, next_states_enemies), axis=-1)
 
 				if not self.gif:
-					self.buffer.push(states, states, last_one_hot_action, actions, next_last_one_hot_action, mask_actions, rewards, dones)
+					self.buffer.push(full_state, states, last_one_hot_action, actions, next_last_one_hot_action, mask_actions, rewards, dones)
 
-				states, mask_actions, last_one_hot_action = next_states, next_mask_actions, next_last_one_hot_action
+				states, full_state, mask_actions, last_one_hot_action = next_states, next_full_state, next_mask_actions, next_last_one_hot_action
 
 				episode_reward += np.sum(rewards)
 
@@ -209,7 +217,7 @@ class LICA:
 
 					_, _, dones, _ = self.env.step(actions)
 
-					self.buffer.end_episode(states, one_hot_actions, dones)
+					self.buffer.end_episode(full_state, one_hot_actions, dones)
 
 					break
 
@@ -250,7 +258,7 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "LICA_"+str(i)
 		test_num = "StarCraft"
-		env_name = "bane_vs_bane"
+		env_name = "3s5z"
 
 		dictionary = {
 				# TRAINING
@@ -278,7 +286,7 @@ if __name__ == '__main__':
 				"parallel_training": False,
 				"scheduler_need": False,
 				"update_episode_interval": 32,
-				"num_updates": 1,
+				"num_updates": 10,
 				"entropy_coeff": 0.06,
 				"lambda": 0.8,
 
@@ -305,7 +313,7 @@ if __name__ == '__main__':
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["global_observation"] = obs[0].shape[0]+env.n_agents
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
+		dictionary["global_observation"] = info["ally_states"].reshape(-1).shape[0] + info["enemy_states"].reshape(-1).shape[0] + env.n_agents**2
 		ma_controller = LICA(env, dictionary)
 		ma_controller.run()
