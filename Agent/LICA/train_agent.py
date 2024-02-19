@@ -258,7 +258,7 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "LICA_"+str(i)
 		test_num = "StarCraft"
-		env_name = "3s5z"
+		env_name = "10m_vs_11m"
 
 		dictionary = {
 				# TRAINING
