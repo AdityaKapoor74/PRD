@@ -256,20 +256,7 @@ class MAPPO:
 
 				if all(indiv_dones) or step == self.max_time_steps:
 
-					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
-					print("INDIV REWARD STREAMS", episode_indiv_rewards, "AGENTS DEAD", info["indiv_dones"])
-					print("*"*100)
-
 					final_timestep = step
-
-					if self.save_comet_ml_plot:
-						self.comet_ml.log_metric('Episode_Length', step, episode)
-						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
-						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
-						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
-						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
 
 					# if warmup
 					# self.agents.update_epsilon()
@@ -291,8 +278,34 @@ class MAPPO:
 
 						q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
 
+						# if all agents die, then global_q_value and q_i_value is nan
+						if all(indiv_dones):
+							global_q_value = [0.0 for _ in range(len(global_q_value))]
+							q_i_value = [0.0 for _ in range(len(q_i_value))]
+
+						print("Agents alive", indiv_dones)
+						# print("Q value", q_value)
+						print("Global Q value", global_q_value[0])
+						print("Q_i value", q_i_value)
+						# print("weight contri", approx_agent_contri_to_rew[0])
+						print("global weights", global_weights)
+						print("-"*10)
+
 						# self.agents.buffer.end_episode(final_timestep, q_value, q_i_value, value, indiv_dones)
 						self.agents.buffer.end_episode(final_timestep, global_q_value, q_i_value, value, indiv_dones)
+
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
+					print("INDIV REWARD STREAMS", episode_indiv_rewards, "AGENTS DEAD", info["indiv_dones"])
+					print("*"*100)
+
+					if self.save_comet_ml_plot:
+						self.comet_ml.log_metric('Episode_Length', step, episode)
+						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
+						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
+						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
+						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
 
 					break
 
@@ -334,6 +347,8 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 
+	torch.set_printoptions(profile="full")
+
 	for i in range(1,4):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
@@ -359,10 +374,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
@@ -428,8 +443,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 1e-3, #8e-3
-				"entropy_pen_final": 1e-3,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, #0.043, 0.1
