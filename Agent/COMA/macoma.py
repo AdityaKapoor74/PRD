@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from coma_agent import COMAAgent
 import datetime
+from buffer import RolloutBuffer
 
 
 
@@ -27,6 +28,12 @@ class MACOMA:
 		self.test_num = dictionary["test_num"]
 		self.max_episodes = dictionary["max_episodes"]
 		self.max_time_steps = dictionary["max_time_steps"]
+		self.update_episode_interval = dictionary["update_episode_interval"]
+
+		self.actor_rnn_num_layers = dictionary["actor_rnn_num_layers"]
+		self.actor_rnn_hidden_dim = dictionary["actor_rnn_hidden_dim"]
+		self.critic_rnn_num_layers = dictionary["critic_rnn_num_layers"]
+		self.critic_rnn_hidden_dim = dictionary["critic_rnn_hidden_dim"]
 
 		one_hot_ids = np.array([0 for i in range(self.num_agents)])
 		self.agent_ids = []
@@ -44,6 +51,22 @@ class MACOMA:
 
 
 		self.agents = COMAAgent(self.env, dictionary, self.comet_ml)
+
+		self.buffer = RolloutBuffer(
+			num_episodes = self.update_episode_interval,
+			max_time_steps = self.max_time_steps,
+			num_agents = self.num_agents,
+			critic_obs_shape = dictionary["global_observation"],
+			actor_obs_shape = dictionary["local_observation"],
+			critic_rnn_num_layers=dictionary["critic_rnn_num_layers"],
+			actor_rnn_num_layers=dictionary["actor_rnn_num_layers"],
+			critic_rnn_hidden_state_dim=dictionary["critic_rnn_hidden_dim"],
+			actor_rnn_hidden_state_dim=dictionary["actor_rnn_hidden_dim"],
+			data_chunk_length=dictionary["data_chunk_length"],
+			num_actions = self.num_actions,
+			lambda_=dictionary["lambda"],
+			gamma=dictionary["gamma"],
+			)
 
 		if self.save_model:
 			critic_dir = dictionary["critic_dir"]
@@ -81,22 +104,6 @@ class MACOMA:
 				print("Policy Eval Directory created successfully") 
 			except OSError as error: 
 				print("Policy Eval Directory can not be created")
-
-
-	def update(self, trajectory, episode):
-
-		states = torch.FloatTensor(np.array([sars[0] for sars in trajectory])).to(self.device)
-		
-		last_one_hot_actions = torch.FloatTensor(np.array([sars[1] for sars in trajectory])).to(self.device)
-		one_hot_actions = torch.FloatTensor(np.array([sars[2] for sars in trajectory])).to(self.device)
-		actions = torch.FloatTensor(np.array([sars[3] for sars in trajectory])).to(self.device)
-		mask_actions = torch.FloatTensor(np.array([sars[4] for sars in trajectory])).to(self.device)
-		
-		rewards = torch.FloatTensor(np.array([sars[5] for sars in trajectory])).to(self.device)
-		dones = torch.FloatTensor(np.array([sars[6] for sars in trajectory])).to(self.device)
-
-		self.agents.update(states, last_one_hot_actions, one_hot_actions, actions, mask_actions, rewards, dones, episode)
-
 
 
 	def make_gif(self,images,fname,fps=10, scale=1.0):
@@ -143,19 +150,28 @@ class MACOMA:
 		for episode in range(1,self.max_episodes+1):
 
 			states, info = self.env.reset(return_info=True)
-			mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
+			action_masks = np.array(info["avail_actions"])
 			states = np.array(states)
 			states = np.concatenate((self.agent_ids, states), axis=-1)
 			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+			states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+			states_enemies = np.repeat(np.array(info["enemy_states"]).reshape(1, -1), self.num_agents, axis=0)
+			full_state = np.concatenate((states_allies, states_enemies), axis=-1)
+			dones = [0]*self.num_agents
+			indiv_dones = [0]*self.num_agents
+			indiv_dones = np.array(indiv_dones)
 
 			images = []
 
 			trajectory = []
 			episode_reward = 0
 			final_timestep = self.max_time_steps
-			self.agents.policy_network.rnn_hidden_state = None
-			self.agents.critic_network.rnn_hidden_state = None
-			self.agents.target_critic_network.rnn_hidden_state = None
+			# self.agents.policy_network.rnn_hidden_state = None
+			# self.agents.critic_network.rnn_hidden_state = None
+			# self.agents.target_critic_network.rnn_hidden_state = None
+
+			actor_rnn_hidden_state = np.zeros((self.actor_rnn_num_layers, self.num_agents, self.actor_rnn_hidden_dim))
+			critic_rnn_hidden_state = np.zeros((self.actor_rnn_num_layers, self.num_agents, self.critic_rnn_hidden_dim))
 
 			for step in range(1, self.max_time_steps+1):
 
@@ -165,33 +181,37 @@ class MACOMA:
 						images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, _ = self.agents.get_actions(states, last_one_hot_actions, mask_actions, np.array(info["avail_actions"]))
+						probs, actions, next_actor_rnn_hidden_state = self.agents.get_actions(states, last_one_hot_actions, actor_rnn_hidden_state, action_masks)
 				else:
-					actions, _ = self.agents.get_actions(states, last_one_hot_actions, mask_actions, np.array(info["avail_actions"]))
+					probs, actions, next_actor_rnn_hidden_state = self.agents.get_actions(states, last_one_hot_actions, actor_rnn_hidden_state, action_masks)
 
-				one_hot_actions = np.zeros((self.num_agents,self.num_actions))
+				next_last_one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 				for i,act in enumerate(actions):
-					one_hot_actions[i][act] = 1
+					next_last_one_hot_actions[i][act] = 1
 
-				# rnn_hidden_state_critic = self.agents.get_critic_hidden(states, one_hot_actions)
+				q_value, next_critic_rnn_hidden_state = self.agents.get_critic_output(full_state, next_last_one_hot_actions, critic_rnn_hidden_state)
 
 				next_states, rewards, dones, info = self.env.step(actions)
-				dones = [int(dones)]*self.num_agents
+				next_dones = [int(dones)]*self.num_agents
 				# rewards = info["indiv_rewards"]
 				next_states = np.array(next_states)
 				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
-				next_mask_actions = (np.array(info["avail_actions"]) - 1) * 1e5
+				next_action_masks = np.array(info["avail_actions"])
+				next_states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+				next_states_enemies = np.repeat(np.array(info["enemy_states"]).reshape(1, -1), self.num_agents, axis=0)
+				next_full_state = np.concatenate((next_states_allies, next_states_enemies), axis=-1)
+				next_indiv_dones = info["indiv_dones"]
 
 				episode_reward += np.sum(rewards)
 
 				# environment gives indiv stream of rewards so we make the rewards global (COMA needs global rewards)
-				rewards_ = [rewards]*self.num_agents
+				rewards_ = [np.sum(rewards)]*self.num_agents
 
 
 				if self.learn:
-					trajectory.append([states, last_one_hot_actions, one_hot_actions, actions, mask_actions, rewards_, dones])
+					self.buffer.push(full_state, states, critic_rnn_hidden_state, actor_rnn_hidden_state, q_value, last_one_hot_actions, probs, actions, next_last_one_hot_actions, action_masks, rewards, dones)
 				
-				states, mask_actions, last_one_hot_actions = next_states, next_mask_actions, one_hot_actions
+				states, full_state, action_masks, last_one_hot_actions, dones, indiv_dones = next_states, next_full_state, next_action_masks, next_last_one_hot_actions, next_dones, next_indiv_dones
 
 				if all(dones) or step == self.max_time_steps:
 					print("*"*100)
@@ -226,8 +246,9 @@ class MACOMA:
 				torch.save(self.agents.critic_network.state_dict(), self.critic_model_path+'_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
-			if self.learn:
-				self.update(trajectory, episode) 
+			if self.learn and episode !=0 and episode%self.update_episode_interval == 0:
+				self.agents.update(self.buffer, episode)
+				self.buffer.clear()
 			elif self.gif and not(episode%self.gif_checkpoint):
 				print("GENERATING GIF")
 				self.make_gif(np.array(images),self.gif_path)
