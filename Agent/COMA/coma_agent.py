@@ -169,10 +169,9 @@ class COMAAgent:
 			
 			critic_loss = F.huber_loss(q_values*masks.to(self.device), target_q_values.to(self.device)*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 
-
 			entropy = -torch.sum(probs*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(probs*masks.unsqueeze(-1).to(self.device), 1e-10,1.0))) / masks.sum()
 		
-			policy_loss = self.calculate_policy_loss(probs, actions, advantage) - self.entropy_pen*entropy
+			policy_loss = self.calculate_policy_loss(probs, actions.to(self.device), advantage.to(self.device)) - self.entropy_pen*entropy
 			# # ***********************************************************************************
 				
 			
