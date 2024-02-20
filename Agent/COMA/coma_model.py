@@ -7,36 +7,70 @@ import datetime
 import math
 
 
-class MLP_Policy(nn.Module):
-	def __init__(self, obs_input_dim, num_actions, num_agents, device):
-		super(MLP_Policy, self).__init__()
+def init(module, weight_init, bias_init, gain=1):
+	weight_init(module.weight.data, gain=gain)
+	if module.bias is not None:
+		bias_init(module.bias.data)
+	return module
 
-		self.name = "MLP Policy"
+def init_(m, gain=0.01, activate=False):
+	if activate:
+		gain = nn.init.calculate_gain('relu')
+	return init(m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=gain)
 
-		self.rnn_hidden_state = None
+
+class RNN_Policy(nn.Module):
+	def __init__(self, obs_input_dim, num_actions, rnn_num_layers, num_agents, device):
+		super(RNN_Policy, self).__init__()
+
+		self.name = "RNN Policy"
+
 		self.num_agents = num_agents
+		self.rnn_num_layers = rnn_num_layers
 		self.num_actions = num_actions
 		self.device = device
-		self.Layer_1 = nn.Sequential(nn.Linear(obs_input_dim+num_actions, 64), nn.GELU())
-		self.RNN = nn.GRUCell(input_size=64, hidden_size=64)
-		self.Layer_2 = nn.Linear(64, num_actions)
+		self.mask_value = torch.tensor(
+				torch.finfo(torch.float).min, dtype=torch.float
+			)
 
-		self.reset_parameters()
+		self.Layer_1 = nn.Sequential(
+			init_(nn.Linear(obs_input_dim+num_actions, 64)), 
+			nn.GELU(),
+			nn.LayerNorm(64),
+			)
+		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=rnn_num_layers, batch_first=True)
+		self.Layer_2 = nn.Sequential(
+			nn.LayerNorm(64),
+			init_(nn.Linear(64, num_actions)),
+			)
 
-	def reset_parameters(self):
+		for name, param in self.RNN.named_parameters():
+			if 'bias' in name:
+				nn.init.constant_(param, 0)
+			elif 'weight' in name:
+				nn.init.orthogonal_(param)
 
-		nn.init.xavier_uniform_(self.Layer_1[0].weight)
-		nn.init.xavier_uniform_(self.Layer_2.weight)
 
+	# def forward(self, local_observations, mask_actions=None):
+	# 	intermediate = self.Layer_1(local_observations)
+	# 	if self.rnn_hidden_state is not None:
+	# 		self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
+	# 	else:
+	# 		self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state).view(*intermediate.shape)
+	# 	policy = self.Layer_2(self.rnn_hidden_state) + mask_actions
+	# 	return F.softmax(policy, dim=-1), self.rnn_hidden_state
 
-	def forward(self, local_observations, mask_actions=None):
+	def forward(self, local_observations, hidden_state, mask_actions=None):
+		batch, timesteps, num_agents, _ = local_observations.shape
 		intermediate = self.Layer_1(local_observations)
-		if self.rnn_hidden_state is not None:
-			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state.view(-1, intermediate.shape[-1])).view(*intermediate.shape)
-		else:
-			self.rnn_hidden_state = self.RNN(intermediate.view(-1, intermediate.shape[-1]), self.rnn_hidden_state).view(*intermediate.shape)
-		policy = self.Layer_2(self.rnn_hidden_state) + mask_actions
-		return F.softmax(policy, dim=-1), self.rnn_hidden_state
+		intermediate = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+		hidden_state = hidden_state.reshape(self.rnn_num_layers, batch*num_agents, -1)
+		output, h = self.RNN(intermediate, hidden_state)
+		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3)
+		logits = self.Layer_2(output)
+
+		logits = torch.where(mask_actions, logits, self.mask_value)
+		return F.softmax(logits, dim=-1), h
 
 
 '''
@@ -47,7 +81,7 @@ class TransformerCritic(nn.Module):
 	'''
 	https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
 	'''
-	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, num_actions, device):
+	def __init__(self, obs_input_dim, obs_output_dim, obs_act_input_dim, obs_act_output_dim, final_input_dim, final_output_dim, num_agents, rnn_num_layers, num_actions, device):
 		super(TransformerCritic, self).__init__()
 		
 		self.name = "TransformerCritic"
@@ -56,18 +90,41 @@ class TransformerCritic(nn.Module):
 		self.num_actions = num_actions
 		self.device = device
 
-		self.state_act_embed_attn = nn.Sequential(nn.Linear(obs_act_input_dim, 128), nn.LeakyReLU())
-		self.state_embed_attn = nn.Sequential(nn.Linear(obs_input_dim, 128), nn.LeakyReLU())
-		self.key_layer = nn.Linear(128, obs_act_output_dim, bias=True)
-		self.query_layer = nn.Linear(128, obs_output_dim, bias=True)
-		self.attention_value_layer = nn.Linear(128, obs_act_output_dim, bias=True)
+		self.state_act_embed_attn = nn.Sequential(
+			init_(nn.Linear(obs_act_input_dim, 64), activate=True), 
+			nn.GELU(),
+			nn.LayerNorm(64),
+			)
+		self.state_embed_attn = nn.Sequential(
+			init_(nn.Linear(obs_input_dim, 64), activate=True), 
+			nn.GELU(),
+			nn.LayerNorm(64),
+			)
+
+		self.key_layer = init_(nn.Linear(64, obs_act_output_dim, bias=False))
+		self.query_layer = init_(nn.Linear(64, obs_output_dim, bias=False))
+		self.attention_value_layer = init_(nn.Linear(64, obs_act_output_dim, bias=False))
+		self.attention_value_dropout = nn.Dropout(0.2)
+		self.attention_value_layer_norm = nn.LayerNorm(obs_act_output_dim)
+
+		self.attention_value_linear = nn.Sequential(
+			init_(nn.Linear(obs_act_output_dim, 64), activate=True),
+			nn.Dropout(0.2),
+			nn.GELU(),
+			nn.LayerNorm(64),
+			init_(nn.Linear(64, 64))
+			)
+		self.attention_value_linear_dropout = nn.Dropout(0.2)
+
+		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
+
 		# dimesion of key
 		self.d_k_obs_act = obs_act_output_dim  
 
 		# score corresponding to current agent should be 0
 		self.mask_score = torch.ones(self.num_agents,self.num_agents, dtype=torch.bool).to(self.device)
-		self.mask_attn_values = torch.ones(self.num_agents,self.num_agents, 128, dtype=torch.bool).to(self.device)
-		mask = torch.zeros(128, dtype=torch.bool).to(self.device)
+		self.mask_attn_values = torch.ones(self.num_agents,self.num_agents, 64, dtype=torch.bool).to(self.device)
+		mask = torch.zeros(64, dtype=torch.bool).to(self.device)
 		for j in range(self.num_agents):
 			self.mask_score[j][j] = False
 			self.mask_attn_values[j][j] = mask
@@ -76,41 +133,34 @@ class TransformerCritic(nn.Module):
 
 		# ********************************************************************************************************
 		# EMBED S of agent whose Q value is being est
-		self.state_embed_q = nn.Sequential(nn.Linear(obs_input_dim, obs_output_dim), nn.LeakyReLU())
-		# FCN FINAL LAYER TO GET VALUES
-		self.rnn_hidden_state = None
-		self.RNN = nn.GRUCell(final_input_dim, final_input_dim)
+		self.state_embed_q = nn.Sequential(
+			init_(nn.Linear(obs_input_dim, obs_output_dim), activate=True), 
+			nn.GELU(),
+			nn.LayerNorm(obs_output_dim),
+			)
+
+		self.common_layer = nn.Sequential(
+			init_(nn.Linear(obs_output_dim+64, 64), activate=True),
+			nn.GELU()
+			)
+
+		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=rnn_num_layers, batch_first=True)
 		self.final_value_layers = nn.Sequential(
-												nn.Linear(final_input_dim, 64, bias=True),
-												nn.LeakyReLU(),
-												nn.Linear(64, final_output_dim, bias=True)
-												)
-		# ********************************************************************************************************
-		self.reset_parameters()
+								nn.LayerNorm(64),
+								init_(nn.Linear(64, final_output_dim, bias=True), activate=True)
+								)
 
 
-	def reset_parameters(self):
-		"""Reinitialize learnable parameters."""
-		gain_leaky = nn.init.calculate_gain('leaky_relu')
+	def forward(self, states, actions, rnn_hidden_state):
+		batch, timesteps, num_agents, _ = states.shape
 
-		nn.init.xavier_uniform_(self.state_act_embed_attn[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.state_embed_attn[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.state_embed_q[0].weight, gain=gain_leaky)
-
-		nn.init.xavier_uniform_(self.key_layer.weight)
-		nn.init.xavier_uniform_(self.query_layer.weight)
-		nn.init.xavier_uniform_(self.attention_value_layer.weight)
-
-		nn.init.xavier_uniform_(self.final_value_layers[0].weight, gain=gain_leaky)
-		nn.init.xavier_uniform_(self.final_value_layers[2].weight, gain=gain_leaky)
-
-
-	def forward(self, states, actions):
+		states = states.reshape(batch*timesteps, num_agents, -1)
+		actions = actions.reshape(batch*timesteps, num_agents, -1)
 		state_actions = torch.cat([states, actions], dim=-1)
 		state_embed_attn = self.state_embed_attn(states)
 		state_act_embed_attn = self.state_act_embed_attn(state_actions)
 		# Keys
-		keys = self.key_layer(state_act_embed_attn)
+		keys = self.key_layer(state_embed_attn)
 		# Queries
 		queries = self.query_layer(state_embed_attn)
 		# Calc score (score corresponding to self to be made 0)
@@ -122,16 +172,18 @@ class TransformerCritic(nn.Module):
 		mask_attn = torch.ones_like(attention_values, dtype=torch.bool).to(self.device) * self.mask_attn_values
 		attention_values = attention_values[mask_attn].reshape(mask.shape[0], self.num_agents, self.num_agents-1,-1)
 		x = torch.sum(attention_values*weight.unsqueeze(-1), dim=-2)
+		x = self.attention_value_layer_norm(self.attention_value_dropout(x))
+		x_ = self.attention_value_linear(x)
+		x_ = self.attention_value_linear_dropout(x_)
+		x = self.attention_value_linear_layer_norm(x+x_)
 
 		# Embedding state of current agent
-		curr_agent_state_action_embed = self.state_embed_q(states)
+		curr_agent_state_embed = self.state_embed_q(states)
+		node_features = torch.cat([curr_agent_state_embed, x], dim=-1)
+		node_features = self.common_layer(node_features).reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+		rnn_output, rnn_hidden_state = self.RNN(node_features, rnn_hidden_state)
+		rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+		Value = self.final_value_layers(rnn_output)
 
-		node_features = torch.cat([curr_agent_state_action_embed, x], dim=-1)
-		shape = node_features.shape
-		if self.rnn_hidden_state is not None:
-			self.rnn_hidden_state = self.RNN(node_features.view(-1, shape[-1]), self.rnn_hidden_state.view(-1, shape[-1])).view(*shape)
-		else:
-			self.rnn_hidden_state = self.RNN(node_features.view(-1, shape[-1]), self.rnn_hidden_state).view(*shape)
-		Value = self.final_value_layers(self.rnn_hidden_state)
-
-		return Value, weight, self.rnn_hidden_state
+		
+		return Value, weight, rnn_hidden_state
