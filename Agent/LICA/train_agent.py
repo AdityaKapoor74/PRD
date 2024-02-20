@@ -54,8 +54,8 @@ class LICA:
 			num_episodes = self.update_episode_interval,
 			max_time_steps = self.max_time_steps,
 			num_agents = self.num_agents,
-			critic_obs_shape = self.critic_obs_shape,
-			actor_obs_shape = self.actor_obs_shape,
+			critic_obs_shape = dictionary["global_observation"],
+			actor_obs_shape = dictionary["local_observation"],
 			num_actions = self.num_actions
 			)
 
@@ -287,7 +287,7 @@ if __name__ == '__main__':
 				"scheduler_need": False,
 				"update_episode_interval": 32,
 				"num_updates": 10,
-				"entropy_coeff": 0.06,
+				"entropy_coeff": 1e-2,
 				"lambda": 0.8,
 
 				# ENVIRONMENT
