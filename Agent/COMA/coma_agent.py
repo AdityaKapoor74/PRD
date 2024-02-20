@@ -32,6 +32,7 @@ class COMAAgent:
 		
 		self.num_agents = self.env.n_agents
 		self.num_actions = self.env.action_space[0].n
+		self.num_updates = dictionary["num_updates"]
 
 		self.entropy_pen = dictionary["entropy_pen"]
 		self.epsilon_start = dictionary["epsilon_start"]
@@ -45,12 +46,14 @@ class COMAAgent:
 		self.enable_grad_clip_critic = dictionary["enable_grad_clip_critic"]
 		self.grad_clip_critic = dictionary["grad_clip_critic"]
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
+		self.actor_rnn_num_layers = dictionary["actor_rnn_num_layers"]
+		self.critic_rnn_num_layers = dictionary["critic_rnn_num_layers"]
 
 		# obs_dim = 2*3 + 1
 		self.critic_observation = dictionary["global_observation"]
-		self.critic_network = TransformerCritic(self.critic_observation, 128, self.critic_observation+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
-		self.target_critic_network = TransformerCritic(self.critic_observation, 128, self.critic_observation+self.num_actions, 128, 128+128, self.num_actions, self.num_agents, self.num_actions, self.device).to(self.device)
-
+		self.critic_network = TransformerCritic(self.critic_observation, 64, self.critic_observation+self.num_actions, 64, 64+64, self.num_actions, self.num_agents, self.critic_rnn_num_layers, self.num_actions, self.device).to(self.device)
+		self.target_critic_network = TransformerCritic(self.critic_observation, 64, self.critic_observation+self.num_actions, 64, 64+64, self.num_actions, self.num_agents, self.critic_rnn_num_layers, self.num_actions, self.device).to(self.device)
+		
 		self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 		# MLP POLICY
@@ -58,7 +61,7 @@ class COMAAgent:
 		torch.manual_seed(self.seeds[dictionary["iteration"]-1])
 		# obs_input_dim = 2*3+1 + (self.num_agents-1)*(2*2+1)
 		self.actor_observation = dictionary["local_observation"]
-		self.policy_network = MLP_Policy(self.actor_observation, self.num_actions, self.num_agents, self.device).to(self.device)
+		self.policy_network = RNN_Policy(self.actor_observation, self.num_actions, self.actor_rnn_num_layers, self.num_agents, self.device).to(self.device)
 
 
 		if dictionary["load_models"]:
@@ -89,66 +92,25 @@ class COMAAgent:
 			_, _, rnn_hidden_state_critic = self.critic_network(states.to(self.device), one_hot_actions.to(self.device))
 			return rnn_hidden_state_critic.cpu().numpy()
 
-	def get_actions(self, state, last_one_hot_actions, mask_actions, available_actions):
+	def get_critic_output(self, states, one_hot_actions, critic_rnn_hidden_state):
+		with torch.no_grad():
+			states = torch.FloatTensor(states).unsqueeze(0).unsqueeze(0)
+			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0).unsqueeze(0)
+			critic_rnn_hidden_state = torch.FloatTensor(critic_rnn_hidden_state)
+			Q_value, _, critic_rnn_hidden_state = self.target_critic_network(states.to(self.device), one_hot_actions.to(self.device), critic_rnn_hidden_state.to(self.device))
+
+			return Q_value.squeeze(0).cpu().numpy(), critic_rnn_hidden_state.cpu().numpy()
+
+	def get_actions(self, state, last_one_hot_actions, rnn_hidden_state, action_masks):
 		with torch.no_grad():
 			state = torch.FloatTensor(state)
 			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions)
-			final_state = torch.cat([state, last_one_hot_actions], dim=-1).to(self.device)
-			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
-			available_actions = torch.FloatTensor(available_actions).to(self.device)
-			dists, rnn_hidden_state = self.policy_network(final_state, mask_actions)
-			# dists = (1-self.epsilon)*dists + available_actions*self.epsilon/self.num_actions
-			action = [Categorical(dist).sample().cpu().detach().item() for dist in dists]
-			return action, rnn_hidden_state.cpu().numpy()
-
-
-	def calculate_advantages(self, Q_values, baseline):
-		
-		advantages = Q_values - baseline
-		
-		if self.norm_adv:
-			advantages = (advantages - advantages.mean()) / advantages.std()
-		
-		return advantages
-
-
-	def calculate_deltas(self, values, rewards, dones):
-		deltas = []
-		next_value = 0
-		rewards = rewards
-		dones = dones
-		masks = 1-dones
-		for t in reversed(range(0, len(rewards))):
-			td_error = rewards[t] + (self.gamma * next_value * masks[t]) - values.data[t]
-			next_value = values.data[t]
-			deltas.insert(0,td_error)
-		deltas = torch.stack(deltas)
-
-		return deltas
-
-
-	def nstep_returns(self,values, rewards, dones):
-		deltas = self.calculate_deltas(values, rewards, dones)
-		advs = self.calculate_returns(deltas, self.gamma*self.lambda_)
-		target_Vs = advs+values
-		return target_Vs
-
-
-	def calculate_returns(self,rewards, discount_factor):
-		returns = []
-		R = 0
-		
-		for r in reversed(rewards):
-			R = r + R * discount_factor
-			returns.insert(0, R)
-		
-		returns_tensor = torch.stack(returns).to(self.device)
-		
-		if self.norm_rew:
-			returns_tensor = (returns_tensor - returns_tensor.mean()) / returns_tensor.std()
-			
-		return returns_tensor
-
+			final_state = torch.cat([state, last_one_hot_actions], dim=-1).unsqueeze(0).unsqueeze(0).to(self.device)
+			action_masks = torch.BoolTensor(action_masks).unsqueeze(0).unsqueeze(0).to(self.device)
+			rnn_hidden_state = torch.FloatTensor(rnn_hidden_state).to(self.device)
+			dists, rnn_hidden_state = self.policy_network(final_state, rnn_hidden_state, action_masks)
+			action = [Categorical(dist).sample().cpu().detach().item() for dist in dists.squeeze(0).squeeze(0)]
+			return dists.squeeze(0).squeeze(0).cpu().numpy(), action, rnn_hidden_state.cpu().numpy()
 
 	def plot(self, episode):
 		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"].item(),episode)
@@ -159,17 +121,6 @@ class COMAAgent:
 
 		entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"]* torch.log(torch.clamp(self.plotting_dict["weights_value"], 1e-10,1.0)), dim=2))
 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
-
-		
-	def calculate_value_loss(self, Q_values, target_Q_values, rewards, dones, weights):
-		Q_target = self.nstep_returns(target_Q_values, rewards, dones).detach()
-		value_loss = F.smooth_l1_loss(Q_values, Q_target)
-
-		if self.critic_entropy_pen != 0:
-			weight_entropy = -torch.mean(torch.sum(weights * torch.log(torch.clamp(weights, 1e-10,1.0)), dim=2))
-			value_loss += self.critic_entropy_pen*weight_entropy
-
-		return value_loss
 
 
 
@@ -190,84 +141,74 @@ class COMAAgent:
 			self.target_critic_network.load_state_dict(self.critic_network.state_dict())
 
 
-	def update(self, states, last_one_hot_actions, one_hot_actions, actions, mask_actions, rewards, dones, episode):		
-		'''
-		Getting the probability mass function over the action space for each agent
-		'''
-		timesteps, num_agents, _ = states.shape
-		probs, Q_values_act_chosen, weights_value, V_values_baseline, target_Q_values_act_chosen = [], [], [], [], []
-		for t in range(timesteps):
-
-			prob, _ = self.policy_network(torch.cat([states[t], last_one_hot_actions[t]], dim=-1).to(self.device), mask_actions[t])
-
-			Q_value, weight_value, _ = self.critic_network(states[t].unsqueeze(0), one_hot_actions[t].unsqueeze(0))
-			Q_value_act_chosen = torch.sum(Q_value.reshape(-1, self.num_agents, self.num_actions) * one_hot_actions[t], dim=-1)
-			V_value_baseline = torch.sum(Q_value.reshape(-1, self.num_agents, self.num_actions) * prob.detach(), dim=-1)
-			
-			target_Q_value, _, _ = self.target_critic_network(states[t].unsqueeze(0), one_hot_actions[t].unsqueeze(0))
-			target_Q_value_act_chosen = torch.sum(target_Q_value.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions[t], dim=-1)
-
-			probs.append(prob)
-			Q_values_act_chosen.append(Q_value_act_chosen.squeeze(0))
-			weights_value.append(weight_value)
-			V_values_baseline.append(V_value_baseline)
-			target_Q_values_act_chosen.append(target_Q_value_act_chosen.squeeze(0))
-
-		probs = torch.stack(probs, dim=0).to(self.device)
-		Q_values_act_chosen = torch.stack(Q_values_act_chosen, dim=0).to(self.device)
-		weights_value = torch.stack(weights_value, dim=0).to(self.device).squeeze(1)
-		V_values_baseline = torch.stack(V_values_baseline, dim=0).to(self.device).squeeze(1)
-		target_Q_values_act_chosen = torch.stack(target_Q_values_act_chosen, dim=0).to(self.device)
+	def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
+		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
+		# Initialise  last  lambda -return  for  not  terminated  episodes
+		ret = target_qs.new_zeros(*target_qs.shape)
+		ret = target_qs * (1-terminated[:, 1:])
+		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
+		# Backwards  recursive  update  of the "forward  view"
+		for t in range(ret.shape[1] - 2, -1,  -1):
+			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t] \
+						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t+1]))
+		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+		# return ret[:, 0:-1]
+		return ret
 
 
-
-		# self.policy_network.rnn_hidden_state = rnn_hidden_state_actor
-		# probs, _ = self.policy_network(states, mask_actions)
-
-		# self.critic_network.rnn_hidden_state = rnn_hidden_state_critic
-		# Q_values, weights_value, _ = self.critic_network(states, one_hot_actions)
-		# Q_values_act_chosen = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
-		# V_values_baseline = torch.sum(Q_values.reshape(-1, self.num_agents, self.num_actions) * probs.detach(), dim=-1)
+	def update(self, buffer, episode):
 		
-		# self.target_critic_network.rnn_hidden_state = rnn_hidden_state_critic
-		# target_Q_values, target_weights_value, _ = self.target_critic_network(states, one_hot_actions)
-		# target_Q_values_act_chosen = torch.sum(target_Q_values.reshape(-1,self.num_agents, self.num_actions) * one_hot_actions, dim=-1)
+		for i in range(self.num_updates):
+			critic_states, critic_rnn_hidden_state, actor_states, actor_rnn_hidden_state, \
+			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, target_q_values, advantage = buffer.sample_recurrent_policy()
 
-		value_loss = self.calculate_value_loss(Q_values_act_chosen, target_Q_values_act_chosen, rewards, dones, weights_value)
-
-		advantage = self.calculate_advantages(Q_values_act_chosen, V_values_baseline)
-
-		entropy = -torch.mean(torch.sum(probs * torch.log(torch.clamp(probs, 1e-10,1.0)), dim=-1))
-	
-		policy_loss = self.calculate_policy_loss(probs, actions, advantage) - self.entropy_pen*entropy
-		# # ***********************************************************************************
+			probs, _ = self.policy_network(torch.cat([actor_states, last_one_hot_actions], dim=-1).to(self.device), actor_rnn_hidden_state.to(self.device), action_masks.to(self.device))
 			
+			q_values, weights_value, _ = self.critic_network(critic_states.to(self.device), one_hot_actions.to(self.device), critic_rnn_hidden_state.to(self.device))
+			q_values = (q_values.reshape(*one_hot_actions.shape)*one_hot_actions.to(self.device)).sum(dim=-1)
+			
+			critic_loss = F.huber_loss(q_values*masks.to(self.device), target_q_values.to(self.device)*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum()
+
+
+			entropy = -torch.sum(probs*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(probs*masks.unsqueeze(-1).to(self.device), 1e-10,1.0))) / masks.sum()
 		
-		self.critic_optimizer.zero_grad()
-		value_loss.backward()
-		if self.enable_grad_clip_critic:
-			grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
-		else:
-			grad_norm_value = torch.tensor([-1.0])
-		self.critic_optimizer.step()
+			policy_loss = self.calculate_policy_loss(probs, actions, advantage) - self.entropy_pen*entropy
+			# # ***********************************************************************************
+				
+			
+			self.critic_optimizer.zero_grad()
+			critic_loss.backward()
+			if self.enable_grad_clip_critic:
+				grad_norm_value = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(),self.grad_clip_critic)
+			else:
+				grad_norm = 0
+				for p in self.critic_network.parameters():
+					param_norm = p.grad.detach().data.norm(2)
+					grad_norm += param_norm.item() ** 2
+				grad_norm_value = torch.tensor(grad_norm) ** 0.5
+			self.critic_optimizer.step()
 
-		self.target_critic_network.rnn_hidden_state = None
-		self.critic_network.rnn_hidden_state = None
+			self.target_critic_network.rnn_hidden_state = None
+			self.critic_network.rnn_hidden_state = None
 
 
-		self.policy_optimizer.zero_grad()
-		policy_loss.backward()
-		if self.enable_grad_clip_actor:
-			grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
-		else:
-			grad_norm_policy = torch.tensor([-1.0])
-		self.policy_optimizer.step()
-		self.policy_network.rnn_hidden_state = None
+			self.policy_optimizer.zero_grad()
+			policy_loss.backward()
+			if self.enable_grad_clip_actor:
+				grad_norm_policy = torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(),self.grad_clip_actor)
+			else:
+				grad_norm = 0
+				for p in self.policy_network.parameters():
+					param_norm = p.grad.detach().data.norm(2)
+					grad_norm += param_norm.item() ** 2
+				grad_norm_policy = torch.tensor(grad_norm) ** 0.5
+			self.policy_optimizer.step()
+			self.policy_network.rnn_hidden_state = None
 
 		self.update_parameters()
 
 		self.plotting_dict = {
-		"value_loss": value_loss,
+		"value_loss": critic_loss,
 		"policy_loss": policy_loss,
 		"entropy": entropy,
 		"grad_norm_value":grad_norm_value,
