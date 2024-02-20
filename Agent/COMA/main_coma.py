@@ -11,7 +11,7 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "COMA_"+str(i)
 		test_num = "StarCraft"
-		env_name = "bane_vs_bane"
+		env_name = "3s5z"
 
 		dictionary = {
 				"critic_dir": "../../../tests/COMA_"+env_name+"/models/critic_networks/run"+str(i)+"/",
@@ -24,15 +24,22 @@ if __name__ == '__main__':
 				"iteration": i,
 				"value_lr": 1e-4, 
 				"policy_lr": 1e-4,
-				"enable_grad_clip_critic": False,
-				"enable_grad_clip_actor": False,
-				"grad_clip_critic": 10.0,
-				"grad_clip_actor": 10.0,
+				"critic_rnn_num_layers": 1, 
+				"critic_rnn_hidden_dim": 64,
+				"actor_rnn_num_layers": 1,
+				"actor_rnn_hidden_dim": 64,
+				"update_episode_interval": 10,
+				"data_chunk_length": 10,
+				"num_updates": 5,
+				"enable_grad_clip_critic": True,
+				"enable_grad_clip_actor": True,
+				"grad_clip_critic": 0.5,
+				"grad_clip_actor": 0.5,
 				"critic_entropy_pen": 0.0,
 				"epsilon_start": 1.0,
 				"epsilon_end": 0.05,
 				"entropy_pen": 1e-2, #8e-3
-				"epsilon_episode_steps": 750,
+				"epsilon_episode_steps": 5000,
 				"target_critic_update": 200,
 				"gamma": 0.99,
 				"lambda": 0.8,
@@ -53,7 +60,7 @@ if __name__ == '__main__':
 			}
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
 		obs, info = env.reset(return_info=True)
-		dictionary["global_observation"] = obs[0].shape[0]+env.n_agents
 		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
+		dictionary["global_observation"] = info["ally_states"].shape[1] + info["enemy_states"].reshape(-1).shape[0] + env.n_agents
 		ma_controller = MACOMA(env,dictionary)
 		ma_controller.run()
