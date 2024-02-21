@@ -167,6 +167,7 @@ class HAPPO:
 			states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 			states_actor = np.array(states_actor)
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
+			dones = False
 			indiv_dones = [0]*self.num_agents
 			indiv_dones = np.array(indiv_dones)
 
@@ -217,16 +218,16 @@ class HAPPO:
 					self.agents.buffer.push(
 						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, \
 						states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
-						[np.sum(indiv_dones)]*self.num_agents, [all(indiv_dones)]*self.num_agents
+						[rewards]*self.num_agents, [all(indiv_dones)]*self.num_agents
 						)
 
 				episode_reward += np.sum(rewards)
 				episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
 
-				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_indiv_dones
+				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, dones, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_dones, next_indiv_dones
 				rnn_hidden_state_q, rnn_hidden_state_actor = next_rnn_hidden_state_q, next_rnn_hidden_state_actor
 
-				if all(indiv_dones) or step == self.max_time_steps:
+				if dones or step == self.max_time_steps:
 
 					print("*"*100)
 					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps))
@@ -390,7 +391,6 @@ if __name__ == '__main__':
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
 		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
-		print(env.action_space[0])
 		obs, info = env.reset(return_info=True)
 		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
 		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
