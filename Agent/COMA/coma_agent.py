@@ -197,10 +197,10 @@ class COMAAgent:
 			self.policy_optimizer.step()
 
 			actor_loss_batch += policy_loss.item()
-			critic_loss_batch += value_loss.item()
+			critic_loss_batch += critic_loss.item()
 			entropy_batch += entropy.item()
 			critic_grad_norm_batch += grad_norm_value
-			actor_grad_norm_batch += grad_norm_policyk
+			actor_grad_norm_batch += grad_norm_policy
 
 		actor_loss_batch /= self.num_updates
 		critic_loss_batch /= self.num_updates
