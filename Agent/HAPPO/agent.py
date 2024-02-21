@@ -221,10 +221,10 @@ class PPOAgent:
 			hidden_states = torch.stack(hidden_states, dim=0).squeeze(-2).permute(1, 0, 2).float()
 
 			if greedy:
-				actions = [dist.argmax().detach().cpu().item() for dist in dists.reshape(self.num_agents, -1)]
+				actions = [dist.argmax().cpu().item() for dist in dists.reshape(self.num_agents, -1)]
 				action_logprob = None
 			else:
-				actions = [Categorical(dist).sample().detach().cpu().item() for dist in dists.reshape(self.num_agents, -1)]
+				actions = [Categorical(dist).sample().cpu().item() for dist in dists.reshape(self.num_agents, -1)]
 
 				probs = Categorical(dists)
 				action_logprob = probs.log_prob(torch.FloatTensor(actions).to(self.device)).cpu().numpy()
@@ -342,6 +342,7 @@ class PPOAgent:
 							)
 
 				probs = Categorical(dists.squeeze(-2))
+
 				logprobs = probs.log_prob(actions[:, :, agent_id].to(self.device))
 
 				ratios = torch.exp((logprobs - logprobs_old[:, :, agent_id].to(self.device)))
@@ -367,13 +368,26 @@ class PPOAgent:
 					grad_norm_policy = torch.tensor([total_norm ** 0.5])
 				self.policy_optimizer[agent_id].step()
 
-				factor = factor.to(self.device)*torch.prod(torch.exp(logprobs.unsqueeze(-1)-logprobs_old[:, :, agent_id].unsqueeze(-1).to(self.device)), dim=-1).reshape(self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length).detach()
+				# POST UPDATE POLICY OUTPUT TO UPDATE FACTOR
+				dists_new, _ = self.policy_network[agent_id](
+							states_actor[:, :, agent_id, :].to(self.device).unsqueeze(-2),
+							last_one_hot_actions[:, :, agent_id, :].to(self.device).unsqueeze(-2),
+							hidden_state_actor[:, :, agent_id, :].to(self.device).unsqueeze(-2),
+							action_masks[:, :, agent_id, :].to(self.device).unsqueeze(-2),
+							)
+
+				probs_new = Categorical(dists_new.squeeze(-2))
+
+				logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
+
+				factor = factor.to(self.device)*torch.exp(logprobs_new-logprobs[:, :, agent_id].to(self.device)).reshape(self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length).detach()
 
 				policy_loss_collect += policy_loss.item()
 				policy_entropy_collect += entropy.item()
 				policy_grad_norm_collect += grad_norm_policy.item()
 
 				# del dists, probs, logprobs, ratios, surr1, surr2, entropy, policy_loss_, policy_loss
+
 
 			policy_loss_collect /= self.num_agents
 			policy_entropy_collect /= self.num_agents
