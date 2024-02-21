@@ -124,10 +124,10 @@ class COMAAgent:
 
 
 
-	def calculate_policy_loss(self, probs, actions, advantage):
+	def calculate_policy_loss(self, probs, actions, advantage, masks):
 		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions) * advantage.detach()
-		policy_loss = policy_loss.mean()
+		policy_loss = -probs.log_prob(actions) * advantage.detach() * masks
+		policy_loss = policy_loss.sum() / masks.sum()
 
 		return policy_loss
 
@@ -171,7 +171,7 @@ class COMAAgent:
 
 			entropy = -torch.sum(probs*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(probs*masks.unsqueeze(-1).to(self.device), 1e-10,1.0))) / masks.sum()
 		
-			policy_loss = self.calculate_policy_loss(probs, actions.to(self.device), advantage.to(self.device)) - self.entropy_pen*entropy
+			policy_loss = self.calculate_policy_loss(probs, actions.to(self.device), advantage.to(self.device), masks.to(self.device)) - self.entropy_pen*entropy
 			# # ***********************************************************************************
 				
 			
