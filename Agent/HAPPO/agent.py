@@ -538,7 +538,7 @@ class PPOAgent:
 
 				probs = Categorical(dists.squeeze(-2))
 
-				logprobs = probs.log_prob(actions[:, :, agent_id].to(self.device).unsqueeze(-1))
+				logprobs = probs.log_prob(actions[:, :, agent_id].to(self.device))
 
 				ratios = torch.exp((logprobs - logprobs_old[:, :, agent_id].to(self.device)))
 
