@@ -78,19 +78,12 @@ class COMAAgent:
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 		
-		self.critic_optimizer = optim.Adam(self.critic_network.parameters(),lr=self.value_lr)
-		self.policy_optimizer = optim.Adam(self.policy_network.parameters(),lr=self.policy_lr)
+		self.critic_optimizer = optim.AdamW(self.critic_network.parameters(),lr=self.value_lr, weight_decay=1e-5)
+		self.policy_optimizer = optim.AdamW(self.policy_network.parameters(),lr=self.policy_lr, weight_decay=1e-5)
 
 		self.comet_ml = None
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
-
-	def get_critic_hidden(self, states, one_hot_actions):
-		with torch.no_grad():
-			states = torch.FloatTensor(states).unsqueeze(0)
-			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0)
-			_, _, rnn_hidden_state_critic = self.critic_network(states.to(self.device), one_hot_actions.to(self.device))
-			return rnn_hidden_state_critic.cpu().numpy()
 
 	def get_critic_output(self, states, one_hot_actions, critic_rnn_hidden_state):
 		with torch.no_grad():
@@ -113,11 +106,11 @@ class COMAAgent:
 			return dists.squeeze(0).squeeze(0).cpu().numpy(), action, rnn_hidden_state.cpu().numpy()
 
 	def plot(self, episode):
-		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"].item(),episode)
-		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"],episode)
-		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"].item(),episode)
-		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
-		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"].item(),episode)
+		self.comet_ml.log_metric('Value_Loss',self.plotting_dict["value_loss"],episode)
+		self.comet_ml.log_metric('Grad_Norm_Value',self.plotting_dict["grad_norm_value"], episode)
+		self.comet_ml.log_metric('Policy_Loss',self.plotting_dict["policy_loss"], episode)
+		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"], episode)
+		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"], episode)
 
 		entropy_weights = -torch.mean(torch.sum(self.plotting_dict["weights_value"]* torch.log(torch.clamp(self.plotting_dict["weights_value"], 1e-10,1.0)), dim=2))
 		self.comet_ml.log_metric('Critic_Weight_Entropy', entropy_weights.item(), episode)
@@ -157,6 +150,8 @@ class COMAAgent:
 
 
 	def update(self, buffer, episode):
+
+		actor_loss_batch, critic_loss_batch, entropy_batch, critic_grad_norm_batch, actor_grad_norm_batch = 0.0, 0.0, 0.0, 0.0, 0.0
 		
 		for i in range(self.num_updates):
 			critic_states, critic_rnn_hidden_state, actor_states, actor_rnn_hidden_state, \
@@ -165,14 +160,15 @@ class COMAAgent:
 			probs, _ = self.policy_network(torch.cat([actor_states, last_one_hot_actions], dim=-1).to(self.device), actor_rnn_hidden_state.to(self.device), action_masks.to(self.device))
 			
 			q_values, weights_value, _ = self.critic_network(critic_states.to(self.device), one_hot_actions.to(self.device), critic_rnn_hidden_state.to(self.device))
-			q_values = (q_values.reshape(*one_hot_actions.shape)*one_hot_actions.to(self.device)).sum(dim=-1)
 			
+			advantage = (q_values.reshape(*one_hot_actions.shape)*one_hot_actions.to(self.device)).sum(dim=-1) - (q_values.reshape(*one_hot_actions.shape)*probs.detach()).sum(dim=-1)
+			q_values = (q_values.reshape(*one_hot_actions.shape)*one_hot_actions.to(self.device)).sum(dim=-1)
+
 			critic_loss = F.huber_loss(q_values*masks.to(self.device), target_q_values.to(self.device)*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 
 			entropy = -torch.sum(probs*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(probs*masks.unsqueeze(-1).to(self.device), 1e-10,1.0))) / masks.sum()
-		
+
 			policy_loss = self.calculate_policy_loss(probs, actions.to(self.device), advantage.to(self.device), masks.to(self.device)) - self.entropy_pen*entropy
-			# # ***********************************************************************************
 				
 			
 			self.critic_optimizer.zero_grad()
@@ -187,9 +183,6 @@ class COMAAgent:
 				grad_norm_value = torch.tensor(grad_norm) ** 0.5
 			self.critic_optimizer.step()
 
-			self.target_critic_network.rnn_hidden_state = None
-			self.critic_network.rnn_hidden_state = None
-
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward()
@@ -202,16 +195,27 @@ class COMAAgent:
 					grad_norm += param_norm.item() ** 2
 				grad_norm_policy = torch.tensor(grad_norm) ** 0.5
 			self.policy_optimizer.step()
-			self.policy_network.rnn_hidden_state = None
+
+			actor_loss_batch += policy_loss.item()
+			critic_loss_batch += value_loss.item()
+			entropy_batch += entropy.item()
+			critic_grad_norm_batch += grad_norm_value
+			actor_grad_norm_batch += grad_norm_policyk
+
+		actor_loss_batch /= self.num_updates
+		critic_loss_batch /= self.num_updates
+		entropy_batch /= self.num_updates
+		critic_grad_norm_batch /= self.num_updates
+		actor_grad_norm_batch /= self.num_updates
 
 		self.update_parameters()
 
 		self.plotting_dict = {
-		"value_loss": critic_loss,
-		"policy_loss": policy_loss,
-		"entropy": entropy,
-		"grad_norm_value":grad_norm_value,
-		"grad_norm_policy": grad_norm_policy,
+		"value_loss": critic_loss_batch,
+		"policy_loss": actor_loss_batch,
+		"entropy": entropy_batch,
+		"grad_norm_value":critic_grad_norm_batch,
+		"grad_norm_policy": actor_grad_norm_batch,
 		"weights_value": weights_value,
 		}
 
