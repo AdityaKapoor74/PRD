@@ -395,7 +395,7 @@ if __name__ == '__main__':
 				"entropy_pen_final": 1e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.3, # 0.4 (5m_vs_6m), 0.25 (10m_vs_11m), 0.25 (3s5z)
+				"select_above_threshold": 0.25, # 0.4 (5m_vs_6m), 0.25 (10m_vs_11m), 0.25 (3s5z)
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
 				"steps_to_take": 5000,
