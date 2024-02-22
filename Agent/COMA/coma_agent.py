@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 import torch
 import torch.optim as optim
 from torch.distributions import Categorical
@@ -119,7 +120,7 @@ class COMAAgent:
 
 	def calculate_policy_loss(self, probs, actions, advantage, masks):
 		probs = Categorical(probs)
-		policy_loss = -probs.log_prob(actions) * advantage.detach() * masks
+		policy_loss = -probs.log_prob(actions) * advantage * masks
 		policy_loss = policy_loss.sum() / masks.sum()
 
 		return policy_loss
@@ -161,7 +162,16 @@ class COMAAgent:
 			
 			q_values, weights_value, _ = self.critic_network(critic_states.to(self.device), one_hot_actions.to(self.device), critic_rnn_hidden_state.to(self.device))
 			
-			advantage = (q_values.reshape(*one_hot_actions.shape)*one_hot_actions.to(self.device)).sum(dim=-1) - (q_values.reshape(*one_hot_actions.shape)*probs.detach()).sum(dim=-1)
+			advantage = (q_values.detach().reshape(*one_hot_actions.shape)*one_hot_actions.to(self.device)).sum(dim=-1) - (q_values.detach().reshape(*one_hot_actions.shape)*probs.detach()).sum(dim=-1)
+
+			# NORMALIZE ADVANTAGE
+			shape = advantage.shape
+			advantage_copy = copy.deepcopy(advantage)
+			advantage_copy[masks.view(*shape) == 0.0] = float('nan')
+			advantage_mean = torch.nanmean(advantage_copy)
+			advantage_std = torch.from_numpy(np.array(np.nanstd(advantage_copy.cpu().numpy()))).float()
+			advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
+
 			q_values = (q_values.reshape(*one_hot_actions.shape)*one_hot_actions.to(self.device)).sum(dim=-1)
 
 			critic_loss = F.huber_loss(q_values*masks.to(self.device), target_q_values.to(self.device)*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum()
@@ -170,7 +180,8 @@ class COMAAgent:
 
 			policy_loss = self.calculate_policy_loss(probs, actions.to(self.device), advantage.to(self.device), masks.to(self.device)) - self.entropy_pen*entropy
 				
-			
+			print("Policy Loss", policy_loss.item())
+
 			self.critic_optimizer.zero_grad()
 			critic_loss.backward()
 			if self.enable_grad_clip_critic:
