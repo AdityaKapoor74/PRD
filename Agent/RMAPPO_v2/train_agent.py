@@ -397,7 +397,7 @@ if __name__ == '__main__':
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, # 0.4 (5m_vs_6m), 0.25 (10m_vs_11m), 0.25 (3s5z)
 				"threshold_min": 0.0, 
-				"threshold_max": 0.3,
+				"threshold_max": 0.2,
 				"steps_to_take": 1000,
 				"top_k": 0, # 3 (5m_vs_6m), 5 (10m_vs_11m), 4 (3s5z)
 				"norm_adv": True,
