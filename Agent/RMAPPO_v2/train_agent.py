@@ -398,7 +398,7 @@ if __name__ == '__main__':
 				"select_above_threshold": 0.14, # 0.4 (5m_vs_6m), 0.25 (10m_vs_11m), 0.25 (3s5z)
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0,
-				"steps_to_take": 1000,
+				"steps_to_take": 5000,
 				"top_k": 0, # 3 (5m_vs_6m), 5 (10m_vs_11m), 4 (3s5z)
 				"norm_adv": True,
 
