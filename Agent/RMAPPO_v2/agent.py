@@ -335,9 +335,9 @@ class PPOAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
 
-		self.comet_ml.log_metric('Q_Value_LR',self.plotting_dict["q_value_lr"],episode)
-		self.comet_ml.log_metric('V_Value_LR',self.plotting_dict["v_value_lr"],episode)
-		self.comet_ml.log_metric('Policy_LR',self.plotting_dict["policy_lr"],episode)
+		# self.comet_ml.log_metric('Q_Value_LR',self.plotting_dict["q_value_lr"],episode)
+		# self.comet_ml.log_metric('V_Value_LR',self.plotting_dict["v_value_lr"],episode)
+		# self.comet_ml.log_metric('Policy_LR',self.plotting_dict["policy_lr"],episode)
 
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
@@ -639,9 +639,9 @@ class PPOAgent:
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_prd": weight_prd_batch,
 		"weights_v": weight_v_batch,
-		"v_value_lr": v_value_lr,
-		"q_value_lr": q_value_lr,
-		"policy_lr": policy_lr,
+		# "v_value_lr": v_value_lr,
+		# "q_value_lr": q_value_lr,
+		# "policy_lr": policy_lr,
 		}
 
 		if "threshold" in self.experiment_type:
