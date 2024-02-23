@@ -8,10 +8,10 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 	
-	for i in range(1,6):
+	for i in range(1,4):
 		extension = "PRD_old_"+str(i)
 		test_num = "StarCraft"
-		env_name = "3s5z"
+		env_name = "5m_vs_6m"
 		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay
 
 		torch.autograd.set_detect_anomaly(True)
@@ -35,10 +35,10 @@ if __name__ == '__main__':
 				"load_models": False,
 				"model_path_value": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/critic_networks/critic_epsiode100000.pt",
 				"model_path_policy": "../../../tests/PRD_2_MPE/models/crossing_team_greedy_prd_above_threshold_MAPPO_Q_run_2/actor_networks/actor_epsiode100000.pt",
-				"eval_policy": True,
-				"save_model": True,
+				"eval_policy": False,
+				"save_model": False,
 				"save_model_checkpoint": 1000,
-				"save_comet_ml_plot": True,
+				"save_comet_ml_plot": False,
 				"learn":True,
 				"max_episodes": 20000,
 				"max_time_steps": 100,
