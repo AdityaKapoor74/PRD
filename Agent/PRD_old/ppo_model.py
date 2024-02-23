@@ -1,5 +1,6 @@
 from typing import Any, List, Tuple, Union
 import time
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -358,9 +359,23 @@ class TransformerCritic(nn.Module):
 			self.place_policies[j][j] = one_hots
 			self.place_actions[j][j] = zero_hots
 
+		self.mask_value = torch.tensor(
+				torch.finfo(torch.float).min, dtype=torch.float
+			)
 
 
-	def forward(self, states, enemy_states, policies, actions, rnn_hidden_state, indiv_masks):
+	def get_attention_masks(self, agent_masks):
+		# since we add the attention masks to the score we want to have 0s where the agent is alive and -inf when agent is dead
+		attention_masks = copy.deepcopy(1-agent_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+		# choose columns in each row where the agent is dead and make it -inf
+		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)[:, :, :, :] == 0.0] = self.mask_value
+		# choose rows of the agent which is dead and make it -inf
+		attention_masks[agent_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).transpose(-1,-2)[:, :, :, :] == 0.0] = self.mask_value
+
+		return attention_masks
+
+
+	def forward(self, states, enemy_states, policies, actions, rnn_hidden_state, agent_masks):
 		
 		batch, timesteps, num_agents, _ = states.shape
 		_, _, num_enemies, _ = enemy_states.shape
@@ -377,7 +392,14 @@ class TransformerCritic(nn.Module):
 		query_obs = self.query(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
 		# WEIGHT
 		score = torch.matmul(query_obs, key_obs.transpose(-2,-1))/math.sqrt(self.d_k//self.num_heads)
+		
+		attention_masks = self.get_attention_masks(agent_masks)
+		score = score + attention_masks.reshape(*score.shape).to(score.device)
+
 		weight = F.softmax(score, dim=-1)
+
+		weight = weight * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
+		weight = weight * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
 		
 		# for head in range(self.num_heads):
 		# 	weight[:, head, :, :] = self.attention_dropout(weight[:, head, :, :])
@@ -418,7 +440,7 @@ class TransformerCritic(nn.Module):
 		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
 		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies_dropout(aggregated_attention_value_enemies_)
 		aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
-		
+
 		curr_agent_node_features = torch.cat([states_embed.unsqueeze(-2).repeat(1,1,self.num_agents,1), aggregated_attention_value_enemies.unsqueeze(1).repeat(1, self.num_agents, 1, 1), node_features], dim=-1)
 
 		curr_agent_node_features = self.common_layer(curr_agent_node_features)
