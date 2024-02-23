@@ -305,7 +305,7 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "HAPPO_"+str(i)
 		test_num = "StarCraft"
-		env_name = "3s5z"
+		env_name = "5m_vs_6m"
 		experiment_type = "HAPPO"
 
 		dictionary = {
@@ -354,7 +354,7 @@ if __name__ == '__main__':
 				"q_value_lr": 5e-4, #1e-3
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
-				"q_weight_decay": 0.0,
+				"q_weight_decay": 5e-4,
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.2,
@@ -380,9 +380,9 @@ if __name__ == '__main__':
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
-				"policy_weight_decay": 0.0,
-				"entropy_pen": 2e-2, #8e-3
-				"entropy_pen_final": 2e-2,
+				"policy_weight_decay": 5e-4,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"norm_adv": True,
