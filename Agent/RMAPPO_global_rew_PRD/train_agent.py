@@ -39,6 +39,7 @@ class MAPPO:
 		self.max_time_steps = dictionary["max_time_steps"]
 		self.experiment_type = dictionary["experiment_type"]
 		self.update_ppo_agent = dictionary["update_ppo_agent"]
+		self.norm_returns_q = dictionary["norm_returns_q"]
 
 		# RNN HIDDEN
 		self.rnn_num_layers_q = dictionary["rnn_num_layers_q"]
@@ -276,7 +277,14 @@ class MAPPO:
 						# q_value, _, _, _, value, _, q_i_value, indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
 						global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
-						q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
+						if self.norm_returns_q:
+							values_shape = global_q_value.shape
+							indiv_masks = [1-d for d in indiv_dones]
+							indiv_masks = torch.FloatTensor(indiv_masks)
+							global_q_value_denormalized = self.agents.critic_network_q.q_value_layer[-1].denormalize(torch.from_numpy(global_q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)
+
+							
+						q_i_value = [q*c for q, c in zip(global_q_value_denormalized, global_weights)]
 
 						# if all agents die, then global_q_value and q_i_value is nan
 						if all(indiv_dones):
