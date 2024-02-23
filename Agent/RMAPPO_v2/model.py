@@ -493,7 +493,7 @@ class Q_network(nn.Module):
 		
 		final_weights = weights.clone()
 		# prd_weights = F.softmax(score.clone(), dim=-2)
-		prd_weights = F.softmax(score.clone(), dim=-1)
+		prd_weights = F.softmax(score.clone(), dim=-2)
 		for i in range(self.num_agents):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
