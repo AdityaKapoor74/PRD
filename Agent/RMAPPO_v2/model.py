@@ -492,7 +492,8 @@ class Q_network(nn.Module):
 		weights = F.softmax(score, dim=-1) * hard_attention_weights # Batch_size, Num Heads, Num agents, Num Agents
 		
 		final_weights = weights.clone()
-		prd_weights = F.softmax(score.clone(), dim=-2)
+		# prd_weights = F.softmax(score.clone(), dim=-2)
+		prd_weights = F.softmax(score.clone(), dim=-1)
 		for i in range(self.num_agents):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
@@ -537,6 +538,8 @@ class Q_network(nn.Module):
 		rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
 		Q_value = self.q_value_layer(rnn_output) # Batch_size, Num agents, num_actions
 		
+
+
 		return Q_value.squeeze(-1), prd_weights, score, h
 
 
