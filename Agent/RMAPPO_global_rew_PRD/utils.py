@@ -453,12 +453,12 @@ class RolloutBuffer:
 			q_i_values = torch.from_numpy(self.Q_i_values[:, :-1, :]) * masks
 			next_q_i_values = torch.from_numpy(self.Q_i_values[:, -1, :]) * next_mask
 
-			if self.norm_returns_q:
-				values_shape = q_i_values.shape
-				q_i_values = self.q_value_norm.denormalize(q_i_values.view(-1)).view(values_shape) * masks.view(values_shape)
+			# if self.norm_returns_q:
+			# 	values_shape = q_i_values.shape
+			# 	q_i_values = self.q_value_norm.denormalize(q_i_values.view(-1)).view(values_shape) * masks.view(values_shape)
 
-				next_values_shape = next_q_i_values.shape
-				next_q_i_values = self.q_value_norm.denormalize(next_q_i_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
+			# 	next_values_shape = next_q_i_values.shape
+			# 	next_q_i_values = self.q_value_norm.denormalize(next_q_i_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
 
 			if self.target_calc_style == "GAE":
 				target_q_i_values = self.gae_targets(indiv_rewards, q_i_values, next_q_i_values, masks, next_mask)
@@ -498,7 +498,7 @@ class RolloutBuffer:
 				self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
 				
 				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-				
+
 				# targets_shape = target_q_i_values.shape
 				# self.q_value_norm.update(target_q_i_values.view(-1), masks.view(-1))
 				
