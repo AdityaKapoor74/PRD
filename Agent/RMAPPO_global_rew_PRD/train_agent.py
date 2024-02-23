@@ -166,7 +166,6 @@ class MAPPO:
 			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
 			indiv_dones = [0]*self.num_agents
 			indiv_dones = np.array(indiv_dones)
-			
 
 			images = []
 
@@ -174,9 +173,12 @@ class MAPPO:
 			episode_indiv_rewards = [0 for i in range(self.num_agents)]
 			final_timestep = self.max_time_steps
 
-			rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, self.num_agents, self.rnn_hidden_q))
+			# rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, self.num_agents, self.rnn_hidden_q))
+			global_rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, 1, self.rnn_hidden_q))
 			rnn_hidden_state_v = np.zeros((self.rnn_num_layers_v, self.num_agents, self.rnn_hidden_v))
 			rnn_hidden_state_actor = np.zeros((self.rnn_num_layers_actor, self.num_agents, self.rnn_hidden_actor))
+
+			# indiv_rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, self.num_agents, self.rnn_hidden_q))
 
 			for step in range(1, self.max_time_steps+1):
 
@@ -197,8 +199,8 @@ class MAPPO:
 				for i, act in enumerate(actions):
 					one_hot_actions[i][act] = 1
 
-				q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
-
+				# q_value, next_rnn_hidden_state_q, weights_prd, approx_agent_contri_to_rew, value, next_rnn_hidden_state_v, q_i_value, next_indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
+				global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 				next_states_actor, rewards, next_dones, info = self.env.step(actions)
 				next_states_actor = np.array(next_states_actor)
@@ -212,37 +214,49 @@ class MAPPO:
 					if self.experiment_type == "shared":
 						rewards_to_send = [rewards]*self.num_agents
 						# rewards_to_send = [rewards if indiv_dones[i]==0 else 0 for i in range(self.num_agents)]
+						indiv_rewards = [0]*self.num_agents
 					else:
-						rewards_to_send = info["indiv_rewards"]
+						# rewards_to_send = info["indiv_rewards"]
+						# assuming only global rewards are available
+						rewards_to_send = [rewards]*self.num_agents
+						indiv_rewards = [rewards]*self.num_agents
+						# indiv_rewards = [r*c for r, c in zip(indiv_rewards, approx_agent_contri_to_rew[0])]
+						indiv_rewards = [r*c for r, c in zip(indiv_rewards, global_weights)]
+
+						# attempt 1
+						# q_i_value = [q*c for q, c in zip(q_value, approx_agent_contri_to_rew[0])]
+						q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
+
+						print("Agents alive", indiv_dones)
+						# print("Q value", q_value)
+						print("Global Q value", global_q_value[0])
+						print("Q_i value", q_i_value)
+						# print("weight contri", approx_agent_contri_to_rew[0])
+						print("global weights", global_weights)
+						print("-"*10)
+
+					# self.agents.buffer.push(
+					# 	states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, q_i_value, indiv_rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
+					# 	states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
+					# 	rewards_to_send, indiv_rewards, indiv_dones
+					# 	)
 
 					self.agents.buffer.push(
-						states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
+						states_allies_critic, states_enemies_critic, global_q_value, global_rnn_hidden_state_q, q_i_value, weights_prd, value, rnn_hidden_state_v, \
 						states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
-						rewards_to_send, indiv_dones
+						rewards_to_send, indiv_rewards, indiv_dones
 						)
 
 				episode_reward += np.sum(rewards)
 				episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
 
 				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_indiv_dones
-				rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor = next_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor
+				# rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor, indiv_rnn_hidden_state_q = next_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor, next_indiv_rnn_hidden_state_q
+				global_rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor = next_global_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor
 
 				if all(indiv_dones) or step == self.max_time_steps:
 
-					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
-					print("INDIV REWARD STREAMS", episode_indiv_rewards, "AGENTS DEAD", info["indiv_dones"])
-					print("*"*100)
-
 					final_timestep = step
-
-					if self.save_comet_ml_plot:
-						self.comet_ml.log_metric('Episode_Length', step, episode)
-						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
-						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
-						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
-						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
 
 					# if warmup
 					# self.agents.update_epsilon()
@@ -259,9 +273,39 @@ class MAPPO:
 						for i,act in enumerate(actions):
 							one_hot_actions[i][act] = 1
 
-						q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+						# q_value, _, _, _, value, _, q_i_value, indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
+						global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
-						self.agents.buffer.end_episode(final_timestep, q_value, value, indiv_dones)
+						q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
+
+						# if all agents die, then global_q_value and q_i_value is nan
+						if all(indiv_dones):
+							global_q_value = [0.0 for _ in range(len(global_q_value))]
+							q_i_value = [0.0 for _ in range(len(q_i_value))]
+
+						print("Agents alive", indiv_dones)
+						# print("Q value", q_value)
+						print("Global Q value", global_q_value[0])
+						print("Q_i value", q_i_value)
+						# print("weight contri", approx_agent_contri_to_rew[0])
+						print("global weights", global_weights)
+						print("-"*10)
+
+						# self.agents.buffer.end_episode(final_timestep, q_value, q_i_value, value, indiv_dones)
+						self.agents.buffer.end_episode(final_timestep, global_q_value, q_i_value, value, indiv_dones)
+
+					print("*"*100)
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
+					print("INDIV REWARD STREAMS", episode_indiv_rewards, "AGENTS DEAD", info["indiv_dones"])
+					print("*"*100)
+
+					if self.save_comet_ml_plot:
+						self.comet_ml.log_metric('Episode_Length', step, episode)
+						self.comet_ml.log_metric('Reward', episode_reward, episode)
+						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
+						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
+						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
+						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
 
 					break
 
@@ -303,11 +347,13 @@ if __name__ == '__main__':
 	RENDER = False
 	USE_CPP_RVO2 = False
 
+	torch.set_printoptions(profile="full")
+
 	for i in range(1,4):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
 		env_name = "5m_vs_6m"
-		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
+		experiment_type = "prd_soft_advantage_global" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
 				# TRAINING
@@ -357,7 +403,7 @@ if __name__ == '__main__':
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
 				"q_value_lr": 5e-4, #1e-3
-				"v_value_lr": 5e-4, #1e-3
+				"v_value_lr": 1e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -380,6 +426,12 @@ if __name__ == '__main__':
 				"n_steps": 5,
 				"norm_returns_q": True,
 				"norm_returns_v": True,
+				"soft_update_q": False,
+				"tau_q": 0.05,
+				"network_update_interval_q": 1,
+				"soft_update_v": False,
+				"tau_v": 0.05,
+				"network_update_interval_v": 1,
 				
 
 				# ACTOR
@@ -391,23 +443,16 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 1e-2, #8e-3
-				"entropy_pen_final": 1e-2,
+				"entropy_pen": 5e-4, #8e-3
+				"entropy_pen_final": 5e-4,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.0, # 0.4 (5m_vs_6m), 0.25 (10m_vs_11m), 0.25 (3s5z)
+				"select_above_threshold": 0.0, #0.043, 0.1
 				"threshold_min": 0.0, 
-				"threshold_max": 0.25,
+				"threshold_max": 0.14, #0.12
 				"steps_to_take": 1000,
-				"top_k": 0, # 3 (5m_vs_6m), 5 (10m_vs_11m), 4 (3s5z)
+				"top_k": 0,
 				"norm_adv": True,
-
-				"soft_update_q": False,
-				"tau_q": 0.05,
-				"network_update_interval_q": 1,
-				"soft_update_v": False,
-				"tau_v": 0.05,
-				"network_update_interval_v": 1,
 			}
 
 		seeds = [42, 142, 242, 342, 442]
