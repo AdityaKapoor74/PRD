@@ -362,8 +362,8 @@ if __name__ == '__main__':
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
 				"attention_dropout_prob_v": 0.0,
-				"q_weight_decay": 0.0,
-				"v_weight_decay": 0.0,
+				"q_weight_decay": 5e-4,
+				"v_weight_decay": 5e-4,
 				"enable_grad_clip_critic_v": True,
 				"grad_clip_critic_v": 0.5,
 				"enable_grad_clip_critic_q": True,
@@ -390,14 +390,14 @@ if __name__ == '__main__':
 				"grad_clip_actor": 0.5,
 				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
-				"policy_weight_decay": 0.0,
-				"entropy_pen": 0.0, #8e-3
-				"entropy_pen_final": 0.0,
+				"policy_weight_decay": 5e-4,
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen_final": 1e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, # 0.4 (5m_vs_6m), 0.25 (10m_vs_11m), 0.25 (3s5z)
 				"threshold_min": 0.0, 
-				"threshold_max": 0.25,
+				"threshold_max": 0.3,
 				"steps_to_take": 1000,
 				"top_k": 0, # 3 (5m_vs_6m), 5 (10m_vs_11m), 4 (3s5z)
 				"norm_adv": True,
