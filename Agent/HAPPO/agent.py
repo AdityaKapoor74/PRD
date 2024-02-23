@@ -394,7 +394,7 @@ class PPOAgent:
 
 	# 		logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
 
-	# 		factor = factor.to(self.device)*torch.exp(logprobs_new-logprobs.to(self.device)).reshape(self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length).detach()
+	# 		factor = factor.to(self.device)*torch.exp((logprobs_new-logprobs.to(self.device))*masks[:, :, agent_id].to(self.device)).reshape(self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length).detach()
 
 
 	# 		policy_loss_collect /= self.num_agents
@@ -575,7 +575,7 @@ class PPOAgent:
 
 				logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
 
-				factor = factor.to(self.device)*torch.exp(logprobs_new-logprobs.to(self.device)*masks[:, :, agent_id].to(self.device)).reshape(self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length).detach()
+				factor = factor.to(self.device)*torch.exp((logprobs_new-logprobs.to(self.device))*masks[:, :, agent_id].to(self.device)).reshape(self.update_ppo_agent*self.data_chunk_length, self.max_time_steps//self.data_chunk_length).detach()
 
 				policy_loss_collect += policy_loss.item()
 				policy_entropy_collect += entropy.item()
