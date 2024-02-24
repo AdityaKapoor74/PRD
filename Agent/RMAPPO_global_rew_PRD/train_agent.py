@@ -6,11 +6,6 @@ from agent import PPOAgent
 import torch
 import datetime
 
-import gym
-import smaclite  # noqa
-
-torch.autograd.set_detect_anomaly(True)
-
 
 
 class MAPPO:
@@ -22,6 +17,7 @@ class MAPPO:
 		else:
 			self.device = "cpu"
 		self.env = env
+		self.environment = dictionary["environment"]
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
 		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
@@ -29,8 +25,20 @@ class MAPPO:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
-		self.num_enemies = self.env.n_enemies
+		self.num_agents = dictionary["num_agents"]
+		
+		if "StarCraft" in self.environment:
+			self.num_enemies = self.env.n_enemies
+
+			self.enemy_ids = []
+			for i in range(self.num_enemies):
+				enemy_id = np.array([0 for i in range(self.num_enemies)])
+				enemy_id[i] = 1
+				self.enemy_ids.append(enemy_id)
+			self.enemy_ids = np.array(self.enemy_ids)
+		else:
+			self.num_enemies = 1
+
 		self.num_actions = self.env.action_space[0].n
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
@@ -55,13 +63,6 @@ class MAPPO:
 			agent_id[i] = 1
 			self.agent_ids.append(agent_id)
 		self.agent_ids = np.array(self.agent_ids)
-
-		self.enemy_ids = []
-		for i in range(self.num_enemies):
-			enemy_id = np.array([0 for i in range(self.num_enemies)])
-			enemy_id[i] = 1
-			self.enemy_ids.append(enemy_id)
-		self.enemy_ids = np.array(self.enemy_ids)
 
 
 		self.comet_ml = None
@@ -143,6 +144,20 @@ class MAPPO:
 		clip.write_gif(fname, fps=fps)
 
 
+	# FOR COLLISION AVOIDANCE ENVIRONMENT
+	def split_states(self, states):
+		states_critic = []
+		states_actor = []
+		for i in range(self.num_agents):
+			states_critic.append(states[i][0])
+			states_actor.append(states[i][1])
+
+		states_critic = np.asarray(states_critic)
+		states_actor = np.asarray(states_actor)
+
+		return states_critic, states_actor
+
+
 
 
 	def run(self):  
@@ -152,27 +167,43 @@ class MAPPO:
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
 
+			if "MPE" in self.environment:
+				self.collision_rates = []
+				self.collison_rate_mean_per_1000_eps = []
+
 		# init_rnn_hidden_v = torch.zeros(self.num_agents, self.rnn_hidden_v)
 		# init_rnn_hidden_q = torch.zeros(self.num_agents, self.rnn_hidden_q)
 		# init_rnn_hidden_actor = torch.zeros(self.num_agents, self.rnn_hidden_actor)
 
 		for episode in range(1,self.max_episodes+1):
 
-			states_actor, info = self.env.reset(return_info=True)
-			mask_actions = np.array(info["avail_actions"], dtype=int)
-			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
-			states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-			states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
-			states_actor = np.array(states_actor)
-			states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
-			indiv_dones = [0]*self.num_agents
-			indiv_dones = np.array(indiv_dones)
+			if "StarCraft" in self.environment:
+				states_actor, info = self.env.reset(return_info=True)
+				mask_actions = np.array(info["avail_actions"], dtype=int)
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+				states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
+				states_actor = np.array(states_actor)
+				states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+			elif "MPE" in self.environment:
+				states = self.env.reset()
+				states_critic, states_actor = self.split_states(states)
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				mask_actions = np.ones((self.num_agents, self.num_actions))
 
 			images = []
 
 			episode_reward = 0
 			episode_indiv_rewards = [0 for i in range(self.num_agents)]
 			final_timestep = self.max_time_steps
+
+			if "MPE" in self.environment:
+				episode_collision_rate = 0.0
+				episode_goal_reached = 0.0
 
 			# rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, self.num_agents, self.rnn_hidden_q))
 			global_rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, 1, self.rnn_hidden_q))
@@ -201,66 +232,90 @@ class MAPPO:
 					one_hot_actions[i][act] = 1
 
 				# q_value, next_rnn_hidden_state_q, weights_prd, approx_agent_contri_to_rew, value, next_rnn_hidden_state_v, q_i_value, next_indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
-				global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+				if "StarCraft" in self.environment:
+					global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+				elif "MPE" in self.environment:
+					global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
-				next_states_actor, rewards, next_dones, info = self.env.step(actions)
-				next_states_actor = np.array(next_states_actor)
-				next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
-				next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-				next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
-				next_mask_actions = np.array(info["avail_actions"], dtype=int)
-				next_indiv_dones = info["indiv_dones"]
+				if "StarCraft" in self.environment:
+					next_states_actor, rewards, next_dones, info = self.env.step(actions)
+					next_states_actor = np.array(next_states_actor)
+					next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
+					next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+					next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
+					next_mask_actions = np.array(info["avail_actions"], dtype=int)
+					next_indiv_dones = info["indiv_dones"]
+				elif "MPE" in self.environment:
+					next_states, rewards, next_indiv_dones, info = self.env.step(actions)
+					next_states_critic, next_states_actor = self.split_states(next_states)
 
-				if self.learn:
-					if self.experiment_type == "shared":
-						rewards_to_send = [rewards]*self.num_agents
-						# rewards_to_send = [rewards if indiv_dones[i]==0 else 0 for i in range(self.num_agents)]
-						indiv_rewards = [0]*self.num_agents
-					else:
-						# rewards_to_send = info["indiv_rewards"]
-						# assuming only global rewards are available
-						rewards_to_send = [rewards]*self.num_agents
-						indiv_rewards = [rewards]*self.num_agents
-						# indiv_rewards = [r*c for r, c in zip(indiv_rewards, approx_agent_contri_to_rew[0])]
-						indiv_rewards = [r*c for r, c in zip(indiv_rewards, global_weights)]
+					next_mask_actions = np.ones((self.num_agents, self.num_actions))
 
-						# attempt 1
-						# q_i_value = [q*c for q, c in zip(q_value, approx_agent_contri_to_rew[0])]
-						q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
+					collision_rate = [value[1] for value in rewards]
+					goal_reached = [value[2] for value in rewards]
+					indiv_rewards = [value[0] for value in rewards] 
+					episode_collision_rate += np.sum(collision_rate)
+					episode_goal_reached += np.sum(goal_reached)
 
-						print("Agents alive", indiv_dones)
-						# print("Q value", q_value)
-						print("Global Q value", global_q_value[0])
-						print("Q_i value", q_i_value)
-						# print("weight contri", approx_agent_contri_to_rew[0])
-						print("global weights", global_weights)
-						print("-"*10)
-
-					# self.agents.buffer.push(
-					# 	states_allies_critic, states_enemies_critic, q_value, rnn_hidden_state_q, q_i_value, indiv_rnn_hidden_state_q, weights_prd, value, rnn_hidden_state_v, \
-					# 	states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
-					# 	rewards_to_send, indiv_rewards, indiv_dones
-					# 	)
-
-					self.agents.buffer.push(
-						states_allies_critic, states_enemies_critic, global_q_value, global_rnn_hidden_state_q, q_i_value, weights_prd, value, rnn_hidden_state_v, \
-						states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
-						rewards_to_send, indiv_rewards, indiv_dones
-						)
+					next_dones = all(next_indiv_dones)
+					rewards = np.sum(indiv_rewards)
 
 				episode_reward += np.sum(rewards)
-				episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
+				if "StarCraft" in self.environment:
+					episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
+				elif "MPE" in self.environment:
+					episode_indiv_rewards = [r+indiv_rewards[i] for i, r in enumerate(indiv_rewards)]
 
-				states_actor, last_one_hot_actions, states_allies_critic, states_enemies_critic, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_states_allies_critic, next_states_enemies_critic, next_mask_actions, next_indiv_dones
-				# rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor, indiv_rnn_hidden_state_q = next_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor, next_indiv_rnn_hidden_state_q
+				if self.learn:
+					# rewards_to_send = info["indiv_rewards"]
+					# assuming only global rewards are available
+					rewards_to_send = [rewards]*self.num_agents
+					indiv_rewards = [rewards]*self.num_agents
+
+					indiv_rewards = [r*c for r, c in zip(indiv_rewards, global_weights)]
+
+					if self.norm_returns_q:
+						values_shape = global_q_value.shape
+						indiv_masks = [1-d for d in indiv_dones]
+						indiv_masks = torch.FloatTensor(indiv_masks)
+						global_q_value_denormalized = (self.agents.critic_network_q.q_value_layer[-1].denormalize(torch.from_numpy(global_q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)).cpu().numpy()
+
+						q_i_value = [q*c for q, c in zip(global_q_value_denormalized, global_weights)]
+					else:
+						q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
+
+					print("Agents alive", indiv_dones)
+					# print("Q value", q_value)
+					print("Global Q value", global_q_value[0])
+					print("Q_i value", q_i_value)
+					# print("weight contri", approx_agent_contri_to_rew[0])
+					print("global weights", global_weights)
+					print("-"*10)
+
+					if "StarCraft" in self.environment:
+						self.agents.buffer.push(
+							states_allies_critic, states_enemies_critic, global_q_value, global_rnn_hidden_state_q, q_i_value, weights_prd, value, rnn_hidden_state_v, \
+							states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
+							rewards_to_send, indiv_rewards, indiv_dones
+							)
+
+						states_allies_critic, states_enemies_critic = next_states_allies_critic, next_states_enemies_critic
+
+					elif "MPE" in self.environment:
+						self.agents.buffer.push(
+							states_critic, None, global_q_value, global_rnn_hidden_state_q, q_i_value, weights_prd, value, rnn_hidden_state_v, \
+							states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
+							rewards_to_send, indiv_rewards, indiv_dones
+							)
+
+						states_critic = next_states_critic
+
+				states_actor, last_one_hot_actions, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_mask_actions, next_indiv_dones
 				global_rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor = next_global_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor
 
 				if all(indiv_dones) or step == self.max_time_steps:
 
 					final_timestep = step
-
-					# if warmup
-					# self.agents.update_epsilon()
 
 					# update prd threshold
 					if "threshold" in self.experiment_type:
@@ -274,17 +329,20 @@ class MAPPO:
 						for i,act in enumerate(actions):
 							one_hot_actions[i][act] = 1
 
-						# q_value, _, _, _, value, _, q_i_value, indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
-						global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+						if "StarCraft" in self.environment:
+							global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+						elif "MPE" in self.environment:
+							global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 						if self.norm_returns_q:
 							values_shape = global_q_value.shape
 							indiv_masks = [1-d for d in indiv_dones]
 							indiv_masks = torch.FloatTensor(indiv_masks)
-							global_q_value_denormalized = self.agents.critic_network_q.q_value_layer[-1].denormalize(torch.from_numpy(global_q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)
+							global_q_value_denormalized = (self.agents.critic_network_q.q_value_layer[-1].denormalize(torch.from_numpy(global_q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)).cpu().numpy()
 
-							
-						q_i_value = [q*c for q, c in zip(global_q_value_denormalized, global_weights)]
+							q_i_value = [q*c for q, c in zip(global_q_value_denormalized, global_weights)]
+						else:
+							q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
 
 						# if all agents die, then global_q_value and q_i_value is nan
 						if all(indiv_dones):
@@ -303,17 +361,26 @@ class MAPPO:
 						self.agents.buffer.end_episode(final_timestep, global_q_value, q_i_value, value, indiv_dones)
 
 					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | Num Allies Alive: {} | Num Enemies Alive: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, info["num_allies"], info["num_enemies"]))
-					print("INDIV REWARD STREAMS", episode_indiv_rewards, "AGENTS DEAD", info["indiv_dones"])
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} | INDIV REWARD STREAMS: {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps, episode_indiv_rewards))
+					
+					if "StarCraft" in self.environment:
+						print("Num Allies Alive: {} | Num Enemies Alive: {} AGENTS DEAD: {} \n", info["num_allies"], info["num_enemies"], info["indiv_dones"])
+					elif "MPE" in self.environment:
+						print("Num Agents Reached Goal {} | Num Collisions {} \n", np.sum(indiv_dones), episode_collision_rate)
 					print("*"*100)
 
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
-						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
-						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
-						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
+
+						if "StarCraft" in self.environment:
+							self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
+							self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
+							self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
+							self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
+						elif "MPE" in self.environment:
+							self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(indiv_dones), episode)
 
 					break
 
@@ -326,9 +393,15 @@ class MAPPO:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
 
+				if "MPE" in self.environment:
+					self.collision_rates.append(episode_collision_rate)
+
 			if episode > self.save_model_checkpoint and self.eval_policy:
 				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+
+				if "MPE" in self.environment:
+					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.critic_network_q.state_dict(), self.critic_model_path+'_Q_epsiode'+str(episode)+'.pt')
@@ -349,6 +422,20 @@ class MAPPO:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				
+				if "MPE" in self.environment:
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+
+
+def make_env(scenario_name, benchmark=False):
+	scenario = scenarios.load(scenario_name + ".py").Scenario()
+	world = scenario.make_world()
+	if benchmark:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
+	else:
+		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
+	return env, scenario.actor_observation_shape, scenario.critic_observation_shape
+
 
 if __name__ == '__main__':
 
@@ -356,11 +443,13 @@ if __name__ == '__main__':
 	USE_CPP_RVO2 = False
 
 	torch.set_printoptions(profile="full")
+	torch.autograd.set_detect_anomaly(True)
 
 	for i in range(1,4):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		env_name = "3s5z"
+		environment = "MPE" # StarCraft/ MPE/ PressurePlate/ Pursuit/ LBForaging
+		env_name = "crossing_team_greedy" # 5m_vs_6m/10m_vs_11m/3s5z/crossing_team_greedy
 		experiment_type = "prd_soft_advantage_global" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
@@ -374,6 +463,7 @@ if __name__ == '__main__':
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
 				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"environment": environment,
 				"test_num": test_num,
 				"extension": extension,
 				"gamma": 0.99,
@@ -391,8 +481,8 @@ if __name__ == '__main__':
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
-				"max_episodes": 20000,
-				"max_time_steps": 100,
+				"max_episodes": 30000, # 20000 (StarCraft environments)/ 30000 (MPE)
+				"max_time_steps": 100, # 100 (StarCraft environments & MPE)
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -465,10 +555,26 @@ if __name__ == '__main__':
 
 		seeds = [42, 142, 242, 342, 442]
 		torch.manual_seed(seeds[dictionary["iteration"]-1])
-		env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
-		obs, info = env.reset(return_info=True)
-		dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
-		dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
-		dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
+		if "StarCraft" in environment:
+			
+			import gym
+			import smaclite  # noqa
+			
+			env = gym.make(f"smaclite/{env_name}-v0", use_cpp_rvo2=USE_CPP_RVO2)
+			obs, info = env.reset(return_info=True)
+			dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
+			dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
+			dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
+			dictionary["num_agents"] = env.n_agents
+		elif "MPE" in environment:
+
+			from multiagent.environment import MultiAgentEnv
+			import multiagent.scenarios as scenarios
+
+			env, actor_observation_shape, critic_observation_shape = make_env(scenario_name=dictionary["env"], benchmark=False)
+			dictionary["ally_observation"] = critic_observation_shape
+			dictionary["local_observation"] = actor_observation_shape
+			dictionary["num_agents"] = env.n
+
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
