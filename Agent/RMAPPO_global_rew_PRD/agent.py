@@ -19,10 +19,10 @@ class PPOAgent:
 		):
 
 		# Environment Setup
+		self.environment = dictionary["environment"]
 		self.env = env
 		self.env_name = dictionary["env"]
-		self.num_agents = self.env.n_agents
-		self.num_enemies = self.env.n_enemies
+		self.num_agents = dictionary["num_agents"]
 		self.num_actions = self.env.action_space[0].n
 
 		# Training setup
@@ -49,7 +49,14 @@ class PPOAgent:
 		self.rnn_hidden_q = dictionary["rnn_hidden_q"]
 		self.rnn_hidden_v = dictionary["rnn_hidden_v"]
 		self.critic_ally_observation = dictionary["ally_observation"]
-		self.critic_enemy_observation = dictionary["enemy_observation"]
+
+		if "StarCraft" in self.environment:
+			self.num_enemies = self.env.n_enemies
+			self.critic_enemy_observation = dictionary["enemy_observation"]
+		else:
+			self.num_enemies = 1
+			self.critic_enemy_observation = 1
+
 		self.q_value_lr = dictionary["q_value_lr"]
 		self.v_value_lr = dictionary["v_value_lr"]
 		self.q_weight_decay = dictionary["q_weight_decay"]
@@ -124,7 +131,9 @@ class PPOAgent:
 			device=self.device, 
 			enable_hard_attention=self.enable_hard_attention, 
 			attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
-			temperature=self.temperature_q
+			temperature=self.temperature_q,
+			norm_returns=self.norm_returns_q,
+			environment=self.environment,
 			).to(self.device)
 		self.target_critic_network_q = Q_network(
 			ally_obs_input_dim=self.critic_ally_observation, 
@@ -137,7 +146,9 @@ class PPOAgent:
 			device=self.device, 
 			enable_hard_attention=self.enable_hard_attention, 
 			attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
-			temperature=self.temperature_q
+			temperature=self.temperature_q,
+			norm_returns=self.norm_returns_q,
+			environment=self.environment,
 			).to(self.device)
 		# Copy network params
 		self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
@@ -156,7 +167,9 @@ class PPOAgent:
 			device=self.device, 
 			enable_hard_attention=self.enable_hard_attention, 
 			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
-			temperature=self.temperature_v
+			temperature=self.temperature_v,
+			norm_returns=self.norm_returns_v,
+			environment=self.environment,
 			).to(self.device)
 		self.target_critic_network_v = V_network(
 			ally_obs_input_dim=self.critic_ally_observation, 
@@ -169,7 +182,9 @@ class PPOAgent:
 			device=self.device, 
 			enable_hard_attention=self.enable_hard_attention, 
 			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
-			temperature=self.temperature_v
+			temperature=self.temperature_v,
+			norm_returns=self.norm_returns_v,
+			environment=self.environment,
 			).to(self.device)
 		# Copy network params
 		self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
@@ -197,6 +212,7 @@ class PPOAgent:
 
 
 		self.buffer = RolloutBuffer(
+			environment=self.environment,
 			num_episodes=self.update_ppo_agent, 
 			max_time_steps=self.max_time_steps, 
 			num_agents=self.num_agents, 
@@ -286,38 +302,19 @@ class PPOAgent:
 			indiv_masks = [1-d for d in indiv_dones]
 			indiv_masks = torch.FloatTensor(indiv_masks).unsqueeze(0).unsqueeze(0)
 			state_allies = torch.FloatTensor(state_allies).unsqueeze(0).unsqueeze(0)
-			state_enemies = torch.FloatTensor(state_enemies).unsqueeze(0).unsqueeze(0)
+			if "StarCraft" in self.environment:
+				state_enemies = torch.FloatTensor(state_enemies).unsqueeze(0).unsqueeze(0)
 			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0).unsqueeze(0)
-			# rnn_hidden_state_q = torch.FloatTensor(rnn_hidden_state_q)
 			global_rnn_hidden_state_q = torch.FloatTensor(global_rnn_hidden_state_q)
 			rnn_hidden_state_v = torch.FloatTensor(rnn_hidden_state_v)
-			# indiv_rnn_hidden_state_q = torch.FloatTensor(indiv_rnn_hidden_state_q)
-			Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
-			# Q_value, weights_prd, score_q, rnn_hidden_state_q, Q_i, indiv_rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device), indiv_rnn_hidden_state_q.to(self.device))
-			global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 
-			# mask_value = torch.tensor(
-			# 	torch.finfo(torch.float).min, dtype=torch.float
-			# )
+			if "StarCraft" in self.environment:
+				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+			elif "MPE" in self.environment:
+				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 
-			# since we add the attention masks to the score we want to have 0s where the agent is alive and -inf when agent is dead
-			# attention_masks = copy.deepcopy(1-indiv_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
-			# score_q = score_q.cpu() * attention_masks
-			
-			# attention_masks = copy.deepcopy(indiv_masks).unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
-			# choose columns in each row where the agent is dead and make it -inf so that their softmax after the sum is 0.0
-			# attention_masks[indiv_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)[:, :, :, :] == 0.0] = 0.0 #mask_value
-			# make the diagonal elements 0.0 so that their contribution is none in the sum
-			# for i in range(self.num_agents):
-			# 	attention_masks[:, :, i, i] = 0.0 
-			# choose rows of the agent which is dead and make it 0.0 so that the contribution in the sum is none from their end
-			# attention_masks[indiv_masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).transpose(-1,-2)[:, :, :, :] == 0.0] = 0.0
-
-			# reward_redistribution = F.softmax((score_q + attention_masks).mean(dim=1).sum(dim=1), dim=-1).numpy()
-			# reward_redistribution = (((weights_prd.cpu() * attention_masks).mean(dim=1).sum(dim=1))/indiv_masks.sum(dim=-1)).numpy()
-			
-			# return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).numpy(), reward_redistribution, Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy(), Q_i.squeeze(0).cpu().numpy(), indiv_rnn_hidden_state_q.cpu().numpy()
-			
 			# we repeath global Q value because we assume that a global Q has been computed for each agent
 			return global_Q_value.reshape(-1).repeat(self.num_agents).cpu().numpy(), global_rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).squeeze(0).numpy(), global_weights.reshape(-1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 
@@ -361,9 +358,9 @@ class PPOAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
 
-		self.comet_ml.log_metric('Q_Value_LR',self.plotting_dict["q_value_lr"],episode)
-		self.comet_ml.log_metric('V_Value_LR',self.plotting_dict["v_value_lr"],episode)
-		self.comet_ml.log_metric('Policy_LR',self.plotting_dict["policy_lr"],episode)
+		# self.comet_ml.log_metric('Q_Value_LR',self.plotting_dict["q_value_lr"],episode)
+		# self.comet_ml.log_metric('V_Value_LR',self.plotting_dict["v_value_lr"],episode)
+		# self.comet_ml.log_metric('Policy_LR',self.plotting_dict["policy_lr"],episode)
 
 		if "threshold" in self.experiment_type:
 			for i in range(self.num_agents):
@@ -399,7 +396,7 @@ class PPOAgent:
 
 	def update(self, episode):
 		
-		v_value_lr, q_value_lr, policy_lr = self.v_value_lr, self.q_value_lr, self.policy_lr
+		# v_value_lr, q_value_lr, policy_lr = self.v_value_lr, self.q_value_lr, self.policy_lr
 		
 		# v_value_lr = self.lr_decay(episode, self.v_value_lr)
 		# for param_group in self.v_critic_optimizer.param_groups:
@@ -474,34 +471,46 @@ class PPOAgent:
 
 
 			target_shape = q_values_old.shape
-			# q_values, weights_prd, score_q, _, _, _ = self.critic_network_q(
-			# 									states_critic_allies.to(self.device),
-			# 									states_critic_enemies.to(self.device),
-			# 									one_hot_actions.to(self.device),
-			# 									hidden_state_q.to(self.device),
-			# 									masks.to(self.device),
-			# 									hidden_state_q.to(self.device),
-			# 									)
-			q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
-												states_critic_allies.to(self.device),
-												states_critic_enemies.to(self.device),
-												one_hot_actions.to(self.device),
-												hidden_state_q.to(self.device),
-												masks.to(self.device),
-												)
+			
+			if "StarCraft" in self.environment:
+				q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
+													states_critic_allies.to(self.device),
+													states_critic_enemies.to(self.device),
+													one_hot_actions.to(self.device),
+													hidden_state_q.to(self.device),
+													masks.to(self.device),
+													)
+			elif "MPE" in self.environment:
+				q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
+													states_critic_allies.to(self.device),
+													None,
+													one_hot_actions.to(self.device),
+													hidden_state_q.to(self.device),
+													masks.to(self.device),
+													)
+
 			# because q_value returned by the model is one single value for each timesteps but it expects N (num_agents) q_values for each timestep
 			q_values = q_values.reshape(target_shape[0], target_shape[1], 1).repeat(1, 1, self.num_agents)
 
 			q_values = q_values.reshape(*target_shape)
 
 			target_shape = values_old.shape
-			values, weight_v, score_v, h_v = self.critic_network_v(
-												states_critic_allies.to(self.device),
-												states_critic_enemies.to(self.device),
-												one_hot_actions.to(self.device),
-												hidden_state_v.to(self.device),
-												masks.to(self.device),
-												)
+			if "StarCraft" in self.environment:
+				values, weight_v, score_v, h_v = self.critic_network_v(
+													states_critic_allies.to(self.device),
+													states_critic_enemies.to(self.device),
+													one_hot_actions.to(self.device),
+													hidden_state_v.to(self.device),
+													masks.to(self.device),
+													)
+			elif "MPE" in self.environment:
+				values, weight_v, score_v, h_v = self.critic_network_v(
+													states_critic_allies.to(self.device),
+													None,
+													one_hot_actions.to(self.device),
+													hidden_state_v.to(self.device),
+													masks.to(self.device),
+													)
 			values = values.reshape(*target_shape)
 
 			dists, _ = self.policy_network(
@@ -514,6 +523,7 @@ class PPOAgent:
 			values *= masks.to(self.device)
 			target_values *= masks
 			q_values *= masks.to(self.device)	
+			# q_values = torch.nan_to_num(q_values, nan=0.0)
 			target_q_values *= masks
 
 			probs = Categorical(dists)
@@ -546,9 +556,6 @@ class PPOAgent:
 				# score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
 				# score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
 			
-			# print("weights entropy")
-			# print(entropy_weights.item()/weights_prd.shape[1], entropy_weights_v.item()/weight_v.shape[1])
-
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) #+ self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) #+ self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
@@ -677,9 +684,9 @@ class PPOAgent:
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_prd": weight_prd_batch,
 		"weights_v": weight_v_batch,
-		"v_value_lr": v_value_lr,
-		"q_value_lr": q_value_lr,
-		"policy_lr": policy_lr,
+		# "v_value_lr": v_value_lr,
+		# "q_value_lr": q_value_lr,
+		# "policy_lr": policy_lr,
 		}
 
 		if "threshold" in self.experiment_type:
