@@ -23,7 +23,7 @@ class PPOAgent:
 		self.env = env
 		self.env_name = dictionary["env"]
 		self.num_agents = dictionary["num_agents"]
-		self.num_actions = self.env.action_space[0].n
+		self.num_actions = dictionary["num_actions"]
 
 		# Training setup
 		self.max_episodes = dictionary["max_episodes"]
@@ -311,7 +311,7 @@ class PPOAgent:
 			if "StarCraft" in self.environment:
 				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-			elif "MPE" in self.environment:
+			elif self.environment in ["MPE", "PressurePlate"]:
 				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 
@@ -325,13 +325,12 @@ class PPOAgent:
 			self.epsilon = max(self.epsilon, self.epsilon_end)
 
 	
-	def get_action(self, state_policy, last_one_hot_actions, mask_actions, hidden_state, greedy=False):
+	def get_action(self, state_policy, mask_actions, hidden_state, greedy=False):
 		with torch.no_grad():
 			state_policy = torch.FloatTensor(state_policy).unsqueeze(0).unsqueeze(1).to(self.device)
-			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions).unsqueeze(0).unsqueeze(1).to(self.device)
 			mask_actions = torch.BoolTensor(mask_actions).unsqueeze(0).unsqueeze(1).to(self.device)
 			hidden_state = torch.FloatTensor(hidden_state).to(self.device)
-			dists, hidden_state = self.policy_network(state_policy, last_one_hot_actions, hidden_state, mask_actions)
+			dists, hidden_state = self.policy_network(state_policy, hidden_state, mask_actions)
 
 			if self.warm_up:
 				available_actions = (mask_actions>0).int()
@@ -480,7 +479,7 @@ class PPOAgent:
 													hidden_state_q.to(self.device),
 													masks.to(self.device),
 													)
-			elif "MPE" in self.environment:
+			elif self.environment in ["MPE", "PressurePlate"]:
 				q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
 													states_critic_allies.to(self.device),
 													None,
@@ -503,7 +502,7 @@ class PPOAgent:
 													hidden_state_v.to(self.device),
 													masks.to(self.device),
 													)
-			elif "MPE" in self.environment:
+			elif self.environment in ["MPE", "PressurePlate"]:
 				values, weight_v, score_v, h_v = self.critic_network_v(
 													states_critic_allies.to(self.device),
 													None,
@@ -515,7 +514,6 @@ class PPOAgent:
 
 			dists, _ = self.policy_network(
 					states_actor.to(self.device),
-					last_one_hot_actions.to(self.device),
 					hidden_state_actor.to(self.device),
 					action_masks.to(self.device),
 					)
