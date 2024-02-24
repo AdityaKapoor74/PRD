@@ -290,8 +290,7 @@ class Policy(nn.Module):
 				nn.init.orthogonal_(param)
 
 
-	def forward(self, local_observations, one_hot_actions, hidden_state, mask_actions=None):
-		# local_observations = torch.cat([local_observations, one_hot_actions], dim=-1)
+	def forward(self, local_observations, hidden_state, mask_actions=None):
 		batch, timesteps, num_agents, _ = local_observations.shape
 		intermediate = self.Layer_1(local_observations)
 		intermediate = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
@@ -396,7 +395,7 @@ class Q_network(nn.Module):
 				nn.GELU(),
 				nn.LayerNorm(64),
 				)
-			
+
 			# Attention for agents to enemies
 			# Key, Query, Attention Value, Hard Attention Networks
 			assert 64%self.num_heads == 0
