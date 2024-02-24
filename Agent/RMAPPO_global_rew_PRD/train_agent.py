@@ -39,7 +39,7 @@ class MAPPO:
 		else:
 			self.num_enemies = 1
 
-		self.num_actions = self.env.action_space[0].n
+		self.num_actions = dictionary["num_actions"]
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
@@ -184,13 +184,24 @@ class MAPPO:
 				states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 				states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 				states_actor = np.array(states_actor)
-				states_actor = np.concatenate((self.agent_ids, states_actor), axis=-1)
+				states_actor = np.concatenate((self.agent_ids, states_actor, last_one_hot_actions), axis=-1)
 				indiv_dones = [0]*self.num_agents
 				indiv_dones = np.array(indiv_dones)
 			elif "MPE" in self.environment:
 				states = self.env.reset()
 				states_critic, states_actor = self.split_states(states)
+				states_actor = np.concatenate((states_actor, last_one_hot_actions), axis=-1)
 				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				mask_actions = np.ones((self.num_agents, self.num_actions))
+			elif "PressurePlate" in self.environment:
+				states = self.env.reset()
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				states_critic = np.array(states)
+				states_critic = np.concatenate((self.agent_ids, states_critic), axis=-1)
+				states_actor = np.array(states)
+				states_actor = np.concatenate((self.agent_ids, states_actor, last_one_hot_actions), axis=-1)
 				indiv_dones = [0]*self.num_agents
 				indiv_dones = np.array(indiv_dones)
 				mask_actions = np.ones((self.num_agents, self.num_actions))
@@ -223,9 +234,9 @@ class MAPPO:
 					self.env.render()
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
+						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor, greedy=False)
 				else:
-					actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+					actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor)
 
 				one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 				for i, act in enumerate(actions):
@@ -234,20 +245,22 @@ class MAPPO:
 				# q_value, next_rnn_hidden_state_q, weights_prd, approx_agent_contri_to_rew, value, next_rnn_hidden_state_v, q_i_value, next_indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
 				if "StarCraft" in self.environment:
 					global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
-				elif "MPE" in self.environment:
+				elif self.environment in ["MPE", "PressurePlate"]:
 					global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 				if "StarCraft" in self.environment:
 					next_states_actor, rewards, next_dones, info = self.env.step(actions)
 					next_states_actor = np.array(next_states_actor)
-					next_states_actor = np.concatenate((self.agent_ids, next_states_actor), axis=-1)
+					next_states_actor = np.concatenate((self.agent_ids, next_states_actor, last_one_hot_actions), axis=-1)
 					next_states_allies_critic = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
 					next_states_enemies_critic = np.concatenate((self.enemy_ids, info["enemy_states"]), axis=-1)
 					next_mask_actions = np.array(info["avail_actions"], dtype=int)
 					next_indiv_dones = info["indiv_dones"]
+					indiv_rewards = info["indiv_rewards"]
 				elif "MPE" in self.environment:
 					next_states, rewards, next_indiv_dones, info = self.env.step(actions)
 					next_states_critic, next_states_actor = self.split_states(next_states)
+					next_states_actor = np.concatenate((next_states_actor, last_one_hot_actions), axis=-1)
 
 					next_mask_actions = np.ones((self.num_agents, self.num_actions))
 
@@ -259,15 +272,20 @@ class MAPPO:
 
 					next_dones = all(next_indiv_dones)
 					rewards = np.sum(indiv_rewards)
+				elif "PressurePlate" in self.environment:
+					next_states, indiv_rewards, next_indiv_dones, info = self.env.step(actions)
+					next_states_actor = np.array(next_states)
+					next_states_actor = np.concatenate((self.agent_ids, next_states_actor, last_one_hot_actions), axis=-1)
+					next_states_critic = np.array(next_states)
+					next_states_critic = np.concatenate((self.agent_ids, next_states_critic), axis=-1)
+					rewards = np.sum(indiv_rewards)
+					next_mask_actions = np.ones((self.num_agents, self.num_actions))
+					next_dones = all(next_indiv_dones)
 
 				episode_reward += np.sum(rewards)
-				if "StarCraft" in self.environment:
-					episode_indiv_rewards = [r+info["indiv_rewards"][i] for i, r in enumerate(episode_indiv_rewards)]
-				elif "MPE" in self.environment:
-					episode_indiv_rewards = [r+indiv_rewards[i] for i, r in enumerate(indiv_rewards)]
+				episode_indiv_rewards = [r+indiv_rewards[i] for i, r in enumerate(episode_indiv_rewards)]
 
 				if self.learn:
-					# rewards_to_send = info["indiv_rewards"]
 					# assuming only global rewards are available
 					rewards_to_send = [rewards]*self.num_agents
 					indiv_rewards = [rewards]*self.num_agents
@@ -284,7 +302,7 @@ class MAPPO:
 					else:
 						q_i_value = [q*c for q, c in zip(global_q_value, global_weights)]
 
-					print("Agents alive", indiv_dones)
+					print("Agents done", indiv_dones)
 					# print("Q value", q_value)
 					print("Global Q value", global_q_value[0])
 					print("Q_i value", q_i_value)
@@ -301,7 +319,7 @@ class MAPPO:
 
 						states_allies_critic, states_enemies_critic = next_states_allies_critic, next_states_enemies_critic
 
-					elif "MPE" in self.environment:
+					elif self.environment in ["MPE", "PressurePlate"]:
 						self.agents.buffer.push(
 							states_critic, None, global_q_value, global_rnn_hidden_state_q, q_i_value, weights_prd, value, rnn_hidden_state_v, \
 							states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
@@ -323,7 +341,7 @@ class MAPPO:
 
 					if self.learn:
 						# add final time to buffer
-						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_one_hot_actions, mask_actions, rnn_hidden_state_actor)
+						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor)
 					
 						one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 						for i,act in enumerate(actions):
@@ -331,7 +349,7 @@ class MAPPO:
 
 						if "StarCraft" in self.environment:
 							global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
-						elif "MPE" in self.environment:
+						elif self.environment in ["MPE", "PressurePlate"]:
 							global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 						if self.norm_returns_q:
@@ -349,7 +367,7 @@ class MAPPO:
 							global_q_value = [0.0 for _ in range(len(global_q_value))]
 							q_i_value = [0.0 for _ in range(len(q_i_value))]
 
-						print("Agents alive", indiv_dones)
+						print("Agents done", indiv_dones)
 						# print("Q value", q_value)
 						print("Global Q value", global_q_value[0])
 						print("Q_i value", q_i_value)
@@ -367,6 +385,8 @@ class MAPPO:
 						print("Num Allies Alive: {} | Num Enemies Alive: {} AGENTS DEAD: {} \n", info["num_allies"], info["num_enemies"], info["indiv_dones"])
 					elif "MPE" in self.environment:
 						print("Num Agents Reached Goal {} | Num Collisions {} \n", np.sum(indiv_dones), episode_collision_rate)
+					elif "PressurePlate" in self.environment:
+						print("Num Agents Reached Goal {} \n", np.sum(indiv_dones))
 					print("*"*100)
 
 					if self.save_comet_ml_plot:
@@ -380,6 +400,8 @@ class MAPPO:
 							self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
 						elif "MPE" in self.environment:
 							self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(indiv_dones), episode)
+						elif "PressurePlate" in self.environment:
 							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(indiv_dones), episode)
 
 					break
@@ -448,8 +470,8 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		environment = "MPE" # StarCraft/ MPE/ PressurePlate/ Pursuit/ LBForaging
-		env_name = "crossing_team_greedy" # 5m_vs_6m/10m_vs_11m/3s5z/crossing_team_greedy
+		environment = "PressurePlate" # StarCraft/ MPE/ PressurePlate/ Pursuit/ LBForaging
+		env_name = "pressureplate-linear-6p-v0" # 5m_vs_6m/10m_vs_11m/3s5z/crossing_team_greedy/pressureplate-linear-6p-v0
 		experiment_type = "prd_soft_advantage_global" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
@@ -481,8 +503,8 @@ if __name__ == '__main__':
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
-				"max_episodes": 30000, # 20000 (StarCraft environments)/ 30000 (MPE)
-				"max_time_steps": 100, # 100 (StarCraft environments & MPE)
+				"max_episodes": 30000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)
+				"max_time_steps": 70, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate)
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -564,8 +586,10 @@ if __name__ == '__main__':
 			obs, info = env.reset(return_info=True)
 			dictionary["ally_observation"] = info["ally_states"][0].shape[0]+env.n_agents #+env.action_space[0].n #4+env.action_space[0].n+env.n_agents
 			dictionary["enemy_observation"] = info["enemy_states"][0].shape[0]+env.n_enemies
-			dictionary["local_observation"] = obs[0].shape[0]+env.n_agents
+			dictionary["local_observation"] = obs[0].shape[0]+env.n_agents+env.action_space[0].n
 			dictionary["num_agents"] = env.n_agents
+			dictionary["num_actions"] = env.action_space[0].n
+
 		elif "MPE" in environment:
 
 			from multiagent.environment import MultiAgentEnv
@@ -573,8 +597,20 @@ if __name__ == '__main__':
 
 			env, actor_observation_shape, critic_observation_shape = make_env(scenario_name=dictionary["env"], benchmark=False)
 			dictionary["ally_observation"] = critic_observation_shape
-			dictionary["local_observation"] = actor_observation_shape
+			dictionary["local_observation"] = actor_observation_shape+env.action_space[0].n
 			dictionary["num_agents"] = env.n
+			dictionary["num_actions"] = env.action_space[0].n
+
+		elif "PressurePlate" in environment:
+
+			import pressureplate
+			import gym
+
+			env = gym.make(env_name)
+			dictionary["ally_observation"] = 133+env.n_agents
+			dictionary["local_observation"] = 133+5+env.n_agents
+			dictionary["num_agents"] = env.n_agents
+			dictionary["num_actions"] = 5
 
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
