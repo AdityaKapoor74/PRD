@@ -190,8 +190,8 @@ class MAPPO:
 			elif "MPE" in self.environment:
 				states = self.env.reset()
 				states_critic, states_actor = self.split_states(states)
-				states_actor = np.concatenate((states_actor, last_one_hot_actions), axis=-1)
 				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				states_actor = np.concatenate((states_actor, last_one_hot_actions), axis=-1)
 				indiv_dones = [0]*self.num_agents
 				indiv_dones = np.array(indiv_dones)
 				mask_actions = np.ones((self.num_agents, self.num_actions))
