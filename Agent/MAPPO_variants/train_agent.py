@@ -505,7 +505,11 @@ class MAPPO:
 			if not(episode%self.save_model_checkpoint) and episode!=0 and self.save_model:	
 				torch.save(self.agents.critic_network_q.state_dict(), self.critic_model_path+'_Q_epsiode'+str(episode)+'.pt')
 				torch.save(self.agents.critic_network_v.state_dict(), self.critic_model_path+'_V_epsiode'+str(episode)+'.pt')
-				torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
+				if self.experiment_type == "HAPPO":
+					for i in range(self.num_agents):
+						torch.save(self.agents.policy_network[i].state_dict(), self.actor_model_path+'_Policy_'+str(i)+'_epsiode'+str(episode)+'.pt')  
+				else:
+					torch.save(self.agents.policy_network.state_dict(), self.actor_model_path+'_epsiode'+str(episode)+'.pt')  
 
 			if self.learn and not(episode%self.update_ppo_agent) and episode != 0:
 				if self.experiment_type == "HAPPO":
