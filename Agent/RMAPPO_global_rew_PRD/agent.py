@@ -311,7 +311,7 @@ class PPOAgent:
 			if "StarCraft" in self.environment:
 				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-			elif self.environment in ["MPE", "PressurePlate"]:
+			elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
 				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 
@@ -479,7 +479,7 @@ class PPOAgent:
 													hidden_state_q.to(self.device),
 													masks.to(self.device),
 													)
-			elif self.environment in ["MPE", "PressurePlate"]:
+			elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
 				q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
 													states_critic_allies.to(self.device),
 													None,
@@ -502,7 +502,7 @@ class PPOAgent:
 													hidden_state_v.to(self.device),
 													masks.to(self.device),
 													)
-			elif self.environment in ["MPE", "PressurePlate"]:
+			elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
 				values, weight_v, score_v, h_v = self.critic_network_v(
 													states_critic_allies.to(self.device),
 													None,
@@ -557,7 +557,7 @@ class PPOAgent:
 			critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) #+ self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) #+ self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 
-			print("Critic V Loss", critic_v_loss, "Critic Q Loss", critic_q_loss)
+			print("Critic V Loss", critic_v_loss.item(), "Critic Q Loss", critic_q_loss.item())
 
 			# Finding the ratio (pi_theta / pi_theta__old)
 			ratios = torch.exp((logprobs - logprobs_old.to(self.device)))
