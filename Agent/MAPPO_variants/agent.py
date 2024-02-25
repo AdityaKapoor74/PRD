@@ -887,7 +887,7 @@ class PPOAgent:
 
 			
 				shape = hidden_state_actor.shape
-				hidden_state_actor = hidden_state_actor.reshape(shape[0], self.max_time_steps, self.num_agents, -1)
+				hidden_state_actor = hidden_state_actor.reshape(shape[0], -1, self.num_agents, self.rnn_hidden_actor)
 			
 			
 				dists, _ = self.policy_network[agent_id](
