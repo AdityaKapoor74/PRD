@@ -205,6 +205,15 @@ class MAPPO:
 				indiv_dones = [0]*self.num_agents
 				indiv_dones = np.array(indiv_dones)
 				mask_actions = np.ones((self.num_agents, self.num_actions))
+			elif "PettingZoo" in self.environment:
+				pz_state, info = self.env.reset()
+				states = np.array([s for s in pz_state.values()]).reshape(self.num_agents, -1)
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				states_critic = np.concatenate((self.agent_ids, states), axis=-1)
+				states_actor = np.concatenate((self.agent_ids, states, last_one_hot_actions), axis=-1)
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				mask_actions = np.ones((self.num_agents, self.num_actions))
 
 			images = []
 
@@ -245,7 +254,7 @@ class MAPPO:
 				# q_value, next_rnn_hidden_state_q, weights_prd, approx_agent_contri_to_rew, value, next_rnn_hidden_state_v, q_i_value, next_indiv_rnn_hidden_state_q = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, indiv_rnn_hidden_state_q)
 				if "StarCraft" in self.environment:
 					global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
-				elif self.environment in ["MPE", "PressurePlate"]:
+				elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
 					global_q_value, next_global_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 				if "StarCraft" in self.environment:
@@ -257,27 +266,40 @@ class MAPPO:
 					next_mask_actions = np.array(info["avail_actions"], dtype=int)
 					next_indiv_dones = info["indiv_dones"]
 					indiv_rewards = info["indiv_rewards"]
+
 				elif "MPE" in self.environment:
 					next_states, rewards, next_indiv_dones, info = self.env.step(actions)
 					next_states_critic, next_states_actor = self.split_states(next_states)
 					next_states_actor = np.concatenate((next_states_actor, last_one_hot_actions), axis=-1)
-
 					next_mask_actions = np.ones((self.num_agents, self.num_actions))
-
 					collision_rate = [value[1] for value in rewards]
 					goal_reached = [value[2] for value in rewards]
 					indiv_rewards = [value[0] for value in rewards] 
 					episode_collision_rate += np.sum(collision_rate)
 					episode_goal_reached += np.sum(goal_reached)
-
 					next_dones = all(next_indiv_dones)
 					rewards = np.sum(indiv_rewards)
+
 				elif "PressurePlate" in self.environment:
 					next_states, indiv_rewards, next_indiv_dones, info = self.env.step(actions)
 					next_states_actor = np.array(next_states)
 					next_states_actor = np.concatenate((self.agent_ids, next_states_actor, last_one_hot_actions), axis=-1)
 					next_states_critic = np.array(next_states)
 					next_states_critic = np.concatenate((self.agent_ids, next_states_critic), axis=-1)
+					rewards = np.sum(indiv_rewards)
+					next_mask_actions = np.ones((self.num_agents, self.num_actions))
+					next_dones = all(next_indiv_dones)
+
+				elif "PettingZoo" in self.environment:
+					actions_dict = {}
+					for i, agent in enumerate(self.env.agents):
+						actions_dict[agent] = actions[i]
+					pz_next_states, pz_rewards, pz_dones, truncation, info = self.env.step(actions_dict)
+					next_states = np.array([s for s in pz_next_states.values()]).reshape(self.num_agents, -1)
+					indiv_rewards = np.array([s for s in pz_rewards.values()])
+					next_indiv_dones = np.array([s for s in pz_dones.values()])
+					next_states_actor = np.concatenate((self.agent_ids, next_states, last_one_hot_actions), axis=-1)
+					next_states_critic = np.concatenate((self.agent_ids, next_states), axis=-1)
 					rewards = np.sum(indiv_rewards)
 					next_mask_actions = np.ones((self.num_agents, self.num_actions))
 					next_dones = all(next_indiv_dones)
@@ -319,7 +341,7 @@ class MAPPO:
 
 						states_allies_critic, states_enemies_critic = next_states_allies_critic, next_states_enemies_critic
 
-					elif self.environment in ["MPE", "PressurePlate"]:
+					elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
 						self.agents.buffer.push(
 							states_critic, None, global_q_value, global_rnn_hidden_state_q, q_i_value, weights_prd, value, rnn_hidden_state_v, \
 							states_actor, rnn_hidden_state_actor, action_logprob, actions, last_one_hot_actions, one_hot_actions, mask_actions, \
@@ -349,7 +371,7 @@ class MAPPO:
 
 						if "StarCraft" in self.environment:
 							global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
-						elif self.environment in ["MPE", "PressurePlate"]:
+						elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
 							global_q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
 
 						if self.norm_returns_q:
@@ -470,8 +492,8 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		environment = "MPE" # StarCraft/ MPE/ PressurePlate/ Pursuit/ LBForaging
-		env_name = "crossing_team_greedy" # 5m_vs_6m/10m_vs_11m/3s5z/crossing_team_greedy/pressureplate-linear-6p-v0
+		environment = "PettingZoo" # StarCraft/ MPE/ PressurePlate/ Pursuit/ LBForaging
+		env_name = "pursuit_v4" # 5m_vs_6m/ 10m_vs_11m/3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4 
 		experiment_type = "prd_soft_advantage_global" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage
 
 		dictionary = {
@@ -484,7 +506,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes
+				"update_ppo_agent": 2, # update ppo agent after every update_ppo_agent episodes; 10 (StarCraft/MPE/PressurePlate)/ 2 (PettingZoo)
 				"environment": environment,
 				"test_num": test_num,
 				"extension": extension,
@@ -503,8 +525,8 @@ if __name__ == '__main__':
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
-				"max_episodes": 30000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)
-				"max_time_steps": 70, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate)
+				"max_episodes": 2000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 2000 (PettingZoo)
+				"max_time_steps": 500, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate)/ 500 (PettingZoo)
 				"experiment_type": experiment_type,
 				"parallel_training": False,
 				"scheduler_need": False,
@@ -611,6 +633,23 @@ if __name__ == '__main__':
 			dictionary["local_observation"] = 133+5+env.n_agents
 			dictionary["num_agents"] = env.n_agents
 			dictionary["num_actions"] = 5
+
+		elif "PettingZoo" in environment:
+
+			from pettingzoo.sisl import pursuit_v4
+
+			num_agents = 8
+			num_actions = 5
+			obs_range = 7
+
+			env = pursuit_v4.parallel_env(max_cycles=dictionary["max_time_steps"], x_size=16, y_size=16, shared_reward=False, n_evaders=30,
+									n_pursuers=num_agents, obs_range=obs_range, n_catch=2, freeze_evaders=False, tag_reward=0.01,
+									catch_reward=5.0, urgency_reward=-0.1, surround=True, constraint_window=1.0)
+			
+			dictionary["ally_observation"] = obs_range*obs_range*3 + num_agents
+			dictionary["local_observation"] = obs_range*obs_range*3 + num_agents + num_actions
+			dictionary["num_agents"] = num_agents
+			dictionary["num_actions"] = num_actions
 
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
