@@ -484,7 +484,11 @@ class MAPPO:
 					break
 
 			if self.agents.scheduler_need:
-				self.agents.scheduler_policy.step()
+				if self.experiment_type == "HAPPO":
+					for i in range(self.num_agents):
+						self.agents.scheduler_policy[i].step()
+				else:
+					self.agents.scheduler_policy.step()
 				self.agents.scheduler_q_critic.step()
 				self.agents.scheduler_v_critic.step()
 
