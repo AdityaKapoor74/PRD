@@ -311,7 +311,7 @@ class PPOAgent:
 			if "StarCraft" in self.environment:
 				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-			elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
+			else:
 				Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				global_Q_value, global_weights, weights_prd, global_score, score, global_h = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 
@@ -479,7 +479,7 @@ class PPOAgent:
 													hidden_state_q.to(self.device),
 													masks.to(self.device),
 													)
-			elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
+			else:
 				q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
 													states_critic_allies.to(self.device),
 													None,
@@ -502,7 +502,7 @@ class PPOAgent:
 													hidden_state_v.to(self.device),
 													masks.to(self.device),
 													)
-			elif self.environment in ["MPE", "PressurePlate", "PettingZoo"]:
+			else:
 				values, weight_v, score_v, h_v = self.critic_network_v(
 													states_critic_allies.to(self.device),
 													None,
