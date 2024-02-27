@@ -323,7 +323,7 @@ class RolloutBuffer:
 			elif self.target_calc_style == "N_steps":
 				target_values = self.nstep_returns(rewards, values, next_values, masks, next_mask)
 
-			target_q_values = rewards.new_zeros(*rewards.shape)
+			self.target_q_values = rewards.new_zeros(*rewards.shape)
 		else:
 			q_values = torch.from_numpy(self.Q_values[:, :-1, :]) * masks
 			next_q_values = torch.from_numpy(self.Q_values[:, -1, :]) * next_mask
@@ -377,12 +377,14 @@ class RolloutBuffer:
 
 			if self.norm_returns_q:
 				targets_shape = target_q_values.shape
-				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				self.target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 				
 				self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
 				
 				# target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-
+			else:
+				self.target_q_values = target_q_values
+				
 		self.advantage = (target_values - values).detach()
 
 		if self.norm_returns_v:
@@ -390,6 +392,8 @@ class RolloutBuffer:
 			self.target_values = (self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 			
 			self.v_value_norm.update(target_values.view(-1), masks.view(-1))
+		else:
+			self.target_values = target_values
 			
 			# target_values = self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 			
