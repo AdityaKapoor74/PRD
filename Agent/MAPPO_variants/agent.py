@@ -533,7 +533,7 @@ class PPOAgent:
 
 			# SAMPLE DATA FROM BUFFER
 			states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage  = self.buffer.sample_recurrent_policy()
+			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor  = self.buffer.sample_recurrent_policy()
 
 			
 			if self.norm_adv:
@@ -811,7 +811,9 @@ class PPOAgent:
 		# Optimize policy for n epochs
 		agent_permutation = torch.randperm(self.num_agents)
 
-		factor = torch.ones((self.update_ppo_agent*(self.max_time_steps//self.data_chunk_length), self.data_chunk_length)).float()
+		data_chunks = self.max_time_steps//self.data_chunk_length
+		self.buffer.factor = torch.ones((self.update_ppo_agent*data_chunks, self.data_chunk_length)).float()
+
 		avg_policy_loss = 0
 		avg_policy_grad_norm = 0
 		avg_policy_entropy = 0
@@ -819,61 +821,64 @@ class PPOAgent:
 		avg_critic_grad_norm = 0
 		avg_attention_weights_v = None
 
+		train_critic = True # train critic once because its parameters are shared
+
 		for agent_id in agent_permutation:
 
 			for _ in range(self.n_epochs):
 
 				# SAMPLE DATA FROM BUFFER
 				states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-				actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage  = self.buffer.sample_recurrent_policy()
+				actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor  = self.buffer.sample_recurrent_policy()
 
-				values_old *= masks
+				if train_critic:
+					values_old *= masks
 
-				target_shape = q_values_old.shape
-				if "StarCraft" in self.environment:
-					values, attention_weights_v, score_v, _ = self.critic_network_v(
-														states_critic_allies.to(self.device),
-														states_critic_enemies.to(self.device),
-														one_hot_actions.to(self.device),
-														hidden_state_q.to(self.device),
-														masks.to(self.device),
-														)
-				else:
-					values, attention_weights_v, score_v, _ = self.critic_network_v(
-														states_critic_allies.to(self.device),
-														None,
-														one_hot_actions.to(self.device),
-														hidden_state_q.to(self.device),
-														masks.to(self.device),
-														)
+					target_shape = q_values_old.shape
+					if "StarCraft" in self.environment:
+						values, attention_weights_v, score_v, _ = self.critic_network_v(
+															states_critic_allies.to(self.device),
+															states_critic_enemies.to(self.device),
+															one_hot_actions.to(self.device),
+															hidden_state_q.to(self.device),
+															masks.to(self.device),
+															)
+					else:
+						values, attention_weights_v, score_v, _ = self.critic_network_v(
+															states_critic_allies.to(self.device),
+															None,
+															one_hot_actions.to(self.device),
+															hidden_state_q.to(self.device),
+															masks.to(self.device),
+															)
 
-				values = values.reshape(*target_shape)
+					values = values.reshape(*target_shape)
 
-				values *= masks.to(self.device)	
-				target_values *= masks
+					values *= masks.to(self.device)	
+					target_values *= masks
 
-				critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-				critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
+					critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
+					critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 
-				entropy_weights = 0
-				score_v_cum = 0
-				for i in range(self.num_heads):
-					entropy_weights += -torch.sum(torch.sum((attention_weights_v[:, i] * torch.log(torch.clamp(attention_weights_v[:, i], 1e-10, 1.0)) * masks.view(-1, self.num_agents, 1).to(self.device)), dim=-1))/masks.sum()
-					score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
-				
-				critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights
+					entropy_weights = 0
+					score_v_cum = 0
+					for i in range(self.num_heads):
+						entropy_weights += -torch.sum(torch.sum((attention_weights_v[:, i] * torch.log(torch.clamp(attention_weights_v[:, i], 1e-10, 1.0)) * masks.view(-1, self.num_agents, 1).to(self.device)), dim=-1))/masks.sum()
+						score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
+					
+					critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) + self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights
 
-				self.v_critic_optimizer.zero_grad()
-				critic_v_loss.backward()
-				if self.enable_grad_clip_critic_v:
-					grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic_v)
-				else:
-					total_norm = 0
-					for p in self.critic_network_v.parameters():
-						param_norm = p.grad.detach().data.norm(2)
-						total_norm += param_norm.item() ** 2
-					grad_norm_value_v = torch.tensor([total_norm ** 0.5])
-				self.v_critic_optimizer.step()
+					self.v_critic_optimizer.zero_grad()
+					critic_v_loss.backward()
+					if self.enable_grad_clip_critic_v:
+						grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network_v.parameters(), self.grad_clip_critic_v)
+					else:
+						total_norm = 0
+						for p in self.critic_network_v.parameters():
+							param_norm = p.grad.detach().data.norm(2)
+							total_norm += param_norm.item() ** 2
+						grad_norm_value_v = torch.tensor([total_norm ** 0.5])
+					self.v_critic_optimizer.step()
 
 				if self.norm_adv:
 					shape = advantage.shape
@@ -928,32 +933,36 @@ class PPOAgent:
 				avg_policy_loss += policy_loss.item()
 				avg_policy_entropy += entropy.item()
 				avg_policy_grad_norm += grad_norm_policy.item()
-				avg_critic_loss += critic_v_loss.item()
-				avg_critic_grad_norm += grad_norm_value_v.item()
-				if avg_attention_weights_v is None:
-					avg_attention_weights_v = attention_weights_v.detach().cpu()
-				else:
-					avg_attention_weights_v += attention_weights_v.detach().cpu()
+
+				if train_critic:
+					avg_critic_loss += critic_v_loss.item()
+					avg_critic_grad_norm += grad_norm_value_v.item()
+					if avg_attention_weights_v is None:
+						avg_attention_weights_v = attention_weights_v.detach().cpu()
+					else:
+						avg_attention_weights_v += attention_weights_v.detach().cpu()
 
 				# del dists, probs, logprobs, ratios, surr1, surr2, entropy, policy_loss_, policy_loss
 
-			# POST UPDATE POLICY OUTPUT TO UPDATE FACTOR
-			data_chunks = self.max_time_steps // self.data_chunk_length
-			states_actor_ = torch.from_numpy(self.buffer.states_actor).reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1).float()[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
-			hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.rnn_num_layers_actor, self.num_agents, -1)[:, :, 0, :, agent_id, :].unsqueeze(-2).permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_actor, -1, self.rnn_hidden_actor)
-			action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
-			dists_new, _ = self.policy_network[agent_id](
-						states_actor_.to(self.device),
-						hidden_state_actor_.to(self.device),
-						action_masks.to(self.device),
-						)
+			with torch.no_grad():
+				# POST UPDATE POLICY OUTPUT TO UPDATE FACTOR
+				states_actor_ = torch.from_numpy(self.buffer.states_actor).reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1).float()[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
+				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.rnn_num_layers_actor, self.num_agents, -1)[:, :, 0, :, agent_id, :].unsqueeze(-2).permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_actor, -1, self.rnn_hidden_actor)
+				action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
+				dists_new, _ = self.policy_network[agent_id](
+							states_actor_.to(self.device),
+							hidden_state_actor_.to(self.device),
+							action_masks.to(self.device),
+							)
 
-			probs_new = Categorical(dists_new.squeeze(-2))
+				probs_new = Categorical(dists_new.squeeze(-2))
 
-			logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
+				logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
 
-			factor = factor.to(self.device)*torch.exp((logprobs_new-logprobs_old[:, :, agent_id].to(self.device))*masks[:, :, agent_id].to(self.device)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length).detach()
-			
+			target_shape = self.buffer.factor.shape
+			self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks[:, :, agent_id].reshape(*target_shape).to(self.device)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length).detach()
+
+			train_critic = False
 
 		# Copy new weights into old critic
 		if self.soft_update_v:
@@ -969,9 +978,9 @@ class PPOAgent:
 		avg_policy_loss /= (self.n_epochs*self.num_agents)
 		avg_policy_entropy /= (self.n_epochs*self.num_agents)
 		avg_policy_grad_norm /= (self.n_epochs*self.num_agents)
-		avg_critic_loss /= (self.n_epochs*self.num_agents)
-		avg_critic_grad_norm /= (self.n_epochs*self.num_agents)
-		avg_attention_weights_v /= (self.n_epochs*self.num_agents)
+		avg_critic_loss /= self.n_epochs
+		avg_critic_grad_norm /= self.n_epochs
+		avg_attention_weights_v /= self.n_epochs
 
 
 		
