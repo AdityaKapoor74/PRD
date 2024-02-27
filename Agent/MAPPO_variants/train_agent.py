@@ -559,7 +559,7 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		environment = "MPE" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
+		environment = "PressurePlate" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
 		if "LBForaging" in environment:
 			num_players = 6
 			num_food = 9
