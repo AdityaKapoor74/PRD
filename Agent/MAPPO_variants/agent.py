@@ -960,7 +960,7 @@ class PPOAgent:
 				logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
 
 			target_shape = self.buffer.factor.shape
-			self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks[:, :, agent_id].reshape(*target_shape).to(self.device)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length).detach()
+			self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks[:, :, agent_id].reshape(*target_shape)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length).detach()
 
 			train_critic = False
 
