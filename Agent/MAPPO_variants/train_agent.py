@@ -566,7 +566,7 @@ if __name__ == '__main__':
 			grid_size = 12
 			fully_coop = False
 		env_name = "5m_vs_6m" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "HAPPO" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage prd_soft_advantage_global, HAPPO
+		experiment_type = "prd_above_threshold" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage prd_soft_advantage_global, HAPPO
 
 		dictionary = {
 				# TRAINING
@@ -629,7 +629,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.2,
-				"enable_hard_attention": False,
+				"enable_hard_attention": True,
 				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_weight_entropy_pen_final": 0.0,
@@ -656,8 +656,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 1e-2, #8e-3
-				"entropy_pen_final": 1e-2,
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen_final": 1e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, 
