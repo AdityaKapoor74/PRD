@@ -880,14 +880,25 @@ class PPOAgent:
 						grad_norm_value_v = torch.tensor([total_norm ** 0.5])
 					self.v_critic_optimizer.step()
 
-				if self.norm_adv:
-					shape = advantage.shape
-					advantage_copy = copy.deepcopy(advantage)
-					advantage_copy[masks.view(*shape) == 0.0] = float('nan')
-					advantage_mean = torch.nanmean(advantage_copy)
-					advantage_std = torch.from_numpy(np.array(np.nanstd(advantage_copy.cpu().numpy()))).float()
+
+				# if self.norm_adv:
+				# 	shape = advantage.shape
+				# 	advantage_copy = copy.deepcopy(advantage)
+				# 	advantage_copy[masks.view(*shape) == 0.0] = float('nan')
+				# 	advantage_mean = torch.nanmean(advantage_copy)
+				# 	advantage_std = torch.from_numpy(np.array(np.nanstd(advantage_copy.cpu().numpy()))).float()
 					
-					advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
+				# 	advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
+
+				if self.norm_adv:
+					curr_agent_advantage = advantage[:, :, agent_id] * factor
+					shape = curr_agent_advantage.shape
+					curr_agent_advantage_copy = copy.deepcopy(curr_agent_advantage)
+					curr_agent_advantage_copy[masks[:, :, agent_id].view(*shape) == 0.0] = float('nan')
+					curr_agent_advantage_mean = torch.nanmean(curr_agent_advantage_copy)
+					curr_agent_advantage_std = torch.from_numpy(np.array(np.nanstd(curr_agent_advantage_copy.cpu().numpy()))).float()
+					
+					curr_agent_advantage = ((curr_agent_advantage - curr_agent_advantage_mean) / (curr_agent_advantage_std + 1e-5))*masks[:, :, agent_id].view(*shape)
 
 
 			
@@ -908,12 +919,12 @@ class PPOAgent:
 				ratios = torch.exp((logprobs - logprobs_old[:, :, agent_id].to(self.device)))
 
 				# Finding Surrogate Loss
-				surr1 = ratios * advantage[:, :, agent_id].to(self.device) * masks[:, :, agent_id].to(self.device)
-				surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage[:, :, agent_id].to(self.device) * masks[:, :, agent_id].to(self.device)
+				surr1 = ratios * curr_agent_advantage.to(self.device) * masks[:, :, agent_id].to(self.device)
+				surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * curr_agent_advantage.to(self.device) * masks[:, :, agent_id].to(self.device)
 
 				# final loss of clipped objective PPO
 				entropy = -torch.sum(torch.sum(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks[:, :, agent_id].sum()
-				policy_loss_ = ((-torch.min(surr1, surr2)*factor.to(self.device)*masks[:, :, agent_id].to(self.device)).sum())/masks[:, :, agent_id].sum()
+				policy_loss_ = ((-torch.min(surr1, surr2)).sum())/masks[:, :, agent_id].sum()
 				policy_loss = policy_loss_ - self.entropy_pen*entropy
 
 				self.policy_optimizer[agent_id].zero_grad()
@@ -960,7 +971,8 @@ class PPOAgent:
 				logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
 
 			target_shape = self.buffer.factor.shape
-			self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks[:, :, agent_id].reshape(*target_shape)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length).detach()
+
+			self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks[:, :, agent_id].reshape(*target_shape)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
 
 			train_critic = False
 
