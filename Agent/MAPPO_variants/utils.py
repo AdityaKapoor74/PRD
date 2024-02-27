@@ -377,9 +377,11 @@ class RolloutBuffer:
 
 			if self.norm_returns_q:
 				targets_shape = target_q_values.shape
+				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				
 				self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
 				
-				target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				# target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
 		self.advantage = (target_values - values).detach()
 
@@ -392,7 +394,7 @@ class RolloutBuffer:
 			# target_values = self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 			
 
-		self.target_q_values = target_q_values.cpu()
+		# self.target_q_values = target_q_values.cpu()
 		# self.target_values = target_values.cpu()
 
 		print("Avg Values", ((torch.from_numpy(self.V_values[:, :-1, :]) * masks).sum()/masks.sum()).item())
