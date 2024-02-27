@@ -148,7 +148,8 @@ class RolloutBuffer:
 
 		self.episode_length = np.zeros(num_episodes)
 
-		self.factor = None
+		data_chunks = max_time_steps//data_chunk_length
+		self.factor = torch.ones((num_episodes*data_chunks, data_chunk_length)).float()
 	
 
 	def clear(self):
@@ -180,7 +181,8 @@ class RolloutBuffer:
 		self.time_step = 0
 		self.episode_num = 0
 
-		self.factor = None
+		data_chunks = self.max_time_steps//self.data_chunk_length
+		self.factor = torch.ones((self.num_episodes*self.data_chunks, self.data_chunk_length)).float()
 
 	def push(
 		self, 
@@ -384,7 +386,7 @@ class RolloutBuffer:
 				# target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 			else:
 				self.target_q_values = target_q_values
-				
+
 		self.advantage = (target_values - values).detach()
 
 		if self.norm_returns_v:
