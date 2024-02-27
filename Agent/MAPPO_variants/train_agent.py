@@ -559,14 +559,14 @@ if __name__ == '__main__':
 	for i in range(1,4):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		environment = "StarCraft" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
+		environment = "MPE" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
 		if "LBForaging" in environment:
 			num_players = 6
 			num_food = 9
 			grid_size = 12
 			fully_coop = False
-		env_name = "3s5z" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "prd_above_threshold_decay" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage prd_soft_advantage_global, HAPPO
+		env_name = "crossing_team_greedy" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
+		experiment_type = "prd_above_threshold_ascend" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage prd_soft_advantage_global, HAPPO
 
 		dictionary = {
 				# TRAINING
@@ -597,7 +597,7 @@ if __name__ == '__main__':
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
-				"max_episodes": 20000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 2000 (PettingZoo)/ 10000 (LBForaging)
+				"max_episodes": 30000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 2000 (PettingZoo)/ 10000 (LBForaging)
 				"max_time_steps": 100, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate & LBForaging)/ 500 (PettingZoo)
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -660,9 +660,9 @@ if __name__ == '__main__':
 				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.15, 
+				"select_above_threshold": 0.0, 
 				"threshold_min": 0.0, 
-				"threshold_max": 0.0, 
+				"threshold_max": 0.15, 
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": True,
