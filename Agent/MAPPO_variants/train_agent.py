@@ -652,12 +652,12 @@ if __name__ == '__main__':
 				"rnn_num_layers_actor": 1,
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
-				"grad_clip_actor": 0.5,
+				"grad_clip_actor": 2.0,
 				"policy_clip": 0.2,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 5e-4,
-				"entropy_pen": 0.0, #8e-3
-				"entropy_pen_final": 0.0,
+				"entropy_pen": 1e-2, #8e-3
+				"entropy_pen_final": 1e-2,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, 
