@@ -660,7 +660,7 @@ if __name__ == '__main__':
 				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
-				"select_above_threshold": 0.25, 
+				"select_above_threshold": 0.12, 
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0, 
 				"steps_to_take": 1000,
