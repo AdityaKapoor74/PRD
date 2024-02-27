@@ -891,7 +891,7 @@ class PPOAgent:
 				# 	advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
 
 				if self.norm_adv:
-					curr_agent_advantage = advantage[:, :, agent_id] * factor
+					curr_agent_advantage = advantage[:, :, agent_id]
 					shape = curr_agent_advantage.shape
 					curr_agent_advantage_copy = copy.deepcopy(curr_agent_advantage)
 					curr_agent_advantage_copy[masks[:, :, agent_id].view(*shape) == 0.0] = float('nan')
@@ -924,7 +924,7 @@ class PPOAgent:
 
 				# final loss of clipped objective PPO
 				entropy = -torch.sum(torch.sum(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks[:, :, agent_id].sum()
-				policy_loss_ = ((-torch.min(surr1, surr2)).sum())/masks[:, :, agent_id].sum()
+				policy_loss_ = ((-torch.min(surr1, surr2) * factor.to(self.device) * masks[:, :, agent_id].to(self.device)).sum())/masks[:, :, agent_id].sum()
 				policy_loss = policy_loss_ - self.entropy_pen*entropy
 
 				self.policy_optimizer[agent_id].zero_grad()
