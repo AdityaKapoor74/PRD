@@ -147,6 +147,8 @@ class RolloutBuffer:
 		self.dones = np.ones((num_episodes, max_time_steps+1, num_agents))
 
 		self.episode_length = np.zeros(num_episodes)
+
+		self.factor = None
 	
 
 	def clear(self):
@@ -177,6 +179,8 @@ class RolloutBuffer:
 
 		self.time_step = 0
 		self.episode_num = 0
+
+		self.factor = None
 
 	def push(
 		self, 
@@ -280,8 +284,11 @@ class RolloutBuffer:
 		target_values = self.target_values.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		advantage = self.advantage.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		
+
+		factor = self.factor.reshape(self.num_episodes, data_chunks, self.data_chunk_length)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length)
+
 		return states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs, \
-		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values, advantage
+		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values, advantage, factor
 
 	def calculate_targets(self, episode, select_above_threshold):
 		
