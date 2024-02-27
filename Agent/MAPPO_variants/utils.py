@@ -182,7 +182,7 @@ class RolloutBuffer:
 		self.episode_num = 0
 
 		data_chunks = self.max_time_steps//self.data_chunk_length
-		self.factor = torch.ones((self.num_episodes*self.data_chunks, self.data_chunk_length)).float()
+		self.factor = torch.ones((self.num_episodes*data_chunks, self.data_chunk_length)).float()
 
 	def push(
 		self, 
