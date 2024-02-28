@@ -341,8 +341,6 @@ class MAPPO:
 					next_mask_actions = np.ones((self.num_agents, self.num_actions))
 					next_dones = all(next_indiv_dones)
 
-				print(actions)
-				print(rewards)
 				episode_reward += np.sum(rewards)
 				episode_indiv_rewards = [r+indiv_rewards[i] for i, r in enumerate(episode_indiv_rewards)]
 
@@ -584,7 +582,7 @@ if __name__ == '__main__':
 				"environment": environment,
 				"test_num": test_num,
 				"extension": extension,
-				"gamma": 0.95,
+				"gamma": 0.99,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
