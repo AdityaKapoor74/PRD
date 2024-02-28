@@ -481,10 +481,10 @@ class PPOAgent:
 
 
 	def update_parameters(self):
-		if self.select_above_threshold > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
+		if (self.select_above_threshold - self.threshold_delta) > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold - self.threshold_delta
 
-		if self.threshold_max > self.select_above_threshold and "prd_above_threshold_ascend" in self.experiment_type:
+		if self.threshold_max > (self.select_above_threshold + self.threshold_delta) and "prd_above_threshold_ascend" in self.experiment_type:
 			self.select_above_threshold = self.select_above_threshold + self.threshold_delta
 
 		if self.critic_weight_entropy_pen_final + self.critic_weight_entropy_pen_decay_rate > self.critic_weight_entropy_pen:
@@ -880,18 +880,16 @@ class PPOAgent:
 						grad_norm_value_v = torch.tensor([total_norm ** 0.5])
 					self.v_critic_optimizer.step()
 
+					avg_critic_loss += critic_v_loss.item()
+					avg_critic_grad_norm += grad_norm_value_v.item()
+					if avg_attention_weights_v is None:
+						avg_attention_weights_v = attention_weights_v.detach().cpu()
+					else:
+						avg_attention_weights_v += attention_weights_v.detach().cpu()
 
-				# if self.norm_adv:
-				# 	shape = advantage.shape
-				# 	advantage_copy = copy.deepcopy(advantage)
-				# 	advantage_copy[masks.view(*shape) == 0.0] = float('nan')
-				# 	advantage_mean = torch.nanmean(advantage_copy)
-				# 	advantage_std = torch.from_numpy(np.array(np.nanstd(advantage_copy.cpu().numpy()))).float()
-					
-				# 	advantage = ((advantage - advantage_mean) / (advantage_std + 1e-5))*masks.view(*shape)
 
 				if self.norm_adv:
-					curr_agent_advantage = advantage[:, :, agent_id]
+					curr_agent_advantage = copy.deepcopy(advantage[:, :, agent_id])
 					shape = curr_agent_advantage.shape
 					curr_agent_advantage_copy = copy.deepcopy(curr_agent_advantage)
 					curr_agent_advantage_copy[masks[:, :, agent_id].view(*shape) == 0.0] = float('nan')
@@ -944,14 +942,6 @@ class PPOAgent:
 				avg_policy_loss += policy_loss.item()
 				avg_policy_entropy += entropy.item()
 				avg_policy_grad_norm += grad_norm_policy.item()
-
-				if train_critic:
-					avg_critic_loss += critic_v_loss.item()
-					avg_critic_grad_norm += grad_norm_value_v.item()
-					if avg_attention_weights_v is None:
-						avg_attention_weights_v = attention_weights_v.detach().cpu()
-					else:
-						avg_attention_weights_v += attention_weights_v.detach().cpu()
 
 				# del dists, probs, logprobs, ratios, surr1, surr2, entropy, policy_loss_, policy_loss
 
