@@ -108,6 +108,7 @@ class PPOAgent:
 		self.grad_clip_actor = dictionary["grad_clip_actor"]
 		if self.enable_hard_attention:
 			self.select_above_threshold = 0
+			self.threshold_delta = 0.0
 		else:
 			self.select_above_threshold = dictionary["select_above_threshold"]
 			if "prd_above_threshold_decay" in self.experiment_type:
