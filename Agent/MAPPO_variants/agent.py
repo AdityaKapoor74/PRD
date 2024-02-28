@@ -114,6 +114,8 @@ class PPOAgent:
 				self.threshold_delta = (self.select_above_threshold - self.threshold_min)/self.steps_to_take
 			elif "prd_above_threshold_ascend" in self.experiment_type:
 				self.threshold_delta = (self.threshold_max - self.select_above_threshold)/self.steps_to_take
+			else:
+				self.threshold_delta = 0.0
 
 
 		print("EXPERIMENT TYPE", self.experiment_type)
