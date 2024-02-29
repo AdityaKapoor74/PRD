@@ -776,15 +776,15 @@ class Q_network(nn.Module):
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, Num Agents
 		attention_masks = self.get_attention_masks(agent_masks).reshape(batch*timesteps, num_agents, num_agents).unsqueeze(1).repeat(1, self.num_heads, 1, 1)
 		attention_masks = attention_masks + (1-hard_attention_weights)*self.mask_value
-		score = score + attention_masks.reshape(*score.shape).to(score.device) + (1-hard_attention_weights)*self.mask_value
+		# score = score + attention_masks.reshape(*score.shape).to(score.device)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
-		# weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
-		weights = F.softmax(score, dim=-1)
+		weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
+		# weights = F.softmax(score, dim=-1)
 
 		final_weights = weights.clone()
-		prd_weights = F.softmax(score.clone(), dim=-2)
-		# prd_weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-2) # Batch_size, Num Heads, Num agents, Num Agents
+		# prd_weights = F.softmax(score.clone(), dim=-2)
+		prd_weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-2) # Batch_size, Num Heads, Num agents, Num Agents
 		for i in range(self.num_agents):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
@@ -794,11 +794,13 @@ class Q_network(nn.Module):
 		prd_weights = prd_weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
 		prd_weights = prd_weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
 
-		# if prd_weights.shape[0] == 1:
-		# 	print("agent masks")
-		# 	print(agent_masks)
-		# 	print(prd_weights)
-		# 	print(prd_weights)
+		if prd_weights.shape[0] == 1:
+			print("agent masks")
+			print(agent_masks)
+			print("score")
+			print(score)
+			print("prd_weights")
+			print(prd_weights)
 
 		# for head in range(self.num_heads):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
@@ -864,6 +866,7 @@ class V_network(nn.Module):
 		temperature,
 		norm_returns,
 		environment,
+		experiment_type,
 		):
 		super(V_network, self).__init__()
 		
@@ -875,6 +878,7 @@ class V_network(nn.Module):
 		self.device = device
 		self.enable_hard_attention = enable_hard_attention
 		self.environment = environment
+		self.experiment_type = experiment_type
 
 		self.attention_dropout = AttentionDropout(dropout_prob=attention_dropout_prob)
 
@@ -1041,22 +1045,27 @@ class V_network(nn.Module):
 		# weights = F.softmax((score/(torch.max(score, dim=-1).values-torch.min(score, dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 		weights = F.softmax(score, dim=-1)
 
-		final_weights = weights.clone()
-		for i in range(self.num_agents):
-			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
+		# final_weights = weights.clone()
+		# for i in range(self.num_agents):
+		# 	final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 
-		final_weights = final_weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
-		final_weights = final_weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
+		weights = weights * agent_masks.reshape(batch*timesteps, 1, self.num_agents, 1).repeat(1, self.num_heads, 1, self.num_agents)
+		weights = weights * agent_masks.reshape(batch*timesteps, 1, 1, self.num_agents).repeat(1, self.num_heads, self.num_agents, 1)
 
 		# for head in range(self.num_heads):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
 		# EMBED STATE ACTION
+		
+		# if "prd_soft" in self.experiment_type:
+		# 	obs_actions = torch.cat([states, actions], dim=-1).unsqueeze(1).repeat(1, self.num_agents, 1, 1).to(self.device) # Batch_size, Num agents, Num agents, dim
+		# 	print(obs_actions.shape, prd_masks.shape)
+		# else:
 		obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		obs_actions_embed = self.ally_state_act_embed(obs_actions) # Batch_size, Num agents, dim
 		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
-		
-		aggregated_node_features = torch.matmul(final_weights, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
+		aggregated_node_features = torch.matmul(weights, attention_values).squeeze(-2) # Batch_size, Num heads, Num agents, dim//num_heads
+
 		aggregated_node_features = self.attention_value_dropout(aggregated_node_features)
 		aggregated_node_features = aggregated_node_features.permute(0,2,1,3).reshape(states.shape[0], self.num_agents, -1) # Batch_size, Num agents, dim
 		aggregated_node_features_ = self.attention_value_layer_norm(obs_actions_embed+aggregated_node_features) # Batch_size, Num agents, dim
@@ -1086,14 +1095,15 @@ class V_network(nn.Module):
 			curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		
 		else:
-			curr_agent_node_features = self.common_layer(aggregated_node_features) # Batch_size, Num agents, dim
+			curr_agent_node_features = torch.cat([aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+			curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		
 		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 		rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
 		rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
 		V_value = self.v_value_layer(rnn_output) # Batch_size, Num agents, 1
 
-		return V_value.squeeze(-1), final_weights, score, h
+		return V_value.squeeze(-1), weights, score, h
 
 '''
 # 7th December 2023
