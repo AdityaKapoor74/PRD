@@ -866,7 +866,7 @@ class V_network(nn.Module):
 		temperature,
 		norm_returns,
 		environment,
-		experiment_type,
+		# experiment_type,
 		):
 		super(V_network, self).__init__()
 		
@@ -878,7 +878,7 @@ class V_network(nn.Module):
 		self.device = device
 		self.enable_hard_attention = enable_hard_attention
 		self.environment = environment
-		self.experiment_type = experiment_type
+		# self.experiment_type = experiment_type
 
 		self.attention_dropout = AttentionDropout(dropout_prob=attention_dropout_prob)
 
