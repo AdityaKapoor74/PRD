@@ -377,31 +377,31 @@ class RolloutBuffer:
 				else:
 					target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
 
-			# if self.norm_returns_q:
-			# 	targets_shape = target_q_values.shape
-			# 	self.target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+			if self.norm_returns_q:
+				targets_shape = target_q_values.shape
+
+				self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
+
+				self.target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 				
-			# 	# self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
-				
-			# 	# target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-			# else:
-			# 	self.target_q_values = target_q_values
+			else:
+				self.target_q_values = target_q_values
 
 		self.advantage = (target_values - values).detach()
 
-		# if self.norm_returns_v:
-		# 	targets_shape = target_values.shape
-		# 	self.target_values = (self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
+		if self.norm_returns_v:
+			targets_shape = target_values.shape
+			self.v_value_norm.update(target_values.view(-1), masks.view(-1))
+
+			self.target_values = (self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 			
-		# 	self.v_value_norm.update(target_values.view(-1), masks.view(-1))
-		# else:
-		# 	self.target_values = target_values
+		else:
+			self.target_values = target_values
 			
-			# target_values = self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 			
 
-		self.target_q_values = target_q_values.cpu()
-		self.target_values = target_values.cpu()
+		# self.target_q_values = target_q_values.cpu()
+		# self.target_values = target_values.cpu()
 
 		print("Avg Values", ((torch.from_numpy(self.V_values[:, :-1, :]) * masks).sum()/masks.sum()).item())
 		print("Avg Target Values", ((self.target_values*masks).sum()/masks.sum()).item())
