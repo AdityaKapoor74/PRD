@@ -357,26 +357,37 @@ class RolloutBuffer:
 			
 			if self.experiment_type in ["prd_above_threshold_ascend", "prd_above_threshold_decay"]:
 				mask_rewards = (weights_prd>select_above_threshold).int()
-				target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
+				# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
+				rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * mask_rewards).sum(dim=-1)
 			elif self.experiment_type == "prd_above_threshold":
 				if episode > self.transition_after:
 					mask_rewards = (weights_prd>select_above_threshold).int()
-					target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
+					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
+					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * mask_rewards).sum(dim=-1)
 				else:
-					target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1)).sum(dim=-1)
 			elif "top" in self.experiment_type:
 				if episode > self.transition_after:
 					_, indices = torch.topk(weights_prd, k=self.top_k, dim=-1)
 					mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-					target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
+					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
+					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * mask_rewards).sum(dim=-1)
 				else:
-					target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1)).sum(dim=-1)
 			elif "prd_soft_advantage" in self.experiment_type:
 				if episode > self.transition_after:
-					target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * weights_prd, dim=-1)
+					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * weights_prd, dim=-1)
+					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * weights_prd).sum(dim=-1)
 				else:
-					target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
+					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1)).sum(dim=-1)
 
+			if self.target_calc_style == "GAE":
+				target_values = self.gae_targets(rewards_, values, next_values, masks, next_mask)
+			elif self.target_calc_style == "N_steps":
+				target_values = self.nstep_returns(rewards_, values, next_values, masks, next_mask)
 			# if self.norm_returns_q:
 			# 	targets_shape = target_q_values.shape
 
@@ -446,3 +457,26 @@ class RolloutBuffer:
 			nstep_values[:, t_start, :] = nstep_return_t
 		
 		return nstep_values
+
+	def get_prd_masks(self, weights_prd, select_above_threshold):
+
+		if self.experiment_type in ["prd_above_threshold_ascend", "prd_above_threshold_decay"]:
+			prd_masks = (weights_prd>select_above_threshold).int()
+		elif self.experiment_type == "prd_above_threshold":
+			if episode > self.transition_after:
+				prd_masks = (weights_prd>select_above_threshold).int()
+			else:
+				prd_masks = torch.ones_like(weights_prd)
+		elif "top" in self.experiment_type:
+			if episode > self.transition_after:
+				_, indices = torch.topk(weights_prd, k=self.top_k, dim=-1)
+				prd_masks = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
+			else:
+				prd_masks = torch.ones_like(weights_prd)
+		elif "prd_soft_advantage" in self.experiment_type:
+			if episode > self.transition_after:
+				prd_masks = weights_prd
+			else:
+				prd_masks = torch.ones_like(weights_prd)
+
+		return prd_masks
