@@ -695,13 +695,13 @@ class Q_network(nn.Module):
 
 			# FCN FINAL LAYER TO GET Q-VALUES
 			self.common_layer = nn.Sequential(
-				init_(nn.Linear(64+64+64, 64), activate=True),
+				init_(nn.Linear(64+64, 64), activate=True),
 				nn.GELU()
 				)
 		else:
 			# FCN FINAL LAYER TO GET Q-VALUES
 			self.common_layer = nn.Sequential(
-				init_(nn.Linear(64+64, 64), activate=True),
+				init_(nn.Linear(64, 64), activate=True),
 				nn.GELU()
 				)
 
@@ -834,12 +834,11 @@ class Q_network(nn.Module):
 			aggregated_attention_value_enemies_ = self.attention_value_linear_enemies_dropout(aggregated_attention_value_enemies_)
 			aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
-			curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+			curr_agent_node_features = torch.cat([aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 			curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		
 		else:
-			curr_agent_node_features = torch.cat([states_embed, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
-			curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+			curr_agent_node_features = self.common_layer(aggregated_node_features) # Batch_size, Num agents, dim
 		
 		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 		rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
@@ -956,13 +955,13 @@ class V_network(nn.Module):
 
 			# FCN FINAL LAYER TO GET Q-VALUES
 			self.common_layer = nn.Sequential(
-				init_(nn.Linear(64+64+64, 64), activate=True),
+				init_(nn.Linear(64+64, 64), activate=True),
 				nn.GELU()
 				)
 		else:
 			# FCN FINAL LAYER TO GET Q-VALUES
 			self.common_layer = nn.Sequential(
-				init_(nn.Linear(64+64, 64), activate=True),
+				init_(nn.Linear(64, 64), activate=True),
 				nn.GELU()
 				)
 
@@ -1036,11 +1035,11 @@ class V_network(nn.Module):
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, Num Agents
 		attention_masks = self.get_attention_masks(agent_masks).reshape(batch*timesteps, num_agents, num_agents).unsqueeze(1).repeat(1, self.num_heads, 1, 1)
 		attention_masks = attention_masks + (1-hard_attention_weights)*self.mask_value
-		# score = score + attention_masks.reshape(*score.shape).to(score.device)
+		score = score + attention_masks.reshape(*score.shape).to(score.device)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
-		weights = F.softmax((score/(torch.max(score, dim=-1).values-torch.min(score, dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
-		# weights = F.softmax(score, dim=-1)
+		# weights = F.softmax((score/(torch.max(score, dim=-1).values-torch.min(score, dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weights = F.softmax(score, dim=-1)
 
 		final_weights = weights.clone()
 		for i in range(self.num_agents):
@@ -1083,12 +1082,11 @@ class V_network(nn.Module):
 			aggregated_attention_value_enemies_ = self.attention_value_linear_enemies_dropout(aggregated_attention_value_enemies_)
 			aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
-			curr_agent_node_features = torch.cat([states_embed, aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
+			curr_agent_node_features = torch.cat([aggregated_attention_value_enemies, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 			curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		
 		else:
-			curr_agent_node_features = torch.cat([states_embed, aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
-			curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
+			curr_agent_node_features = self.common_layer(aggregated_node_features) # Batch_size, Num agents, dim
 		
 		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
 		rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
