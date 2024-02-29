@@ -580,6 +580,13 @@ class PPOAgent:
 				q_values *= masks.to(self.device)
 				target_q_values *= masks
 
+				if self.norm_returns_q:
+					targets_shape = target_q_values.shape
+
+					self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
+					target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+
+
 				critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 				critic_q_loss_2 = F.huber_loss(torch.clamp(q_values, q_values_old.to(self.device)-self.value_clip, q_values_old.to(self.device)+self.value_clip), target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 				# critic_q_loss = F.huber_loss(q_values*masks.to(self.device), target_q_values.to(self.device)*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
@@ -609,6 +616,12 @@ class PPOAgent:
 
 			values *= masks.to(self.device)
 			target_values *= masks
+
+			if self.norm_returns_v:
+				targets_shape = target_values.shape
+				
+				self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
+				target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 
 			critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 			critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
@@ -675,6 +688,8 @@ class PPOAgent:
 				else:
 					total_norm = 0
 					for p in self.critic_network_q.parameters():
+						if p.grad is None:
+							continue
 						param_norm = p.grad.detach().data.norm(2)
 						total_norm += param_norm.item() ** 2
 					grad_norm_value_q = torch.tensor([total_norm ** 0.5])
@@ -688,6 +703,8 @@ class PPOAgent:
 			else:
 				total_norm = 0
 				for p in self.critic_network_v.parameters():
+					if p.grad is None:
+						continue
 					param_norm = p.grad.detach().data.norm(2)
 					total_norm += param_norm.item() ** 2
 				grad_norm_value_v = torch.tensor([total_norm ** 0.5])
@@ -700,6 +717,8 @@ class PPOAgent:
 			else:
 				total_norm = 0
 				for p in self.policy_network.parameters():
+					if p.grad is None:
+						continue
 					param_norm = p.grad.detach().data.norm(2)
 					total_norm += param_norm.item() ** 2
 				grad_norm_policy = torch.tensor([total_norm ** 0.5])
@@ -878,6 +897,8 @@ class PPOAgent:
 					else:
 						total_norm = 0
 						for p in self.critic_network_v.parameters():
+							if p.grad is None:
+								continue
 							param_norm = p.grad.detach().data.norm(2)
 							total_norm += param_norm.item() ** 2
 						grad_norm_value_v = torch.tensor([total_norm ** 0.5])
@@ -935,6 +956,8 @@ class PPOAgent:
 				else:
 					total_norm = 0
 					for p in self.policy_network[agent_id].parameters():
+						if p.grad is None:
+							continue
 						param_norm = p.grad.detach().data.norm(2)
 						total_norm += param_norm.item() ** 2
 					grad_norm_policy = torch.tensor([total_norm ** 0.5])
