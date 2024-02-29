@@ -584,7 +584,7 @@ class PPOAgent:
 					targets_shape = target_q_values.shape
 
 					self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
-					target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+					target_q_values = self.buffer.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
 
 				critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
@@ -619,7 +619,7 @@ class PPOAgent:
 
 			if self.norm_returns_v:
 				targets_shape = target_values.shape
-				
+
 				self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
 				target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 
