@@ -367,10 +367,8 @@ class MAPPO:
 							q_i_value = [q*c for q, c in zip(q_value, global_weights)]
 
 						print("Agents done", indiv_dones)
-						# print("Q value", q_value)
 						print("Global Q value", q_value[0])
 						print("Q_i value", q_i_value)
-						# print("weight contri", approx_agent_contri_to_rew[0])
 						print("global weights", global_weights)
 						print("-"*10)
 					else:
@@ -663,7 +661,7 @@ if __name__ == '__main__':
 				"select_above_threshold": 0.0, 
 				"threshold_min": 0.0, 
 				"threshold_max": 0.0, 
-				"steps_to_take": 1000,
+				"steps_to_take": 0,
 				"top_k": 0,
 				"norm_adv": True,
 			}
