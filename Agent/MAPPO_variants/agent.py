@@ -580,11 +580,11 @@ class PPOAgent:
 				q_values *= masks.to(self.device)
 				target_q_values *= masks
 
-				if self.norm_returns_q:
-					targets_shape = target_q_values.shape
+				# if self.norm_returns_q:
+				# 	targets_shape = target_q_values.shape
 
-					self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
-					target_q_values = self.buffer.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+				# 	self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
+				# 	target_q_values = self.buffer.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
 
 				critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
@@ -617,11 +617,11 @@ class PPOAgent:
 			values *= masks.to(self.device)
 			target_values *= masks
 
-			if self.norm_returns_v:
-				targets_shape = target_values.shape
+			# if self.norm_returns_v:
+			# 	targets_shape = target_values.shape
 
-				self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
-				target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
+			# 	self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
+			# 	target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 
 			critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 			critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
