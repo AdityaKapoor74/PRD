@@ -275,14 +275,14 @@ class MAPPO:
 
 				if "StarCraft" in self.environment:
 					if self.experiment_type == "prd_soft_advantage_global":
-						q_value, next_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+						q_value, next_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 					else:
-						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 				else:
 					if self.experiment_type == "prd_soft_advantage_global":
-						q_value, next_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+						q_value, next_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 					else:
-						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 
 				if "StarCraft" in self.environment:
 					next_states_actor, rewards, next_dones, info = self.env.step(actions)
@@ -413,14 +413,14 @@ class MAPPO:
 
 						if "StarCraft" in self.environment:
 							if self.experiment_type == "prd_soft_advantage_global":
-								q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+								q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 							else:
-								q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+								q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 						else:
 							if self.experiment_type == "prd_soft_advantage_global":
-								q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+								q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 							else:
-								q_value, _, _, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones)
+								q_value, _, _, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 
 						if self.experiment_type == "prd_soft_advantage_global":
 							if self.norm_returns_q:
@@ -564,7 +564,7 @@ if __name__ == '__main__':
 			grid_size = 12
 			fully_coop = False
 		env_name = "5m_vs_6m" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "HAPPO" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage prd_soft_advantage_global, HAPPO
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage prd_soft_advantage_global, HAPPO
 
 		dictionary = {
 				# TRAINING
@@ -575,12 +575,12 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 10,
-				"update_ppo_agent": 20, # update ppo agent after every update_ppo_agent episodes; 10 (StarCraft/MPE/PressurePlate/LBF)/ 2 (PettingZoo)
+				"n_epochs": 5,
+				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes; 10 (StarCraft/MPE/PressurePlate/LBF)/ 2 (PettingZoo)
 				"environment": environment,
 				"test_num": test_num,
 				"extension": extension,
-				"gamma": 0.95,
+				"gamma": 0.99,
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
@@ -626,7 +626,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_v": 0.5,
 				"enable_grad_clip_critic_q": True,
 				"grad_clip_critic_q": 0.5,
-				"value_clip": 0.05,
+				"value_clip": 0.2,
 				"enable_hard_attention": False,
 				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
@@ -651,16 +651,16 @@ if __name__ == '__main__':
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 0.5,
-				"policy_clip": 0.05,
+				"policy_clip": 0.2,
 				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 1e-2, #8e-3
-				"entropy_pen_final": 1e-2,
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen_final": 1e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, 
 				"threshold_min": 0.0, 
-				"threshold_max": 0.25, 
+				"threshold_max": 0.0, 
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": True,
