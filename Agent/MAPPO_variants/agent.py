@@ -214,7 +214,7 @@ class PPOAgent:
 			temperature=self.temperature_v,
 			norm_returns=self.norm_returns_v,
 			environment=self.environment,
-			# experiment_type=self.experiment_type,
+			experiment_type=self.experiment_type,
 			).to(self.device)
 		self.target_critic_network_v = V_network(
 			ally_obs_input_dim=self.critic_ally_observation, 
@@ -230,7 +230,7 @@ class PPOAgent:
 			temperature=self.temperature_v,
 			norm_returns=self.norm_returns_v,
 			environment=self.environment,
-			# experiment_type=self.experiment_type,
+			experiment_type=self.experiment_type,
 			).to(self.device)
 		# Copy network params
 		self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
@@ -367,7 +367,7 @@ class PPOAgent:
 		return lr
 
 	
-	def get_q_v_values(self, state_allies, state_enemies, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones):
+	def get_q_v_values(self, state_allies, state_enemies, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode):
 		with torch.no_grad():
 			indiv_masks = [1-d for d in indiv_dones]
 			indiv_masks = torch.FloatTensor(indiv_masks).unsqueeze(0).unsqueeze(0)
@@ -383,10 +383,12 @@ class PPOAgent:
 			if self.experiment_type == "prd_soft_advantage_global":
 				if "StarCraft" in self.environment:
 					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					prd_masks = self.buffer.get_prd_masks(weights_prd.mean(dim=1).transpose(-1, -2), self.select_above_threshold, episode)
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device), prd_masks.to(self.device))
 				else:
 					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					prd_masks = self.buffer.get_prd_masks(weights_prd.mean(dim=1).transpose(-1, -2), self.select_above_threshold, episode)
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device), prd_masks.to(self.device))
 
 				# we repeath Q value because we assume that a global Q has been computed for each agent
 				return Q_value.reshape(-1).repeat(self.num_agents).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).squeeze(0).numpy(), global_weights.reshape(-1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
@@ -402,11 +404,12 @@ class PPOAgent:
 			else:
 				if "StarCraft" in self.environment:
 					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					# prd_masks = self.buffer.get_prd_masks(weights_prd.mean(dim=1).transpose(-1, -2), self.select_above_threshold)
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					prd_masks = self.buffer.get_prd_masks(weights_prd.mean(dim=1).transpose(-1, -2), self.select_above_threshold, episode)
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device), prd_masks.to(self.device))
 				else:
 					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					prd_masks = self.buffer.get_prd_masks(weights_prd.mean(dim=1).transpose(-1, -2), self.select_above_threshold, episode)
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device), prd_masks.to(self.device))
 
 				return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).transpose(-1, -2).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 
@@ -539,7 +542,7 @@ class PPOAgent:
 
 			# SAMPLE DATA FROM BUFFER
 			states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor  = self.buffer.sample_recurrent_policy()
+			actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor, weights_prd_old  = self.buffer.sample_recurrent_policy()
 
 			
 			if self.norm_adv:
@@ -599,6 +602,7 @@ class PPOAgent:
 			values_old *= masks
 
 			target_shape = values_old.shape
+			prd_masks = self.buffer.get_prd_masks(weights_prd_old, self.select_above_threshold, episode)
 			if "StarCraft" in self.environment:
 				values, weight_v, score_v, h_v = self.critic_network_v(
 													states_critic_allies.to(self.device),
@@ -606,6 +610,7 @@ class PPOAgent:
 													one_hot_actions.to(self.device),
 													hidden_state_v.to(self.device),
 													masks.to(self.device),
+													prd_masks.to(self.device)
 													)
 			else:
 				values, weight_v, score_v, h_v = self.critic_network_v(
@@ -614,6 +619,7 @@ class PPOAgent:
 													one_hot_actions.to(self.device),
 													hidden_state_v.to(self.device),
 													masks.to(self.device),
+													prd_masks.to(self.device)
 													)
 			values = values.reshape(*target_shape)
 
@@ -854,7 +860,7 @@ class PPOAgent:
 
 				# SAMPLE DATA FROM BUFFER
 				states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-				actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor  = self.buffer.sample_recurrent_policy()
+				actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor, weights_prd_old  = self.buffer.sample_recurrent_policy()
 
 				if train_critic:
 					values_old *= masks
