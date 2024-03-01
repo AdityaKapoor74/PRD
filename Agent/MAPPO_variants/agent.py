@@ -214,6 +214,7 @@ class PPOAgent:
 			temperature=self.temperature_v,
 			norm_returns=self.norm_returns_v,
 			environment=self.environment,
+			# experiment_type=self.experiment_type,
 			).to(self.device)
 		self.target_critic_network_v = V_network(
 			ally_obs_input_dim=self.critic_ally_observation, 
@@ -229,6 +230,7 @@ class PPOAgent:
 			temperature=self.temperature_v,
 			norm_returns=self.norm_returns_v,
 			environment=self.environment,
+			# experiment_type=self.experiment_type,
 			).to(self.device)
 		# Copy network params
 		self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
@@ -380,11 +382,11 @@ class PPOAgent:
 
 			if self.experiment_type == "prd_soft_advantage_global":
 				if "StarCraft" in self.environment:
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				else:
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 
 				# we repeath Q value because we assume that a global Q has been computed for each agent
 				return Q_value.reshape(-1).repeat(self.num_agents).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).squeeze(0).numpy(), global_weights.reshape(-1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
@@ -399,13 +401,14 @@ class PPOAgent:
 			
 			else:
 				if "StarCraft" in self.environment:
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					# prd_masks = self.buffer.get_prd_masks(weights_prd.mean(dim=1).transpose(-1, -2), self.select_above_threshold)
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				else:
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 
-				return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), torch.mean(weights_prd.transpose(-1, -2), dim=1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
+				return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).transpose(-1, -2).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 
 	
 	def update_epsilon(self):
@@ -878,6 +881,12 @@ class PPOAgent:
 
 					values *= masks.to(self.device)	
 					target_values *= masks
+
+					if self.norm_returns_v:
+						targets_shape = target_values.shape
+
+						self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
+						target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 
 					critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 					critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
