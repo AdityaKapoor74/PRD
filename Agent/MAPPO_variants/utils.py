@@ -479,5 +479,7 @@ class RolloutBuffer:
 				prd_masks = weights_prd
 			else:
 				prd_masks = (weights_prd>0.0).int() # pay attention to every agent in the buffer period
+		else:
+			prd_masks = (weights_prd>0.0).int() # pay attention to every agent
 
 		return prd_masks
