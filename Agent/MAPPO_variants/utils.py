@@ -325,7 +325,7 @@ class RolloutBuffer:
 			elif self.target_calc_style == "N_steps":
 				target_values = self.nstep_returns(rewards, values, next_values, masks, next_mask)
 
-			self.target_q_values = rewards.new_zeros(*rewards.shape)
+			target_q_values = rewards.new_zeros(*rewards.shape)
 		else:
 			q_values = torch.from_numpy(self.Q_values[:, :-1, :]) * masks
 			next_q_values = torch.from_numpy(self.Q_values[:, -1, :]) * next_mask
@@ -398,7 +398,7 @@ class RolloutBuffer:
 			# else:
 			# 	self.target_q_values = target_q_values
 
-		self.advantage = (target_values - values).detach()
+		self.advantage = (self.target_values - values).detach()
 
 		# if self.norm_returns_v:
 		# 	targets_shape = target_values.shape
