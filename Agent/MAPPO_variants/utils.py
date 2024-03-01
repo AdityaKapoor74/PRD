@@ -280,6 +280,7 @@ class RolloutBuffer:
 		action_masks = torch.from_numpy(self.action_masks).bool().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.num_actions)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.num_actions)
 		masks = 1-torch.from_numpy(self.dones[:, :-1]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		
+		weights_prd = torch.from_numpy(self.weights_prd).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.num_agents)
 		q_values = torch.from_numpy(self.Q_values[:, :-1, :]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		values = torch.from_numpy(self.V_values[:, :-1, :]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		target_q_values = self.target_q_values.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
@@ -290,7 +291,7 @@ class RolloutBuffer:
 		factor = self.factor.reshape(self.num_episodes, data_chunks, self.data_chunk_length)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length)
 
 		return states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs, \
-		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values, advantage, factor
+		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values, advantage, factor, weights_prd
 
 	def calculate_targets(self, episode, select_above_threshold):
 		
@@ -458,7 +459,7 @@ class RolloutBuffer:
 		
 		return nstep_values
 
-	def get_prd_masks(self, weights_prd, select_above_threshold):
+	def get_prd_masks(self, weights_prd, select_above_threshold, episode):
 
 		if self.experiment_type in ["prd_above_threshold_ascend", "prd_above_threshold_decay"]:
 			prd_masks = (weights_prd>select_above_threshold).int()
@@ -466,17 +467,19 @@ class RolloutBuffer:
 			if episode > self.transition_after:
 				prd_masks = (weights_prd>select_above_threshold).int()
 			else:
-				prd_masks = torch.ones_like(weights_prd)
+				prd_masks = (weights_prd>0.0).int() # pay attention to every agent in the buffer period
 		elif "top" in self.experiment_type:
 			if episode > self.transition_after:
 				_, indices = torch.topk(weights_prd, k=self.top_k, dim=-1)
 				prd_masks = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
 			else:
-				prd_masks = torch.ones_like(weights_prd)
+				prd_masks = (weights_prd>0.0).int() # pay attention to every agent in the buffer period
 		elif "prd_soft_advantage" in self.experiment_type:
 			if episode > self.transition_after:
 				prd_masks = weights_prd
 			else:
-				prd_masks = torch.ones_like(weights_prd)
+				prd_masks = (weights_prd>0.0).int() # pay attention to every agent in the buffer period
+		else:
+			prd_masks = (weights_prd>0.0).int() # pay attention to every agent
 
 		return prd_masks
