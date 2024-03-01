@@ -398,7 +398,7 @@ class RolloutBuffer:
 			# else:
 			# 	self.target_q_values = target_q_values
 
-		self.advantage = (self.target_values - values).detach()
+		self.advantage = (target_values - values).detach()
 
 		# if self.norm_returns_v:
 		# 	targets_shape = target_values.shape
