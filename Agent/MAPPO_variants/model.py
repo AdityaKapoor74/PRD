@@ -1008,7 +1008,7 @@ class V_network(nn.Module):
 		return attention_masks
 
 
-	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks, prd_masks=None):
+	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks, prd_masks):
 		batch, timesteps, num_agents, _ = states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
 
@@ -1060,8 +1060,6 @@ class V_network(nn.Module):
 		# prd_masks is used to mask actions of agents that fall in the relevant set of agent i
 		if "prd" in self.experiment_type:
 			prd_masks = 1-prd_masks # prd_masks will give 1 for agents that are in the relevant set of agent i
-		else:
-			prd_masks = (final_weights>0.0).int().to(self.device) # consider everyone except dead agents
 		# need to get rid of actions of current agent in question for calculating the baseline
 		for i in range(self.num_agents):
 			prd_masks[:, i, i] = 0.0
