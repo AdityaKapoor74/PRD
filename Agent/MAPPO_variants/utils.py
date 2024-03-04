@@ -415,7 +415,7 @@ class RolloutBuffer:
 		self.target_q_values = target_q_values
 		self.target_values = target_values
 
-		print("Avg Values", ((torch.from_numpy(self.V_values[:, :-1, :]) * masks).sum()/masks.sum()).item())
+		print("Avg Values", ((values * masks).sum()/masks.sum()).item())
 		print("Avg Target Values", ((self.target_values*masks).sum()/masks.sum()).item())
 		print("Avg advantage", ((self.advantage*masks).sum()/masks.sum()).item())
 
