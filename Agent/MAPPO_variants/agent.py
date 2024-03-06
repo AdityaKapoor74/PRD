@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
-from model import Policy, Global_Q_network, Q_network, V_network
+from model import Policy, Global_Q_network, Q_network, V_network, PopArt
 from utils import RolloutBuffer
 
 class PPOAgent:
@@ -122,8 +122,11 @@ class PPOAgent:
 		print("EXPERIMENT TYPE", self.experiment_type)
 		# obs_input_dim = 2*3+1 # crossing_team_greedy
 		# Q-V Network
-		Q_PopArt = None
+		self.Q_PopArt = None
 		if "prd" in self.experiment_type:
+
+			if self.norm_returns_q:
+				self.Q_PopArt = PopArt(1, device=self.device)
 
 			if self.experiment_type == "prd_soft_advantage_global":
 
@@ -197,9 +200,13 @@ class PPOAgent:
 			for param in self.target_critic_network_q.parameters():
 				param.requires_grad_(False)
 
-			Q_PopArt = self.critic_network_q.q_value_layer[-1]
+			# Q_PopArt = self.critic_network_q.q_value_layer[-1]
 
-		
+		if self.norm_returns_q:
+			self.V_PopArt = PopArt(1, device=self.device)
+		else:
+			self.V_PopArt = None
+
 		self.critic_network_v = V_network(
 			ally_obs_input_dim=self.critic_ally_observation, 
 			enemy_obs_input_dim=self.critic_enemy_observation, 
@@ -238,7 +245,7 @@ class PPOAgent:
 		for param in self.target_critic_network_v.parameters():
 			param.requires_grad_(False)
 
-		V_PopArt = self.critic_network_v.v_value_layer[-1]
+		# V_PopArt = self.critic_network_v.v_value_layer[-1]
 		
 		
 		# Policy Network
@@ -299,8 +306,8 @@ class PPOAgent:
 			gae_lambda=self.gae_lambda,
 			n_steps=self.n_steps,
 			gamma=self.gamma,
-			V_PopArt=V_PopArt,
-			Q_PopArt=Q_PopArt,
+			V_PopArt=self.V_PopArt,
+			Q_PopArt=self.Q_PopArt,
 			)
 
 		# Loading models
@@ -862,7 +869,7 @@ class PPOAgent:
 
 				# SAMPLE DATA FROM BUFFER
 				states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-				actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor, weights_prd_old  = self.buffer.sample_recurrent_policy()
+				actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor, weights_prd_old = self.buffer.sample_recurrent_policy()
 
 				if train_critic:
 					values_old *= masks
