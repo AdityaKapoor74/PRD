@@ -59,10 +59,11 @@ class RunningMeanStd(object):
 class PopArt(nn.Module):
 	""" Normalize a vector of observations - across the first norm_axes dimensions"""
 
-	def __init__(self, input_shape, norm_axes=1, beta=0.99999, per_element_update=False, epsilon=1e-5, device=torch.device("cpu")):
+	def __init__(self, input_shape, num_agents, norm_axes=1, beta=0.99999, per_element_update=False, epsilon=1e-5, device=torch.device("cpu")):
 		super(PopArt, self).__init__()
 
 		self.input_shape = input_shape
+		self.num_agents = num_agents
 		self.norm_axes = norm_axes
 		self.epsilon = epsilon
 		self.beta = beta
@@ -84,7 +85,7 @@ class PopArt(nn.Module):
 		debiased_var = (debiased_mean_sq - debiased_mean ** 2).clamp(min=1e-2)
 		return debiased_mean, debiased_var
 
-	def forward(self, input_vector, train=True):
+	def forward(self, input_vector, mask, train=True):
 		# Make sure input is float32
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
@@ -94,11 +95,14 @@ class PopArt(nn.Module):
 			# Detach input before adding it to running means to avoid backpropping through it on
 			# subsequent batches.
 			detached_input = input_vector.detach()
-			batch_mean = detached_input.mean(dim=tuple(range(self.norm_axes)))
-			batch_sq_mean = (detached_input ** 2).mean(dim=tuple(range(self.norm_axes)))
+			# batch_mean = detached_input.mean(dim=tuple(range(self.norm_axes)))
+			# batch_sq_mean = (detached_input ** 2).mean(dim=tuple(range(self.norm_axes)))
+			batch_mean = detached_input.sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+			batch_sq_mean = (detached_input ** 2).sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
 
 			if self.per_element_update:
-				batch_size = np.prod(detached_input.size()[:self.norm_axes])
+				# batch_size = np.prod(detached_input.size()[:self.norm_axes])
+				batch_size = (mask.reshape(-1, self.num_agents).sum(dim=-1)>0.0).sum()
 				weight = self.beta ** batch_size
 			else:
 				weight = self.beta
@@ -114,6 +118,7 @@ class PopArt(nn.Module):
 
 	def denormalize(self, input_vector):
 		""" Transform normalized data back into original distribution """
+		input_vector_device = input_vector.device
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
 		input_vector = input_vector.to(**self.tpdv)
@@ -121,9 +126,10 @@ class PopArt(nn.Module):
 		mean, var = self.running_mean_var()
 		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
 		
-		out = out.cpu().numpy()
+		# out = out.cpu().numpy()
 		
-		return out
+		# return out
+		return out.to(input_vector_device)
 
 
 # class PopArt(torch.nn.Module):
