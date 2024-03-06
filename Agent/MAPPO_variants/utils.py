@@ -76,8 +76,8 @@ class RolloutBuffer:
 		gae_lambda,
 		n_steps,
 		gamma,
-		V_PopArt,
-		Q_PopArt,
+		# V_PopArt,
+		# Q_PopArt,
 		):
 		self.environment = environment
 		self.experiment_type = experiment_type
@@ -110,13 +110,13 @@ class RolloutBuffer:
 		self.gamma = gamma
 		self.n_steps = n_steps
 
-		if self.norm_returns_v:
-			# self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
-			self.v_value_norm = V_PopArt
+		# if self.norm_returns_v:
+		# 	# self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
+		# 	self.v_value_norm = V_PopArt
 			
-		if self.norm_returns_q:
-			# self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
-			self.q_value_norm = Q_PopArt
+		# if self.norm_returns_q:
+		# 	# self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
+		# 	self.q_value_norm = Q_PopArt
 
 		if self.norm_rewards:
 			self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
@@ -293,7 +293,7 @@ class RolloutBuffer:
 		return states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs, \
 		actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values, advantage, factor, weights_prd
 
-	def calculate_targets(self, episode, select_above_threshold):
+	def calculate_targets(self, episode, select_above_threshold, q_value_norm=None, v_value_norm=None):
 		
 		masks = 1 - torch.from_numpy(self.dones[:, :-1, :])
 		next_mask = 1 - torch.from_numpy(self.dones[:, -1, :])
@@ -307,10 +307,10 @@ class RolloutBuffer:
 
 		if self.norm_returns_v:
 			values_shape = values.shape
-			values = self.v_value_norm.denormalize(values.view(-1)).view(values_shape) * masks.view(values_shape)
+			values = v_value_norm.denormalize(values.view(-1)).view(values_shape) * masks.view(values_shape)
 
 			next_values_shape = next_values.shape
-			next_values = self.v_value_norm.denormalize(next_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
+			next_values = v_value_norm.denormalize(next_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
 
 		if self.clamp_rewards:
 			rewards = torch.clamp(rewards, min=self.clamp_rewards_value_min, max=self.clamp_rewards_value_max)
@@ -334,10 +334,10 @@ class RolloutBuffer:
 
 			if self.norm_returns_q:
 				values_shape = q_values.shape
-				q_values = self.q_value_norm.denormalize(q_values.view(-1)).view(values_shape) * masks.view(values_shape)
+				q_values = q_value_norm.denormalize(q_values.view(-1)).view(values_shape) * masks.view(values_shape)
 
 				next_values_shape = next_q_values.shape
-				next_q_values = self.q_value_norm.denormalize(next_q_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
+				next_q_values = q_value_norm.denormalize(next_q_values.view(-1)).view(next_values_shape) * next_mask.view(next_values_shape)
 
 			if self.target_calc_style == "GAE":
 				target_q_values = self.gae_targets(rewards, q_values, next_q_values, masks, next_mask)
