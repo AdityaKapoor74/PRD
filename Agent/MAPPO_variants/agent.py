@@ -126,7 +126,7 @@ class PPOAgent:
 		if "prd" in self.experiment_type:
 
 			if self.norm_returns_q:
-				self.Q_PopArt = PopArt(1, device=self.device)
+				self.Q_PopArt = PopArt(input_shape=1, num_agents=self.num_agents, device=self.device)
 
 			if self.experiment_type == "prd_soft_advantage_global":
 
@@ -203,7 +203,7 @@ class PPOAgent:
 			# Q_PopArt = self.critic_network_q.q_value_layer[-1]
 
 		if self.norm_returns_q:
-			self.V_PopArt = PopArt(1, device=self.device)
+			self.V_PopArt = PopArt(input_shape=1, num_agents=self.num_agents, device=self.device)
 		else:
 			self.V_PopArt = None
 
@@ -306,8 +306,8 @@ class PPOAgent:
 			gae_lambda=self.gae_lambda,
 			n_steps=self.n_steps,
 			gamma=self.gamma,
-			V_PopArt=self.V_PopArt,
-			Q_PopArt=self.Q_PopArt,
+			# V_PopArt=self.V_PopArt,
+			# Q_PopArt=self.Q_PopArt,
 			)
 
 		# Loading models
@@ -542,7 +542,7 @@ class PPOAgent:
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
 
-		self.buffer.calculate_targets(episode, self.select_above_threshold)
+		self.buffer.calculate_targets(episode, self.select_above_threshold, self.Q_PopArt, self.V_PopArt)
 
 		
 		# torch.autograd.set_detect_anomaly(True)
@@ -598,8 +598,10 @@ class PPOAgent:
 				if self.norm_returns_q:
 					targets_shape = target_q_values.shape
 
-					self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
-					target_q_values = self.buffer.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+					# self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
+					# target_q_values = self.buffer.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
+
+					target_q_values = self.Q_PopArt(target_q_values.view(-1), masks.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
 
 				critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
@@ -638,8 +640,9 @@ class PPOAgent:
 			if self.norm_returns_v:
 				targets_shape = target_values.shape
 
-				self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
-				target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
+				# self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
+				# target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
+				target_values = (self.V_PopArt(target_values.view(-1), masks.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 
 			critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 			critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
