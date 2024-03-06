@@ -848,7 +848,7 @@ class PPOAgent:
 	def update_HAPPO(self, episode):
 
 
-		self.buffer.calculate_targets(episode, self.select_above_threshold)
+		self.buffer.calculate_targets(episode, self.select_above_threshold, self.Q_PopArt, self.V_PopArt)
 		
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
@@ -906,9 +906,10 @@ class PPOAgent:
 					if self.norm_returns_v:
 						targets_shape = target_values.shape
 
-						self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
-						target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
-
+						# self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
+						# target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
+						target_values = (self.V_PopArt(target_values.view(-1), masks.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
+						
 					critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 					critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 
