@@ -87,6 +87,7 @@ class PopArt(nn.Module):
 
 	def forward(self, input_vector, mask, train=True):
 		# Make sure input is float32
+		input_vector_device = input_vector.device
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
 		input_vector = input_vector.to(**self.tpdv)
@@ -114,7 +115,7 @@ class PopArt(nn.Module):
 		mean, var = self.running_mean_var()
 		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
 		
-		return out
+		return out.to(input_vector_device)
 
 	def denormalize(self, input_vector):
 		""" Transform normalized data back into original distribution """
