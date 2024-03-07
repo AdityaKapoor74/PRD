@@ -333,6 +333,7 @@ def init_(m, gain=0.01, activate=False):
 class Policy(nn.Module):
 	def __init__(
 		self, 
+		use_recurrent_policy,
 		obs_input_dim, 
 		num_actions, 
 		num_agents, 
@@ -349,32 +350,44 @@ class Policy(nn.Module):
 		self.num_agents = num_agents
 		self.num_actions = num_actions
 		self.device = device
-		self.Layer_1 = nn.Sequential(
-			init_(nn.Linear(obs_input_dim, 64), activate=True),
-			nn.GELU(),
-			nn.LayerNorm(64),
-			)
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=rnn_num_layers, batch_first=True)
-		self.Layer_2 = nn.Sequential(
-			nn.LayerNorm(64),
-			init_(nn.Linear(64, num_actions), gain=0.01)
-			)
 
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		if self.use_recurrent_policy:
+			self.Layer_1 = nn.Sequential(
+				init_(nn.Linear(obs_input_dim, 64), activate=True),
+				nn.GELU(),
+				nn.LayerNorm(64),
+				)
+			self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=rnn_num_layers, batch_first=True)
+			self.Layer_2 = nn.Sequential(
+				nn.LayerNorm(64),
+				init_(nn.Linear(64, num_actions), gain=0.01)
+				)
+
+			for name, param in self.RNN.named_parameters():
+				if 'bias' in name:
+					nn.init.constant_(param, 0)
+				elif 'weight' in name:
+					nn.init.orthogonal_(param)
+		else:
+			self.Layer = nn.Sequential(
+				init_(nn.Linear(obs_input_dim, 64), activate=True),
+				nn.GELU(),
+				nn.LayerNorm(64),
+				init_(nn.Linear(64, num_actions), gain=0.01)
+				)
 
 
-	def forward(self, local_observations, hidden_state, mask_actions=None):
-		batch, timesteps, num_agents, _ = local_observations.shape
-		intermediate = self.Layer_1(local_observations)
-		intermediate = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		hidden_state = hidden_state.reshape(self.rnn_num_layers, batch*num_agents, -1)
-		output, h = self.RNN(intermediate, hidden_state)
-		output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3)
-		logits = self.Layer_2(output)
+	def forward(self, local_observations, hidden_state, mask_actions):
+		if self.use_recurrent_policy:
+			batch, timesteps, num_agents, _ = local_observations.shape
+			intermediate = self.Layer_1(local_observations)
+			intermediate = intermediate.permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+			hidden_state = hidden_state.reshape(self.rnn_num_layers, batch*num_agents, -1)
+			output, h = self.RNN(intermediate, hidden_state)
+			output = output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3)
+			logits = self.Layer_2(output)
+		else:
+			logits = self.Layer(local_observations)
 
 		logits = torch.where(mask_actions, logits, self.mask_value)
 		return F.softmax(logits, dim=-1), h
@@ -674,6 +687,7 @@ class Global_Q_network(nn.Module):
 class Q_network(nn.Module):
 	def __init__(
 		self, 
+		use_recurrent_policy,
 		ally_obs_input_dim, 
 		enemy_obs_input_dim,
 		num_heads, 
@@ -690,6 +704,7 @@ class Q_network(nn.Module):
 		):
 		super(Q_network, self).__init__()
 		
+		self.use_recurrent_policy = use_recurrent_policy,
 		self.num_heads = num_heads
 		self.num_agents = num_agents
 		self.num_enemies = num_enemies
@@ -788,12 +803,13 @@ class Q_network(nn.Module):
 				nn.GELU()
 				)
 
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=self.rnn_num_layers, batch_first=True)
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		if self.use_recurrent_policy:
+			self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=self.rnn_num_layers, batch_first=True)
+			for name, param in self.RNN.named_parameters():
+				if 'bias' in name:
+					nn.init.constant_(param, 0)
+				elif 'weight' in name:
+					nn.init.orthogonal_(param)
 
 		
 
@@ -931,10 +947,13 @@ class Q_network(nn.Module):
 		else:
 			curr_agent_node_features = self.common_layer(aggregated_node_features) # Batch_size, Num agents, dim
 		
-		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
-		rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-		Q_value = self.q_value_layer(rnn_output) # Batch_size, Num agents, 1
+		if self.use_recurrent_policy:
+			curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+			rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
+			rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+			Q_value = self.q_value_layer(rnn_output) # Batch_size, Num agents, 1
+		else:
+			Q_value = self.q_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
 
 		return Q_value.squeeze(-1), None, prd_weights, None, score, h
 
@@ -942,6 +961,7 @@ class Q_network(nn.Module):
 class V_network(nn.Module):
 	def __init__(
 		self, 
+		use_recurrent_policy,
 		ally_obs_input_dim, 
 		enemy_obs_input_dim,
 		num_heads, 
@@ -959,6 +979,7 @@ class V_network(nn.Module):
 		):
 		super(V_network, self).__init__()
 		
+		self.use_recurrent_policy = use_recurrent_policy,
 		self.num_heads = num_heads
 		self.num_agents = num_agents
 		self.num_enemies = num_enemies
@@ -1058,12 +1079,13 @@ class V_network(nn.Module):
 				nn.GELU()
 				)
 
-		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=self.rnn_num_layers, batch_first=True)
-		for name, param in self.RNN.named_parameters():
-			if 'bias' in name:
-				nn.init.constant_(param, 0)
-			elif 'weight' in name:
-				nn.init.orthogonal_(param)
+		if self.use_recurrent_policy:
+			self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=self.rnn_num_layers, batch_first=True)
+			for name, param in self.RNN.named_parameters():
+				if 'bias' in name:
+					nn.init.constant_(param, 0)
+				elif 'weight' in name:
+					nn.init.orthogonal_(param)
 
 		
 
@@ -1101,7 +1123,7 @@ class V_network(nn.Module):
 		return attention_masks
 
 
-	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks, prd_masks):
+	def forward(self, states, enemy_states, actions, rnn_hidden_state, agent_masks):
 		batch, timesteps, num_agents, _ = states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
 
@@ -1150,13 +1172,10 @@ class V_network(nn.Module):
 		# 	weights[:, head, :, :] = self.attention_dropout(weights[:, head, :, :])
 
 		# EMBED STATE ACTION
-		# prd_masks is used to mask actions of agents that fall in the relevant set of agent i
-		if "prd" in self.experiment_type:
-			prd_masks = 1-prd_masks # prd_masks will give 1 for agents that are in the relevant set of agent i
 		# need to get rid of actions of current agent in question for calculating the baseline
+		prd_masks = torch.ones(batch*timesteps, self.num_agents, self.num_agents).to(self.device)
 		for i in range(self.num_agents):
 			prd_masks[:, i, i] = 0.0
-		prd_masks = prd_masks.reshape(batch*timesteps, self.num_agents, self.num_agents)
 		states_ = states.unsqueeze(1).repeat(1, self.num_agents, 1, 1).to(self.device)
 		actions_ = actions.unsqueeze(1).repeat(1, self.num_agents, 1, 1).to(self.device) * prd_masks.unsqueeze(-1)
 		obs_actions = torch.cat([states_, actions_], dim=-1).to(self.device) # Batch_size, Num agents, Num agents, dim
@@ -1198,10 +1217,13 @@ class V_network(nn.Module):
 			curr_agent_node_features = torch.cat([aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 			curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		
-		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
-		rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-		V_value = self.v_value_layer(rnn_output) # Batch_size, Num agents, 1
+		if self.use_recurrent_policy:
+			curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+			rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
+			rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+			V_value = self.v_value_layer(rnn_output) # Batch_size, Num agents, 1
+		else:
+			V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
 
 		return V_value.squeeze(-1), final_weights, score, h
 
