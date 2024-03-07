@@ -360,7 +360,7 @@ class MAPPO:
 							values_shape = q_value.shape
 							indiv_masks = [1-d for d in indiv_dones]
 							indiv_masks = torch.FloatTensor(indiv_masks)
-							q_value_denormalized = (self.agents.critic_network_q.q_value_layer[-1].denormalize(torch.from_numpy(q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)).cpu().numpy()
+							q_value_denormalized = (self.agents.Q_PopArt.denormalize(torch.from_numpy(q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)).cpu().numpy()
 
 							q_i_value = [q*c for q, c in zip(q_value_denormalized, global_weights)]
 						else:
@@ -427,7 +427,7 @@ class MAPPO:
 								values_shape = q_value.shape
 								indiv_masks = [1-d for d in indiv_dones]
 								indiv_masks = torch.FloatTensor(indiv_masks)
-								q_value_denormalized = (self.agents.critic_network_q.q_value_layer[-1].denormalize(torch.from_numpy(q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)).cpu().numpy()
+								q_value_denormalized = (self.agents.Q_PopArt.denormalize(torch.from_numpy(q_value).view(-1)).view(values_shape) * indiv_masks.view(values_shape)).cpu().numpy()
 
 								q_i_value = [q*c for q, c in zip(q_value_denormalized, global_weights)]
 							else:
