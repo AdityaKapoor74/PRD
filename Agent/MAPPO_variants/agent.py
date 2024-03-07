@@ -892,7 +892,6 @@ class PPOAgent:
 					values_old *= masks
 
 					target_shape = values_old.shape
-					prd_masks = self.buffer.get_prd_masks(weights_prd_old, self.select_above_threshold, episode)
 					if "StarCraft" in self.environment:
 						values, attention_weights_v, score_v, _ = self.critic_network_v(
 															states_critic_allies.to(self.device),
@@ -900,7 +899,6 @@ class PPOAgent:
 															one_hot_actions.to(self.device),
 															hidden_state_q.to(self.device),
 															masks.to(self.device),
-															prd_masks.to(self.device),
 															)
 					else:
 						values, attention_weights_v, score_v, _ = self.critic_network_v(
@@ -909,7 +907,6 @@ class PPOAgent:
 															one_hot_actions.to(self.device),
 															hidden_state_q.to(self.device),
 															masks.to(self.device),
-															prd_masks.to(self.device),
 															)
 
 					values = values.reshape(*target_shape)
