@@ -646,6 +646,7 @@ if __name__ == '__main__':
 				
 
 				# ACTOR
+				"use_recurrent_policy": True,
 				"data_chunk_length": 10,
 				"rnn_num_layers_actor": 1,
 				"rnn_hidden_actor": 64,
