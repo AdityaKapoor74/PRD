@@ -107,9 +107,10 @@ class QMIXAgent:
 				final_state = torch.cat([state, last_one_hot_action], dim=-1).unsqueeze(0).unsqueeze(0)
 				Q_values, rnn_hidden_state = self.Q_network(final_state.to(self.device), rnn_hidden_state.to(self.device), action_masks.to(self.device)) #+ mask_actions
 				actions = Q_values.reshape(self.num_agents, self.num_actions).argmax(dim=-1).cpu().tolist()
+				rnn_hidden_state = rnn_hidden_state.cpu().numpy()
 				# actions = [Categorical(dist).sample().detach().cpu().item() for dist in Q_values]
 		
-		return actions, rnn_hidden_state.cpu().numpy()
+		return actions, rnn_hidden_state
 
 
 	def calculate_returns(self, rewards):
