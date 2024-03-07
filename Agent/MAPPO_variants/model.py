@@ -342,6 +342,7 @@ class Policy(nn.Module):
 		):
 		super(Policy, self).__init__()
 
+		self.use_recurrent_policy = use_recurrent_policy
 		self.rnn_num_layers = rnn_num_layers
 
 		self.mask_value = torch.tensor(
