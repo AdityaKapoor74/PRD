@@ -453,13 +453,13 @@ if __name__ == '__main__':
 	for i in range(1, 4):
 		extension = "QMix_"+str(i)
 		test_num = "StarCraft"
-		environment = "PettingZoo" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
+		environment = "LBForaging" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
 		if "LBForaging" in environment:
 			num_players = 6
 			num_food = 9
 			grid_size = 12
 			fully_coop = False
-		env_name = "pursuit_v4" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
+		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "") # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
 
 		dictionary = {
 				# TRAINING
@@ -482,13 +482,13 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 5000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
-				"max_time_steps": 500, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate & LBForaging)/ 500 (PettingZoo)
+				"max_episodes": 15000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
+				"max_time_steps": 70, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate & LBForaging)/ 500 (PettingZoo)
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
 				"batch_size": 32,
-				"update_episode_interval": 5,
+				"update_episode_interval": 10,
 				"num_updates": 5,
 				"epsilon_greedy": 1.0,
 				"epsilon_greedy_min": 0.1,
