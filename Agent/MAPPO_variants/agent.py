@@ -909,7 +909,7 @@ class PPOAgent:
 						# self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
 						# target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 						target_values = (self.V_PopArt(target_values.view(-1), masks.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
-						
+
 					critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 					critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 
@@ -1015,11 +1015,13 @@ class PPOAgent:
 
 				probs_new = Categorical(dists_new.squeeze(-2))
 
-				logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device))
+				logprobs_new = probs_new.log_prob(actions[:, :, agent_id].to(self.device)).reshape(self.update_ppo_agent, self.max_time_steps)
+
 
 			target_shape = self.buffer.factor.shape
-
-			self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks[:, :, agent_id].reshape(*target_shape)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
+			masks_ = 1-torch.from_numpy(self.buffer.dones[:, :-1]).float().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents).reshape(-1, self.data_chunk_length, self.num_agents)[:, :, agent_id]
+			
+			self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks_.reshape(*target_shape)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
 
 			train_critic = False
 
