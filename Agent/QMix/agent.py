@@ -109,7 +109,7 @@ class QMIXAgent:
 				actions = Q_values.reshape(self.num_agents, self.num_actions).argmax(dim=-1).cpu().tolist()
 				# actions = [Categorical(dist).sample().detach().cpu().item() for dist in Q_values]
 		
-		return actions, rnn_hidden_state
+		return actions, rnn_hidden_state.cpu().numpy()
 
 
 	def calculate_returns(self, rewards):
