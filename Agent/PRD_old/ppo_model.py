@@ -51,102 +51,179 @@ class RunningMeanStd(object):
 		self.count = new_count
 
 
-class PopArt(torch.nn.Module):
-	
-	def __init__(self, input_shape, output_shape, norm_axes=1, beta=0.99999, epsilon=1e-5, device=torch.device("cpu")):
-		
+class PopArt(nn.Module):
+	""" Normalize a vector of observations - across the first norm_axes dimensions"""
+
+	def __init__(self, input_shape, num_agents, norm_axes=1, beta=0.99999, per_element_update=False, epsilon=1e-5, device=torch.device("cpu")):
 		super(PopArt, self).__init__()
 
-		self.beta = beta
-		self.epsilon = epsilon
+		self.input_shape = input_shape
+		self.num_agents = num_agents
 		self.norm_axes = norm_axes
+		self.epsilon = epsilon
+		self.beta = beta
+		self.per_element_update = per_element_update
 		self.tpdv = dict(dtype=torch.float32, device=device)
 
-		self.input_shape = input_shape
-		self.output_shape = output_shape
-
-		self.weight = nn.Parameter(torch.Tensor(output_shape, input_shape)).to(**self.tpdv)
-		self.bias = nn.Parameter(torch.Tensor(output_shape)).to(**self.tpdv)
-		
-		self.stddev = nn.Parameter(torch.ones(output_shape), requires_grad=False).to(**self.tpdv)
-		self.mean = nn.Parameter(torch.zeros(output_shape), requires_grad=False).to(**self.tpdv)
-		self.mean_sq = nn.Parameter(torch.zeros(output_shape), requires_grad=False).to(**self.tpdv)
+		self.running_mean = nn.Parameter(torch.zeros(input_shape), requires_grad=False).to(**self.tpdv)
+		self.running_mean_sq = nn.Parameter(torch.zeros(input_shape), requires_grad=False).to(**self.tpdv)
 		self.debiasing_term = nn.Parameter(torch.tensor(0.0), requires_grad=False).to(**self.tpdv)
 
-		self.reset_parameters()
-
 	def reset_parameters(self):
-		torch.nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-		if self.bias is not None:
-			fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
-			bound = 1 / math.sqrt(fan_in)
-			torch.nn.init.uniform_(self.bias, -bound, bound)
-		self.mean.zero_()
-		self.mean_sq.zero_()
+		self.running_mean.zero_()
+		self.running_mean_sq.zero_()
 		self.debiasing_term.zero_()
 
-	def forward(self, input_vector):
-		if type(input_vector) == np.ndarray:
-			input_vector = torch.from_numpy(input_vector)
-		input_vector = input_vector.to(**self.tpdv)
-
-		return F.linear(input_vector, self.weight, self.bias)
-	
-	@torch.no_grad()
-	def update(self, input_vector, mask):
-		if type(input_vector) == np.ndarray:
-			input_vector = torch.from_numpy(input_vector)
-		input_vector = input_vector.to(**self.tpdv)
-		
-		old_mean, old_var = self.debiased_mean_var()
-		old_stddev = torch.sqrt(old_var)
-
-		# batch_mean = input_vector.mean(dim=tuple(range(self.norm_axes)))
-		# batch_sq_mean = (input_vector ** 2).mean(dim=tuple(range(self.norm_axes)))
-		batch_mean = input_vector.sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
-		batch_sq_mean = (input_vector ** 2).sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
-
-		self.mean.mul_(self.beta).add_(batch_mean * (1.0 - self.beta))
-		self.mean_sq.mul_(self.beta).add_(batch_sq_mean * (1.0 - self.beta))
-		self.debiasing_term.mul_(self.beta).add_(1.0 * (1.0 - self.beta))
-
-		self.stddev.data = (self.mean_sq - self.mean ** 2).sqrt().clamp(min=1e-4)
-		
-		new_mean, new_var = self.debiased_mean_var()
-		new_stddev = torch.sqrt(new_var)
-		
-		self.weight.data = self.weight.data * old_stddev / new_stddev
-		self.bias.data = (old_stddev * self.bias.data + old_mean - new_mean) / new_stddev
-
-	def debiased_mean_var(self):
-		debiased_mean = self.mean / self.debiasing_term.clamp(min=self.epsilon)
-		debiased_mean_sq = self.mean_sq / self.debiasing_term.clamp(min=self.epsilon)
+	def running_mean_var(self):
+		debiased_mean = self.running_mean / self.debiasing_term.clamp(min=self.epsilon)
+		debiased_mean_sq = self.running_mean_sq / self.debiasing_term.clamp(min=self.epsilon)
 		debiased_var = (debiased_mean_sq - debiased_mean ** 2).clamp(min=1e-2)
 		return debiased_mean, debiased_var
 
-	def normalize(self, input_vector):
+	def forward(self, input_vector, mask, train=True):
+		# Make sure input is float32
+		input_vector_device = input_vector.device
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
-		input_vector_device = input_vector.device
 		input_vector = input_vector.to(**self.tpdv)
 
-		mean, var = self.debiased_mean_var()
+		if train:
+			# Detach input before adding it to running means to avoid backpropping through it on
+			# subsequent batches.
+			detached_input = input_vector.detach()
+			# batch_mean = detached_input.mean(dim=tuple(range(self.norm_axes)))
+			# batch_sq_mean = (detached_input ** 2).mean(dim=tuple(range(self.norm_axes)))
+			batch_mean = detached_input.sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+			batch_sq_mean = (detached_input ** 2).sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+
+			if self.per_element_update:
+				# batch_size = np.prod(detached_input.size()[:self.norm_axes])
+				batch_size = (mask.reshape(-1, self.num_agents).sum(dim=-1)>0.0).sum()
+				weight = self.beta ** batch_size
+			else:
+				weight = self.beta
+
+			self.running_mean.mul_(weight).add_(batch_mean * (1.0 - weight))
+			self.running_mean_sq.mul_(weight).add_(batch_sq_mean * (1.0 - weight))
+			self.debiasing_term.mul_(weight).add_(1.0 * (1.0 - weight))
+
+		mean, var = self.running_mean_var()
 		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
 		
 		return out.to(input_vector_device)
 
 	def denormalize(self, input_vector):
+		""" Transform normalized data back into original distribution """
+		input_vector_device = input_vector.device
 		if type(input_vector) == np.ndarray:
 			input_vector = torch.from_numpy(input_vector)
-		input_vector_device = input_vector.device
 		input_vector = input_vector.to(**self.tpdv)
 
-		mean, var = self.debiased_mean_var()
+		mean, var = self.running_mean_var()
 		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
 		
 		# out = out.cpu().numpy()
-
+		
+		# return out
 		return out.to(input_vector_device)
+
+
+# class PopArt(torch.nn.Module):
+	
+# 	def __init__(self, input_shape, output_shape, norm_axes=1, beta=0.99999, epsilon=1e-5, device=torch.device("cpu")):
+		
+# 		super(PopArt, self).__init__()
+
+# 		self.beta = beta
+# 		self.epsilon = epsilon
+# 		self.norm_axes = norm_axes
+# 		self.tpdv = dict(dtype=torch.float32, device=device)
+
+# 		self.input_shape = input_shape
+# 		self.output_shape = output_shape
+
+# 		self.weight = nn.Parameter(torch.Tensor(output_shape, input_shape)).to(**self.tpdv)
+# 		self.bias = nn.Parameter(torch.Tensor(output_shape)).to(**self.tpdv)
+		
+# 		self.stddev = nn.Parameter(torch.ones(output_shape), requires_grad=False).to(**self.tpdv)
+# 		self.mean = nn.Parameter(torch.zeros(output_shape), requires_grad=False).to(**self.tpdv)
+# 		self.mean_sq = nn.Parameter(torch.zeros(output_shape), requires_grad=False).to(**self.tpdv)
+# 		self.debiasing_term = nn.Parameter(torch.tensor(0.0), requires_grad=False).to(**self.tpdv)
+
+# 		self.reset_parameters()
+
+# 	def reset_parameters(self):
+# 		torch.nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+# 		if self.bias is not None:
+# 			fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
+# 			bound = 1 / math.sqrt(fan_in)
+# 			torch.nn.init.uniform_(self.bias, -bound, bound)
+# 		self.mean.zero_()
+# 		self.mean_sq.zero_()
+# 		self.debiasing_term.zero_()
+
+# 	def forward(self, input_vector):
+# 		if type(input_vector) == np.ndarray:
+# 			input_vector = torch.from_numpy(input_vector)
+# 		input_vector = input_vector.to(**self.tpdv)
+
+# 		return F.linear(input_vector, self.weight, self.bias)
+	
+# 	@torch.no_grad()
+# 	def update(self, input_vector, mask):
+# 		if type(input_vector) == np.ndarray:
+# 			input_vector = torch.from_numpy(input_vector)
+# 		input_vector = input_vector.to(**self.tpdv)
+		
+# 		old_mean, old_var = self.debiased_mean_var()
+# 		old_stddev = torch.sqrt(old_var)
+
+# 		# batch_mean = input_vector.mean(dim=tuple(range(self.norm_axes)))
+# 		# batch_sq_mean = (input_vector ** 2).mean(dim=tuple(range(self.norm_axes)))
+# 		batch_mean = input_vector.sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+# 		batch_sq_mean = (input_vector ** 2).sum(dim=tuple(range(self.norm_axes)))/mask.sum(dim=tuple(range(self.norm_axes)))
+
+# 		self.mean.mul_(self.beta).add_(batch_mean * (1.0 - self.beta))
+# 		self.mean_sq.mul_(self.beta).add_(batch_sq_mean * (1.0 - self.beta))
+# 		self.debiasing_term.mul_(self.beta).add_(1.0 * (1.0 - self.beta))
+
+# 		self.stddev.data = (self.mean_sq - self.mean ** 2).sqrt().clamp(min=1e-4)
+		
+# 		new_mean, new_var = self.debiased_mean_var()
+# 		new_stddev = torch.sqrt(new_var)
+		
+# 		self.weight.data = self.weight.data * old_stddev / new_stddev
+# 		self.bias.data = (old_stddev * self.bias.data + old_mean - new_mean) / new_stddev
+
+# 	def debiased_mean_var(self):
+# 		debiased_mean = self.mean / self.debiasing_term.clamp(min=self.epsilon)
+# 		debiased_mean_sq = self.mean_sq / self.debiasing_term.clamp(min=self.epsilon)
+# 		debiased_var = (debiased_mean_sq - debiased_mean ** 2).clamp(min=1e-2)
+# 		return debiased_mean, debiased_var
+
+# 	def normalize(self, input_vector):
+# 		if type(input_vector) == np.ndarray:
+# 			input_vector = torch.from_numpy(input_vector)
+# 		input_vector_device = input_vector.device
+# 		input_vector = input_vector.to(**self.tpdv)
+
+# 		mean, var = self.debiased_mean_var()
+# 		out = (input_vector - mean[(None,) * self.norm_axes]) / torch.sqrt(var)[(None,) * self.norm_axes]
+		
+# 		return out.to(input_vector_device)
+
+# 	def denormalize(self, input_vector):
+# 		if type(input_vector) == np.ndarray:
+# 			input_vector = torch.from_numpy(input_vector)
+# 		input_vector_device = input_vector.device
+# 		input_vector = input_vector.to(**self.tpdv)
+
+# 		mean, var = self.debiased_mean_var()
+# 		out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
+		
+# 		# out = out.cpu().numpy()
+
+# 		return out.to(input_vector_device)
 
 
 
@@ -240,7 +317,8 @@ class TransformerCritic(nn.Module):
 		rnn_num_layers,
 		norm_output,
 		device, 
-		attention_drop_prob
+		attention_drop_prob,
+		environment,
 		):
 		super(TransformerCritic, self).__init__()
 		
@@ -251,17 +329,12 @@ class TransformerCritic(nn.Module):
 		self.num_heads = num_heads
 		self.num_actions = num_actions
 		self.device = device
+		self.environment = environment
 
 		self.attention_dropout = AttentionDropout(dropout_prob=attention_drop_prob)
 
 		self.ally_state_embed = nn.Sequential(
 			init_(nn.Linear(ally_obs_input_dim, 64, bias=True), activate=True),
-			nn.GELU(),
-			nn.LayerNorm(64),
-			)
-
-		self.enemy_state_embed = nn.Sequential(
-			init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
 			nn.GELU(),
 			nn.LayerNorm(64),
 			)
@@ -296,39 +369,51 @@ class TransformerCritic(nn.Module):
 
 		self.attention_value_linear_layer_norm = nn.LayerNorm(64)
 
+		if "StarCraft" in self.environment:
 
-		# Attention for agents to enemies
-		# Key, Query, Attention Value, Hard Attention Networks
-		assert 64%self.num_heads == 0
-		self.key_enemies = init_(nn.Linear(64, 64))
-		self.query_enemies = init_(nn.Linear(64, 64))
-		self.attention_value_enemies = init_(nn.Linear(64, 64))
+			self.enemy_state_embed = nn.Sequential(
+				init_(nn.Linear(enemy_obs_input_dim, 64, bias=True), activate=True),
+				nn.GELU(),
+				nn.LayerNorm(64),
+				)
 
-		self.attention_value_enemies_dropout = nn.Dropout(0.2)
-		self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
+			# Attention for agents to enemies
+			# Key, Query, Attention Value, Hard Attention Networks
+			assert 64%self.num_heads == 0
+			self.key_enemies = init_(nn.Linear(64, 64))
+			self.query_enemies = init_(nn.Linear(64, 64))
+			self.attention_value_enemies = init_(nn.Linear(64, 64))
 
-		self.attention_value_linear_enemies = nn.Sequential(
-			init_(nn.Linear(64, 64), activate=True),
-			nn.Dropout(0.2),
-			nn.GELU(),
-			nn.LayerNorm(64),
-			init_(nn.Linear(64, 64))
-			)
-		self.attention_value_linear_enemies_dropout = nn.Dropout(0.2)
+			self.attention_value_enemies_dropout = nn.Dropout(0.2)
+			self.attention_value_enemies_layer_norm = nn.LayerNorm(64)
 
-		self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(64)
+			self.attention_value_linear_enemies = nn.Sequential(
+				init_(nn.Linear(64, 64), activate=True),
+				nn.Dropout(0.2),
+				nn.GELU(),
+				nn.LayerNorm(64),
+				init_(nn.Linear(64, 64))
+				)
+			self.attention_value_linear_enemies_dropout = nn.Dropout(0.2)
 
-		# dimesion of key
-		self.d_k_enemies = 64
+			self.attention_value_linear_enemies_layer_norm = nn.LayerNorm(64)
 
-		# ********************************************************************************************************
+			# dimesion of key
+			self.d_k_enemies = 64
 
-		# ********************************************************************************************************
-		# FCN FINAL LAYER TO GET VALUES
-		self.common_layer = nn.Sequential(
-			nn.Linear(64+64+64, 64, bias=True), 
-			nn.GELU(),
-			)
+			# ********************************************************************************************************
+
+			# ********************************************************************************************************
+			# FCN FINAL LAYER TO GET VALUES
+			self.common_layer = nn.Sequential(
+				nn.Linear(64+64+64, 64, bias=True), 
+				nn.GELU(),
+				)
+		else:
+			self.common_layer = nn.Sequential(
+				nn.Linear(64+64, 64, bias=True), 
+				nn.GELU(),
+				)
 
 		self.RNN = nn.GRU(input_size=64, hidden_size=64, num_layers=rnn_num_layers, batch_first=True)
 		for name, param in self.RNN.named_parameters():
@@ -337,16 +422,21 @@ class TransformerCritic(nn.Module):
 			elif 'weight' in name:
 				nn.init.orthogonal_(param)
 
-		if norm_output:
-			self.v_value_layer = nn.Sequential(
-				nn.LayerNorm(64),
-				init_(PopArt(64, 1, device=self.device))
-				)
-		else:
-			self.v_value_layer = nn.Sequential(
-				nn.LayerNorm(64),
-				init_(Linear(64, 1, bias=True))
-				)
+		# if norm_output:
+		# 	self.v_value_layer = nn.Sequential(
+		# 		nn.LayerNorm(64),
+		# 		init_(PopArt(64, 1, device=self.device))
+		# 		)
+		# else:
+		# 	self.v_value_layer = nn.Sequential(
+		# 		nn.LayerNorm(64),
+		# 		init_(Linear(64, 1, bias=True))
+		# 		)
+
+		self.v_value_layer = nn.Sequential(
+			nn.LayerNorm(64),
+			init_(nn.Linear(64, 1, bias=True))
+			)
 			
 		# ********************************************************************************************************	
 
@@ -378,9 +468,7 @@ class TransformerCritic(nn.Module):
 	def forward(self, states, enemy_states, policies, actions, rnn_hidden_state, agent_masks):
 		
 		batch, timesteps, num_agents, _ = states.shape
-		_, _, num_enemies, _ = enemy_states.shape
 		states = states.reshape(batch*timesteps, num_agents, -1)
-		enemy_states = enemy_states.reshape(batch*timesteps, num_enemies, -1)
 		actions = actions.reshape(batch*timesteps, num_agents, -1)
 		policies = policies.reshape(batch*timesteps, num_agents, -1)
 
@@ -425,24 +513,29 @@ class TransformerCritic(nn.Module):
 		node_features = self.attention_value_linear_layer_norm(node_features_+node_features)
 
 		
-		# enemy_state_embed = self.enemy_state_embed(enemy_states.reshape(enemy_states.shape[0], -1)).unsqueeze(1).repeat(1, self.num_agents, 1).unsqueeze(1).repeat(1, self.num_agents, 1, 1)
-		# ATTENTION AGENTS TO ENEMIES
-		enemy_state_embed = self.enemy_state_embed(enemy_states.view(batch*timesteps, self.num_enemies, -1))
-		query_enemies = self.query_enemies(states_embed) # Batch, num_agents, dim
-		key_enemies = self.key_enemies(enemy_state_embed) # Batch, num_enemies, dim
-		attention_values_enemies = self.attention_value_enemies(enemy_state_embed) # Batch, num_enemies, dim
-		# SOFT ATTENTION
-		score_enemies = torch.matmul(query_enemies,(key_enemies).transpose(-2,-1))/math.sqrt((self.d_k_enemies)) # Batch_size, Num agents, Num_enemies, dim
-		weight_enemies = F.softmax(score_enemies, dim=-1)
-		aggregated_attention_value_enemies = torch.matmul(weight_enemies, attention_values_enemies) # Batch, num agents, dim
-		aggregated_attention_value_enemies = self.attention_value_enemies_dropout(aggregated_attention_value_enemies)
-		aggregated_attention_value_enemies = self.attention_value_enemies_layer_norm(enemy_state_embed.mean(dim=-2).unsqueeze(-2)+states_embed+aggregated_attention_value_enemies)
-		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
-		aggregated_attention_value_enemies_ = self.attention_value_linear_enemies_dropout(aggregated_attention_value_enemies_)
-		aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
+		if "StarCraft" in self.environment:
+			_, _, num_enemies, _ = enemy_states.shape
+			enemy_states = enemy_states.reshape(batch*timesteps, num_enemies, -1)
+			# enemy_state_embed = self.enemy_state_embed(enemy_states.reshape(enemy_states.shape[0], -1)).unsqueeze(1).repeat(1, self.num_agents, 1).unsqueeze(1).repeat(1, self.num_agents, 1, 1)
+			# ATTENTION AGENTS TO ENEMIES
+			enemy_state_embed = self.enemy_state_embed(enemy_states.view(batch*timesteps, self.num_enemies, -1))
+			query_enemies = self.query_enemies(states_embed) # Batch, num_agents, dim
+			key_enemies = self.key_enemies(enemy_state_embed) # Batch, num_enemies, dim
+			attention_values_enemies = self.attention_value_enemies(enemy_state_embed) # Batch, num_enemies, dim
+			# SOFT ATTENTION
+			score_enemies = torch.matmul(query_enemies,(key_enemies).transpose(-2,-1))/math.sqrt((self.d_k_enemies)) # Batch_size, Num agents, Num_enemies, dim
+			weight_enemies = F.softmax(score_enemies, dim=-1)
+			aggregated_attention_value_enemies = torch.matmul(weight_enemies, attention_values_enemies) # Batch, num agents, dim
+			aggregated_attention_value_enemies = self.attention_value_enemies_dropout(aggregated_attention_value_enemies)
+			aggregated_attention_value_enemies = self.attention_value_enemies_layer_norm(enemy_state_embed.mean(dim=-2).unsqueeze(-2)+states_embed+aggregated_attention_value_enemies)
+			aggregated_attention_value_enemies_ = self.attention_value_linear_enemies(aggregated_attention_value_enemies)
+			aggregated_attention_value_enemies_ = self.attention_value_linear_enemies_dropout(aggregated_attention_value_enemies_)
+			aggregated_attention_value_enemies = self.attention_value_linear_enemies_layer_norm(aggregated_attention_value_enemies+aggregated_attention_value_enemies_)
 
-		curr_agent_node_features = torch.cat([states_embed.unsqueeze(-2).repeat(1,1,self.num_agents,1), aggregated_attention_value_enemies.unsqueeze(1).repeat(1, self.num_agents, 1, 1), node_features], dim=-1)
-
+			curr_agent_node_features = torch.cat([states_embed.unsqueeze(-2).repeat(1,1,self.num_agents,1), aggregated_attention_value_enemies.unsqueeze(1).repeat(1, self.num_agents, 1, 1), node_features], dim=-1)
+		else:
+			curr_agent_node_features = torch.cat([states_embed.unsqueeze(-2).repeat(1,1,self.num_agents,1), node_features], dim=-1)
+		
 		curr_agent_node_features = self.common_layer(curr_agent_node_features)
 
 		curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, num_agents, -1).permute(0, 2, 3, 1, 4).reshape(batch*num_agents*num_agents, timesteps, -1)
