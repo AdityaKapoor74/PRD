@@ -482,8 +482,8 @@ if __name__ == '__main__':
 				"env": env_name,
 
 				# MODEL
-				"critic_learning_rate": 5e-4, #1e-3
-				"actor_learning_rate": 5e-4, #1e-3
+				"critic_learning_rate": 1e-4, #1e-3
+				"actor_learning_rate": 1e-4, #1e-3
 				"actor_weight_decay": 0.0,
 				"critic_weight_decay": 0.0,
 				"enable_grad_clip_critic": True,
