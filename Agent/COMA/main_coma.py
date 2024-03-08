@@ -51,7 +51,7 @@ if __name__ == '__main__':
 				"actor_rnn_hidden_dim": 64,
 				"update_episode_interval": 5,
 				"data_chunk_length": 10,
-				"num_updates": 5,
+				"num_updates": 1,
 				"enable_grad_clip_critic": True,
 				"enable_grad_clip_actor": True,
 				"grad_clip_critic": 10.0,
