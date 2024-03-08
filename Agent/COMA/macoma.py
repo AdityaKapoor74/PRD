@@ -14,6 +14,7 @@ class MACOMA:
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		# self.device = "cpu"
 		self.env = env
+		self.environment = dictionary["environment"]
 		self.gif = dictionary["gif"]
 		self.save_model = dictionary["save_model"]
 		self.save_model_checkpoint = dictionary["save_model_checkpoint"]
@@ -138,6 +139,30 @@ class MACOMA:
 		clip.write_gif(fname, fps=fps)
 
 
+	# FOR COLLISION AVOIDANCE ENVIRONMENT
+	def split_states(self, states):
+		states_critic = []
+		states_actor = []
+		for i in range(self.num_agents):
+			states_critic.append(states[i][0])
+			states_actor.append(states[i][1])
+
+		states_critic = np.asarray(states_critic)
+		states_actor = np.asarray(states_actor)
+
+		return states_critic, states_actor
+
+
+	def preprocess_state(self, states):
+		states = np.array(states)
+		# bring agent states first and then food locations
+		states_ = np.concatenate([states[:, -self.num_agents*3:], states[:, :-self.num_agents*3]], axis=-1)
+		for curr_agent_num in range(states_.shape[0]):
+			curr_px, curr_py = states_[curr_agent_num][0], states_[curr_agent_num][1]
+			# looping over the state
+			for i in range(3, states_[curr_agent_num].shape[0], 3):
+				states_[curr_agent_num][i], states_[curr_agent_num][i+1] = states_[curr_agent_num][i]-curr_px, states_[curr_agent_num][i+1]-curr_py
+		return states_
 
 
 	def run(self):  
@@ -147,28 +172,76 @@ class MACOMA:
 			self.timesteps = []
 			self.timesteps_mean_per_1000_eps = []
 
+			if "MPE" in self.environment:
+				self.collision_rates = []
+				self.collison_rate_mean_per_1000_eps = []
+
 		for episode in range(1,self.max_episodes+1):
 
-			states, info = self.env.reset(return_info=True)
-			action_masks = np.array(info["avail_actions"])
-			states = np.array(states)
-			states = np.concatenate((self.agent_ids, states), axis=-1)
-			last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
-			states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-			states_enemies = np.repeat(np.array(info["enemy_states"]).reshape(1, -1), self.num_agents, axis=0)
-			full_state = np.concatenate((states_allies, states_enemies), axis=-1)
-			dones = [0]*self.num_agents
-			indiv_dones = [0]*self.num_agents
-			indiv_dones = np.array(indiv_dones)
+
+			if "StarCraft" in self.environment:
+				states, info = self.env.reset(return_info=True)
+				action_masks = np.array(info["avail_actions"])
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				states = np.array(states)
+				states = np.concatenate((self.agent_ids, states), axis=-1)
+				states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+				states_enemies = np.repeat(np.array(info["enemy_states"]).reshape(1, -1), self.num_agents, axis=0)
+				full_state = np.concatenate((states_allies, states_enemies), axis=-1)
+				dones = [0]*self.num_agents
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				dones = all(indiv_dones)
+			elif "MPE" in self.environment:
+				states = self.env.reset()
+				full_state, states = self.split_states(states)
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				action_masks = np.ones((self.num_agents, self.num_actions))
+				dones = all(indiv_dones)
+			elif "PressurePlate" in self.environment:
+				states = self.env.reset()
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				full_state = np.array(states)
+				full_state = np.concatenate((self.agent_ids, full_state), axis=-1)
+				states = np.array(states)
+				states = np.concatenate((self.agent_ids, states), axis=-1)
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				action_masks = np.ones((self.num_agents, self.num_actions))
+				dones = all(indiv_dones)
+			elif "PettingZoo" in self.environment:
+				pz_state, info = self.env.reset()
+				states = np.array([s for s in pz_state.values()]).reshape(self.num_agents, -1)
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				full_state = np.concatenate((self.agent_ids, states), axis=-1)
+				states = np.concatenate((self.agent_ids, states), axis=-1)
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				action_masks = np.ones((self.num_agents, self.num_actions))
+				dones = all(indiv_dones)
+			elif "LBForaging" in self.environment:
+				states = self.preprocess_state(self.env.reset())
+				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
+				full_state = np.concatenate((self.agent_ids, states), axis=-1)
+				states = np.concatenate((self.agent_ids, states), axis=-1)
+				indiv_dones = [0]*self.num_agents
+				indiv_dones = np.array(indiv_dones)
+				action_masks = np.ones((self.num_agents, self.num_actions))
+				dones = all(indiv_dones)
 
 			images = []
 
 			trajectory = []
+
 			episode_reward = 0
+			episode_indiv_rewards = [0 for i in range(self.num_agents)]
 			final_timestep = self.max_time_steps
-			# self.agents.policy_network.rnn_hidden_state = None
-			# self.agents.critic_network.rnn_hidden_state = None
-			# self.agents.target_critic_network.rnn_hidden_state = None
+
+			if "MPE" in self.environment:
+				episode_collision_rate = 0.0
+				episode_goal_reached = 0.0
 
 			actor_rnn_hidden_state = np.zeros((self.actor_rnn_num_layers, self.num_agents, self.actor_rnn_hidden_dim))
 			critic_rnn_hidden_state = np.zeros((self.actor_rnn_num_layers, self.num_agents, self.critic_rnn_hidden_dim))
@@ -191,16 +264,63 @@ class MACOMA:
 
 				q_value, next_critic_rnn_hidden_state = self.agents.get_critic_output(full_state, next_last_one_hot_actions, critic_rnn_hidden_state)
 
-				next_states, rewards, dones, info = self.env.step(actions)
-				next_dones = [int(dones)]*self.num_agents
-				# rewards = info["indiv_rewards"]
-				next_states = np.array(next_states)
-				next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
-				next_action_masks = np.array(info["avail_actions"])
-				next_states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
-				next_states_enemies = np.repeat(np.array(info["enemy_states"]).reshape(1, -1), self.num_agents, axis=0)
-				next_full_state = np.concatenate((next_states_allies, next_states_enemies), axis=-1)
-				next_indiv_dones = info["indiv_dones"]
+				if "StarCraft" in self.environment:
+					next_states, rewards, dones, info = self.env.step(actions)
+					next_dones = [int(dones)]*self.num_agents
+					# rewards = info["indiv_rewards"]
+					next_states = np.array(next_states)
+					next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
+					next_action_masks = np.array(info["avail_actions"])
+					next_states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1)
+					next_states_enemies = np.repeat(np.array(info["enemy_states"]).reshape(1, -1), self.num_agents, axis=0)
+					next_full_state = np.concatenate((next_states_allies, next_states_enemies), axis=-1)
+					next_indiv_dones = info["indiv_dones"]
+
+				elif "MPE" in self.environment:
+					next_states, rewards, next_indiv_dones, info = self.env.step(actions)
+					next_full_state, next_states = self.split_states(next_states)
+					next_action_masks = np.ones((self.num_agents, self.num_actions))
+					collision_rate = [value[1] for value in rewards]
+					goal_reached = [value[2] for value in rewards]
+					indiv_rewards = [value[0] for value in rewards] 
+					episode_collision_rate += np.sum(collision_rate)
+					episode_goal_reached += np.sum(goal_reached)
+					next_dones = all(next_indiv_dones)
+					rewards = np.sum(indiv_rewards)
+
+				elif "PressurePlate" in self.environment:
+					next_states, indiv_rewards, next_indiv_dones, info = self.env.step(actions)
+					next_full_state = np.array(next_states)
+					next_full_state = np.concatenate((self.agent_ids, next_full_state), axis=-1)
+					next_states = np.array(next_states)
+					next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
+					rewards = np.sum(indiv_rewards)
+					next_action_masks = np.ones((self.num_agents, self.num_actions))
+					next_dones = all(next_indiv_dones)
+
+				elif "PettingZoo" in self.environment:
+					actions_dict = {}
+					for i, agent in enumerate(self.env.agents):
+						actions_dict[agent] = actions[i]
+					pz_next_states, pz_rewards, pz_dones, truncation, info = self.env.step(actions_dict)
+					next_states = np.array([s for s in pz_next_states.values()]).reshape(self.num_agents, -1)
+					indiv_rewards = np.array([s for s in pz_rewards.values()])
+					next_indiv_dones = np.array([s for s in pz_dones.values()])
+					next_full_state = np.concatenate((self.agent_ids, next_states), axis=-1)
+					next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
+					rewards = np.sum(indiv_rewards)
+					next_action_masks = np.ones((self.num_agents, self.num_actions))
+					next_dones = all(next_indiv_dones)
+
+				elif "LBForaging" in self.environment:
+					next_states, indiv_rewards, next_indiv_dones, info = self.env.step(actions)
+					next_states = self.preprocess_state(next_states)
+					next_full_state = np.concatenate((self.agent_ids, next_states), axis=-1)
+					next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
+					num_food_left = info["num_food_left"]
+					rewards = np.sum(indiv_rewards)
+					next_action_masks = np.ones((self.num_agents, self.num_actions))
+					next_dones = all(next_indiv_dones)
 
 				episode_reward += np.sum(rewards)
 
@@ -213,9 +333,17 @@ class MACOMA:
 				
 				states, full_state, action_masks, last_one_hot_actions, dones, indiv_dones = next_states, next_full_state, next_action_masks, next_last_one_hot_actions, next_dones, next_indiv_dones
 
-				if all(dones) or step == self.max_time_steps:
+				if all(indiv_dones) or step == self.max_time_steps:
+					
 					print("*"*100)
-					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode,np.round(episode_reward,decimals=4),step,self.max_time_steps))
+					print("EPISODE: {} | REWARD: {} | TIME TAKEN: {} / {} \n".format(episode, np.round(episode_reward,decimals=4), step, self.max_time_steps))
+					
+					if "StarCraft" in self.environment:
+						print("Num Allies Alive: {} | Num Enemies Alive: {} | AGENTS DEAD: {} \n".format(info["num_allies"], info["num_enemies"], info["indiv_dones"]))
+					elif "MPE" in self.environment:
+						print("Num Agents Reached Goal {} | Num Collisions {} \n".format(np.sum(indiv_dones), episode_collision_rate))
+					elif "PressurePlate" in self.environment:
+						print("Num Agents Reached Goal {} \n".format(np.sum(indiv_dones)))
 					print("*"*100)
 
 					final_timestep = step
@@ -223,10 +351,19 @@ class MACOMA:
 					if self.save_comet_ml_plot:
 						self.comet_ml.log_metric('Episode_Length', step, episode)
 						self.comet_ml.log_metric('Reward', episode_reward, episode)
-						self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
-						self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
-						self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
-						self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
+
+						if "StarCraft" in self.environment:
+							self.comet_ml.log_metric('Num Enemies', info["num_enemies"], episode)
+							self.comet_ml.log_metric('Num Allies', info["num_allies"], episode)
+							self.comet_ml.log_metric('All Enemies Dead', info["all_enemies_dead"], episode)
+							self.comet_ml.log_metric('All Allies Dead', info["all_allies_dead"], episode)
+						elif "MPE" in self.environment:
+							self.comet_ml.log_metric('Number of Collision', episode_collision_rate, episode)
+							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(indiv_dones), episode)
+						elif "PressurePlate" in self.environment:
+							self.comet_ml.log_metric('Num Agents Goal Reached', np.sum(indiv_dones), episode)
+						elif "LBForaging" in self.environment:
+							self.comet_ml.log_metric('Num Food Left', num_food_left, episode)
 						
 					
 					break
@@ -236,10 +373,15 @@ class MACOMA:
 				self.rewards.append(episode_reward)
 				self.timesteps.append(final_timestep)
 
-			if episode > self.save_model_checkpoint and episode%self.save_model_checkpoint:
-				if self.eval_policy:
-					self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
-					self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				if "MPE" in self.environment:
+					self.collision_rates.append(episode_collision_rate)
+
+			if episode > self.save_model_checkpoint and self.eval_policy:
+				self.rewards_mean_per_1000_eps.append(sum(self.rewards[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+				self.timesteps_mean_per_1000_eps.append(sum(self.timesteps[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
+
+				if "MPE" in self.environment:
+					self.collison_rate_mean_per_1000_eps.append(sum(self.collision_rates[episode-self.save_model_checkpoint:episode])/self.save_model_checkpoint)
 					
 
 			if not(episode%self.save_model_checkpoint) and self.save_model:	
