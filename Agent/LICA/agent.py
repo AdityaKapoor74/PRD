@@ -3,7 +3,7 @@ import random
 import torch
 import torch.nn as nn
 from functools import reduce
-from torch.optim import Adam
+from torch.optim import AdamW
 import torch.nn.functional as F
 from model import LICACritic, RNNAgent
 from utils import soft_update, hard_update, GumbelSoftmax, multinomial_entropy
@@ -38,6 +38,8 @@ class LICAAgent:
 		self.entropy_coeff = dictionary["entropy_coeff"]
 		self.gamma = dictionary["gamma"]
 		self.num_updates = dictionary["num_updates"]
+		self.max_time_steps = dictionary["max_time_steps"]
+		self.update_episode_interval = dictionary["update_episode_interval"]
 	
 		# Model Setup
 		self.enable_grad_clip_actor = dictionary["enable_grad_clip_actor"]
@@ -47,6 +49,7 @@ class LICAAgent:
 		self.critic_grad_clip = dictionary["critic_grad_clip"]
 		self.actor_grad_clip = dictionary["actor_grad_clip"]
 		self.tau = dictionary["tau"] # target network smoothing coefficient
+		self.rnn_num_layers = dictionary["rnn_num_layers"]
 		self.rnn_hidden_dim = dictionary["rnn_hidden_dim"]
 		self.mixing_embed_dim = dictionary["mixing_embed_dim"]
 		self.num_hypernet_layers = dictionary["num_hypernet_layers"]
@@ -55,15 +58,15 @@ class LICAAgent:
 		self.norm_returns = dictionary["norm_returns"]
 
 		# Q Network
-		self.actor = RNNAgent(self.actor_obs_shape, self.rnn_hidden_dim, self.num_actions).to(self.device)
+		self.actor = RNNAgent(self.actor_obs_shape, self.rnn_num_layers, self.rnn_hidden_dim, self.num_actions).to(self.device)
 		
 		self.critic = LICACritic(self.critic_obs_shape, self.mixing_embed_dim, self.num_actions, self.num_agents, self.num_hypernet_layers).to(self.device)
 		self.target_critic = LICACritic(self.critic_obs_shape, self.mixing_embed_dim, self.num_actions, self.num_agents, self.num_hypernet_layers).to(self.device)
 
 		self.loss_fn = nn.HuberLoss(reduction="sum")
 
-		self.critic_optimizer = Adam(self.critic.parameters(), lr=self.critic_learning_rate)
-		self.actor_optimizer = Adam(self.actor.parameters(), lr=self.actor_learning_rate)
+		self.critic_optimizer = AdamW(self.critic.parameters(), lr=self.critic_learning_rate, weight_decay=dictionary["critic_weight_decay"], eps=1e-05)
+		self.actor_optimizer = AdamW(self.actor.parameters(), lr=self.actor_learning_rate, weight_decay=dictionary["actor_weight_decay"], eps=1e-05)
 		
 		# Loading models
 		if dictionary["load_models"]:
@@ -91,17 +94,16 @@ class LICAAgent:
 		if dictionary["save_comet_ml_plot"]:
 			self.comet_ml = comet_ml
 
-	def get_action(self, state, last_one_hot_action, mask_actions):
+	def get_action(self, state, rnn_hidden_state, mask_actions):
 		with torch.no_grad():
-			state = torch.FloatTensor(state)
-			last_one_hot_action = torch.FloatTensor(last_one_hot_action)
-			mask_actions = torch.FloatTensor(mask_actions).to(self.device)
-			final_state = torch.cat([state, last_one_hot_action], dim=-1).to(self.device)
-			dists = self.actor(final_state) + mask_actions
-			actions = GumbelSoftmax(logits=dists).sample()
+			state = torch.from_numpy(state).float().unsqueeze(0).unsqueeze(0)
+			rnn_hidden_state = torch.from_numpy(rnn_hidden_state).float()
+			mask_actions = torch.from_numpy(mask_actions).bool()
+			dists, h = self.actor(state.to(self.device), rnn_hidden_state.to(self.device), mask_actions.to(self.device))
+			actions = GumbelSoftmax(logits=dists.reshape(self.num_agents, self.num_actions)).sample()
 			actions = torch.argmax(actions, dim=-1).tolist()
 		
-		return actions
+		return actions, h.cpu().numpy()
 
 
 	def plot(self, episode):
@@ -114,43 +116,79 @@ class LICAAgent:
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
 
 
-	def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
-		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
-		# Initialise  last  lambda -return  for  not  terminated  episodes
-		ret = target_qs.new_zeros(*target_qs.shape)
-		ret = target_qs * (1-terminated[:, 1:])
-		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
-		# Backwards  recursive  update  of the "forward  view"
-		for t in range(ret.shape[1] - 2, -1,  -1):
-			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t] \
-						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t+1]))
-		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
-		# return ret[:, 0:-1]
+	# def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
+	# 	# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
+	# 	# Initialise  last  lambda -return  for  not  terminated  episodes
+	# 	ret = target_qs.new_zeros(*target_qs.shape)
+	# 	ret = target_qs * (1-terminated[:, 1:])
+	# 	# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
+	# 	# Backwards  recursive  update  of the "forward  view"
+	# 	for t in range(ret.shape[1] - 2, -1,  -1):
+	# 		ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t] \
+	# 					* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t + 1] * (1 - terminated[:, t+1]))
+	# 	# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+	# 	# return ret[:, 0:-1]
+	# 	return ret
+
+	def build_td_lambda_targets(self, rewards, terminations, q_values, next_q_values):
+		"""
+		Calculate the TD(lambda) targets for a batch of episodes.
+		
+		:param rewards: A tensor of shape [B, T, A] containing rewards received, where B is the batch size,
+						T is the time horizon, and A is the number of agents.
+		:param terminations: A tensor of shape [B, T, A] indicating whether each timestep is terminal.
+		:param masks: A tensor of shape [B, T-1, 1] indicating the validity of each timestep 
+					  (1 for valid, 0 for invalid).
+		:param q_values: A tensor of shape [B, T, A] containing the Q-values for each state-action pair.
+		:param gamma: A scalar indicating the discount factor.
+		:param lambda_: A scalar indicating the decay rate for mixing n-step returns.
+		
+		:return: A tensor of shape [B, T, A] containing the TD-lambda targets for each timestep and agent.
+		"""
+		# Initialize the last lambda-return for not terminated episodes
+		B, T = q_values.shape
+		ret = q_values.new_zeros(B, T)  # Initialize return tensor
+		ret[:, -1] = (rewards[:, T-1] + next_q_values[:, T-1]) * (1 - terminations[:, -1])  # Terminal values for the last timestep
+
+		# Backward recursive update of the TD-lambda targets
+		for t in reversed(range(T-1)):
+			td_error = rewards[:, t] + self.gamma * next_q_values[:, t] * (1 - terminations[:, t + 1]) - q_values[:, t]
+			ret[:, t] = q_values[:, t] + td_error * (1 - terminations[:, t + 1]) + self.lambda_ * self.gamma * ret[:, t + 1] * (1 - terminations[:, t + 1])
+
 		return ret
 
 	def update(self, buffer, episode):
 		
-		# # convert list to tensor
-		critic_state_batch = torch.FloatTensor(np.array(buffer.critic_states))
-		actor_state_batch = torch.FloatTensor(np.array(buffer.actor_states))
-		one_hot_actions_batch = torch.FloatTensor(np.array(buffer.one_hot_actions))
-		actions_batch = torch.FloatTensor(np.array(buffer.actions)).long()
-		last_one_hot_actions_batch = torch.FloatTensor(np.array(buffer.last_one_hot_actions))
-		mask_actions = torch.FloatTensor(np.array(buffer.mask_actions))
-		reward_batch = torch.FloatTensor(np.array(buffer.rewards))
-		done_batch = torch.FloatTensor(np.array(buffer.dones)).long()
-		mask_batch = torch.FloatTensor(np.array(buffer.masks)).long()
+		# convert list to tensor
+		# critic_state_batch = torch.FloatTensor(np.array(buffer.critic_states))
+		# actor_state_batch = torch.FloatTensor(np.array(buffer.actor_states))
+		# one_hot_actions_batch = torch.FloatTensor(np.array(buffer.one_hot_actions))
+		# actions_batch = torch.FloatTensor(np.array(buffer.actions)).long()
+		# last_one_hot_actions_batch = torch.FloatTensor(np.array(buffer.last_one_hot_actions))
+		# mask_actions = torch.FloatTensor(np.array(buffer.mask_actions))
+		# reward_batch = torch.FloatTensor(np.array(buffer.rewards))
+		# done_batch = torch.FloatTensor(np.array(buffer.dones)).long()
+		# mask_batch = torch.FloatTensor(np.array(buffer.masks)).long()
+
+
 
 
 		for _ in range(self.num_updates):
 
+			state_batch, rnn_hidden_state_batch, full_state_batch, actions_batch, one_hot_actions_batch, action_masks_batch, next_full_state_batch, \
+			next_one_hot_actions_batch, reward_batch, done_batch, next_done_batch, mask_batch = buffer.sample()
 
-			Qs = self.critic(one_hot_actions_batch[:, :-1, :].to(self.device), critic_state_batch[:, :-1, :].to(self.device)).squeeze(-1) * mask_batch.to(self.device)
+
+			Qs = self.critic(one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
+			Qs *= (1-done_batch).reshape(self.update_episode_interval, self.max_time_steps).to(self.device)
 			
-			target_Qs = self.target_critic(one_hot_actions_batch[:, 1:, :].to(self.device), critic_state_batch[:, 1:, :].to(self.device)).squeeze(-1)
-			target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
+			target_Qs = self.target_critic(one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
+			next_target_Qs = self.target_critic(next_one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), next_full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
+			# TD_target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
+			TD_target_Qs = self.build_td_lambda_targets(reward_batch.reshape(self.update_episode_interval, self.max_time_steps).to(self.device), done_batch.reshape(self.update_episode_interval, self.max_time_steps).to(self.device), target_Qs, next_target_Qs)
+			TD_target_Qs *= (1-done_batch).reshape(self.update_episode_interval, self.max_time_steps).to(self.device)
 
-			Q_loss = self.loss_fn(Qs, target_Qs.detach()) / mask_batch.to(self.device).sum()
+			Q_loss = self.loss_fn(Qs, TD_target_Qs.detach()) / mask_batch.to(self.device).sum()
 
 			self.critic_optimizer.zero_grad()
 			Q_loss.backward()
@@ -164,38 +202,43 @@ class LICAAgent:
 				critic_grad_norm = torch.tensor(grad_norm) ** 0.5
 			self.critic_optimizer.step()
 
-			self.actor.rnn_hidden_obs = None
-			probs = []
-			entropy = []
+			dists, _ = self.actor(state_batch.to(self.device), rnn_hidden_state_batch.to(self.device), action_masks_batch.to(self.device))
+			probs = F.softmax(dists, dim=-1) * (1-done_batch).unsqueeze(-1).to(self.device)
+			entropy = multinomial_entropy(dists).mean(dim=-1, keepdim=True)
+			
 
-			for t in range(mask_batch.shape[1]):
-				# train in time order
-				mask_slice = mask_batch[:, t].reshape(-1)
+			# self.actor.rnn_hidden_obs = None
+			# probs = []
+			# entropy = []
 
-				# if mask_slice.sum().cpu().numpy() < EPS:
-				# 	break
+			# for t in range(mask_batch.shape[1]):
+			# 	# train in time order
+			# 	mask_slice = mask_batch[:, t].reshape(-1)
 
-				actor_states_slice = actor_state_batch[:,t].reshape(-1, self.actor_obs_shape)
-				last_one_hot_action_slice = last_one_hot_actions_batch[:, t].reshape(-1, self.num_actions)
-				mask_actions_slice = mask_actions[:, t].reshape(-1, self.num_actions)
+			# 	# if mask_slice.sum().cpu().numpy() < EPS:
+			# 	# 	break
+
+			# 	actor_states_slice = actor_state_batch[:,t].reshape(-1, self.actor_obs_shape)
+			# 	last_one_hot_action_slice = last_one_hot_actions_batch[:, t].reshape(-1, self.num_actions)
+			# 	mask_actions_slice = mask_actions[:, t].reshape(-1, self.num_actions)
 				
-				final_state = torch.cat([actor_states_slice, last_one_hot_action_slice], dim=-1)
-				dist = self.actor(final_state.to(self.device))
-				ent = multinomial_entropy(dist+mask_actions_slice.to(self.device)).mean(dim=-1, keepdim=True)
-				prob = F.softmax(dist + mask_actions_slice.to(self.device), dim=-1)
+			# 	final_state = torch.cat([actor_states_slice, last_one_hot_action_slice], dim=-1)
+			# 	dist = self.actor(final_state.to(self.device))
+			# 	ent = multinomial_entropy(dist+mask_actions_slice.to(self.device)).mean(dim=-1, keepdim=True)
+			# 	prob = F.softmax(dist + mask_actions_slice.to(self.device), dim=-1)
 
-				probs.append(prob)
-				entropy.append(ent)
+			# 	probs.append(prob)
+			# 	entropy.append(ent)
 
-			probs = torch.stack(probs, dim=1).reshape(-1, mask_batch.shape[1], self.num_agents, self.num_actions)
-			entropy = torch.stack(entropy, dim=1).reshape(-1, mask_batch.shape[1])
+			# probs = torch.stack(probs, dim=1).reshape(-1, mask_batch.shape[1], self.num_agents, self.num_actions)
+			# entropy = torch.stack(entropy, dim=1).reshape(-1, mask_batch.shape[1])
 
-			mix_loss = self.critic(probs.to(self.device), critic_state_batch[:, :-1, :].to(self.device)).squeeze(-1)
+			mix_loss = self.critic(probs.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
 
-			mix_loss = (mix_loss * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
+			mix_loss = (mix_loss * (1-done_batch).reshape(self.update_episode_interval, self.max_time_steps).to(self.device)).sum() / (1-done_batch).sum().to(self.device)
 
 			# adaptive entropy
-			entropy_loss = (entropy.to(self.device) * mask_batch.to(self.device)).sum() / mask_batch.sum().to(self.device)
+			entropy_loss = (entropy.to(self.device) * (1-done_batch).to(self.device)).sum() / (1-done_batch).sum().to(self.device)
 			# entropy_coeff = self.entropy_coeff / entropy_loss.item()
 			entropy_coeff = self.entropy_coeff
 
