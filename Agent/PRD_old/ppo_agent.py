@@ -19,10 +19,10 @@ class PPOAgent:
 
 		# Environment Setup
 		self.env = env
+		self.environment = dictionary["environment"]
 		self.env_name = dictionary["env"]
-		self.num_agents = self.env.n_agents
-		self.num_enemies = self.env.n_enemies
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = dictionary["num_agents"]
+		self.num_actions = dictionary["num_actions"]
 
 		# Training setup
 		self.test_num = dictionary["test_num"]
@@ -43,7 +43,12 @@ class PPOAgent:
 		self.rnn_num_layers_critic = dictionary["rnn_num_layers_critic"]
 		self.attention_drop_prob = dictionary["attention_drop_prob"]
 		self.critic_ally_observation = dictionary["ally_observation"]
-		self.critic_enemy_observation = dictionary["enemy_observation"]
+		if "StarCraft" in self.environment:
+			self.num_enemies = self.env.n_enemies
+			self.critic_enemy_observation = dictionary["enemy_observation"]
+		else:
+			self.num_enemies = 1
+			self.critic_enemy_observation = 1
 		self.value_lr = dictionary["value_lr"]
 		self.value_weight_decay = dictionary["value_weight_decay"]
 		self.critic_weight_entropy_pen = dictionary["critic_weight_entropy_pen"]
@@ -85,6 +90,11 @@ class PPOAgent:
 
 		print("EXPERIMENT TYPE", self.experiment_type)
 
+		if self.norm_returns:
+			self.PopArt = PopArt(input_shape=1, num_agents=self.num_agents, device=self.device)
+		else:
+			self.PopArt = None
+
 		self.critic_network = TransformerCritic(
 			ally_obs_input_dim=self.critic_ally_observation, 
 			enemy_obs_input_dim=self.critic_enemy_observation, 
@@ -93,9 +103,10 @@ class PPOAgent:
 			num_enemies=self.num_enemies, 
 			num_actions=self.num_actions,
 			rnn_num_layers=self.rnn_num_layers_critic,
-			norm_output=dictionary["norm_returns_critic"],
+			norm_output=dictionary["norm_returns"],
 			device=self.device, 
-			attention_drop_prob=dictionary["attention_drop_prob"]
+			attention_drop_prob=dictionary["attention_drop_prob"],
+			environment=self.environment,
 			).to(self.device)
 		
 		self.policy_network = Policy(
@@ -121,7 +132,7 @@ class PPOAgent:
 			v_hidden_state_dim=self.rnn_hidden_critic_dim,
 			num_actions=self.num_actions,
 			data_chunk_length=self.data_chunk_length,
-			norm_returns_v=dictionary["norm_returns_critic"],
+			norm_returns_v=dictionary["norm_returns"],
 			clamp_rewards=dictionary["clamp_rewards"],
 			clamp_rewards_value_min=dictionary["clamp_rewards_value_min"],
 			clamp_rewards_value_max=dictionary["clamp_rewards_value_max"],
@@ -131,7 +142,7 @@ class PPOAgent:
 			gae_lambda=self.gae_lambda,
 			n_steps=dictionary["n_steps"],
 			gamma=self.gamma,
-			V_PopArt=self.critic_network.v_value_layer[-1],
+			# V_PopArt=self.critic_network.v_value_layer[-1],
 			)
 
 		
@@ -165,11 +176,16 @@ class PPOAgent:
 			indiv_masks = [1-d for d in indiv_dones]
 			indiv_masks = torch.FloatTensor(indiv_masks).unsqueeze(0).unsqueeze(0)
 			state_allies = torch.FloatTensor(state_allies).unsqueeze(0).unsqueeze(0)
-			state_enemies = torch.FloatTensor(state_enemies).unsqueeze(0).unsqueeze(0)
+			if "StarCraft" in self.environment:
+				state_enemies = torch.FloatTensor(state_enemies).unsqueeze(0).unsqueeze(0)
 			action_probs = torch.FloatTensor(action_probs).unsqueeze(0).unsqueeze(0)
 			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0).unsqueeze(0)
 			rnn_hidden_state = torch.FloatTensor(rnn_hidden_state)
-			value, weights_prd, _, rnn_hidden_state = self.critic_network(state_allies.to(self.device), state_enemies.to(self.device), action_probs.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state.to(self.device), indiv_masks.to(self.device))
+
+			if "StarCraft" in self.environment:
+				value, weights_prd, _, rnn_hidden_state = self.critic_network(state_allies.to(self.device), state_enemies.to(self.device), action_probs.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state.to(self.device), indiv_masks.to(self.device))
+			else:
+				value, weights_prd, _, rnn_hidden_state = self.critic_network(state_allies.to(self.device), None, action_probs.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state.to(self.device), indiv_masks.to(self.device))
 
 			return value.squeeze(0).squeeze(-1).cpu().numpy(), rnn_hidden_state.cpu().numpy(), torch.mean(weights_prd.transpose(-1, -2), dim=1).cpu().numpy()
 
@@ -334,7 +350,7 @@ class PPOAgent:
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
 
-		self.buffer.calculate_targets(self.experiment_type, episode, self.select_above_threshold)
+		self.buffer.calculate_targets(self.experiment_type, episode, self.select_above_threshold, self.PopArt)
 
 		
 		# torch.autograd.set_detect_anomaly(True)
@@ -358,56 +374,45 @@ class PPOAgent:
 
 
 			target_shape = values_old.shape
-			values, weight_v, score_v, h_v = self.critic_network(
-												states_critic_allies.to(self.device),
-												states_critic_enemies.to(self.device),
-												action_probs.to(self.device),
-												one_hot_actions.to(self.device),
-												hidden_state_v.to(self.device),
-												masks.to(self.device),
-												)
+
+			if "StarCraft" in self.environment:
+				values, weight_v, score_v, h_v = self.critic_network(
+													states_critic_allies.to(self.device),
+													states_critic_enemies.to(self.device),
+													action_probs.to(self.device),
+													one_hot_actions.to(self.device),
+													hidden_state_v.to(self.device),
+													masks.to(self.device),
+													)
+			else:
+				values, weight_v, score_v, h_v = self.critic_network(
+													states_critic_allies.to(self.device),
+													None,
+													action_probs.to(self.device),
+													one_hot_actions.to(self.device),
+													hidden_state_v.to(self.device),
+													masks.to(self.device),
+													)
+
 			values = values.reshape(*target_shape)
 
-			dists, _ = self.policy_network(
-					torch.cat([states_actor, last_one_hot_actions], dim=-1).to(self.device),
-					hidden_state_actor.to(self.device),
-					action_masks.to(self.device),
-					)
+			if self.norm_returns:
+				targets_shape = target_values.shape
+				target_values = self.PopArt(target_values.view(-1), masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).view(-1)).view(targets_shape) * masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
 
 			values *= masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).to(self.device)
 			target_values *= masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
 
-			probs = Categorical(dists)
-			logprobs = probs.log_prob(actions.to(self.device))
-			
 			if "threshold" in self.experiment_type or "top" in self.experiment_type:
 				mask_rewards = (weight_v.transpose(-1, -2)>self.select_above_threshold).int()
-				agent_groups_over_episode = torch.sum(torch.sum(mask_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/mask_rewards.reshape(-1, self.num_agents, self.num_agents).shape[0]
+				agent_groups_over_episode = torch.sum(torch.sum(mask_rewards.reshape(-1, self.num_agents, self.num_agents).float(), dim=-2),dim=0)/mask_rewards.reshape(-1, self.num_agents).sum(dim=0)
 				avg_agent_group_over_episode = torch.mean(agent_groups_over_episode)
 				agent_groups_over_episode_batch += agent_groups_over_episode
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 				
-
 			critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 			critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-
-			
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2)
-
-
-			# Finding the ratio (pi_theta / pi_theta__old)
-			ratios = torch.exp((logprobs - logprobs_old.to(self.device)))
-			
-			# Finding Surrogate Loss
-			surr1 = ratios * advantage.to(self.device) * masks.to(self.device)
-			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.to(self.device) * masks.to(self.device)
-
-			# final loss of clipped objective PPO
-			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks.sum() #(masks.sum()*self.num_agents)
-			policy_loss_ = (-torch.min(surr1, surr2).sum())/masks.sum()
-			policy_loss = policy_loss_ - self.entropy_pen*entropy
-
-			print("Policy Loss", policy_loss_.item(), "Entropy", (-self.entropy_pen*entropy.item()))
 
 			self.critic_optimizer.zero_grad()
 			critic_v_loss.backward()
@@ -422,6 +427,34 @@ class PPOAgent:
 					total_norm += param_norm.item() ** 2
 				grad_norm_value_v = torch.tensor([total_norm ** 0.5])
 			self.critic_optimizer.step()
+
+
+
+
+			dists, _ = self.policy_network(
+					torch.cat([states_actor, last_one_hot_actions], dim=-1).to(self.device),
+					hidden_state_actor.to(self.device),
+					action_masks.to(self.device),
+					)
+
+			
+
+			probs = Categorical(dists)
+			logprobs = probs.log_prob(actions.to(self.device))
+
+			# Finding the ratio (pi_theta / pi_theta__old)
+			ratios = torch.exp((logprobs - logprobs_old.to(self.device)))
+			
+			# Finding Surrogate Loss
+			surr1 = ratios * advantage.to(self.device) * masks.to(self.device)
+			surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * advantage.to(self.device) * masks.to(self.device)
+
+			# final loss of clipped objective PPO
+			entropy = -torch.sum(torch.sum(dists*masks.unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists*masks.unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks.sum() #(masks.sum()*self.num_agents)
+			policy_loss_ = (-torch.min(surr1, surr2).sum())/masks.sum()
+			policy_loss = policy_loss_ - self.entropy_pen*entropy
+
+			print("Policy Loss", policy_loss_.item(), "Entropy", (-self.entropy_pen*entropy.item()))
 
 			self.policy_optimizer.zero_grad()
 			policy_loss.backward()
