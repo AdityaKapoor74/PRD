@@ -99,10 +99,10 @@ class COMAAgent:
 		with torch.no_grad():
 			state = torch.FloatTensor(state)
 			last_one_hot_actions = torch.FloatTensor(last_one_hot_actions)
-			final_state = torch.cat([state, last_one_hot_actions], dim=-1).unsqueeze(0).unsqueeze(0).to(self.device)
-			action_masks = torch.BoolTensor(action_masks).unsqueeze(0).unsqueeze(0).to(self.device)
-			rnn_hidden_state = torch.FloatTensor(rnn_hidden_state).to(self.device)
-			dists, rnn_hidden_state = self.policy_network(final_state, rnn_hidden_state, action_masks)
+			final_state = torch.cat([state, last_one_hot_actions], dim=-1).unsqueeze(0).unsqueeze(0)
+			action_masks = torch.BoolTensor(action_masks).unsqueeze(0).unsqueeze(0)
+			rnn_hidden_state = torch.FloatTensor(rnn_hidden_state)
+			dists, rnn_hidden_state = self.policy_network(final_state.to(self.device), rnn_hidden_state.to(self.device), action_masks.to(self.device))
 			action = [Categorical(dist).sample().cpu().detach().item() for dist in dists.squeeze(0).squeeze(0)]
 			return dists.squeeze(0).squeeze(0).cpu().numpy(), action, rnn_hidden_state.cpu().numpy()
 
