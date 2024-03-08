@@ -3,7 +3,7 @@ from torch import Tensor
 import numpy as np
 import random
 
-from ppo_model import RunningMeanStd
+# from ppo_model import RunningMeanStd
 
 
 class RolloutBuffer:
@@ -32,7 +32,7 @@ class RolloutBuffer:
 		gae_lambda,
 		n_steps,
 		gamma,
-		V_PopArt,
+		# V_PopArt,
 		):
 		self.num_episodes = num_episodes
 		self.max_time_steps = max_time_steps
@@ -60,11 +60,11 @@ class RolloutBuffer:
 		self.gamma = gamma
 		self.n_steps = n_steps
 			
-		if self.norm_returns_v:
-			self.v_value_norm = V_PopArt
+		# if self.norm_returns_v:
+		# 	self.v_value_norm = V_PopArt
 
-		if self.norm_rewards:
-			self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
+		# if self.norm_rewards:
+		# 	self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
 
 		self.episode_num = 0
 		self.time_step = 0
@@ -191,7 +191,7 @@ class RolloutBuffer:
 		return states_critic_allies, states_critic_enemies, hidden_state_v, states_actor, hidden_state_actor, logprobs, \
 		actions, action_probs, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, advantage
 
-	def calculate_targets(self, advantage_type, episode, select_above_threshold):
+	def calculate_targets(self, advantage_type, episode, select_above_threshold, v_value_norm):
 		
 		masks = 1 - torch.from_numpy(self.dones[:, :-1, :])
 		next_mask = 1 - torch.from_numpy(self.dones[:, -1, :])
@@ -211,10 +211,10 @@ class RolloutBuffer:
 
 		if self.norm_returns_v:
 			values_shape = values.shape
-			values = self.v_value_norm.denormalize(values.view(-1)).view(values_shape) * masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+			values = v_value_norm.denormalize(values.view(-1)).view(values_shape) * masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
 
 			next_values_shape = next_values.shape
-			next_values = self.v_value_norm.denormalize(next_values.view(-1)).view(next_values_shape) * next_mask.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+			next_values = v_value_norm.denormalize(next_values.view(-1)).view(next_values_shape) * next_mask.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
 
 		if self.target_calc_style == "GAE":
 			target_values = self.gae_targets(rewards.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), values, next_values, masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), next_mask.unsqueeze(-2).repeat(1, 1, self.num_agents, 1))
@@ -229,11 +229,11 @@ class RolloutBuffer:
 		else:
 			self.advantage = self.advantage.sum(dim=-1)
 
-		if self.norm_returns_v:
-			targets_shape = target_values.shape
-			self.v_value_norm.update(target_values.view(-1), masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).view(-1))
+		# if self.norm_returns_v:
+		# 	targets_shape = target_values.shape
+		# 	v_value_norm.update(target_values.view(-1), masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1).view(-1))
 			
-			target_values = self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
+		# 	target_values = v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.unsqueeze(-2).repeat(1, 1, self.num_agents, 1)
 		
 		self.target_values = target_values.cpu()
 
