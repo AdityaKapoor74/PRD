@@ -417,7 +417,7 @@ class PPOAgent:
 			self.critic_optimizer.zero_grad()
 			critic_v_loss.backward()
 			if self.enable_grad_clip_critic:
-				grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic_v)
+				grad_norm_value_v = torch.nn.utils.clip_grad_norm_(self.critic_network.parameters(), self.grad_clip_critic)
 			else:
 				total_norm = 0
 				for p in self.critic_network.parameters():
