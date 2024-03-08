@@ -130,32 +130,32 @@ class LICAAgent:
 	# 	# return ret[:, 0:-1]
 	# 	return ret
 
-	def build_td_lambda_targets(self, rewards, terminations, q_values, next_q_values):
-		"""
-		Calculate the TD(lambda) targets for a batch of episodes.
+	# def build_td_lambda_targets(self, rewards, terminations, q_values, next_q_values):
+	# 	"""
+	# 	Calculate the TD(lambda) targets for a batch of episodes.
 		
-		:param rewards: A tensor of shape [B, T, A] containing rewards received, where B is the batch size,
-						T is the time horizon, and A is the number of agents.
-		:param terminations: A tensor of shape [B, T, A] indicating whether each timestep is terminal.
-		:param masks: A tensor of shape [B, T-1, 1] indicating the validity of each timestep 
-					  (1 for valid, 0 for invalid).
-		:param q_values: A tensor of shape [B, T, A] containing the Q-values for each state-action pair.
-		:param gamma: A scalar indicating the discount factor.
-		:param lambda_: A scalar indicating the decay rate for mixing n-step returns.
+	# 	:param rewards: A tensor of shape [B, T, A] containing rewards received, where B is the batch size,
+	# 					T is the time horizon, and A is the number of agents.
+	# 	:param terminations: A tensor of shape [B, T, A] indicating whether each timestep is terminal.
+	# 	:param masks: A tensor of shape [B, T-1, 1] indicating the validity of each timestep 
+	# 				  (1 for valid, 0 for invalid).
+	# 	:param q_values: A tensor of shape [B, T, A] containing the Q-values for each state-action pair.
+	# 	:param gamma: A scalar indicating the discount factor.
+	# 	:param lambda_: A scalar indicating the decay rate for mixing n-step returns.
 		
-		:return: A tensor of shape [B, T, A] containing the TD-lambda targets for each timestep and agent.
-		"""
-		# Initialize the last lambda-return for not terminated episodes
-		B, T = q_values.shape
-		ret = q_values.new_zeros(B, T)  # Initialize return tensor
-		ret[:, -1] = (rewards[:, T-1] + next_q_values[:, T-1]) * (1 - terminations[:, -1])  # Terminal values for the last timestep
+	# 	:return: A tensor of shape [B, T, A] containing the TD-lambda targets for each timestep and agent.
+	# 	"""
+	# 	# Initialize the last lambda-return for not terminated episodes
+	# 	B, T = q_values.shape
+	# 	ret = q_values.new_zeros(B, T)  # Initialize return tensor
+	# 	ret[:, -1] = (rewards[:, T-1] + next_q_values[:, T-1]) * (1 - terminations[:, -1])  # Terminal values for the last timestep
 
-		# Backward recursive update of the TD-lambda targets
-		for t in reversed(range(T-1)):
-			td_error = rewards[:, t] + self.gamma * next_q_values[:, t] * (1 - terminations[:, t + 1]) - q_values[:, t]
-			ret[:, t] = q_values[:, t] + td_error * (1 - terminations[:, t + 1]) + self.lambda_ * self.gamma * ret[:, t + 1] * (1 - terminations[:, t + 1])
+	# 	# Backward recursive update of the TD-lambda targets
+	# 	for t in reversed(range(T-1)):
+	# 		td_error = rewards[:, t] + self.gamma * next_q_values[:, t] * (1 - terminations[:, t + 1]) - q_values[:, t]
+	# 		ret[:, t] = q_values[:, t] + td_error * (1 - terminations[:, t + 1]) + self.lambda_ * self.gamma * ret[:, t + 1] * (1 - terminations[:, t + 1])
 
-		return ret
+	# 	return ret
 
 	def update(self, buffer, episode):
 		
@@ -171,24 +171,24 @@ class LICAAgent:
 		# mask_batch = torch.FloatTensor(np.array(buffer.masks)).long()
 
 
-
+		buffer.calculate_targets(self.target_critic)
 
 		for _ in range(self.num_updates):
 
 			state_batch, rnn_hidden_state_batch, full_state_batch, actions_batch, one_hot_actions_batch, action_masks_batch, next_full_state_batch, \
-			next_one_hot_actions_batch, reward_batch, done_batch, next_done_batch, mask_batch = buffer.sample()
+			next_one_hot_actions_batch, reward_batch, done_batch, next_done_batch, mask_batch, TD_target_Qs_batch = buffer.sample()
 
 
 			Qs = self.critic(one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
 			Qs *= (1-done_batch).reshape(self.update_episode_interval, self.max_time_steps).to(self.device)
 			
-			target_Qs = self.target_critic(one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
-			next_target_Qs = self.target_critic(next_one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), next_full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
-			# TD_target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
-			TD_target_Qs = self.build_td_lambda_targets(reward_batch.reshape(self.update_episode_interval, self.max_time_steps).to(self.device), done_batch.reshape(self.update_episode_interval, self.max_time_steps).to(self.device), target_Qs, next_target_Qs)
-			TD_target_Qs *= (1-done_batch).reshape(self.update_episode_interval, self.max_time_steps).to(self.device)
+			# target_Qs = self.target_critic(one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
+			# next_target_Qs = self.target_critic(next_one_hot_actions_batch.reshape(self.update_episode_interval, self.max_time_steps, self.num_agents, self.num_actions).to(self.device), next_full_state_batch.reshape(self.update_episode_interval, self.max_time_steps, -1).to(self.device)).squeeze(-1)
+			# # TD_target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), mask_batch.to(self.device), target_Qs)
+			# TD_target_Qs = self.build_td_lambda_targets(reward_batch.reshape(self.update_episode_interval, self.max_time_steps).to(self.device), done_batch.reshape(self.update_episode_interval, self.max_time_steps).to(self.device), target_Qs, next_target_Qs)
+			# TD_target_Qs *= (1-done_batch).reshape(self.update_episode_interval, self.max_time_steps).to(self.device)
 
-			Q_loss = self.loss_fn(Qs, TD_target_Qs.detach()) / mask_batch.to(self.device).sum()
+			Q_loss = self.loss_fn(Qs, TD_target_Qs_batch.to(self.device)) / mask_batch.to(self.device).sum()
 
 			self.critic_optimizer.zero_grad()
 			Q_loss.backward()
