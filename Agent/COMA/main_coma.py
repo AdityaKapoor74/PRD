@@ -25,13 +25,13 @@ if __name__ == '__main__':
 	for i in range(1, 4):
 		extension = "COMA_"+str(i)
 		test_num = "StarCraft"
-		environment = "LBForaging" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
+		environment = "PettingZoo" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
 		if "LBForaging" in environment:
 			num_players = 6
 			num_food = 9
 			grid_size = 12
 			fully_coop = False
-		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "") # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
+		env_name = "pursuit_v4" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
 
 		dictionary = {
 				"critic_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+extension+'/critic_networks/',
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 				"critic_rnn_hidden_dim": 64,
 				"actor_rnn_num_layers": 1,
 				"actor_rnn_hidden_dim": 64,
-				"update_episode_interval": 10,
+				"update_episode_interval": 5,
 				"data_chunk_length": 10,
 				"num_updates": 5,
 				"enable_grad_clip_critic": True,
@@ -74,8 +74,8 @@ if __name__ == '__main__':
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
 				"learn":True,
-				"max_episodes": 15000,
-				"max_time_steps": 70,
+				"max_episodes": 5000,
+				"max_time_steps": 500,
 				"norm_adv": False,
 				"norm_rew": False,
 			}
