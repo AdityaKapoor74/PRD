@@ -22,8 +22,8 @@ class MACOMA:
 		self.learn = dictionary["learn"]
 		self.gif_checkpoint = dictionary["gif_checkpoint"]
 		self.eval_policy = dictionary["eval_policy"]
-		self.num_agents = self.env.n_agents
-		self.num_actions = self.env.action_space[0].n
+		self.num_agents = dictionary["num_agents"]
+		self.num_actions = dictionary["num_actions"]
 		self.date_time = f"{datetime.datetime.now():%d-%m-%Y}"
 		self.env_name = dictionary["env"]
 		self.test_num = dictionary["test_num"]
