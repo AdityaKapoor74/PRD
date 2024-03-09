@@ -155,12 +155,12 @@ class ReplayMemory:
 			next_final_state_batch = torch.cat([next_state_batch, next_last_one_hot_actions_batch], dim=-1)
 			next_Q_evals, _ = Q_network(
 				next_final_state_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device), 
-				next_rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1),
+				next_rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1).to(self.device),
 				next_mask_actions_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device)
 				)
 			next_Q_target, _ = target_Q_network(
 				next_final_state_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device), 
-				next_rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1),
+				next_rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1).to(self.device),
 				next_mask_actions_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device)
 				)
 			next_a_argmax = torch.argmax(next_Q_evals, dim=-1, keepdim=True)
@@ -174,12 +174,12 @@ class ReplayMemory:
 			final_state_batch = torch.cat([state_batch, last_one_hot_actions_batch], dim=-1)
 			Q_evals, _ = Q_network(
 				final_state_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device), 
-				rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1),
+				rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1).to(self.device),
 				mask_actions_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device)
 				)
 			Q_target, _ = target_Q_network(
 				final_state_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device), 
-				rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1),
+				rnn_hidden_state_batch.reshape(num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers, self.num_agents, -1)[:, :, 0].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers, num_episodes*data_chunks*self.num_agents, -1).to(self.device),
 				mask_actions_batch.reshape(num_episodes*data_chunks, self.data_chunk_length, self.num_agents, -1).to(self.device))
 			
 			a_argmax = torch.argmax(Q_evals, dim=-1, keepdim=True)
