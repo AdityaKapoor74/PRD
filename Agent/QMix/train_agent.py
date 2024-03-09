@@ -57,7 +57,10 @@ class QMIX:
 			rnn_num_layers = self.rnn_num_layers,
 			rnn_hidden_state_shape = self.rnn_hidden_dim,
 			data_chunk_length = self.data_chunk_length,
-			action_shape = self.num_actions
+			action_shape = self.num_actions,
+			gamma = dictionary["gamma"],
+			lambda_ = dictionary["lambda"],
+			device = self.device,
 			)
 
 		self.agent_ids = []
@@ -195,13 +198,14 @@ class QMIX:
 				states = np.concatenate((self.agent_ids, states), axis=-1)
 				states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1).reshape(-1)
 				states_enemies = np.array(info["enemy_states"]).reshape(-1)
-				full_state = np.concatenate((states_allies, states_enemies), axis=-1)
+				full_state = np.concatenate((states_allies, states_enemies), axis=-1).reshape(-1)
 				indiv_dones = [0]*self.num_agents
 				indiv_dones = np.array(indiv_dones)
 				dones = all(indiv_dones)
 			elif "MPE" in self.environment:
 				states = self.env.reset()
 				full_state, states = self.split_states(states)
+				full_state = full_state.reshape(-1)
 				last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
 				states = np.concatenate((states, last_one_hot_action), axis=-1)
 				indiv_dones = [0]*self.num_agents
@@ -212,7 +216,7 @@ class QMIX:
 				states = self.env.reset()
 				last_one_hot_action = np.zeros((self.num_agents, self.num_actions))
 				full_state = np.array(states)
-				full_state = np.concatenate((self.agent_ids, states), axis=-1)
+				full_state = np.concatenate((self.agent_ids, states), axis=-1).reshape(-1)
 				states = np.array(states)
 				states = np.concatenate((self.agent_ids, states, last_one_hot_action), axis=-1)
 				indiv_dones = [0]*self.num_agents
@@ -276,7 +280,7 @@ class QMIX:
 
 				if "StarCraft" in self.environment:
 					next_states, rewards, next_dones, info = self.env.step(actions)
-					dnext_states = np.array(next_states)
+					next_states = np.array(next_states)
 					next_states = np.concatenate((self.agent_ids, next_states), axis=-1)
 					next_states_allies = np.concatenate((self.agent_ids, info["ally_states"]), axis=-1).reshape(-1)
 					next_states_enemies = np.array(info["enemy_states"]).reshape(-1)
@@ -287,6 +291,7 @@ class QMIX:
 				elif "MPE" in self.environment:
 					next_states, rewards, next_indiv_dones, info = self.env.step(actions)
 					next_full_state, next_states = self.split_states(next_states)
+					next_full_state = next_full_state.reshape(-1)
 					next_states = np.concatenate((next_states, next_last_one_hot_action), axis=-1)
 					next_mask_actions = np.ones((self.num_agents, self.num_actions))
 					collision_rate = [value[1] for value in rewards]
@@ -300,7 +305,7 @@ class QMIX:
 				elif "PressurePlate" in self.environment:
 					next_states, indiv_rewards, next_indiv_dones, info = self.env.step(actions)
 					next_full_state = np.array(next_states)
-					next_full_state = np.concatenate((self.agent_ids, next_full_state), axis=-1)
+					next_full_state = np.concatenate((self.agent_ids, next_full_state), axis=-1).reshape(-1)
 					next_states = np.array(next_states)
 					next_states = np.concatenate((self.agent_ids, next_states, next_last_one_hot_action), axis=-1)
 					rewards = np.sum(indiv_rewards)
@@ -332,7 +337,7 @@ class QMIX:
 					next_dones = all(next_indiv_dones)
 
 				if self.learn:
-					self.buffer.push(states, rnn_hidden_state, full_state, actions, last_one_hot_action, next_states, next_rnn_hidden_state, next_full_state, next_last_one_hot_action, next_mask_actions, rewards, dones, indiv_dones, next_indiv_dones)
+					self.buffer.push(states, rnn_hidden_state, full_state, actions, last_one_hot_action, mask_actions, next_states, next_rnn_hidden_state, next_full_state, next_last_one_hot_action, next_mask_actions, rewards, dones, indiv_dones, next_indiv_dones)
 
 				states, full_state, mask_actions, last_one_hot_action, rnn_hidden_state = next_states, next_full_state, next_mask_actions, next_last_one_hot_action, next_rnn_hidden_state
 				dones, indiv_dones = next_dones, next_indiv_dones
@@ -398,7 +403,7 @@ class QMIX:
 				Q_loss_batch = 0.0
 				grad_norm_batch = 0.0
 				for _ in range(self.num_updates):
-					sample = self.buffer.sample(num_episodes=self.batch_size)
+					sample = self.buffer.sample(num_episodes=self.batch_size, Q_network=self.agents.Q_network, target_Q_network=self.agents.target_Q_network, target_QMix_network=self.agents.target_QMix_network)
 					Q_loss, grad_norm = self.agents.update(sample, episode)
 					Q_loss_batch += Q_loss
 					grad_norm_batch += grad_norm
@@ -430,6 +435,10 @@ class QMIX:
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_rewards_per_1000_eps"), np.array(self.rewards_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"timestep_list"), np.array(self.timesteps), allow_pickle=True, fix_imports=True)
 				np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_timestep_per_1000_eps"), np.array(self.timesteps_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
+				
+				if "MPE" in self.environment:
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"collision_rate_list"), np.array(self.collision_rates), allow_pickle=True, fix_imports=True)
+					np.save(os.path.join(self.policy_eval_dir,self.test_num+"mean_collision_rate_per_1000_eps"), np.array(self.collison_rate_mean_per_1000_eps), allow_pickle=True, fix_imports=True)
 
 
 def make_env(scenario_name, benchmark=False):
@@ -453,13 +462,13 @@ if __name__ == '__main__':
 	for i in range(1, 4):
 		extension = "QMix_"+str(i)
 		test_num = "StarCraft"
-		environment = "LBForaging" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
+		environment = "StarCraft" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
 		if "LBForaging" in environment:
 			num_players = 6
 			num_food = 9
 			grid_size = 12
 			fully_coop = False
-		env_name = "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "") # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
+		env_name = "5m_vs_6m" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
 
 		dictionary = {
 				# TRAINING
@@ -482,8 +491,8 @@ if __name__ == '__main__':
 				"save_comet_ml_plot": True,
 				"norm_returns": False,
 				"learn":True,
-				"max_episodes": 15000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
-				"max_time_steps": 70, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate & LBForaging)/ 500 (PettingZoo)
+				"max_episodes": 20000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
+				"max_time_steps": 100, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate & LBForaging)/ 500 (PettingZoo)
 				"parallel_training": False,
 				"scheduler_need": False,
 				"replay_buffer_size": 5000,
@@ -504,7 +513,7 @@ if __name__ == '__main__':
 				"data_chunk_length": 10,
 				"learning_rate": 5e-4, #1e-3
 				"enable_grad_clip": True,
-				"grad_clip": 0.5,
+				"grad_clip": 10.0,
 				"rnn_hidden_dim": 64,
 				"hidden_dim": 32,
 				"norm_returns": False,
@@ -547,7 +556,7 @@ if __name__ == '__main__':
 			import gym
 
 			env = gym.make(env_name)
-			dictionary["q_mix_observation_shape"] = 133+env.n_agents
+			dictionary["q_mix_observation_shape"] = (133+env.n_agents)*env.n_agents
 			dictionary["q_observation_shape"] = 133+5+env.n_agents
 			dictionary["num_agents"] = env.n_agents
 			dictionary["num_actions"] = 5
