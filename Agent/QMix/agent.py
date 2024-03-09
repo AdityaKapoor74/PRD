@@ -129,25 +129,52 @@ class QMIXAgent:
 		return returns_tensor
 
 	
-	def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
-		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
-		# Initialise  last  lambda -return  for  not  terminated  episodes
-		# print(rewards.shape, terminated.shape, mask.shape, target_qs.shape)
-		ret = target_qs.new_zeros(*target_qs.shape)
-		ret = target_qs * (1-terminated)
-		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
-		# Backwards  recursive  update  of the "forward  view"
-		for t in range(ret.shape[1] - 2, -1,  -1):
-			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t] \
-						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t] * (1 - terminated[:, t]))
-		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
-		# return ret[:, 0:-1]
-		return ret
+	# def build_td_lambda_targets(self, rewards, terminated, mask, target_qs):
+	# 	# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A, <mask > in (at least) B*T-1*1
+	# 	# Initialise  last  lambda -return  for  not  terminated  episodes
+	# 	# print(rewards.shape, terminated.shape, mask.shape, target_qs.shape)
+	# 	ret = target_qs.new_zeros(*target_qs.shape)
+	# 	ret = target_qs * (1-terminated)
+	# 	# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
+	# 	# Backwards  recursive  update  of the "forward  view"
+	# 	for t in range(ret.shape[1] - 2, -1,  -1):
+	# 		ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + mask[:, t] \
+	# 					* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t] * (1 - terminated[:, t]))
+	# 	# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+	# 	# return ret[:, 0:-1]
+	# 	return ret
+
+	# def build_td_lambda_targets(self, rewards, terminations, q_values, next_q_values):
+	# 	"""
+	# 	Calculate the TD(lambda) targets for a batch of episodes.
+		
+	# 	:param rewards: A tensor of shape [B, T, A] containing rewards received, where B is the batch size,
+	# 					T is the time horizon, and A is the number of agents.
+	# 	:param terminations: A tensor of shape [B, T, A] indicating whether each timestep is terminal.
+	# 	:param masks: A tensor of shape [B, T-1, 1] indicating the validity of each timestep 
+	# 				  (1 for valid, 0 for invalid).
+	# 	:param q_values: A tensor of shape [B, T, A] containing the Q-values for each state-action pair.
+	# 	:param gamma: A scalar indicating the discount factor.
+	# 	:param lambda_: A scalar indicating the decay rate for mixing n-step returns.
+		
+	# 	:return: A tensor of shape [B, T, A] containing the TD-lambda targets for each timestep and agent.
+	# 	"""
+	# 	# Initialize the last lambda-return for not terminated episodes
+	# 	B, T = q_values.shape
+	# 	ret = q_values.new_zeros(B, T)  # Initialize return tensor
+	# 	ret[:, -1] = (rewards[:, T-1] + next_q_values[:, T-1]) * (1 - terminations[:, -1])  # Terminal values for the last timestep
+
+	# 	# Backward recursive update of the TD-lambda targets
+	# 	for t in reversed(range(T-1)):
+	# 		td_error = rewards[:, t] + self.gamma * next_q_values[:, t] * (1 - terminations[:, t + 1]) - q_values[:, t]
+	# 		ret[:, t] = q_values[:, t] + td_error * (1 - terminations[:, t + 1]) + self.lambda_ * self.gamma * ret[:, t + 1] * (1 - terminations[:, t + 1])
+
+	# 	return ret
 
 	def update(self, sample, episode):
 		# # sample episodes from replay buffer
-		state_batch, rnn_hidden_state_batch, full_state_batch, actions_batch, last_one_hot_actions_batch, next_state_batch, next_rnn_hidden_state_batch, next_full_state_batch, \
-		next_last_one_hot_actions_batch, next_mask_actions_batch, reward_batch, done_batch, indiv_dones_batch, next_indiv_dones_batch, team_mask_batch, max_episode_len = sample
+		state_batch, rnn_hidden_state_batch, full_state_batch, actions_batch, last_one_hot_actions_batch, mask_actions_batch, next_state_batch, next_rnn_hidden_state_batch, next_full_state_batch, \
+		next_last_one_hot_actions_batch, next_mask_actions_batch, reward_batch, done_batch, indiv_dones_batch, next_indiv_dones_batch, team_mask_batch, max_episode_len, target_Q_mix_values = sample
 		# # convert list to tensor
 		# state_batch = torch.FloatTensor(state_batch)
 		# rnn_hidden_state_batch = torch.FloatTensor(rnn_hidden_state_batch)
@@ -165,20 +192,35 @@ class QMIXAgent:
 		final_state_batch = torch.cat([state_batch, last_one_hot_actions_batch], dim=-1)
 		Q_values, _ = self.Q_network(final_state_batch.to(self.device), rnn_hidden_state_batch.to(self.device), torch.ones_like(next_mask_actions_batch).bool().to(self.device))
 		Q_evals = (torch.gather(Q_values, dim=-1, index=actions_batch.to(self.device)) * (1-indiv_dones_batch).to(self.device)).squeeze(-1)
-		Q_mix = self.QMix_network(Q_evals, next_full_state_batch.to(self.device)).reshape(-1) * team_mask_batch.reshape(-1).to(self.device)
+		Q_mix = self.QMix_network(Q_evals, next_full_state_batch.to(self.device)).reshape(-1) #* team_mask_batch.reshape(-1).to(self.device)
 
+		Q_mix *= (1-done_batch).reshape(-1).to(self.device)
+		# with torch.no_grad():
+		# 	# Calculating next Q values of MAS using target network
+		# 	next_final_state_batch = torch.cat([next_state_batch, next_last_one_hot_actions_batch], dim=-1)
+		# 	next_Q_evals, _ = self.Q_network(next_final_state_batch.to(self.device), next_rnn_hidden_state_batch.to(self.device), next_mask_actions_batch.to(self.device))
+		# 	next_Q_target, _ = self.target_Q_network(next_final_state_batch.to(self.device), next_rnn_hidden_state_batch.to(self.device), next_mask_actions_batch.to(self.device))
+		# 	next_a_argmax = torch.argmax(next_Q_evals, dim=-1, keepdim=True)
+		# 	next_Q_target = torch.gather(next_Q_target, dim=-1, index=next_a_argmax.to(self.device)).squeeze(-1)
+		# 	next_Q_mix_target = self.target_QMix_network(next_Q_target, next_full_state_batch.to(self.device)).reshape(-1) #* team_mask_batch.reshape(-1).to(self.device)
 
-		with torch.no_grad():
-			next_final_state_batch = torch.cat([next_state_batch, next_last_one_hot_actions_batch], dim=-1)
-			Q_evals_next, _ = self.Q_network(next_final_state_batch.to(self.device), next_rnn_hidden_state_batch.to(self.device), next_mask_actions_batch.to(self.device))
-			Q_targets, _ = self.target_Q_network(next_final_state_batch.to(self.device), next_rnn_hidden_state_batch.to(self.device), next_mask_actions_batch.to(self.device))
-			a_argmax = torch.argmax(Q_evals_next, dim=-1, keepdim=True)
-			Q_targets = torch.gather(Q_targets, dim=-1, index=a_argmax.to(self.device)).squeeze(-1)
-			Q_mix_target = self.target_QMix_network(Q_targets, next_full_state_batch.to(self.device)).reshape(-1) * team_mask_batch.reshape(-1).to(self.device)
+		# 	# Calculating current Q values of MAS using target network
+		# 	final_state_batch = torch.cat([state_batch, last_one_hot_actions_batch], dim=-1)
+		# 	Q_evals, _ = self.Q_network(final_state_batch.to(self.device), rnn_hidden_state_batch.to(self.device), mask_actions_batch.to(self.device))
+		# 	Q_target, _ = self.target_Q_network(final_state_batch.to(self.device), rnn_hidden_state_batch.to(self.device), mask_actions_batch.to(self.device))
+		# 	a_argmax = torch.argmax(Q_evals, dim=-1, keepdim=True)
+		# 	Q_target = torch.gather(Q_target, dim=-1, index=a_argmax.to(self.device)).squeeze(-1)
+		# 	Q_mix_target = self.target_QMix_network(Q_target, full_state_batch.to(self.device)).reshape(-1) #* team_mask_batch.reshape(-1).to(self.device)
 
-		target_Q_mix_values = self.build_td_lambda_targets(reward_batch.reshape(-1, self.max_episode_len).to(self.device), done_batch.reshape(-1, self.max_episode_len).to(self.device), team_mask_batch.reshape(-1, self.max_episode_len).to(self.device), Q_mix_target.reshape(-1, self.max_episode_len)).reshape(-1)
+		
+		# Finally using TD-lambda equation to generate targets
+		# target_Q_mix_values = self.build_td_lambda_targets(reward_batch.reshape(-1, self.max_episode_len).to(self.device), done_batch.reshape(-1, self.max_episode_len).to(self.device), team_mask_batch.reshape(-1, self.max_episode_len).to(self.device), Q_mix_target.reshape(-1, self.max_episode_len)).reshape(-1)
+		
+		# target_Q_mix_values = self.build_td_lambda_targets(reward_batch.reshape(-1, self.max_episode_len).to(self.device), done_batch.reshape(-1, self.max_episode_len).to(self.device), Q_mix_target.reshape(-1, self.max_episode_len), next_Q_mix_target.reshape(-1, self.max_episode_len)).reshape(-1)
 
-		Q_loss = self.loss_fn(Q_mix, target_Q_mix_values.detach()) / team_mask_batch.to(self.device).sum()
+		target_Q_mix_values *= (1-done_batch).squeeze(-1)
+
+		Q_loss = self.loss_fn(Q_mix, target_Q_mix_values.reshape(-1).to(self.device)) / team_mask_batch.to(self.device).sum()
 
 		# Q_loss_batch = 0.0
 
