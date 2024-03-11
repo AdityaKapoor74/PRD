@@ -133,7 +133,7 @@ class ReplayMemory:
 		# Initialize the last lambda-return for not terminated episodes
 		B, T = q_values.shape
 		ret = q_values.new_zeros(B, T)  # Initialize return tensor
-		ret[:, -1] = (rewards + next_q_values) * (1 - terminations)  # Terminal values for the last timestep but since we don't know if the max_timestep is the last timestep we do it for all and overwrite it later
+		ret = (rewards + next_q_values) * (1 - terminations)  # Terminal values for the last timestep but since we don't know if the max_timestep is the last timestep we do it for all and overwrite it later
 
 		# Backward recursive update of the TD-lambda targets
 		for t in reversed(range(T-1)):
