@@ -207,7 +207,7 @@ class ReplayMemory:
 
 		
 		# Finally using TD-lambda equation to generate targets
-		target_Q_mix_values = self.build_td_lambda_targets(reward_batch.reshape(-1, self.max_episode_len), done_batch.reshape(-1, self.max_episode_len), Q_mix_target.reshape(-1, self.max_episode_len).cpu())
+		target_Q_mix_values = self.build_td_lambda_targets(reward_batch.reshape(-1, self.max_episode_len), done_batch.reshape(-1, self.max_episode_len), next_Q_mix_target.reshape(-1, self.max_episode_len).cpu())
 		# target_Q_mix_values = self.build_td_lambda_targets(reward_batch.reshape(-1, self.max_episode_len), done_batch.reshape(-1, self.max_episode_len), Q_mix_target.reshape(-1, self.max_episode_len).cpu(), next_Q_mix_target.reshape(-1, self.max_episode_len).cpu())
 
 		
