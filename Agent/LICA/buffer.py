@@ -83,31 +83,19 @@ class RolloutBuffer:
 		self.time_step = 0
 
 
-	def build_td_lambda_targets(self, rewards, terminations, q_values, next_q_values):
-		"""
-		Calculate the TD(lambda) targets for a batch of episodes.
-		
-		:param rewards: A tensor of shape [B, T, A] containing rewards received, where B is the batch size,
-						T is the time horizon, and A is the number of agents.
-		:param terminations: A tensor of shape [B, T, A] indicating whether each timestep is terminal.
-		:param masks: A tensor of shape [B, T-1, 1] indicating the validity of each timestep 
-					  (1 for valid, 0 for invalid).
-		:param q_values: A tensor of shape [B, T, A] containing the Q-values for each state-action pair.
-		:param gamma: A scalar indicating the discount factor.
-		:param lambda_: A scalar indicating the decay rate for mixing n-step returns.
-		
-		:return: A tensor of shape [B, T, A] containing the TD-lambda targets for each timestep and agent.
-		"""
-		# Initialize the last lambda-return for not terminated episodes
-		B, T = q_values.shape
-		ret = q_values.new_zeros(B, T)  # Initialize return tensor
-		ret[:, -1] = (rewards[:, T-1] + next_q_values[:, T-1]) * (1 - terminations[:, -1])  # Terminal values for the last timestep
-
-		# Backward recursive update of the TD-lambda targets
-		for t in reversed(range(T-1)):
-			td_error = rewards[:, t] + self.gamma * next_q_values[:, t] * (1 - terminations[:, t + 1]) - q_values[:, t]
-			ret[:, t] = q_values[:, t] + td_error * (1 - terminations[:, t + 1]) + self.lambda_ * self.gamma * ret[:, t + 1] * (1 - terminations[:, t + 1])
-
+	def build_td_lambda_targets(self, rewards, terminated, target_qs):
+		# Assumes  <target_qs > in B*T*A and <reward >, <terminated >  in B*T*A
+		# Initialise  last  lambda -return  for  not  terminated  episodes
+		# print(rewards.shape, terminated.shape, mask.shape, target_qs.shape)
+		ret = target_qs.new_zeros(*target_qs.shape)
+		ret = target_qs * (1-terminated)
+		# ret[:, -1] = target_qs[:, -1] * (1 - (torch.sum(terminated, dim=1)>0).int())
+		# Backwards  recursive  update  of the "forward  view"
+		for t in range(ret.shape[1] - 2, -1,  -1):
+			ret[:, t] = self.lambda_ * self.gamma * ret[:, t + 1] + (1-terminated[:, t]) \
+						* (rewards[:, t] + (1 - self.lambda_) * self.gamma * target_qs[:, t] * (1 - terminated[:, t]))
+		# Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+		# return ret[:, 0:-1]
 		return ret
 
 
@@ -123,7 +111,7 @@ class RolloutBuffer:
 			target_Qs = target_critic(one_hot_actions_batch.to(self.device), full_state_batch.to(self.device)).squeeze(-1)
 			next_target_Qs = target_critic(next_one_hot_actions_batch.to(self.device), next_full_state_batch.to(self.device)).squeeze(-1)
 		
-		TD_target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), target_Qs, next_target_Qs)
+		TD_target_Qs = self.build_td_lambda_targets(reward_batch.to(self.device), done_batch.to(self.device), next_target_Qs)
 		TD_target_Qs *= (1-done_batch).to(self.device)
 
 		self.TD_target_Qs = TD_target_Qs.cpu()
