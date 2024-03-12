@@ -993,12 +993,12 @@ class PPOAgent:
 				# print(ratios)
 				# print("CLIP IMP RATIO")
 				# print(torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip))
-				print("FACTOR")
-				print(factor * masks[:, :, agent_id])
-				print("ADVANTAGE MULTIPLIER")
-				print(torch.min(ratios, torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip)) * factor.to(self.device) * masks[:, :, agent_id].to(self.device))
-				print("ADVANTAGE")
-				print(curr_agent_advantage * masks[:, :, agent_id].to(self.device))
+				# print("FACTOR")
+				# print(factor * masks[:, :, agent_id])
+				# print("ADVANTAGE MULTIPLIER")
+				# print(torch.min(ratios, torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip)) * factor.to(self.device) * masks[:, :, agent_id].to(self.device))
+				# print("ADVANTAGE")
+				# print(curr_agent_advantage * masks[:, :, agent_id].to(self.device))
 
 				# final loss of clipped objective PPO
 				entropy = -torch.sum(torch.sum(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks[:, :, agent_id].sum()
