@@ -873,9 +873,9 @@ class PPOAgent:
 				# action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
 				# actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id].reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
 				
-				states_actor_ = torch.from_numpy(self.buffer.states_actor).float()[:, :, agent_id, :]
-				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float()[:, 0, :, agent_id, :]
-				action_masks = torch.from_numpy(self.buffer.action_masks).bool()[:, :, agent_id, :]
+				states_actor_ = torch.from_numpy(self.buffer.states_actor).float()[:, :, agent_id, :].unsqueeze(-2)
+				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float()[:, 0, :, agent_id, :].unsqueeze(-2)
+				action_masks = torch.from_numpy(self.buffer.action_masks).bool()[:, :, agent_id, :].unsqueeze(-2)
 				actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id]
 
 				dists_old_, _ = self.policy_network[agent_id](
@@ -1034,11 +1034,11 @@ class PPOAgent:
 				# action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
 				# actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id].reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
 				
-				states_actor_ = torch.from_numpy(self.buffer.states_actor).float()[:, :, agent_id, :]
-				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float()[:, 0, :, agent_id, :]
-				action_masks = torch.from_numpy(self.buffer.action_masks).bool()[:, :, agent_id, :]
+				states_actor_ = torch.from_numpy(self.buffer.states_actor).float()[:, :, agent_id, :].unsqueeze(-2)
+				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float()[:, 0, :, agent_id, :].unsqueeze(-2)
+				action_masks = torch.from_numpy(self.buffer.action_masks).bool()[:, :, agent_id, :].unsqueeze(-2)
 				actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id]
-				
+
 				dists_new, _ = self.policy_network[agent_id](
 							states_actor_.to(self.device),
 							hidden_state_actor_.to(self.device),
