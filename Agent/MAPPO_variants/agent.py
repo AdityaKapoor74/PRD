@@ -868,17 +868,23 @@ class PPOAgent:
 
 			with torch.no_grad():
 				# POST UPDATE POLICY OUTPUT TO UPDATE FACTOR
-				states_actor_ = torch.from_numpy(self.buffer.states_actor).reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1).float()[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
-				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.rnn_num_layers_actor, self.num_agents, -1)[:, :, 0, :, agent_id, :].unsqueeze(-2).permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_actor, -1, self.rnn_hidden_actor)
-				action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
-				actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id].reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
-				dists_new, _ = self.policy_network[agent_id](
+				# states_actor_ = torch.from_numpy(self.buffer.states_actor).reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1).float()[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
+				# hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.rnn_num_layers_actor, self.num_agents, -1)[:, :, 0, :, agent_id, :].unsqueeze(-2).permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_actor, -1, self.rnn_hidden_actor)
+				# action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
+				# actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id].reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
+				
+				states_actor_ = torch.from_numpy(self.buffer.states_actor).float()[:, :, agent_id, :]
+				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float()[:, 0, :, agent_id, :]
+				action_masks = torch.from_numpy(self.buffer.action_masks).bool()[:, :, agent_id, :]
+				actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id]
+
+				dists_old_, _ = self.policy_network[agent_id](
 							states_actor_.to(self.device),
 							hidden_state_actor_.to(self.device),
 							action_masks.to(self.device),
 							)
 
-				probs_old = Categorical(dists_new.squeeze(-2))
+				probs_old = Categorical(dists_old_.squeeze(-2))
 
 				logprobs_old_ = probs_old.log_prob(actions_.to(self.device)).reshape(self.update_ppo_agent, self.max_time_steps)
 
@@ -965,10 +971,7 @@ class PPOAgent:
 					curr_agent_advantage = ((curr_agent_advantage - curr_agent_advantage_mean) / (curr_agent_advantage_std + 1e-5))*masks[:, :, agent_id].view(*shape)
 
 
-			
-				shape = hidden_state_actor.shape
-				hidden_state_actor = hidden_state_actor.reshape(shape[0], -1, self.num_agents, self.rnn_hidden_actor)
-			
+				hidden_state_actor = hidden_state_actor.reshape(self.rnn_num_layers_actor, -1, self.num_agents, self.rnn_hidden_actor)			
 			
 				dists, _ = self.policy_network[agent_id](
 							states_actor[:, :, agent_id, :].to(self.device).unsqueeze(-2),
@@ -985,6 +988,17 @@ class PPOAgent:
 				# Finding Surrogate Loss
 				surr1 = ratios * curr_agent_advantage.to(self.device) * masks[:, :, agent_id].to(self.device)
 				surr2 = torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip) * curr_agent_advantage.to(self.device) * masks[:, :, agent_id].to(self.device)
+
+				# print("IMP RATIO")
+				# print(ratios)
+				# print("CLIP IMP RATIO")
+				# print(torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip))
+				print("FACTOR")
+				print(factor * masks[:, :, agent_id])
+				print("ADVANTAGE MULTIPLIER")
+				print(torch.min(ratios, torch.clamp(ratios, 1-self.policy_clip, 1+self.policy_clip)) * factor.to(self.device) * masks[:, :, agent_id].to(self.device))
+				print("ADVANTAGE")
+				print(curr_agent_advantage * masks[:, :, agent_id].to(self.device))
 
 				# final loss of clipped objective PPO
 				entropy = -torch.sum(torch.sum(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device) * torch.log(torch.clamp(dists.squeeze(-2)*masks[:, :, agent_id].unsqueeze(-1).to(self.device), 1e-10,1.0)), dim=-1))/ masks[:, :, agent_id].sum()
@@ -1015,10 +1029,16 @@ class PPOAgent:
 
 			with torch.no_grad():
 				# POST UPDATE POLICY OUTPUT TO UPDATE FACTOR
-				states_actor_ = torch.from_numpy(self.buffer.states_actor).reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1).float()[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
-				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.rnn_num_layers_actor, self.num_agents, -1)[:, :, 0, :, agent_id, :].unsqueeze(-2).permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_actor, -1, self.rnn_hidden_actor)
-				action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
-				actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id].reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
+				# states_actor_ = torch.from_numpy(self.buffer.states_actor).reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1).float()[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
+				# hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.rnn_num_layers_actor, self.num_agents, -1)[:, :, 0, :, agent_id, :].unsqueeze(-2).permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_actor, -1, self.rnn_hidden_actor)
+				# action_masks = torch.from_numpy(self.buffer.action_masks).bool().reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length, self.num_agents, -1)[:, :, :, agent_id, :].unsqueeze(-2).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length, 1, -1)
+				# actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id].reshape(self.update_ppo_agent, data_chunks, self.data_chunk_length).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
+				
+				states_actor_ = torch.from_numpy(self.buffer.states_actor).float()[:, :, agent_id, :]
+				hidden_state_actor_ = torch.from_numpy(self.buffer.hidden_state_actor).float()[:, 0, :, agent_id, :]
+				action_masks = torch.from_numpy(self.buffer.action_masks).bool()[:, :, agent_id, :]
+				actions_ = torch.from_numpy(self.buffer.actions).float()[:, :, agent_id]
+				
 				dists_new, _ = self.policy_network[agent_id](
 							states_actor_.to(self.device),
 							hidden_state_actor_.to(self.device),
@@ -1037,6 +1057,9 @@ class PPOAgent:
 			# self.buffer.factor = self.buffer.factor*torch.exp((logprobs_new.reshape(*target_shape).cpu()-torch.from_numpy(self.buffer.logprobs[:, :, agent_id]).float().reshape(*target_shape))*masks_.reshape(*target_shape)).reshape(self.update_ppo_agent*data_chunks, self.data_chunk_length)
 
 			train_critic = False
+
+		# print("FACTOR")
+		# print(self.buffer.factor)
 
 		# Copy new weights into old critic
 		if self.soft_update_v:
