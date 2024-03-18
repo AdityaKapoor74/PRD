@@ -595,7 +595,7 @@ if __name__ == '__main__':
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
-				"max_episodes": 20000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
+				"max_episodes": 50000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
 				"max_time_steps": 100, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate & LBForaging)/ 500 (PettingZoo)
 				"experiment_type": experiment_type,
 				"parallel_training": False,
