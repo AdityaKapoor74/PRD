@@ -576,7 +576,7 @@ if __name__ == '__main__':
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"n_epochs": 5,
-				"update_ppo_agent": 30, # update ppo agent after every update_ppo_agent episodes; 10 (StarCraft/MPE/PressurePlate/LBF)/ 5 (PettingZoo)
+				"update_ppo_agent": 20, # update ppo agent after every update_ppo_agent episodes; 10 (StarCraft/MPE/PressurePlate/LBF)/ 5 (PettingZoo)
 				"environment": environment,
 				"test_num": test_num,
 				"extension": extension,
@@ -651,9 +651,9 @@ if __name__ == '__main__':
 				"rnn_num_layers_actor": 1,
 				"rnn_hidden_actor": 64,
 				"enable_grad_clip_actor": True,
-				"grad_clip_actor": 0.2,
+				"grad_clip_actor": 10.0,
 				"policy_clip": 0.2,
-				"policy_lr": 2e-4, #prd 1e-4
+				"policy_lr": 3e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 1e-2, #8e-3
 				"entropy_pen_final": 1e-2,
