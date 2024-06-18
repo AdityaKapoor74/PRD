@@ -144,8 +144,10 @@ class PPOAgent:
 					num_heads=self.num_heads, 
 					num_agents=self.num_agents, 
 					num_enemies=self.num_enemies, 
+					num_teams=self.num_teams,
 					num_actions=self.num_actions, 
 					rnn_num_layers=self.rnn_num_layers_q,
+					comp_emb_shape=self.q_comp_emb_shape,
 					device=self.device, 
 					enable_hard_attention=self.enable_hard_attention, 
 					attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
@@ -159,8 +161,10 @@ class PPOAgent:
 					num_heads=self.num_heads, 
 					num_agents=self.num_agents, 
 					num_enemies=self.num_enemies, 
+					num_teams=self.num_teams,
 					num_actions=self.num_actions, 
 					rnn_num_layers=self.rnn_num_layers_q,
+					comp_emb_shape=self.q_comp_emb_shape,
 					device=self.device, 
 					enable_hard_attention=self.enable_hard_attention, 
 					attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
@@ -413,11 +417,11 @@ class PPOAgent:
 
 			if self.experiment_type == "prd_soft_advantage_global":
 				if "StarCraft" in self.environment:
-					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				else:
-					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 
 				# we repeat Q value because we assume that a global Q has been computed for each agent
 				return Q_value.reshape(-1).repeat(self.num_agents).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).squeeze(0).numpy(), global_weights.reshape(-1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
