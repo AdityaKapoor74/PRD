@@ -278,7 +278,7 @@ class MAPPO:
 					if self.experiment_type == "prd_soft_advantage_global":
 						q_value, next_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 					else:
-						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
+						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, actions, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 				else:
 					if self.experiment_type == "prd_soft_advantage_global":
 						q_value, next_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
@@ -416,7 +416,7 @@ class MAPPO:
 							if self.experiment_type == "prd_soft_advantage_global":
 								q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 							else:
-								q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
+								q_value, _, _, value, _ = self.agents.get_q_v_values(states_allies_critic, states_enemies_critic, actions, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 						else:
 							if self.experiment_type == "prd_soft_advantage_global":
 								q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
@@ -621,7 +621,8 @@ if __name__ == '__main__':
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
 				"attention_dropout_prob_v": 0.0,
-				"comp_emb_shape": 64,
+				"q_comp_emb_shape": 64,
+				"v_comp_emb_shape": 64,
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": True,
@@ -737,3 +738,9 @@ if __name__ == '__main__':
 
 		ma_controller = MAPPO(env,dictionary)
 		ma_controller.run()
+
+
+
+
+
+# visa@manchester.ac.uk --- For VISA || international@manchester.ac.uk
