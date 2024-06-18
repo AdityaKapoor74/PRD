@@ -48,7 +48,8 @@ class PPOAgent:
 		self.rnn_num_layers_v = dictionary["rnn_num_layers_v"]
 		self.rnn_hidden_q = dictionary["rnn_hidden_q"]
 		self.rnn_hidden_v = dictionary["rnn_hidden_v"]
-		self.comp_emb_shape = dictionary["comp_emb_shape"]
+		self.q_comp_emb_shape = dictionary["q_comp_emb_shape"]
+		self.v_comp_emb_shape = dictionary["v_comp_emb_shape"]
 		self.critic_ally_observation = dictionary["ally_observation"]
 
 		if "StarCraft" in self.environment:
@@ -180,7 +181,7 @@ class PPOAgent:
 					num_teams=self.num_teams,
 					num_actions=self.num_actions, 
 					rnn_num_layers=self.rnn_num_layers_q,
-					comp_emb_shape=self.comp_emb_shape,
+					comp_emb_shape=self.q_comp_emb_shape,
 					device=self.device, 
 					enable_hard_attention=self.enable_hard_attention, 
 					attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
@@ -198,7 +199,7 @@ class PPOAgent:
 					num_teams=self.num_teams,
 					num_actions=self.num_actions, 
 					rnn_num_layers=self.rnn_num_layers_q,
-					comp_emb_shape=self.comp_emb_shape,
+					comp_emb_shape=self.q_comp_emb_shape,
 					device=self.device, 
 					enable_hard_attention=self.enable_hard_attention, 
 					attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
@@ -227,8 +228,10 @@ class PPOAgent:
 			num_heads=self.num_heads, 
 			num_agents=self.num_agents, 
 			num_enemies=self.num_enemies, 
+			num_teams=self.num_teams,
 			num_actions=self.num_actions, 
 			rnn_num_layers=self.rnn_num_layers_v,
+			comp_emb_shape=self.v_comp_emb_shape,
 			device=self.device, 
 			enable_hard_attention=self.enable_hard_attention, 
 			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
@@ -244,8 +247,10 @@ class PPOAgent:
 			num_heads=self.num_heads, 
 			num_agents=self.num_agents, 
 			num_enemies=self.num_enemies, 
+			num_teams=self.num_teams,
 			num_actions=self.num_actions,
 			rnn_num_layers=self.rnn_num_layers_v, 
+			comp_emb_shape=self.q_comp_emb_shape,
 			device=self.device, 
 			enable_hard_attention=self.enable_hard_attention, 
 			attention_dropout_prob=dictionary["attention_dropout_prob_v"], 
@@ -419,19 +424,19 @@ class PPOAgent:
 
 			elif self.experiment_type in ["shared", "HAPPO"]:
 				if "StarCraft" in self.environment:
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				else:
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 			
 				return None, None, None, Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 			
 			else:
 				if "StarCraft" in self.environment:
-					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				else:
 					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
-					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, one_hot_actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
+					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 
 				return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).transpose(-1, -2).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 
@@ -587,7 +592,7 @@ class PPOAgent:
 					q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
 														states_critic_allies.to(self.device),
 														states_critic_enemies.to(self.device),
-														one_hot_actions.to(self.device),
+														actions.to(self.device),
 														hidden_state_q.to(self.device),
 														masks.to(self.device),
 														)
@@ -631,7 +636,7 @@ class PPOAgent:
 				values, weight_v, score_v, h_v = self.critic_network_v(
 													states_critic_allies.to(self.device),
 													states_critic_enemies.to(self.device),
-													one_hot_actions.to(self.device),
+													actions.to(self.device),
 													hidden_state_v.to(self.device),
 													masks.to(self.device),
 													)
@@ -639,7 +644,7 @@ class PPOAgent:
 				values, weight_v, score_v, h_v = self.critic_network_v(
 													states_critic_allies.to(self.device),
 													None,
-													one_hot_actions.to(self.device),
+													actions.to(self.device),
 													hidden_state_v.to(self.device),
 													masks.to(self.device),
 													)
