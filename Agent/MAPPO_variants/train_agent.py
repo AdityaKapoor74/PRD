@@ -201,7 +201,8 @@ class MAPPO:
 				states = self.env.reset()
 				states_critic, states_actor = self.split_states(states)
 				last_one_hot_actions = np.zeros((self.num_agents, self.num_actions))
-				states_actor = np.concatenate((states_actor, last_one_hot_actions), axis=-1)
+				last_actions = np.zeros((self.num_agents)) + self.num_actions
+				# states_actor = np.concatenate((states_actor, last_one_hot_actions), axis=-1)
 				indiv_dones = [0]*self.num_agents
 				indiv_dones = np.array(indiv_dones)
 				mask_actions = np.ones((self.num_agents, self.num_actions))
@@ -266,7 +267,7 @@ class MAPPO:
 					with torch.no_grad():
 						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor, greedy=False)
 				else:
-					actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor)
+					actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_actions, mask_actions, rnn_hidden_state_actor)
 
 				one_hot_actions = np.zeros((self.num_agents, self.num_actions))
 				for i, act in enumerate(actions):
@@ -282,7 +283,7 @@ class MAPPO:
 					if self.experiment_type == "prd_soft_advantage_global":
 						q_value, next_rnn_hidden_state_q, weights_prd, global_weights, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 					else:
-						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
+						q_value, next_rnn_hidden_state_q, weights_prd, value, next_rnn_hidden_state_v = self.agents.get_q_v_values(states_critic, None, actions, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 
 				if "StarCraft" in self.environment:
 					next_states_actor, rewards, next_dones, info = self.env.step(actions)
@@ -297,7 +298,7 @@ class MAPPO:
 				elif "MPE" in self.environment:
 					next_states, rewards, next_indiv_dones, info = self.env.step(actions)
 					next_states_critic, next_states_actor = self.split_states(next_states)
-					next_states_actor = np.concatenate((next_states_actor, one_hot_actions), axis=-1)
+					# next_states_actor = np.concatenate((next_states_actor, one_hot_actions), axis=-1)
 					next_mask_actions = np.ones((self.num_agents, self.num_actions))
 					collision_rate = [value[1] for value in rewards]
 					goal_reached = [value[2] for value in rewards]
@@ -392,7 +393,7 @@ class MAPPO:
 
 						states_critic = next_states_critic
 
-				states_actor, last_one_hot_actions, mask_actions, indiv_dones = next_states_actor, one_hot_actions, next_mask_actions, next_indiv_dones
+				states_actor, last_one_hot_actions, last_actions, mask_actions, indiv_dones = next_states_actor, one_hot_actions, actions, next_mask_actions, next_indiv_dones
 				rnn_hidden_state_q, rnn_hidden_state_v, rnn_hidden_state_actor = next_rnn_hidden_state_q, next_rnn_hidden_state_v, next_rnn_hidden_state_actor
 
 				if all(indiv_dones) or step == self.max_time_steps:
@@ -405,7 +406,7 @@ class MAPPO:
 
 					if self.learn:
 						# add final time to buffer
-						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor)
+						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_actions, mask_actions, rnn_hidden_state_actor)
 					
 						one_hot_actions = np.zeros((self.num_agents,self.num_actions))
 						for i,act in enumerate(actions):
@@ -420,7 +421,7 @@ class MAPPO:
 							if self.experiment_type == "prd_soft_advantage_global":
 								q_value, _, _, global_weights, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 							else:
-								q_value, _, _, value, _ = self.agents.get_q_v_values(states_critic, None, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
+								q_value, _, _, value, _ = self.agents.get_q_v_values(states_critic, None, actions, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode)
 
 						if self.experiment_type == "prd_soft_advantage_global":
 							if self.norm_returns_q:
@@ -543,7 +544,7 @@ def make_env(scenario_name, benchmark=False):
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env, scenario.actor_observation_shape, scenario.critic_observation_shape
+	return env, scenario.actor_observation_shape, scenario.critic_observation_shape, scenario.team_size
 
 
 if __name__ == '__main__':
@@ -554,17 +555,17 @@ if __name__ == '__main__':
 	torch.set_printoptions(profile="full")
 	torch.autograd.set_detect_anomaly(True)
 
-	for i in range(1,4):
+	for i in range(1, 2):
 		extension = "MAPPO_"+str(i)
 		test_num = "StarCraft"
-		environment = "StarCraft" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
+		environment = "MPE" # StarCraft/ MPE/ PressurePlate/ PettingZoo/ LBForaging
 		if "LBForaging" in environment:
 			num_players = 6
 			num_food = 9
 			grid_size = 12
 			fully_coop = False
-		env_name = "5m_vs_6m" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "HAPPO" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage prd_soft_advantage_global, HAPPO
+		env_name = "crossing_team_greedy" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage, prd_soft_advantage_global, HAPPO
 
 		dictionary = {
 				# TRAINING
@@ -575,8 +576,8 @@ if __name__ == '__main__':
 				"actor_dir": '../../../tests/'+test_num+'/models/'+env_name+'_'+experiment_type+'_'+extension+'/actor_networks/',
 				"gif_dir": '../../../tests/'+test_num+'/gifs/'+env_name+'_'+experiment_type+'_'+extension+'/',
 				"policy_eval_dir":'../../../tests/'+test_num+'/policy_eval/'+env_name+'_'+experiment_type+'_'+extension+'/',
-				"n_epochs": 10,
-				"update_ppo_agent": 40, # update ppo agent after every update_ppo_agent episodes; 10 (StarCraft/MPE/PressurePlate/LBF)/ 5 (PettingZoo)
+				"n_epochs": 5,
+				"update_ppo_agent": 10, # update ppo agent after every update_ppo_agent episodes; 10 (StarCraft/MPE/PressurePlate/LBF)/ 5 (PettingZoo)
 				"environment": environment,
 				"test_num": test_num,
 				"extension": extension,
@@ -595,7 +596,7 @@ if __name__ == '__main__':
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
 				"epsilon_end": 0.0,
-				"max_episodes": 50000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
+				"max_episodes": 30000, # 20000 (StarCraft environments)/ 30000 (MPE/PressurePlate)/ 5000 (PettingZoo)/ 15000 (LBForaging)
 				"max_time_steps": 100, # 100 (StarCraft environments & MPE)/ 70 (PressurePlate & LBForaging)/ 500 (PettingZoo)
 				"experiment_type": experiment_type,
 				"parallel_training": False,
@@ -620,6 +621,7 @@ if __name__ == '__main__':
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
 				"attention_dropout_prob_v": 0.0,
+				"comp_emb_shape": 64,
 				"q_weight_decay": 0.0,
 				"v_weight_decay": 0.0,
 				"enable_grad_clip_critic_v": True,
@@ -653,15 +655,15 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.2,
-				"policy_lr": 3e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 1e-2, #8e-3
-				"entropy_pen_final": 1e-2,
+				"entropy_pen": 0.0, #8e-3
+				"entropy_pen_final": 0.0,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, 
 				"threshold_min": 0.0, 
-				"threshold_max": 0.2, 
+				"threshold_max": 0.0, 
 				"steps_to_take": 1000,
 				"top_k": 0,
 				"norm_adv": True,
@@ -687,11 +689,12 @@ if __name__ == '__main__':
 			from multiagent.environment import MultiAgentEnv
 			import multiagent.scenarios as scenarios
 
-			env, actor_observation_shape, critic_observation_shape = make_env(scenario_name=dictionary["env"], benchmark=False)
+			env, actor_observation_shape, critic_observation_shape, team_size = make_env(scenario_name=dictionary["env"], benchmark=False)
 			dictionary["ally_observation"] = critic_observation_shape
-			dictionary["local_observation"] = actor_observation_shape+env.action_space[0].n
+			dictionary["local_observation"] = actor_observation_shape#+env.action_space[0].n
 			dictionary["num_agents"] = env.n
 			dictionary["num_actions"] = env.action_space[0].n
+			dictionary["team_size"] = team_size
 
 		elif "PressurePlate" in environment:
 
