@@ -567,11 +567,11 @@ class PPOAgent:
 
 		self.buffer.calculate_targets(episode, self.select_above_threshold, self.Q_PopArt, self.V_PopArt)
 
-		if self.norm_returns_q:
-			train_q_normalizer = True
+		# if self.norm_returns_q:
+		# 	train_q_normalizer = True
 
-		if self.norm_returns_v:
-			train_v_normalizer = True
+		# if self.norm_returns_v:
+		# 	train_v_normalizer = True
 
 		
 		# torch.autograd.set_detect_anomaly(True)
@@ -630,10 +630,10 @@ class PPOAgent:
 					# self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
 					# target_q_values = self.buffer.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
 
-					target_q_values = self.Q_PopArt(target_q_values.view(-1), masks.view(-1), train=train_q_normalizer).view(targets_shape) * masks.view(targets_shape)
+					target_q_values = self.Q_PopArt(target_q_values.view(-1), masks.view(-1), train=True).view(targets_shape) * masks.view(targets_shape)
 
-					if pp_epoch > 0:
-						train_q_normalizer = False
+					# if pp_epoch > 0:
+					# 	train_q_normalizer = False
 
 
 				critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
@@ -671,10 +671,10 @@ class PPOAgent:
 
 				# self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
 				# target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
-				target_values = (self.V_PopArt(target_values.view(-1), masks.view(-1), train=train_v_normalizer).view(targets_shape) * masks.view(targets_shape)).cpu()
+				target_values = (self.V_PopArt(target_values.view(-1), masks.view(-1), train=True).view(targets_shape) * masks.view(targets_shape)).cpu()
 
-				if pp_epoch > 0:
-					train_v_normalizer = False
+				# if pp_epoch > 0:
+				# 	train_v_normalizer = False
 
 			critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 			critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
