@@ -544,7 +544,7 @@ def make_env(scenario_name, benchmark=False):
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, scenario.isFinished)
 	else:
 		env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, None, scenario.isFinished)
-	return env, scenario.actor_observation_shape, scenario.critic_observation_shape, scenario.team_size
+	return env, scenario.actor_observation_shape, scenario.critic_observation_shape, scenario.num_teams
 
 
 if __name__ == '__main__':
@@ -690,12 +690,12 @@ if __name__ == '__main__':
 			from multiagent.environment import MultiAgentEnv
 			import multiagent.scenarios as scenarios
 
-			env, actor_observation_shape, critic_observation_shape, team_size = make_env(scenario_name=dictionary["env"], benchmark=False)
+			env, actor_observation_shape, critic_observation_shape, num_teams = make_env(scenario_name=dictionary["env"], benchmark=False)
 			dictionary["ally_observation"] = critic_observation_shape
 			dictionary["local_observation"] = actor_observation_shape#+env.action_space[0].n
 			dictionary["num_agents"] = env.n
 			dictionary["num_actions"] = env.action_space[0].n
-			dictionary["team_size"] = team_size
+			dictionary["num_teams"] = num_teams
 
 		elif "PressurePlate" in environment:
 
