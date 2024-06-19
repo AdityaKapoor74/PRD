@@ -672,8 +672,8 @@ class Global_Q_network(nn.Module):
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
 
-		weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
-		# weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-1) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
 
 		final_weights = weights.clone()
 
@@ -991,8 +991,9 @@ class Q_network(nn.Module):
 		# score = score + attention_masks.reshape(*score.shape).to(score.device)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
-		weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
-		# weights = F.softmax(score, dim=-1)
+		# weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
+		
+		weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
 
 		final_weights = weights.clone()
 		# prd_weights = F.softmax(score.clone(), dim=-2)
@@ -1298,8 +1299,8 @@ class V_network(nn.Module):
 		# score = score + attention_masks.reshape(*score.shape).to(score.device)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
-		weights = F.softmax((score/(torch.max(score, dim=-1).values-torch.min(score, dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
-		# weights = F.softmax(score, dim=-1)
+		# weights = F.softmax((score/(torch.max(score, dim=-1).values-torch.min(score, dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
 
 		final_weights = weights.clone()
 		for i in range(self.num_agents):
