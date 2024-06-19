@@ -677,8 +677,9 @@ class Global_Q_network(nn.Module):
 
 		final_weights = weights.clone()
 
-		prd_weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-2)
-		# prd_weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-2) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		# prd_weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-2)
+		prd_weights = F.softmax(score + attention_masks.reshape(*score.shape).to(score.device), dim=-2) #* hard_attention_weights.unsqueeze(1).permute(0, 1, 2, 4, 3) # Batch_size, Num Heads, Num agents, 1, Num Agents - 1
+		
 		for i in range(self.num_agents):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
@@ -706,7 +707,7 @@ class Global_Q_network(nn.Module):
 		# global_weights_updated = torch.where(rows_with_neg_inf.unsqueeze(-1), torch.zeros_like(global_weights), global_weights)
 
 		global_weights = final_weights.sum(dim=-2)/(agent_masks.reshape(-1, self.num_agents).sum(dim=-1)+1e-5).reshape(-1, 1, 1)
-		global_weights_updated = global_weights / (global_weights.sum(dim=-1, keepdim=True)+1e-5)
+		global_weights_updated = global_weights / (global_weights.sum(dim=-1, keepdim=True).detach()+1e-5)
 
 		# global_weights = torch.nan_to_num(global_weights, nan=0.0)
 		# global_weights *= agent_masks.reshape(batch*timesteps, 1, self.num_agents).to(final_weights.device)
