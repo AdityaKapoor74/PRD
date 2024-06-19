@@ -480,7 +480,12 @@ class Global_Q_network(nn.Module):
 			self.enemy_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# Embedding Networks
-		self.ally_state_embed = init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
+		# self.ally_state_embed = init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
+		self.ally_state_embed = nn.Sequential(
+			nn.LayerNorm(ally_obs_input_dim),
+			init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=True),
+			nn.GELU(),
+			)
 
 		# Embedding Networks
 		# self.ally_state_embed_1 = nn.Sequential(
@@ -506,10 +511,10 @@ class Global_Q_network(nn.Module):
 
 		self.attention_value_linear = nn.Sequential(
 			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape), activate=True),
-			nn.Dropout(0.2),
+			# nn.Dropout(0.2),
 			nn.GELU(),
-			nn.LayerNorm(self.comp_emb_shape),
-			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape), activate=True)
+			# nn.LayerNorm(self.comp_emb_shape),
+			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape))
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
 
@@ -594,7 +599,7 @@ class Global_Q_network(nn.Module):
 		# 		)
 
 		self.q_value_layer = nn.Sequential(
-			nn.LayerNorm(self.comp_emb_shape),
+			# nn.LayerNorm(self.comp_emb_shape),
 			init_(nn.Linear(self.comp_emb_shape, 1, bias=True))
 			)
 		
@@ -650,7 +655,7 @@ class Global_Q_network(nn.Module):
 			enemy_embedding = self.enemy_embedding(torch.arange(n_e).to(self.device))[None, None, :, :].expand(batch, timesteps, self.num_enemies, self.comp_emb_shape)
 			enemy_state_embed = self.enemy_layer_norm((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2)).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
-		
+
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
 		# QUERIES
@@ -668,6 +673,7 @@ class Global_Q_network(nn.Module):
 
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/((self.d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num agents, Num Agents
+		score = score / ((score.max(dim=-1, keepdim=True).values - score.min(dim=-1, keepdim=True).values).detach() + 1e-5)
 		attention_masks = self.get_attention_masks(agent_masks).reshape(batch*timesteps, num_agents, num_agents).unsqueeze(1).repeat(1, self.num_heads, 1, 1)
 		# max_score = torch.max(score, dim=-1, keepdim=True).values
 		# score_stable = score - max_score
@@ -987,6 +993,7 @@ class Q_network(nn.Module):
 
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, Num Agents
+		score = score / ((score.max(dim=-1, keepdim=True).values - score.min(dim=-1, keepdim=True).values).detach() + 1e-5)
 		attention_masks = self.get_attention_masks(agent_masks).reshape(batch*timesteps, num_agents, num_agents).unsqueeze(1).repeat(1, self.num_heads, 1, 1)
 		attention_masks = attention_masks + (1-hard_attention_weights)*self.mask_value
 		# score = score + attention_masks.reshape(*score.shape).to(score.device)
@@ -1295,6 +1302,7 @@ class V_network(nn.Module):
 			
 		# SOFT ATTENTION
 		score = torch.matmul(query_obs,(key_obs).transpose(-2,-1))/(self.d_k_agents//self.num_heads)**(1/2) # Batch_size, Num Heads, Num agents, Num Agents
+		score = score / ((score.max(dim=-1, keepdim=True).values - score.min(dim=-1, keepdim=True).values).detach() + 1e-5)
 		attention_masks = self.get_attention_masks(agent_masks).reshape(batch*timesteps, num_agents, num_agents).unsqueeze(1).repeat(1, self.num_heads, 1, 1)
 		attention_masks = attention_masks + (1-hard_attention_weights)*self.mask_value
 		# score = score + attention_masks.reshape(*score.shape).to(score.device)
