@@ -477,15 +477,17 @@ class Global_Q_network(nn.Module):
 		if "StarCraft" in self.environment:
 			self.enemy_embedding = nn.Embedding(self.num_enemies, self.comp_emb_shape)
 			self.enemy_state_embed = init_(nn.Linear(enemy_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
-			self.enemy_layer_norm = nn.LayerNorm(self.comp_emb_shape)
+			# self.enemy_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# Embedding Networks
 		# self.ally_state_embed = init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
 		self.ally_state_embed = nn.Sequential(
-			nn.LayerNorm(ally_obs_input_dim),
+			# nn.LayerNorm(ally_obs_input_dim),
 			init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=True),
 			nn.GELU(),
 			)
+
+		self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# Embedding Networks
 		# self.ally_state_embed_1 = nn.Sequential(
@@ -605,7 +607,7 @@ class Global_Q_network(nn.Module):
 		
 
 		self.mask_value = torch.tensor(
-				torch.finfo(torch.float).min, dtype=torch.float
+			torch.finfo(torch.float).min, dtype=torch.float
 			)
 
 		self.diagonal_matrix = torch.eye(self.num_agents).reshape(1, 1, self.num_agents, self.num_agents)
@@ -653,8 +655,11 @@ class Global_Q_network(nn.Module):
 
 		if "StarCraft" in self.environment:
 			enemy_embedding = self.enemy_embedding(torch.arange(n_e).to(self.device))[None, None, :, :].expand(batch, timesteps, self.num_enemies, self.comp_emb_shape)
-			enemy_state_embed = self.enemy_layer_norm((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2)).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
+			# enemy_state_embed = self.enemy_layer_norm((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2)).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
+			enemy_state_embed = (self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
+
+		states_embed = self.state_embed_layer_norm(states_embed)
 
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
@@ -807,10 +812,17 @@ class Q_network(nn.Module):
 		if "StarCraft" in self.environment:
 			self.enemy_embedding = nn.Embedding(self.num_enemies, self.comp_emb_shape)
 			self.enemy_state_embed = init_(nn.Linear(enemy_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
-			self.enemy_layer_norm = nn.LayerNorm(self.comp_emb_shape)
+			# self.enemy_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# Embedding Networks
-		self.ally_state_embed = init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
+		# self.ally_state_embed = init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
+		self.ally_state_embed = nn.Sequential(
+			# nn.LayerNorm(ally_obs_input_dim),
+			init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=True),
+			nn.GELU(),
+			)
+
+		self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 			
 		# self.ally_state_embed_1 = nn.Sequential(
 		# 	init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=True),
@@ -835,10 +847,10 @@ class Q_network(nn.Module):
 
 		self.attention_value_linear = nn.Sequential(
 			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape, bias=True), activate=True),
-			nn.Dropout(0.2),
+			# nn.Dropout(0.2),
 			nn.GELU(),
-			nn.LayerNorm(self.comp_emb_shape),
-			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape, bias=True), activate=True)
+			# nn.LayerNorm(self.comp_emb_shape),
+			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape, bias=True)),
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
 
@@ -924,12 +936,12 @@ class Q_network(nn.Module):
 		# 		)
 
 		self.q_value_layer = nn.Sequential(
-			nn.LayerNorm(self.comp_emb_shape),
+			# nn.LayerNorm(self.comp_emb_shape),
 			init_(nn.Linear(self.comp_emb_shape, 1, bias=True))
 			)
 
 		self.mask_value = torch.tensor(
-				torch.finfo(torch.float).min, dtype=torch.float
+			torch.finfo(torch.float).min, dtype=torch.float
 			)
 
 
@@ -969,9 +981,12 @@ class Q_network(nn.Module):
 
 		if "StarCraft" in self.environment:
 			enemy_embedding = self.enemy_embedding(torch.arange(n_e).to(self.device))[None, None, :, :].expand(batch, timesteps, self.num_enemies, self.comp_emb_shape)
-			enemy_state_embed = self.enemy_layer_norm((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2)).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
+			# enemy_state_embed = self.enemy_layer_norm((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2)).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
+			enemy_state_embed = (self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
 		
+		states_embed = self.state_embed_layer_norm(states_embed)
+
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
 		# QUERIES
@@ -1119,7 +1134,14 @@ class V_network(nn.Module):
 			self.enemy_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# Embedding Networks
-		self.ally_state_embed = init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
+		# self.ally_state_embed = init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=False)
+		self.ally_state_embed = nn.Sequential(
+			# nn.LayerNorm(ally_obs_input_dim),
+			init_(nn.Linear(ally_obs_input_dim, self.comp_emb_shape, bias=True), activate=True),
+			nn.GELU(),
+			)
+
+		self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# Embedding Networks
 		# self.ally_state_embed_1 = nn.Sequential(
@@ -1145,10 +1167,10 @@ class V_network(nn.Module):
 
 		self.attention_value_linear = nn.Sequential(
 			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape, bias=True), activate=True),
-			nn.Dropout(0.2),
+			# nn.Dropout(0.2),
 			nn.GELU(),
-			nn.LayerNorm(self.comp_emb_shape),
-			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape, bias=True), activate=True)
+			# nn.LayerNorm(self.comp_emb_shape),
+			init_(nn.Linear(self.comp_emb_shape, self.comp_emb_shape, bias=True))
 			)
 		self.attention_value_linear_dropout = nn.Dropout(0.2)
 
@@ -1233,12 +1255,12 @@ class V_network(nn.Module):
 		# 		)
 
 		self.v_value_layer = nn.Sequential(
-			nn.LayerNorm(self.comp_emb_shape),
+			# nn.LayerNorm(self.comp_emb_shape),
 			init_(nn.Linear(self.comp_emb_shape, 1, bias=True))
 			)
 
 		self.mask_value = torch.tensor(
-				torch.finfo(torch.float).min, dtype=torch.float
+			torch.finfo(torch.float).min, dtype=torch.float
 			)
 
 
@@ -1265,11 +1287,13 @@ class V_network(nn.Module):
 		# 	_, _, num_enemies, _ = enemy_states.shape
 		# 	enemy_states = enemy_states.reshape(batch*timesteps, num_enemies, -1)
 
+		# extract agent embedding
+		agent_embedding = self.agent_embedding(torch.arange(self.num_agents).to(self.device))[None, None, :, :].expand(batch, timesteps, self.num_agents, self.comp_emb_shape).reshape(batch*timesteps, self.num_agents, -1)
 		
 
 		# EMBED STATES KEY & QUERY
 		# states_embed = self.ally_state_embed_1(states)
-		states_embed = self.ally_state_embed(states)
+		states_embed = self.ally_state_embed(states) + agent_embedding
 
 		if "MPE" in self.environment:
 			team_embedding = self.team_embedding(torch.arange(self.num_teams).to(self.device))[None, None, :, None, :].expand(batch, timesteps, self.num_teams, self.num_agents//self.num_teams, self.comp_emb_shape).reshape(batch*timesteps, self.num_agents, self.comp_emb_shape)
@@ -1277,9 +1301,12 @@ class V_network(nn.Module):
 
 		if "StarCraft" in self.environment:
 			enemy_embedding = self.enemy_embedding(torch.arange(n_e).to(self.device))[None, None, :, :].expand(batch, timesteps, self.num_enemies, self.comp_emb_shape)
-			enemy_state_embed = self.enemy_layer_norm((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2)).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
+			# enemy_state_embed = self.enemy_layer_norm((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2)).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
+			enemy_state_embed = (self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
 		
+		states_embed = self.state_embed_layer_norm(states_embed)
+
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
 		# QUERIES
