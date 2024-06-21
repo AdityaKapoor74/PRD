@@ -657,7 +657,7 @@ class Global_Q_network(nn.Module):
 
 		# EMBED STATES KEY & QUERY
 		# states_embed = self.ally_state_embed_1(states)
-		states_embed = self.ally_state_embed(states) + agent_embedding
+		states_embed = self.ally_state_embed(states) + agent_embedding + self.action_embedding(actions.long())
 
 		if "MPE" in self.environment:
 			team_embedding = self.team_embedding(torch.arange(self.num_teams).to(self.device))[None, None, :, None, :].expand(batch, timesteps, self.num_teams, self.num_agents//self.num_teams, self.comp_emb_shape).reshape(batch*timesteps, self.num_agents, self.comp_emb_shape)
@@ -712,7 +712,8 @@ class Global_Q_network(nn.Module):
 		# obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		# obs_actions_embed = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		
-		obs_actions_embed = states_embed + self.action_embedding(actions.long())
+		# obs_actions_embed = states_embed + self.action_embedding(actions.long())
+		obs_actions_embed = states_embed
 
 		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		
@@ -983,7 +984,7 @@ class Q_network(nn.Module):
 
 		# EMBED STATES KEY & QUERY
 		# states_embed = self.ally_state_embed_1(states)
-		states_embed = self.ally_state_embed(states) + agent_embedding
+		states_embed = self.ally_state_embed(states) + agent_embedding + self.action_embedding(actions.long())
 
 		if "MPE" in self.environment:
 			team_embedding = self.team_embedding(torch.arange(self.num_teams).to(self.device))[None, None, :, None, :].expand(batch, timesteps, self.num_teams, self.num_agents//self.num_teams, self.comp_emb_shape).reshape(batch*timesteps, self.num_agents, self.comp_emb_shape)
@@ -1024,8 +1025,8 @@ class Q_network(nn.Module):
 		weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
 		
 		final_weights = weights.clone()
-		# prd_weights = F.softmax(score.clone(), dim=-2)
-		prd_weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-2) # Batch_size, Num Heads, Num agents, Num Agents
+		prd_weights = F.softmax(score.clone() + attention_masks.reshape(*score.shape).to(score.device), dim=-2)
+		# prd_weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-2).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-2) # Batch_size, Num Heads, Num agents, Num Agents
 		for i in range(self.num_agents):
 			final_weights[:, :, i, i] = 1.0 # since weights[:, :, i, i] = 0.0
 			prd_weights[:, :, i, i] = 1.0
@@ -1041,7 +1042,8 @@ class Q_network(nn.Module):
 		# EMBED STATE ACTION
 		# obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		# obs_actions_embed = self.ally_state_act_embed(obs_actions) # Batch_size, Num agents, dim
-		obs_actions_embed = states_embed + self.action_embedding(actions.long())
+
+		obs_actions_embed = states_embed #+ self.action_embedding(actions.long())
 
 		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		
