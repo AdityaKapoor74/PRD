@@ -341,11 +341,13 @@ class PPOAgent:
 		if dictionary["load_models"]:
 			# For CPU
 			if torch.cuda.is_available() is False:
-				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"], map_location=torch.device('cpu')))
+				self.critic_network_v.load_state_dict(torch.load(dictionary["model_path_v_value"], map_location=torch.device('cpu')))
+				self.critic_network_q.load_state_dict(torch.load(dictionary["model_path_q_value"], map_location=torch.device('cpu')))
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"], map_location=torch.device('cpu')))
 			# For GPU
 			else:
-				self.critic_network.load_state_dict(torch.load(dictionary["model_path_value"]))
+				self.critic_network_v.load_state_dict(torch.load(dictionary["model_path_v_value"]))
+				self.critic_network_q.load_state_dict(torch.load(dictionary["model_path_q_value"]))
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 
