@@ -657,7 +657,7 @@ class Global_Q_network(nn.Module):
 
 		# EMBED STATES KEY & QUERY
 		# states_embed = self.ally_state_embed_1(states)
-		states_embed = self.ally_state_embed(states) + agent_embedding + self.action_embedding(actions.long())
+		states_embed = self.ally_state_embed(states) + agent_embedding
 
 		if "MPE" in self.environment:
 			team_embedding = self.team_embedding(torch.arange(self.num_teams).to(self.device))[None, None, :, None, :].expand(batch, timesteps, self.num_teams, self.num_agents//self.num_teams, self.comp_emb_shape).reshape(batch*timesteps, self.num_agents, self.comp_emb_shape)
@@ -712,8 +712,7 @@ class Global_Q_network(nn.Module):
 		# obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		# obs_actions_embed = self.ally_state_act_embed(obs_actions) #+ self.positional_embedding.unsqueeze(0) # Batch_size, Num agents, dim
 		
-		# obs_actions_embed = states_embed + self.action_embedding(actions.long())
-		obs_actions_embed = states_embed
+		obs_actions_embed = states_embed + self.action_embedding(actions.long())
 
 		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		
@@ -984,7 +983,7 @@ class Q_network(nn.Module):
 
 		# EMBED STATES KEY & QUERY
 		# states_embed = self.ally_state_embed_1(states)
-		states_embed = self.ally_state_embed(states) + agent_embedding + self.action_embedding(actions.long())
+		states_embed = self.ally_state_embed(states) + agent_embedding
 
 		if "MPE" in self.environment:
 			team_embedding = self.team_embedding(torch.arange(self.num_teams).to(self.device))[None, None, :, None, :].expand(batch, timesteps, self.num_teams, self.num_agents//self.num_teams, self.comp_emb_shape).reshape(batch*timesteps, self.num_agents, self.comp_emb_shape)
@@ -1042,8 +1041,7 @@ class Q_network(nn.Module):
 		# EMBED STATE ACTION
 		# obs_actions = torch.cat([states, actions], dim=-1).to(self.device) # Batch_size, Num agents, dim
 		# obs_actions_embed = self.ally_state_act_embed(obs_actions) # Batch_size, Num agents, dim
-
-		obs_actions_embed = states_embed #+ self.action_embedding(actions.long())
+		obs_actions_embed = states_embed + self.action_embedding(actions.long())
 
 		attention_values = self.attention_value(obs_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) #torch.stack([self.attention_value[i](obs_actions_embed) for i in range(self.num_heads)], dim=0).permute(1,0,2,3,4) # Batch_size, Num heads, Num agents, Num agents - 1, dim//num_heads
 		
