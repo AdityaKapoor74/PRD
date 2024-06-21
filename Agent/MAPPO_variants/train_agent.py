@@ -565,7 +565,7 @@ if __name__ == '__main__':
 			grid_size = 12
 			fully_coop = False
 		env_name = "crossing_team_greedy" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "prd_soft_advantage_global" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage, prd_soft_advantage_global, HAPPO
+		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage, prd_soft_advantage_global, HAPPO
 
 		dictionary = {
 				# TRAINING
@@ -585,9 +585,9 @@ if __name__ == '__main__':
 				"gif": False,
 				"gif_checkpoint":1,
 				"load_models": False,
-				"model_path_q_value": "../../tests/RLC_2024/relevant_set_visualization/crossing_team_greedy/models/crossing_team_greedy_prd_soft_advantage_MAPPO_1/critic_networks/critic_Q_epsiode1000.pt",
-				"model_path_v_value": "../../tests/RLC_2024/relevant_set_visualization/crossing_team_greedy/models/crossing_team_greedy_prd_soft_advantage_MAPPO_1/critic_networks/critic_V_epsiode1000.pt",
-				"model_path_policy": "../../tests/RLC_2024/relevant_set_visualization/crossing_team_greedy/models/crossing_team_greedy_prd_soft_advantage_MAPPO_1/actor_networks/actor_epsiode1000.pt",
+				"model_path_q_value": "../../tests/RLC_2024/relevant_set_visualization/crossing_team_greedy/prd_soft_advantage/models/crossing_team_greedy_prd_soft_advantage_MAPPO_1/critic_networks/critic_Q_epsiode10000.pt",
+				"model_path_v_value": "../../tests/RLC_2024/relevant_set_visualization/crossing_team_greedy/prd_soft_advantage/models/crossing_team_greedy_prd_soft_advantage_MAPPO_1/critic_networks/critic_V_epsiode10000.pt",
+				"model_path_policy": "../../tests/RLC_2024/relevant_set_visualization/crossing_team_greedy/prd_soft_advantage/models/crossing_team_greedy_prd_soft_advantage_MAPPO_1/actor_networks/actor_epsiode10000.pt",
 				"eval_policy": True,
 				"save_model": True,
 				"save_model_checkpoint": 1000,
