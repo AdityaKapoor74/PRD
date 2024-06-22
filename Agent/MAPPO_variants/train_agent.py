@@ -258,14 +258,16 @@ class MAPPO:
 
 				if self.gif:
 					# At each step, append an image to list
-					# if not(episode%self.gif_checkpoint):
-					# 	images.append(np.squeeze(self.env.render(mode='rgb_array')))
 					# import time
 					# time.sleep(0.1)
-					self.env.render()
+					if "MPE" in self.environment:
+						if not(episode%self.gif_checkpoint):
+							images.append(np.squeeze(self.env.render(mode='rgb_array')))
+					else:
+						self.env.render()
 					# Advance a step and render a new image
 					with torch.no_grad():
-						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, mask_actions, rnn_hidden_state_actor, greedy=False)
+						actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_actions, mask_actions, rnn_hidden_state_actor, greedy=False)
 				else:
 					actions, action_logprob, next_rnn_hidden_state_actor = self.agents.get_action(states_actor, last_actions, mask_actions, rnn_hidden_state_actor)
 
@@ -521,9 +523,10 @@ class MAPPO:
 				else:
 					self.agents.update(episode)
 
-			# elif self.gif and not(episode%self.gif_checkpoint):
-			# 	print("GENERATING GIF")
-			# 	self.make_gif(np.array(images),self.gif_path)
+			if "MPE" in self.environment:
+				if self.gif and not(episode%self.gif_checkpoint):
+					print("GENERATING GIF")
+					self.make_gif(np.array(images),self.gif_path)
 
 
 			if self.eval_policy and not(episode%self.save_model_checkpoint) and episode!=0:
@@ -592,7 +595,7 @@ if __name__ == '__main__':
 				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
-				"learn":True,
+				"learn":False,
 				"warm_up": False,
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
@@ -616,8 +619,8 @@ if __name__ == '__main__':
 				"rnn_num_layers_v": 1,
 				"rnn_hidden_q": 64,
 				"rnn_hidden_v": 64,				
-				"q_value_lr": 1e-4, #1e-3
-				"v_value_lr": 1e-4, #1e-3
+				"q_value_lr": 5e-4, #1e-3
+				"v_value_lr": 5e-4, #1e-3
 				"temperature_v": 1.0,
 				"temperature_q": 1.0,
 				"attention_dropout_prob_q": 0.0,
@@ -657,7 +660,7 @@ if __name__ == '__main__':
 				"enable_grad_clip_actor": True,
 				"grad_clip_actor": 10.0,
 				"policy_clip": 0.2,
-				"policy_lr": 1e-4, #prd 1e-4
+				"policy_lr": 5e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
 				"entropy_pen": 0.0, #8e-3
 				"entropy_pen_final": 0.0,
