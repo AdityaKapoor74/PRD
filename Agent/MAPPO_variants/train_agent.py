@@ -595,7 +595,7 @@ if __name__ == '__main__':
 				"save_model": True,
 				"save_model_checkpoint": 1000,
 				"save_comet_ml_plot": True,
-				"learn":False,
+				"learn":True,
 				"warm_up": False,
 				"warm_up_episodes": 500,
 				"epsilon_start": 0.5,
