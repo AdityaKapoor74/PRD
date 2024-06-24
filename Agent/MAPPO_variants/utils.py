@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 import numpy as np
 
-from model import ValueNorm, RunningMeanStd
+from model import PopArt
 
 
 def gumbel_sigmoid(logits: Tensor, tau: float = 1, hard: bool = False, threshold: float = 0.5) -> Tensor:
@@ -28,7 +28,6 @@ def gumbel_sigmoid(logits: Tensor, tau: float = 1, hard: bool = False, threshold
 	)  # ~Gumbel(0, 1)
 	gumbels = (logits + gumbels) / tau  # ~Gumbel(logits, tau)
 	y_soft = gumbels.sigmoid()
-	# print(y_soft)
 
 	if hard:
 		# Straight through.
@@ -39,10 +38,6 @@ def gumbel_sigmoid(logits: Tensor, tau: float = 1, hard: bool = False, threshold
 	else:
 		# Reparametrization trick.
 		ret = y_soft
-
-	# print("GUMBEL SIGMOID")
-	# print(ret)
-	
 	return ret
 
 class RolloutBuffer:
@@ -76,8 +71,6 @@ class RolloutBuffer:
 		gae_lambda,
 		n_steps,
 		gamma,
-		# V_PopArt,
-		# Q_PopArt,
 		):
 		self.environment = environment
 		self.experiment_type = experiment_type
@@ -110,16 +103,8 @@ class RolloutBuffer:
 		self.gamma = gamma
 		self.n_steps = n_steps
 
-		# if self.norm_returns_v:
-		# 	# self.v_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
-		# 	self.v_value_norm = V_PopArt
-			
-		# if self.norm_returns_q:
-		# 	# self.q_value_norm = ValueNorm(input_shape=1, norm_axes=1, device=torch.device("cpu"))
-		# 	self.q_value_norm = Q_PopArt
-
 		if self.norm_rewards:
-			self.reward_norm = RunningMeanStd(shape=(1), device=self.device)
+			self.reward_norm = PopArt(input_shape=1, num_agents=self.num_agents, device=self.device)
 
 		self.episode_num = 0
 		self.time_step = 0
@@ -129,21 +114,18 @@ class RolloutBuffer:
 		self.hidden_state_v = np.zeros((num_episodes, max_time_steps, rnn_num_layers_v, num_agents, v_hidden_state))
 		self.Q_values = np.zeros((num_episodes, max_time_steps+1, num_agents))
 		if self.experiment_type == "prd_soft_advantage_global":
-			self.Q_i_values = np.zeros((num_episodes, max_time_steps+1, num_agents))
-			self.hidden_state_q = np.zeros((num_episodes, max_time_steps, rnn_num_layers_q, 1, q_hidden_state))
-		else:
-			self.hidden_state_q = np.zeros((num_episodes, max_time_steps, rnn_num_layers_q, num_agents, q_hidden_state))
+			self.global_Q_values = np.zeros((num_episodes, max_time_steps+1))
+			self.global_hidden_state_q = np.zeros((num_episodes, max_time_steps, rnn_num_layers_q, 1, q_hidden_state))
+		self.hidden_state_q = np.zeros((num_episodes, max_time_steps, rnn_num_layers_q, num_agents, q_hidden_state))
 		self.V_values = np.zeros((num_episodes, max_time_steps+1, num_agents))
 		self.weights_prd = np.zeros((num_episodes, max_time_steps, num_agents, num_agents))
 		self.states_actor = np.zeros((num_episodes, max_time_steps, num_agents, obs_shape_actor))
 		self.hidden_state_actor = np.zeros((num_episodes, max_time_steps, rnn_num_layers_actor, num_agents, actor_hidden_state))
 		self.logprobs = np.zeros((num_episodes, max_time_steps, num_agents))
 		self.actions = np.zeros((num_episodes, max_time_steps, num_agents), dtype=int)
-		self.last_one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
-		self.one_hot_actions = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.action_masks = np.zeros((num_episodes, max_time_steps, num_agents, num_actions))
 		self.rewards = np.zeros((num_episodes, max_time_steps, num_agents))
-		self.indiv_rewards = np.zeros((num_episodes, max_time_steps, num_agents))
+		self.global_rewards = np.zeros((num_episodes, max_time_steps))
 		self.dones = np.ones((num_episodes, max_time_steps+1, num_agents))
 
 		self.episode_length = np.zeros(num_episodes)
@@ -159,21 +141,18 @@ class RolloutBuffer:
 		self.hidden_state_v = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_v, self.num_agents, self.v_hidden_state))
 		self.Q_values = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents))
 		if self.experiment_type == "prd_soft_advantage_global":
-			self.Q_i_values = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents))
-			self.hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_q, 1, self.q_hidden_state))
-		else:
-			self.hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_q, self.num_agents, self.q_hidden_state))
+			self.global_Q_values = np.zeros((self.num_episodes, self.max_time_steps+1))
+			self.global_hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_q, 1, self.q_hidden_state))
+		self.hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_q, self.num_agents, self.q_hidden_state))
 		self.V_values = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents))
 		self.weights_prd = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_agents))
 		self.states_actor = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.obs_shape_actor))
 		self.hidden_state_actor = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_actor, self.num_agents, self.actor_hidden_state))
 		self.logprobs = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
 		self.actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents), dtype=int)
-		self.last_one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
-		self.one_hot_actions = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.action_masks = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_actions))
 		self.rewards = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
-		self.indiv_rewards = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents))
+		self.global_rewards = np.zeros((self.num_episodes, self.max_time_steps))
 		self.dones = np.ones((self.num_episodes, self.max_time_steps+1, self.num_agents))
 
 		self.episode_length = np.zeros(self.num_episodes)
@@ -190,19 +169,18 @@ class RolloutBuffer:
 		state_critic_enemies, 
 		q_value,
 		hidden_state_q,
-		q_i_value,
 		weights_prd,
+		global_q_value,
+		global_hidden_state_q,
 		value, 
 		hidden_state_v,
 		state_actor, 
 		hidden_state_actor, 
 		logprobs, 
 		actions, 
-		last_one_hot_actions, 
-		one_hot_actions, 
 		action_masks, 
 		rewards, 
-		indiv_rewards,
+		global_rewards,
 		dones
 		):
 
@@ -216,7 +194,8 @@ class RolloutBuffer:
 		
 
 		if self.experiment_type == "prd_soft_advantage_global":
-			self.Q_i_values[self.episode_num][self.time_step] = q_i_value
+			self.global_Q_values[self.episode_num][self.time_step] = global_q_value
+			self.global_hidden_state_q[self.episode_num][self.time_step] = global_hidden_state_q
 
 		if "prd" in self.experiment_type:
 			self.hidden_state_q[self.episode_num][self.time_step] = hidden_state_q
@@ -227,11 +206,9 @@ class RolloutBuffer:
 		self.hidden_state_actor[self.episode_num][self.time_step] = hidden_state_actor
 		self.logprobs[self.episode_num][self.time_step] = logprobs
 		self.actions[self.episode_num][self.time_step] = actions
-		self.last_one_hot_actions[self.episode_num][self.time_step] = last_one_hot_actions
-		self.one_hot_actions[self.episode_num][self.time_step] = one_hot_actions
 		self.action_masks[self.episode_num][self.time_step] = action_masks
 		self.rewards[self.episode_num][self.time_step] = rewards
-		self.indiv_rewards[self.episode_num][self.time_step] = indiv_rewards
+		self.global_rewards[self.episode_num][self.time_step] = global_rewards
 		self.dones[self.episode_num][self.time_step] = dones
 
 		if self.time_step < self.max_time_steps-1:
@@ -242,13 +219,13 @@ class RolloutBuffer:
 		self, 
 		t, 
 		q_value,
-		q_i_value, 
+		global_q_value, 
 		value, 
 		dones
 		):
 		self.V_values[self.episode_num][self.time_step+1] = value
 		if self.experiment_type == "prd_soft_advantage_global": 
-			self.Q_i_values[self.episode_num][self.time_step+1] = q_i_value
+			self.global_Q_values[self.episode_num][self.time_step+1] = global_q_value
 		if "prd" in self.experiment_type:
 			self.Q_values[self.episode_num][self.time_step+1] = q_value
 		self.dones[self.episode_num][self.time_step+1] = dones
@@ -269,17 +246,20 @@ class RolloutBuffer:
 		states_critic_allies = torch.from_numpy(self.states_critic_allies).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.obs_shape_critic_ally)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.obs_shape_critic_ally)
 		states_critic_enemies = torch.from_numpy(self.states_critic_enemies).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_enemies, self.obs_shape_critic_enemy)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_enemies, self.obs_shape_critic_enemy)
 		if self.experiment_type == "prd_soft_advantage_global":
-			hidden_state_q = torch.from_numpy(self.hidden_state_q).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_q, 1, self.q_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_q, -1, self.q_hidden_state)
+			global_q_values = torch.from_numpy(self.global_Q_values[:, :-1]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length)
+			target_global_q_values = self.target_global_Q_values.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length)
+			global_hidden_state_q = torch.from_numpy(self.global_hidden_state_q).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_q, 1, self.q_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_q, -1, self.q_hidden_state)
 		else:
-			hidden_state_q = torch.from_numpy(self.hidden_state_q).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_q, self.num_agents, self.q_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_q, -1, self.q_hidden_state)
+			global_q_values = None
+			target_global_q_values = None
+			global_hidden_state_q = None
+		hidden_state_q = torch.from_numpy(self.hidden_state_q).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_q, self.num_agents, self.q_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_q, -1, self.q_hidden_state)
 		hidden_state_v = torch.from_numpy(self.hidden_state_v).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_v, self.num_agents, self.v_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_v, -1, self.v_hidden_state)
 		states_actor = torch.from_numpy(self.states_actor).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.obs_shape_actor)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.obs_shape_actor).reshape(-1, self.data_chunk_length, self.num_agents, self.obs_shape_actor)
 		hidden_state_actor = torch.from_numpy(self.hidden_state_actor).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_actor, self.num_agents, self.actor_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_actor, -1, self.actor_hidden_state)
 		logprobs = torch.from_numpy(self.logprobs).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		last_actions = torch.from_numpy(np.concatenate((first_last_actions, self.actions[:, :-1, :]), axis=1)).long().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		actions = torch.from_numpy(self.actions).long().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
-		last_one_hot_actions = torch.from_numpy(self.last_one_hot_actions).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.num_actions)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.num_actions)
-		one_hot_actions = torch.from_numpy(self.one_hot_actions).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.num_actions)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.num_actions)
 		action_masks = torch.from_numpy(self.action_masks).bool().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents, self.num_actions)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents, self.num_actions)
 		masks = 1-torch.from_numpy(self.dones[:, :-1]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.num_agents)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length, self.num_agents)
 		
@@ -293,17 +273,16 @@ class RolloutBuffer:
 
 		factor = self.factor.reshape(self.num_episodes, data_chunks, self.data_chunk_length)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length)
 
-		return states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs, \
-		last_actions, actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values, target_values, q_values, target_q_values, advantage, factor, weights_prd
+		return states_critic_allies, states_critic_enemies, hidden_state_q, global_hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs, \
+		last_actions, actions, action_masks, masks, values, target_values, q_values, target_q_values, global_q_values, target_global_q_values, advantage, factor, weights_prd
 
-	def calculate_targets(self, episode, select_above_threshold, q_value_norm=None, v_value_norm=None):
+	def calculate_targets(self, episode, select_above_threshold, q_value_norm=None, global_q_value_norm=None, v_value_norm=None):
 		
 		masks = 1 - torch.from_numpy(self.dones[:, :-1, :])
 		next_mask = 1 - torch.from_numpy(self.dones[:, -1, :])
 
 		rewards = torch.from_numpy(self.rewards)
-
-		indiv_rewards = torch.from_numpy(self.indiv_rewards)
+		global_rewards = torch.from_numpy(self.global_rewards)
 
 		values = torch.from_numpy(self.V_values[:, :-1, :]) * masks
 		next_values = torch.from_numpy(self.V_values[:, -1, :]) * next_mask
@@ -319,8 +298,8 @@ class RolloutBuffer:
 			rewards = torch.clamp(rewards, min=self.clamp_rewards_value_min, max=self.clamp_rewards_value_max)
 
 		if self.norm_rewards:
-			self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device))
-			rewards = ((rewards.to(self.device) - self.reward_norm.mean) / (torch.sqrt(self.reward_norm.var) + 1e-5)).cpu().view(-1, self.num_agents)
+			rewards_shape = rewards.shape
+			rewards = self.reward_norm.update(rewards.view(-1).to(self.device), masks.view(-1).to(self.device)).reshape(rewards_shape)
 		
 		# TARGET CALC
 		if self.experiment_type in ["shared", "HAPPO"]:
@@ -330,6 +309,7 @@ class RolloutBuffer:
 				target_values = self.nstep_returns(rewards, values, next_values, masks, next_mask)
 
 			target_q_values = rewards.new_zeros(*rewards.shape)
+			target_global_q_values = rewards.new_zeros(*rewards.shape).sum(dim=-1) # to collapse num_agents
 		else:
 			q_values = torch.from_numpy(self.Q_values[:, :-1, :]) * masks
 			next_q_values = torch.from_numpy(self.Q_values[:, -1, :]) * next_mask
@@ -348,84 +328,58 @@ class RolloutBuffer:
 				target_q_values = self.nstep_returns(rewards, q_values, next_q_values, masks, next_mask)
 
 			if self.experiment_type == "prd_soft_advantage_global":
+				global_q_values = torch.from_numpy(self.global_Q_values[:, :-1]) * (masks.sum(dim=-1)>0).float()
+				next_global_q_values = torch.from_numpy(self.global_Q_values[:, -1]) * (next_mask.sum(dim=-1)>0).float()
 
-				q_i_values = torch.from_numpy(self.Q_i_values[:, :-1, :]) * masks
-				next_q_i_values = torch.from_numpy(self.Q_i_values[:, -1, :]) * next_mask
+				if self.norm_returns_q:
+					values_shape = global_q_values.shape
+					global_q_values = global_q_value_norm.denormalize(global_q_values.view(-1)).view(values_shape) * (masks.sum(dim=-1)>0).float().view(values_shape)
+
+					next_values_shape = next_global_q_values.shape
+					next_global_q_values = global_q_value_norm.denormalize(next_global_q_values.view(-1)).view(next_values_shape) * (next_mask.sum(dim=-1)>0).view(next_values_shape)
 
 				if self.target_calc_style == "GAE":
-					target_q_i_values = self.gae_targets(indiv_rewards, q_i_values, next_q_i_values, masks, next_mask)
+					target_global_q_values = self.gae_targets(global_rewards.unsqueeze(-1), global_q_values.unsqueeze(-1), next_global_q_values.unsqueeze(-1), (masks.sum(dim=-1)>0).float().unsqueeze(-1), (next_mask.sum(dim=-1)>0).unsqueeze(-1)).squeeze(-1)
 				elif self.target_calc_style == "N_steps":
-					target_q_i_values = self.nstep_returns(indiv_rewards, q_i_values, next_q_i_values, masks, next_mask)
-			else:
-				target_q_i_values = target_q_values
+					target_global_q_values = self.nstep_returns(global_rewards.unsqueeze(-1), global_q_values.unsqueeze(-1), next_global_q_values.unsqueeze(-1), (masks.sum(dim=-1)>0).float().unsqueeze(-1), (next_mask.sum(dim=-1)>0).unsqueeze(-1)).squeeze(-1)
 			
 			if self.experiment_type in ["prd_above_threshold_ascend", "prd_above_threshold_decay"]:
 				mask_rewards = (weights_prd>select_above_threshold).int()
-				# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
 				rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * mask_rewards).sum(dim=-1)
 			elif self.experiment_type == "prd_above_threshold":
 				if episode > self.transition_after:
 					mask_rewards = (weights_prd>select_above_threshold).int()
-					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
 					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * mask_rewards).sum(dim=-1)
 				else:
-					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
 					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1)).sum(dim=-1)
 			elif "top" in self.experiment_type:
 				if episode > self.transition_after:
 					_, indices = torch.topk(weights_prd, k=self.top_k, dim=-1)
 					mask_rewards = torch.sum(F.one_hot(indices, num_classes=self.num_agents), dim=-2)
-					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * mask_rewards, dim=-1)
 					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * mask_rewards).sum(dim=-1)
 				else:
-					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
 					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1)).sum(dim=-1)
 			elif "prd_soft_advantage" in self.experiment_type:
 				if episode > self.transition_after:
-					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1) * weights_prd, dim=-1)
 					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1) * weights_prd).sum(dim=-1)
 				else:
-					# target_values = torch.sum(target_q_i_values.unsqueeze(-2).repeat(1, 1, self.num_agents, 1), dim=-1)
 					rewards_ = (rewards.unsqueeze(2).repeat(1, 1, self.num_agents, 1)).sum(dim=-1)
 
 			if self.target_calc_style == "GAE":
 				target_values = self.gae_targets(rewards_, values, next_values, masks, next_mask)
 			elif self.target_calc_style == "N_steps":
 				target_values = self.nstep_returns(rewards_, values, next_values, masks, next_mask)
-			# if self.norm_returns_q:
-			# 	targets_shape = target_q_values.shape
-
-			# 	self.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
-
-			# 	self.target_q_values = self.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-				
-			# else:
-			# 	self.target_q_values = target_q_values
+			
 
 		self.advantage = (target_values - values).detach()
 
-		# if self.norm_returns_v:
-		# 	targets_shape = target_values.shape
-		# 	self.v_value_norm.update(target_values.view(-1), masks.view(-1))
-
-		# 	self.target_values = (self.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
-			
-		# else:
-		# 	self.target_values = target_values
-			
-			
-
 		self.target_q_values = target_q_values
+		self.target_global_Q_values = target_global_q_values
 		self.target_values = target_values
-
-		print("Avg Values", ((values * masks).sum()/masks.sum()).item())
-		print("Avg Target Values", ((self.target_values*masks).sum()/masks.sum()).item())
-		print("Avg advantage", ((self.advantage*masks).sum()/masks.sum()).item())
 
 
 	def gae_targets(self, rewards, values, next_value, masks, next_mask):
 		
-		# advantages = rewards.new_zeros(*rewards.shape)
 		target_values = rewards.new_zeros(*rewards.shape)
 		advantage = 0
 
@@ -439,7 +393,7 @@ class RolloutBuffer:
 			next_value = values.data[:, t, :]
 			next_mask = masks[:, t, :]
 
-		return target_values*masks
+		return target_values * masks
 
 
 	def nstep_returns(self, rewards, values, next_value, masks, next_mask):
