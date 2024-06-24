@@ -128,7 +128,7 @@ class PPOAgent:
 
 
 		print("EXPERIMENT TYPE", self.experiment_type)
-		# obs_input_dim = 2*3+1 # crossing_team_greedy
+
 		# Q-V Network
 		self.Q_PopArt = None
 		if "prd" in self.experiment_type:
@@ -138,44 +138,10 @@ class PPOAgent:
 
 			if self.experiment_type == "prd_soft_advantage_global":
 
-				self.critic_network_q = Global_Q_network(
-					ally_obs_input_dim=self.critic_ally_observation, 
-					enemy_obs_input_dim=self.critic_enemy_observation, 
-					num_heads=self.num_heads, 
-					num_agents=self.num_agents, 
-					num_enemies=self.num_enemies, 
-					num_teams=self.num_teams,
-					num_actions=self.num_actions, 
-					rnn_num_layers=self.rnn_num_layers_q,
-					comp_emb_shape=self.q_comp_emb_shape,
-					device=self.device, 
-					enable_hard_attention=self.enable_hard_attention, 
-					attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
-					temperature=self.temperature_q,
-					norm_returns=self.norm_returns_q,
-					environment=self.environment,
-					).to(self.device)
-				self.target_critic_network_q = Global_Q_network(
-					ally_obs_input_dim=self.critic_ally_observation, 
-					enemy_obs_input_dim=self.critic_enemy_observation, 
-					num_heads=self.num_heads, 
-					num_agents=self.num_agents, 
-					num_enemies=self.num_enemies, 
-					num_teams=self.num_teams,
-					num_actions=self.num_actions, 
-					rnn_num_layers=self.rnn_num_layers_q,
-					comp_emb_shape=self.q_comp_emb_shape,
-					device=self.device, 
-					enable_hard_attention=self.enable_hard_attention, 
-					attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
-					temperature=self.temperature_q,
-					norm_returns=self.norm_returns_q,
-					environment=self.environment,
-					).to(self.device)
+				if self.norm_returns_q:
+					self.global_Q_PopArt = PopArt(input_shape=1, num_agents=self.num_agents, device=self.device)
 
-			else:
-
-				self.critic_network_q = Q_network(
+				self.global_critic_network_q = Global_Q_network(
 					use_recurrent_policy=self.use_recurrent_policy,
 					ally_obs_input_dim=self.critic_ally_observation, 
 					enemy_obs_input_dim=self.critic_enemy_observation, 
@@ -193,7 +159,7 @@ class PPOAgent:
 					norm_returns=self.norm_returns_q,
 					environment=self.environment,
 					).to(self.device)
-				self.target_critic_network_q = Q_network(
+				self.target_global_critic_network_q = Global_Q_network(
 					use_recurrent_policy=self.use_recurrent_policy,
 					ally_obs_input_dim=self.critic_ally_observation, 
 					enemy_obs_input_dim=self.critic_enemy_observation, 
@@ -211,14 +177,57 @@ class PPOAgent:
 					norm_returns=self.norm_returns_q,
 					environment=self.environment,
 					).to(self.device)
+
+				# Copy network params
+				self.target_global_critic_network_q.load_state_dict(self.global_critic_network_q.state_dict())
+				# Disable updates for old network
+				for param in self.target_global_critic_network_q.parameters():
+					param.requires_grad_(False)
+
+			# else:
+
+			self.critic_network_q = Q_network(
+				use_recurrent_policy=self.use_recurrent_policy,
+				ally_obs_input_dim=self.critic_ally_observation, 
+				enemy_obs_input_dim=self.critic_enemy_observation, 
+				num_heads=self.num_heads, 
+				num_agents=self.num_agents, 
+				num_enemies=self.num_enemies, 
+				num_teams=self.num_teams,
+				num_actions=self.num_actions, 
+				rnn_num_layers=self.rnn_num_layers_q,
+				comp_emb_shape=self.q_comp_emb_shape,
+				device=self.device, 
+				enable_hard_attention=self.enable_hard_attention, 
+				attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
+				temperature=self.temperature_q,
+				norm_returns=self.norm_returns_q,
+				environment=self.environment,
+				).to(self.device)
+			self.target_critic_network_q = Q_network(
+				use_recurrent_policy=self.use_recurrent_policy,
+				ally_obs_input_dim=self.critic_ally_observation, 
+				enemy_obs_input_dim=self.critic_enemy_observation, 
+				num_heads=self.num_heads, 
+				num_agents=self.num_agents, 
+				num_enemies=self.num_enemies, 
+				num_teams=self.num_teams,
+				num_actions=self.num_actions, 
+				rnn_num_layers=self.rnn_num_layers_q,
+				comp_emb_shape=self.q_comp_emb_shape,
+				device=self.device, 
+				enable_hard_attention=self.enable_hard_attention, 
+				attention_dropout_prob=dictionary["attention_dropout_prob_q"], 
+				temperature=self.temperature_q,
+				norm_returns=self.norm_returns_q,
+				environment=self.environment,
+				).to(self.device)
 
 			# Copy network params
 			self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
 			# Disable updates for old network
 			for param in self.target_critic_network_q.parameters():
 				param.requires_grad_(False)
-
-			# Q_PopArt = self.critic_network_q.q_value_layer[-1]
 
 		if self.norm_returns_q:
 			self.V_PopArt = PopArt(input_shape=1, num_agents=self.num_agents, device=self.device)
@@ -268,8 +277,6 @@ class PPOAgent:
 		# Disable updates for old network
 		for param in self.target_critic_network_v.parameters():
 			param.requires_grad_(False)
-
-		# V_PopArt = self.critic_network_v.v_value_layer[-1]
 		
 		
 		# Policy Network
@@ -333,8 +340,6 @@ class PPOAgent:
 			gae_lambda=self.gae_lambda,
 			n_steps=self.n_steps,
 			gamma=self.gamma,
-			# V_PopArt=self.V_PopArt,
-			# Q_PopArt=self.Q_PopArt,
 			)
 
 		# Loading models
@@ -343,11 +348,13 @@ class PPOAgent:
 			if torch.cuda.is_available() is False:
 				self.critic_network_v.load_state_dict(torch.load(dictionary["model_path_v_value"], map_location=torch.device('cpu')))
 				self.critic_network_q.load_state_dict(torch.load(dictionary["model_path_q_value"], map_location=torch.device('cpu')))
+				self.global_critic_network_q.load_state_dict(torch.load(dictionary["model_path_global_q_value"], map_location=torch.device('cpu')))
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"], map_location=torch.device('cpu')))
 			# For GPU
 			else:
 				self.critic_network_v.load_state_dict(torch.load(dictionary["model_path_v_value"]))
 				self.critic_network_q.load_state_dict(torch.load(dictionary["model_path_q_value"]))
+				self.global_critic_network_q.load_state_dict(torch.load(dictionary["model_path_global_q_value"]))
 				self.policy_network.load_state_dict(torch.load(dictionary["model_path_policy"]))
 
 
@@ -362,6 +369,9 @@ class PPOAgent:
 
 		if "prd" in self.experiment_type:
 			self.q_critic_optimizer = optim.AdamW(self.critic_network_q.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay, eps=1e-05)
+
+			if self.experiment_type == "prd_soft_advantage_global":
+				self.global_q_critic_optimizer = optim.AdamW(self.global_critic_network_q.parameters(), lr=self.q_value_lr, weight_decay=self.q_weight_decay, eps=1e-05)
 
 		if self.scheduler_need:
 			if self.experiment_type == "HAPPO":
@@ -403,7 +413,7 @@ class PPOAgent:
 		return lr
 
 	
-	def get_q_v_values(self, state_allies, state_enemies, actions, one_hot_actions, rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode):
+	def get_q_v_values(self, state_allies, state_enemies, actions, rnn_hidden_state_q, global_rnn_hidden_state_q, rnn_hidden_state_v, indiv_dones, episode):
 		with torch.no_grad():
 			indiv_masks = [1-d for d in indiv_dones]
 			indiv_masks = torch.FloatTensor(indiv_masks).unsqueeze(0).unsqueeze(0)
@@ -411,22 +421,23 @@ class PPOAgent:
 			if "StarCraft" in self.environment:
 				state_enemies = torch.FloatTensor(state_enemies).unsqueeze(0).unsqueeze(0)
 			actions = torch.FloatTensor(actions).unsqueeze(0).unsqueeze(0)
-			one_hot_actions = torch.FloatTensor(one_hot_actions).unsqueeze(0).unsqueeze(0)
 			rnn_hidden_state_v = torch.FloatTensor(rnn_hidden_state_v)
 			if "prd" in self.experiment_type:
 				rnn_hidden_state_q = torch.FloatTensor(rnn_hidden_state_q)
 				
 
 			if self.experiment_type == "prd_soft_advantage_global":
+				global_rnn_hidden_state_q = torch.FloatTensor(global_rnn_hidden_state_q)
 				if "StarCraft" in self.environment:
-					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					global_Q_value, global_weights, global_score, global_rnn_hidden_state_q = self.target_global_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Q_value, weights_prd, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				else:
-					Q_value, global_weights, weights_prd, _, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					global_Q_value, global_weights, global_score, global_rnn_hidden_state_q = self.target_global_critic_network_q(state_allies.to(self.device), None, actions.to(self.device), global_rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Q_value, weights_prd, score, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 
-				# we repeat Q value because we assume that a global Q has been computed for each agent
-				return Q_value.reshape(-1).repeat(self.num_agents).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).squeeze(0).numpy(), global_weights.reshape(-1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
+				return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).cpu().transpose(-1, -2).squeeze(0).numpy(), global_Q_value.squeeze(0).cpu().numpy(), global_rnn_hidden_state_q.cpu().numpy(), global_weights.reshape(-1).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
 
 			elif self.experiment_type in ["shared", "HAPPO"]:
 				if "StarCraft" in self.environment:
@@ -438,10 +449,10 @@ class PPOAgent:
 			
 			else:
 				if "StarCraft" in self.environment:
-					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Q_value, weights_prd, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), state_enemies.to(self.device), actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 				else:
-					Q_value, _, weights_prd, _, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
+					Q_value, weights_prd, _, rnn_hidden_state_q = self.target_critic_network_q(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_q.to(self.device), indiv_masks.to(self.device))
 					Value, _, _, rnn_hidden_state_v = self.target_critic_network_v(state_allies.to(self.device), None, actions.to(self.device), rnn_hidden_state_v.to(self.device), indiv_masks.to(self.device))
 
 				return Q_value.squeeze(0).cpu().numpy(), rnn_hidden_state_q.cpu().numpy(), weights_prd.mean(dim=1).transpose(-1, -2).cpu().numpy(), Value.squeeze(0).cpu().numpy(), rnn_hidden_state_v.cpu().numpy()
@@ -494,12 +505,8 @@ class PPOAgent:
 		self.comet_ml.log_metric('Grad_Norm_Policy',self.plotting_dict["grad_norm_policy"],episode)
 		self.comet_ml.log_metric('Entropy',self.plotting_dict["entropy"],episode)
 
-		# self.comet_ml.log_metric('Q_Value_LR',self.plotting_dict["q_value_lr"],episode)
-		# self.comet_ml.log_metric('Policy_LR',self.plotting_dict["policy_lr"],episode)
-
 		self.comet_ml.log_metric('V_Value_Loss',self.plotting_dict["v_value_loss"],episode)
 		self.comet_ml.log_metric('Grad_Norm_V_Value',self.plotting_dict["grad_norm_value_v"],episode)
-		# self.comet_ml.log_metric('V_Value_LR',self.plotting_dict["v_value_lr"],episode)
 		
 		# ENTROPY OF V WEIGHTS
 		for i in range(self.num_heads):
@@ -522,6 +529,14 @@ class PPOAgent:
 				entropy_weights = -torch.sum(torch.sum((self.plotting_dict["weights_prd"][:, i] * torch.log(torch.clamp(self.plotting_dict["weights_prd"][:, i], 1e-10, 1.0)) * masks.view(-1, self.num_agents, 1)), dim=-1))/masks.sum()
 				self.comet_ml.log_metric('Q_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
 
+			if self.experiment_type == "prd_soft_advantage_global":
+				self.comet_ml.log_metric('Global_Q_Value_Loss',self.plotting_dict["global_q_value_loss"],episode)
+				self.comet_ml.log_metric('Grad_Norm_Global_Q_Value',self.plotting_dict["grad_norm_value_global_q"],episode)
+
+				for i in range(self.num_heads):
+					entropy_weights = -torch.sum(torch.sum((self.plotting_dict["weights_global_q"][:, i] * torch.log(torch.clamp(self.plotting_dict["weights_global_q"][:, i], 1e-10, 1.0)) * (masks.sum(dim=-1)>0).float().view(-1, 1)), dim=-1))/(masks.sum(dim=-1)>0).float().sum()
+					self.comet_ml.log_metric('Global_Q_Weight_Entropy_Head_'+str(i+1), entropy_weights.item(), episode)
+
 
 	def update_parameters(self):
 		if (self.select_above_threshold - self.threshold_delta) > self.threshold_min and "prd_above_threshold_decay" in self.experiment_type:
@@ -539,50 +554,29 @@ class PPOAgent:
 
 	def update(self, episode):
 		
-		# v_value_lr, policy_lr = self.v_value_lr, self.policy_lr
-		
-		# if "prd" in self.experiment_type:
-			# q_value_lr = self.q_value_lr
-			# q_value_lr = self.lr_decay(episode, self.q_value_lr)
-			# for param_group in self.q_critic_optimizer.param_groups:
-			# 	param_group['lr'] = q_value_lr
-
-		# v_value_lr = self.lr_decay(episode, self.v_value_lr)
-		# for param_group in self.v_critic_optimizer.param_groups:
-		# 	param_group['lr'] = v_value_lr
-
-		# policy_lr = self.lr_decay(episode, self.policy_lr)
-		# for param_group in self.policy_optimizer.param_groups:
-		# 	param_group['lr'] = policy_lr
-
 		q_value_loss_batch = 0
+		global_q_value_loss_batch = 0
 		v_value_loss_batch = 0
 		policy_loss_batch = 0
 		entropy_batch = 0
 		weight_prd_batch = None
+		weights_global_q_batch = None
 		weight_v_batch = None
 		grad_norm_value_v_batch = 0
 		grad_norm_value_q_batch = 0
+		grad_norm_value_global_q_batch = 0
 		grad_norm_policy_batch = 0
 		agent_groups_over_episode_batch = 0
 		avg_agent_group_over_episode_batch = 0
 
-		self.buffer.calculate_targets(episode, self.select_above_threshold, self.Q_PopArt, self.V_PopArt)
+		self.buffer.calculate_targets(episode, self.select_above_threshold, self.Q_PopArt, self.global_Q_PopArt, self.V_PopArt)
 
-		# if self.norm_returns_q:
-		# 	train_q_normalizer = True
-
-		# if self.norm_returns_v:
-		# 	train_v_normalizer = True
-
-		
-		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
 		for pp_epoch in range(self.n_epochs):
 
 			# SAMPLE DATA FROM BUFFER
-			states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-			last_actions, actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor, weights_prd_old  = self.buffer.sample_recurrent_policy()
+			states_critic_allies, states_critic_enemies, hidden_state_q, global_hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
+			last_actions, actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, global_q_values_old, target_global_q_values, advantage, factor, weights_prd_old  = self.buffer.sample_recurrent_policy()
 
 			
 			if self.norm_adv:
@@ -598,10 +592,9 @@ class PPOAgent:
 			if "prd" in self.experiment_type:
 
 				q_values_old *= masks
-				target_shape = q_values_old.shape
 				
 				if "StarCraft" in self.environment:
-					q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
+					q_values, weights_prd, score_q, _ = self.critic_network_q(
 														states_critic_allies.to(self.device),
 														states_critic_enemies.to(self.device),
 														actions.to(self.device),
@@ -609,7 +602,7 @@ class PPOAgent:
 														masks.to(self.device),
 														)
 				else:
-					q_values, _, weights_prd, _, score_q, _ = self.critic_network_q(
+					q_values, weights_prd, score_q, _ = self.critic_network_q(
 														states_critic_allies.to(self.device),
 														None,
 														actions.to(self.device),
@@ -617,31 +610,50 @@ class PPOAgent:
 														masks.to(self.device),
 														)
 
-				# because q_value returned by the model is one single value for each timesteps but it expects N (num_agents) q_values for each timestep
 				if self.experiment_type == "prd_soft_advantage_global":
-					q_values = q_values.reshape(target_shape[0], target_shape[1], 1).repeat(1, 1, self.num_agents)
+					global_q_values_old *= (masks.sum(dim=-1)>0).float()
+				
+					if "StarCraft" in self.environment:
+						global_q_values, global_weights, global_score_q, _ = self.global_critic_network_q(
+															states_critic_allies.to(self.device),
+															states_critic_enemies.to(self.device),
+															actions.to(self.device),
+															global_hidden_state_q.to(self.device),
+															masks.to(self.device),
+															)
+					else:
+						global_q_values, global_weights, global_score_q, _ = self.global_critic_network_q(
+															states_critic_allies.to(self.device),
+															None,
+															actions.to(self.device),
+															global_hidden_state_q.to(self.device),
+															masks.to(self.device),
+															)
 
-				q_values = q_values.reshape(*target_shape)
+					global_q_values = global_q_values.reshape(*global_q_values_old.shape)
+					global_q_values *= (masks.sum(dim=-1)>0).float().to(self.device)
+					target_global_q_values*= (masks.sum(dim=-1)>0).float()
+					
 
+				q_values = q_values.reshape(*q_values_old.shape)
 				q_values *= masks.to(self.device)
 				target_q_values *= masks
 
 				if self.norm_returns_q:
 					targets_shape = target_q_values.shape
-
-					# self.buffer.q_value_norm.update(target_q_values.view(-1), masks.view(-1))
-					# target_q_values = self.buffer.q_value_norm.normalize(target_q_values.view(-1)).view(targets_shape) * masks.view(targets_shape)
-
 					target_q_values = self.Q_PopArt(target_q_values.view(-1), masks.view(-1), train=True).view(targets_shape) * masks.view(targets_shape)
 
-					# if pp_epoch > 0:
-					# 	train_q_normalizer = False
+					if self.experiment_type == "prd_soft_advantage_global":
+						targets_shape = target_global_q_values.shape
+						target_global_q_values = self.global_Q_PopArt(target_global_q_values.view(-1), (masks.sum(dim=-1)>0).float().view(-1), train=True).view(targets_shape) * (masks.sum(dim=-1)>0).float().view(targets_shape)
 
 
 				critic_q_loss_1 = F.huber_loss(q_values, target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 				critic_q_loss_2 = F.huber_loss(torch.clamp(q_values, q_values_old.to(self.device)-self.value_clip, q_values_old.to(self.device)+self.value_clip), target_q_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-				# critic_q_loss = F.huber_loss(q_values*masks.to(self.device), target_q_values.to(self.device)*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
+				if self.experiment_type == "prd_soft_advantage_global":
+					critic_global_q_loss_1 = F.huber_loss(global_q_values, target_global_q_values.to(self.device), reduction="sum", delta=10.0) / (masks.sum(dim=-1)>0).float().sum()
+					critic_global_q_loss_2 = F.huber_loss(torch.clamp(global_q_values, global_q_values_old.to(self.device)-self.value_clip, global_q_values_old.to(self.device)+self.value_clip), target_global_q_values.to(self.device), reduction="sum", delta=10.0) / (masks.sum(dim=-1)>0).float().sum()
 			
 
 			values_old *= masks
@@ -670,17 +682,10 @@ class PPOAgent:
 
 			if self.norm_returns_v:
 				targets_shape = target_values.shape
-
-				# self.buffer.v_value_norm.update(target_values.view(-1), masks.view(-1))
-				# target_values = (self.buffer.v_value_norm.normalize(target_values.view(-1)).view(targets_shape) * masks.view(targets_shape)).cpu()
 				target_values = (self.V_PopArt(target_values.view(-1), masks.view(-1), train=True).view(targets_shape) * masks.view(targets_shape)).cpu()
-
-				# if pp_epoch > 0:
-				# 	train_v_normalizer = False
 
 			critic_v_loss_1 = F.huber_loss(values, target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
 			critic_v_loss_2 = F.huber_loss(torch.clamp(values, values_old.to(self.device)-self.value_clip, values_old.to(self.device)+self.value_clip), target_values.to(self.device), reduction="sum", delta=10.0) / masks.sum()
-			# critic_v_loss = F.huber_loss(values*masks.to(self.device), target_values.to(self.device)*masks.to(self.device), reduction="sum", delta=10.0) / masks.sum() #(self.num_agents*masks.sum())
 
 			
 			dists, _ = self.policy_network(
@@ -701,18 +706,26 @@ class PPOAgent:
 				avg_agent_group_over_episode_batch += avg_agent_group_over_episode
 
 			entropy_weights_v = 0
-			# score_v_cum = 0
+			score_v_cum = 0
 			if "prd" in self.experiment_type:
 				entropy_weights = 0
-				# score_q_cum = 0
+				score_q_cum = 0
+
+				if self.experiment_type == "prd_soft_advantage_global":
+					entropy_global_weights = 0
+					global_score_q_cum = 0
 			
 			for i in range(self.num_heads):
 				entropy_weights_v += -torch.sum(torch.sum(weight_v[:, i] * torch.log(torch.clamp(weight_v[:, i], 1e-10, 1.0)) * masks.view(-1, self.num_agents, 1).to(self.device), dim=-1))/masks.sum()
-				# score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
+				score_v_cum += (score_v[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
 
 				if "prd" in self.experiment_type:
 					entropy_weights += -torch.sum(torch.sum((weights_prd[:, i] * torch.log(torch.clamp(weights_prd[:, i], 1e-10, 1.0)) * masks.view(-1, self.num_agents, 1).to(self.device)), dim=-1))/masks.sum()		
-					# score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
+					score_q_cum += (score_q[:, i].squeeze(-2)**2 * masks.view(-1, self.num_agents, 1).to(self.device)).sum()/masks.sum()
+
+					if self.experiment_type == "prd_soft_advantage_global":
+						entropy_global_weights += -torch.sum(torch.sum((global_weights[:, i] * torch.log(torch.clamp(global_weights[:, i], 1e-10, 1.0)) * (masks.sum(dim=-1)>0).float().view(-1, 1).to(self.device)), dim=-1))/(masks.sum(dim=-1)>0).float().sum()
+						global_score_q_cum += (global_score_q[:, i].squeeze(-2)**2 * (masks.sum(dim=-1)>0).float().view(-1, 1).to(self.device)).sum()/(masks.sum(dim=-1)>0).float().sum()
 			
 			critic_v_loss = torch.max(critic_v_loss_1, critic_v_loss_2) #+ self.critic_score_regularizer*score_v_cum + self.critic_weight_entropy_pen*entropy_weights_v
 			print("Critic V Loss", critic_v_loss.item())
@@ -720,6 +733,10 @@ class PPOAgent:
 			if "prd" in self.experiment_type:
 				critic_q_loss = torch.max(critic_q_loss_1, critic_q_loss_2) #+ self.critic_score_regularizer*score_q_cum + self.critic_weight_entropy_pen*entropy_weights
 				print("Critic Q Loss", critic_q_loss.item())
+
+				if self.experiment_type == "prd_soft_advantage_global":
+					critic_global_q_loss = torch.max(critic_global_q_loss_1, critic_global_q_loss_2) #+ self.critic_score_regularizer*global_score_q_cum + self.critic_weight_entropy_pen*entropy_global_weights
+					print("Critic Q Loss", critic_q_loss.item())
 				
 
 			# Finding the ratio (pi_theta / pi_theta__old)
@@ -750,6 +767,21 @@ class PPOAgent:
 						total_norm += param_norm.item() ** 2
 					grad_norm_value_q = torch.tensor([total_norm ** 0.5])
 				self.q_critic_optimizer.step()
+
+				if self.experiment_type == "prd_soft_advantage_global":
+					self.global_q_critic_optimizer.zero_grad()
+					critic_global_q_loss.backward()
+					if self.enable_grad_clip_critic_q:
+						grad_norm_value_global_q = torch.nn.utils.clip_grad_norm_(self.global_critic_network_q.parameters(), self.grad_clip_critic_q)
+					else:
+						total_norm = 0
+						for p in self.global_critic_network_q.parameters():
+							if p.grad is None:
+								continue
+							param_norm = p.grad.detach().data.norm(2)
+							total_norm += param_norm.item() ** 2
+						grad_norm_value_global_q = torch.tensor([total_norm ** 0.5])
+					self.global_q_critic_optimizer.step()
 			
 			
 			self.v_critic_optimizer.zero_grad()
@@ -780,9 +812,6 @@ class PPOAgent:
 				grad_norm_policy = torch.tensor([total_norm ** 0.5])
 			self.policy_optimizer.step()
 
-			# print("grads")
-			# print(grad_norm_value_q.item(), grad_norm_value_v.item(), grad_norm_policy.item())
-
 			
 			policy_loss_batch += policy_loss.item()
 			entropy_batch += entropy.item()
@@ -801,6 +830,14 @@ class PPOAgent:
 					weight_prd_batch = weights_prd.detach().cpu()
 				else:
 					weight_prd_batch += weights_prd.detach().cpu()
+
+				if self.experiment_type == "prd_soft_advantage_global":
+					global_q_value_loss_batch += critic_global_q_loss.item()
+					grad_norm_value_global_q_batch += grad_norm_value_global_q
+					if weights_global_q_batch is None:
+						weights_global_q_batch = global_weights.detach().cpu()
+					else:
+						weights_global_q_batch += global_weights.detach().cpu()
 			
 			
 			
@@ -812,6 +849,13 @@ class PPOAgent:
 					target_param.data.copy_(target_param.data * (1.0 - self.tau_q) + param.data * self.tau_q)
 			elif episode % self.network_update_interval_q == 0:
 				self.target_critic_network_q.load_state_dict(self.critic_network_q.state_dict())
+
+			if self.experiment_type == "prd_soft_advantage_global":
+				if self.soft_update_q:
+					for target_param, param in zip(self.target_global_critic_network_q.parameters(), self.global_critic_network_q.parameters()):
+						target_param.data.copy_(target_param.data * (1.0 - self.tau_q) + param.data * self.tau_q)
+				elif episode % self.network_update_interval_q == 0:
+					self.target_global_critic_network_q.load_state_dict(self.global_critic_network_q.state_dict())
 			
 		
 		if self.soft_update_v:
@@ -819,9 +863,6 @@ class PPOAgent:
 				target_param.data.copy_(target_param.data * (1.0 - self.tau_v) + param.data * self.tau_v)
 		elif episode % self.network_update_interval_v == 0:
 			self.target_critic_network_v.load_state_dict(self.critic_network_v.state_dict())
-
-		# self.scheduler.step()
-		# print("learning rate of policy", self.scheduler.get_lr())
 
 		# clear buffer
 		self.buffer.clear()
@@ -840,6 +881,11 @@ class PPOAgent:
 			q_value_loss_batch /= self.n_epochs
 			grad_norm_value_q_batch /= self.n_epochs
 			weight_prd_batch /= self.n_epochs
+
+			if self.experiment_type == "prd_soft_advantage_global":
+				global_q_value_loss_batch /= self.n_epochs
+				grad_norm_value_global_q_batch /= self.n_epochs
+				weights_global_q_batch /= self.n_epochs
 			
 
 
@@ -856,15 +902,17 @@ class PPOAgent:
 		"grad_norm_value_v": grad_norm_value_v_batch,
 		"grad_norm_policy": grad_norm_policy_batch,
 		"weights_v": weight_v_batch,
-		# "q_value_lr": q_value_lr,
-		# "policy_lr": policy_lr,
 		}
 
 		if "prd" in self.experiment_type:
 			self.plotting_dict["q_value_loss"] = q_value_loss_batch
 			self.plotting_dict["grad_norm_value_q"] = grad_norm_value_q_batch
 			self.plotting_dict["weights_prd"] = weight_prd_batch
-			# self.plotting_dict["v_value_lr"] = v_value_lr
+
+			if self.experiment_type == "prd_soft_advantage_global":
+				self.plotting_dict["global_q_value_loss"] = global_q_value_loss_batch
+				self.plotting_dict["grad_norm_value_global_q"] = grad_norm_value_global_q_batch
+				self.plotting_dict["weights_global_q"] = weights_global_q_batch
 
 		if "threshold" in self.experiment_type:
 			self.plotting_dict["agent_groups_over_episode"] = agent_groups_over_episode_batch
@@ -875,7 +923,7 @@ class PPOAgent:
 		if self.comet_ml is not None:
 			self.plot(masks, episode)
 
-		del q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_v_batch, grad_norm_value_q_batch, grad_norm_policy_batch, weight_prd_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
+		del q_value_loss_batch, global_q_value_loss_batch, v_value_loss_batch, policy_loss_batch, entropy_batch, grad_norm_value_v_batch, grad_norm_value_q_batch, grad_norm_value_global_q_batch, grad_norm_policy_batch, weight_prd_batch, weight_v_batch, weights_global_q_batch, agent_groups_over_episode_batch, avg_agent_group_over_episode_batch
 		torch.cuda.empty_cache()
 
 
@@ -883,7 +931,7 @@ class PPOAgent:
 	def update_HAPPO(self, episode):
 
 
-		self.buffer.calculate_targets(episode, self.select_above_threshold, self.Q_PopArt, self.V_PopArt)
+		self.buffer.calculate_targets(episode, self.select_above_threshold, self.Q_PopArt, None, self.V_PopArt)
 		
 		# torch.autograd.set_detect_anomaly(True)
 		# Optimize policy for n epochs
@@ -928,8 +976,9 @@ class PPOAgent:
 			for _ in range(self.n_epochs):
 
 				# SAMPLE DATA FROM BUFFER
-				states_critic_allies, states_critic_enemies, hidden_state_q, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
-				actions, last_one_hot_actions, one_hot_actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, advantage, factor, weights_prd_old = self.buffer.sample_recurrent_policy()
+				states_critic_allies, states_critic_enemies, hidden_state_q, _, hidden_state_v, states_actor, hidden_state_actor, logprobs_old, \
+				last_actions, actions, action_masks, masks, values_old, target_values, q_values_old, target_q_values, _, _, advantage, factor, weights_prd_old  = self.buffer.sample_recurrent_policy()
+				
 
 				if train_critic:
 					values_old *= masks
@@ -939,7 +988,7 @@ class PPOAgent:
 						values, attention_weights_v, score_v, _ = self.critic_network_v(
 															states_critic_allies.to(self.device),
 															states_critic_enemies.to(self.device),
-															one_hot_actions.to(self.device),
+															actions.to(self.device),
 															hidden_state_q.to(self.device),
 															masks.to(self.device),
 															)
@@ -947,7 +996,7 @@ class PPOAgent:
 						values, attention_weights_v, score_v, _ = self.critic_network_v(
 															states_critic_allies.to(self.device),
 															None,
-															one_hot_actions.to(self.device),
+															actions.to(self.device),
 															hidden_state_q.to(self.device),
 															masks.to(self.device),
 															)
