@@ -128,16 +128,18 @@ class Policy(nn.Module):
 			self.obs_embed_layer_norm = nn.LayerNorm(self.rnn_hidden_actor)
 			
 			self.RNN = nn.GRU(input_size=rnn_hidden_actor, hidden_size=rnn_hidden_actor, num_layers=rnn_num_layers, batch_first=True)
-			self.Layer_2 = nn.Sequential(
-				nn.LayerNorm(64),
-				init_(nn.Linear(64, num_actions), gain=0.01)
-				)
-
 			for name, param in self.RNN.named_parameters():
 				if 'bias' in name:
 					nn.init.constant_(param, 0)
 				elif 'weight' in name:
 					nn.init.orthogonal_(param)
+					
+			self.Layer_2 = nn.Sequential(
+				nn.LayerNorm(rnn_hidden_actor),
+				init_(nn.Linear(rnn_hidden_actor, num_actions), gain=0.01)
+				)
+
+			
 		else:
 			self.obs_embedding = nn.Sequential(
 				init_(nn.Linear(obs_input_dim, rnn_hidden_actor), activate=True),
@@ -148,8 +150,8 @@ class Policy(nn.Module):
 
 			self.final_layer = nn.Sequential(
 				nn.GELU(),
-				nn.LayerNorm(64),
-				init_(nn.Linear(64, num_actions), gain=0.01)
+				nn.LayerNorm(rnn_hidden_actor),
+				init_(nn.Linear(rnn_hidden_actor, num_actions), gain=0.01)
 				)
 
 
@@ -289,7 +291,7 @@ class Global_Q_network(nn.Module):
 
 		
 		self.global_q_value_layer = nn.Sequential(
-			# nn.LayerNorm(self.comp_emb_shape),
+			nn.LayerNorm(self.comp_emb_shape),
 			init_(nn.Linear(self.comp_emb_shape, 1, bias=True))
 			)
 
@@ -619,6 +621,7 @@ class Q_network(nn.Module):
 		
 
 		self.q_value_layer = nn.Sequential(
+			nn.LayerNorm(self.comp_emb_shape),
 			init_(nn.Linear(self.comp_emb_shape, 1, bias=True))
 			)
 
@@ -832,6 +835,7 @@ class V_network(nn.Module):
 		
 
 		self.v_value_layer = nn.Sequential(
+			nn.LayerNorm(self.comp_emb_shape),
 			init_(nn.Linear(self.comp_emb_shape, 1, bias=True))
 			)
 
