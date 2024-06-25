@@ -131,6 +131,7 @@ class PPOAgent:
 
 		# Q-V Network
 		self.Q_PopArt = None
+		self.global_Q_PopArt = None
 		if "prd" in self.experiment_type:
 
 			if self.norm_returns_q:
