@@ -126,7 +126,7 @@ class Policy(nn.Module):
 				nn.GELU(),
 				)
 
-			self.obs_embed_layer_norm = nn.LayerNorm(self.rnn_hidden_actor)
+			# self.obs_embed_layer_norm = nn.LayerNorm(self.rnn_hidden_actor)
 			
 			self.RNN = nn.GRU(input_size=rnn_hidden_actor, hidden_size=rnn_hidden_actor, num_layers=rnn_num_layers, batch_first=True)
 			for name, param in self.RNN.named_parameters():
@@ -147,10 +147,9 @@ class Policy(nn.Module):
 				nn.GELU(),
 				)
 
-			self.obs_embed_layer_norm = nn.LayerNorm(self.rnn_hidden_actor)
+			# self.obs_embed_layer_norm = nn.LayerNorm(self.rnn_hidden_actor)
 
 			self.final_layer = nn.Sequential(
-				nn.GELU(),
 				nn.LayerNorm(rnn_hidden_actor),
 				init_(nn.Linear(rnn_hidden_actor, num_actions), gain=0.01)
 				)
@@ -162,7 +161,7 @@ class Policy(nn.Module):
 		agent_embedding = self.agent_embedding(torch.arange(self.num_agents).to(self.device))[None, None, :, :].expand(batch, timesteps, self.num_agents, self.rnn_hidden_actor)
 		last_action_embedding = self.action_embedding(last_actions.long())
 		obs_embedding = self.obs_embedding(local_observations)
-		final_obs_embedding = self.obs_embed_layer_norm(obs_embedding + last_action_embedding + agent_embedding).permute(0, 2, 1, 3).reshape(batch*self.num_agents, timesteps, -1)
+		final_obs_embedding = (obs_embedding + last_action_embedding + agent_embedding).permute(0, 2, 1, 3).reshape(batch*self.num_agents, timesteps, -1) # self.obs_embed_layer_norm(obs_embedding + last_action_embedding + agent_embedding).permute(0, 2, 1, 3).reshape(batch*self.num_agents, timesteps, -1)
 
 		if self.use_recurrent_policy:
 			hidden_state = hidden_state.reshape(self.rnn_num_layers, batch*self.num_agents, -1)
@@ -349,8 +348,6 @@ class Global_Q_network(nn.Module):
 		self.mask_value = torch.tensor(
 			torch.finfo(torch.float).min, dtype=torch.float
 			)
-
-		self.diagonal_matrix = torch.eye(self.num_agents).reshape(1, 1, self.num_agents, self.num_agents)
 
 	
 	def get_vector_attention_masks(self, agent_masks):
