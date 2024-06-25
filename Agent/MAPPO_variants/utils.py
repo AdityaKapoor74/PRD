@@ -342,6 +342,8 @@ class RolloutBuffer:
 					target_global_q_values = self.gae_targets(global_rewards.unsqueeze(-1), global_q_values.unsqueeze(-1), next_global_q_values.unsqueeze(-1), (masks.sum(dim=-1)>0).float().unsqueeze(-1), (next_mask.sum(dim=-1)>0).unsqueeze(-1)).squeeze(-1)
 				elif self.target_calc_style == "N_steps":
 					target_global_q_values = self.nstep_returns(global_rewards.unsqueeze(-1), global_q_values.unsqueeze(-1), next_global_q_values.unsqueeze(-1), (masks.sum(dim=-1)>0).float().unsqueeze(-1), (next_mask.sum(dim=-1)>0).unsqueeze(-1)).squeeze(-1)
+			else:
+				target_global_q_values = rewards.new_zeros(*rewards.shape).sum(dim=-1) # to collapse num_agents
 			
 			if self.experiment_type in ["prd_above_threshold_ascend", "prd_above_threshold_decay"]:
 				mask_rewards = (weights_prd>select_above_threshold).int()
