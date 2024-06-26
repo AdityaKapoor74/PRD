@@ -384,7 +384,7 @@ class Global_Q_network(nn.Module):
 
 		if "StarCraft" in self.environment:
 			enemy_embedding = self.enemy_embedding(torch.arange(self.num_enemies).to(self.device))[None, None, :, :].expand(batch, timesteps, self.num_enemies, self.comp_emb_shape)
-			enemy_state_embed = (self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
+			enemy_state_embed = ((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2) / self.num_enemies).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
 
 		state_actions_embed = states_embed + self.action_embedding(actions.long()) # self.state_embed_layer_norm(states_embed + self.action_embedding(actions.long()))
