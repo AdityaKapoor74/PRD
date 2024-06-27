@@ -121,7 +121,7 @@ class Policy(nn.Module):
 		if self.use_recurrent_policy:
 			
 			self.obs_embedding = nn.Sequential(
-				nn.LayerNorm(obs_input_dim),
+				# nn.LayerNorm(obs_input_dim),
 				init_(nn.Linear(obs_input_dim, rnn_hidden_actor), activate=True),
 				nn.GELU(),
 				)
