@@ -250,7 +250,7 @@ class Global_Q_network(nn.Module):
 
 		# self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
-		# self.state_action_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
+		self.state_action_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# GLOBAL
 		# Key, Query, Attention Value, Hard Attention Networks
@@ -387,7 +387,7 @@ class Global_Q_network(nn.Module):
 			enemy_state_embed = ((self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2) / self.num_enemies).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
 
-		state_actions_embed = states_embed + self.action_embedding(actions.long()) # self.state_embed_layer_norm(states_embed + self.action_embedding(actions.long()))
+		state_actions_embed = self.state_embed_layer_norm(states_embed + self.action_embedding(actions.long()))
 
 		# KEYS
 		key = self.global_key(state_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
@@ -576,7 +576,7 @@ class Q_network(nn.Module):
 			nn.GELU(),
 			)
 
-		# self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
+		self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 			
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 64%self.num_heads == 0
@@ -661,7 +661,7 @@ class Q_network(nn.Module):
 			enemy_state_embed = (self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
 		
-		# states_embed = self.state_embed_layer_norm(states_embed)
+		states_embed = self.state_embed_layer_norm(states_embed)
 
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
@@ -789,7 +789,7 @@ class V_network(nn.Module):
 			nn.GELU(),
 			)
 
-		# self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
+		self.state_embed_layer_norm = nn.LayerNorm(self.comp_emb_shape)
 
 		# Key, Query, Attention Value, Hard Attention Networks
 		assert 64%self.num_heads == 0
@@ -877,7 +877,7 @@ class V_network(nn.Module):
 			enemy_state_embed = (self.enemy_state_embed(enemy_states) + enemy_embedding).sum(dim=2).unsqueeze(2).reshape(batch*timesteps, 1, self.comp_emb_shape)
 			states_embed = states_embed + enemy_state_embed
 		
-		# states_embed = self.state_embed_layer_norm(states_embed)
+		states_embed = self.state_embed_layer_norm(states_embed)
 
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
