@@ -592,7 +592,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
-				"num_heads": 4,
+				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_weight_entropy_pen_final": 0.0,
 				"critic_weight_entropy_pen_steps": 100, # number of updates
