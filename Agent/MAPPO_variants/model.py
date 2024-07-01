@@ -393,12 +393,16 @@ class Global_Q_network(nn.Module):
 		key = self.global_key(state_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
 		# QUERIES
 		# query = self.global_query(self.state_action_embed_layer_norm(state_actions_embed.sum(dim=1)).unsqueeze(1)).reshape(batch*timesteps, self.num_heads, 1, -1) # Batch_size, Num Heads, 1, dim//num_heads
-		query = self.global_query((state_actions_embed.sum(dim=1)/self.num_agents).unsqueeze(1)).reshape(batch*timesteps, self.num_heads, 1, -1) # Batch_size, Num Heads, 1, dim//num_heads
+		# query = self.global_query((state_actions_embed.sum(dim=1)/self.num_agents).unsqueeze(1)).reshape(batch*timesteps, self.num_heads, 1, -1) # Batch_size, Num Heads, 1, dim//num_heads
+		query = self.global_query(state_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim//num_heads
 		# ATTENTION VALUES
 		attention_values = self.global_attention_value(state_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num heads, Num agents, dim//num_heads
 		
 		# SOFT ATTENTION
-		score = torch.matmul(query, (key).transpose(-2,-1)).squeeze(-2)/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
+		# PAIRWISE
+		score = torch.matmul(query, (key).transpose(-2,-1)).sum(dim=-2)/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
+		# OTHERWISE
+		# score = torch.matmul(query, (key).transpose(-2,-1)).squeeze(-2)/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
 		
 		weights = F.softmax((score/(torch.max(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1).to(score.device), dim=-1)
 
