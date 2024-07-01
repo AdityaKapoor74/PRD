@@ -592,7 +592,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
-				"num_heads": 4,
+				"num_heads": 1,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_weight_entropy_pen_final": 0.0,
 				"critic_weight_entropy_pen_steps": 100, # number of updates
@@ -619,8 +619,8 @@ if __name__ == '__main__':
 				"policy_clip": 0.2,
 				"policy_lr": 1e-4, #prd 1e-4
 				"policy_weight_decay": 0.0,
-				"entropy_pen": 5e-3, #8e-3
-				"entropy_pen_final": 5e-3,
+				"entropy_pen": 1e-3, #8e-3
+				"entropy_pen_final": 1e-3,
 				"entropy_pen_steps": 20000,
 				"gae_lambda": 0.95,
 				"select_above_threshold": 0.0, 
