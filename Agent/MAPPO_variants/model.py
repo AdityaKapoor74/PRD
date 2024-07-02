@@ -389,6 +389,11 @@ class Global_Q_network(nn.Module):
 
 		state_actions_embed = self.state_embed_layer_norm(states_embed) + self.action_embedding(actions.long())
 
+		if self.use_recurrent_policy:
+			state_actions_embed = state_actions_embed.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+			state_actions_embed, h = self.global_RNN(state_actions_embed, global_rnn_hidden_state)
+			state_actions_embed = state_actions_embed.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+
 		# KEYS
 		key = self.global_key(state_actions_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
 		# QUERIES
@@ -420,13 +425,15 @@ class Global_Q_network(nn.Module):
 		
 		multi_agent_system_features = self.global_common_layer(aggregated_node_features) # Batch_size, dim
 		
-		if self.use_recurrent_policy:
-			multi_agent_system_features = multi_agent_system_features.reshape(batch, timesteps, -1)
-			rnn_output, h = self.global_RNN(multi_agent_system_features, global_rnn_hidden_state)
-			rnn_output = rnn_output.reshape(batch*timesteps, -1)
-			joint_Q_value = self.global_q_value_layer(rnn_output) # Batch_size, 1
-		else:
-			joint_Q_value = self.global_q_value_layer(multi_agent_system_features) # Batch_size, 1
+		# if self.use_recurrent_policy:
+		# 	multi_agent_system_features = multi_agent_system_features.reshape(batch, timesteps, -1)
+		# 	rnn_output, h = self.global_RNN(multi_agent_system_features, global_rnn_hidden_state)
+		# 	rnn_output = rnn_output.reshape(batch*timesteps, -1)
+		# 	joint_Q_value = self.global_q_value_layer(rnn_output) # Batch_size, 1
+		# else:
+		# 	joint_Q_value = self.global_q_value_layer(multi_agent_system_features) # Batch_size, 1
+
+		joint_Q_value = self.global_q_value_layer(multi_agent_system_features) # Batch_size, 1
 
 		return joint_Q_value.squeeze(-1), weights, score, h
 
