@@ -115,7 +115,7 @@ class RolloutBuffer:
 		self.Q_values = np.zeros((num_episodes, max_time_steps+1, num_agents))
 		if self.experiment_type == "prd_soft_advantage_global":
 			self.global_Q_values = np.zeros((num_episodes, max_time_steps+1))
-			self.global_hidden_state_q = np.zeros((num_episodes, max_time_steps, rnn_num_layers_q, 1, q_hidden_state))
+			self.global_hidden_state_q = np.zeros((num_episodes, max_time_steps, rnn_num_layers_q, num_agents, q_hidden_state))
 		self.hidden_state_q = np.zeros((num_episodes, max_time_steps, rnn_num_layers_q, num_agents, q_hidden_state))
 		self.V_values = np.zeros((num_episodes, max_time_steps+1, num_agents))
 		self.weights_prd = np.zeros((num_episodes, max_time_steps, num_agents, num_agents))
@@ -142,7 +142,7 @@ class RolloutBuffer:
 		self.Q_values = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents))
 		if self.experiment_type == "prd_soft_advantage_global":
 			self.global_Q_values = np.zeros((self.num_episodes, self.max_time_steps+1))
-			self.global_hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_q, 1, self.q_hidden_state))
+			self.global_hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_q, self.num_agents, self.q_hidden_state))
 		self.hidden_state_q = np.zeros((self.num_episodes, self.max_time_steps, self.rnn_num_layers_q, self.num_agents, self.q_hidden_state))
 		self.V_values = np.zeros((self.num_episodes, self.max_time_steps+1, self.num_agents))
 		self.weights_prd = np.zeros((self.num_episodes, self.max_time_steps, self.num_agents, self.num_agents))
@@ -248,7 +248,7 @@ class RolloutBuffer:
 		if self.experiment_type == "prd_soft_advantage_global":
 			global_q_values = torch.from_numpy(self.global_Q_values[:, :-1]).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length)
 			target_global_q_values = self.target_global_Q_values.float().reshape(self.num_episodes, data_chunks, self.data_chunk_length)[:, rand_time][rand_batch, :].reshape(-1, self.data_chunk_length)
-			global_hidden_state_q = torch.from_numpy(self.global_hidden_state_q).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_q, 1, self.q_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_q, -1, self.q_hidden_state)
+			global_hidden_state_q = torch.from_numpy(self.global_hidden_state_q).float().reshape(self.num_episodes, data_chunks, self.data_chunk_length, self.rnn_num_layers_q, self.num_agents, self.q_hidden_state)[:, rand_time][rand_batch, :][:, :, 0, :, :, :].permute(2, 0, 1, 3, 4).reshape(self.rnn_num_layers_q, -1, self.q_hidden_state)
 		else:
 			global_q_values = None
 			target_global_q_values = None
