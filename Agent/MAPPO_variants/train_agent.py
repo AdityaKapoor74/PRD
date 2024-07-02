@@ -237,7 +237,7 @@ class MAPPO:
 
 			
 			if self.experiment_type == "prd_soft_advantage_global":
-				global_rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, 1, self.rnn_hidden_q))
+				global_rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, self.num_agents, self.rnn_hidden_q))
 			else:
 				global_q_value = None
 				global_rnn_hidden_state_q = None
@@ -525,7 +525,7 @@ if __name__ == '__main__':
 			grid_size = 12
 			fully_coop = False
 		env_name = "crossing_team_greedy" # 5m_vs_6m/ 10m_vs_11m/ 3s5z/ crossing_team_greedy/ pressureplate-linear-6p-v0/ pursuit_v4/ "Foraging-{0}x{0}-{1}p-{2}f{3}-v2".format(grid_size, num_players, num_food, "-coop" if fully_coop else "")
-		experiment_type = "prd_soft_advantage" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage, prd_soft_advantage_global, HAPPO
+		experiment_type = "prd_soft_advantage_global" # shared, prd_above_threshold_ascend, prd_above_threshold, prd_top_k, prd_above_threshold_decay, prd_soft_advantage, prd_soft_advantage_global, HAPPO
 
 		dictionary = {
 				# TRAINING
@@ -592,7 +592,7 @@ if __name__ == '__main__':
 				"grad_clip_critic_q": 0.5,
 				"value_clip": 0.2,
 				"enable_hard_attention": False,
-				"num_heads": 1,
+				"num_heads": 4,
 				"critic_weight_entropy_pen": 0.0,
 				"critic_weight_entropy_pen_final": 0.0,
 				"critic_weight_entropy_pen_steps": 100, # number of updates
