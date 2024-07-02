@@ -406,15 +406,15 @@ class Global_Q_network(nn.Module):
 		# SOFT ATTENTION
 		# PAIRWISE
 		# Sum scores
-		# score = torch.matmul(query, (key).transpose(-2,-1)).sum(dim=-2)/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
-		# weights = F.softmax((score/(torch.max(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1).to(score.device), dim=-1)
+		score = torch.matmul(query, (key).transpose(-2,-1)).sum(dim=-2)/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
+		weights = F.softmax((score/(torch.max(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1).to(score.device), dim=-1)
 		# Sum weights
-		score = torch.matmul(query, (key).transpose(-2,-1))/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
-		attention_masks = self.get_attention_masks(agent_masks).reshape(batch*timesteps, num_agents, num_agents).unsqueeze(1).repeat(1, self.num_heads, 1, 1)
-		weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
-		weights = weights.sum(dim=-2)
-		weights = weights / (weights.detach().sum(dim=-1, keepdims=True) + 1e-5)
-		score = score.sum(dim=-2) # otherwise error in agent.py code
+		# score = torch.matmul(query, (key).transpose(-2,-1))/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
+		# attention_masks = self.get_attention_masks(agent_masks).reshape(batch*timesteps, num_agents, num_agents).unsqueeze(1).repeat(1, self.num_heads, 1, 1)
+		# weights = F.softmax((score/(torch.max(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(attention_masks[:, :, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + attention_masks.reshape(*score.shape).to(score.device), dim=-1) # Batch_size, Num Heads, Num agents, Num Agents
+		# weights = weights.sum(dim=-2)
+		# weights = weights / (weights.detach().sum(dim=-1, keepdims=True) + 1e-5)
+		# score = score.sum(dim=-2) # otherwise error in agent.py code
 		# OTHERWISE
 		# score = torch.matmul(query, (key).transpose(-2,-1)).squeeze(-2)/((self.global_d_k_agents//self.num_heads)**(1/2)) # Batch_size, Num Heads, Num Agents
 		# weights = F.softmax((score/(torch.max(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values-torch.min(score*(agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1)[:, :, :]!=self.mask_value).float(), dim=-1).values+1e-5).detach().unsqueeze(-1)) + agent_masks.reshape(-1, 1, self.num_agents).repeat(1, self.num_heads, 1).to(score.device), dim=-1)
