@@ -245,6 +245,10 @@ class MAPPO:
 			
 			if "prd" in self.experiment_type:
 				rnn_hidden_state_q = np.zeros((self.rnn_num_layers_q, self.num_agents, self.rnn_hidden_q))
+			else:
+				q_value = None
+				rnn_hidden_state_q = None
+				next_rnn_hidden_state_q = None
 			
 			
 			rnn_hidden_state_v = np.zeros((self.rnn_num_layers_v, self.num_agents, self.rnn_hidden_v))
