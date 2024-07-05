@@ -907,10 +907,10 @@ class V_network(nn.Module):
 		
 		states_embed = self.state_embed_layer_norm(states_embed)
 
-		if self.use_recurrent_policy:
-			states_embed = states_embed.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-			states_embed, h = self.RNN(states_embed, rnn_hidden_state)
-			states_embed = states_embed.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+		# if self.use_recurrent_policy:
+		# 	states_embed = states_embed.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+		# 	states_embed, h = self.RNN(states_embed, rnn_hidden_state)
+		# 	states_embed = states_embed.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
 
 		# KEYS
 		key_obs = self.key(states_embed).reshape(batch*timesteps, num_agents, self.num_heads, -1).permute(0, 2, 1, 3) # Batch_size, Num Heads, Num agents, dim
@@ -970,14 +970,14 @@ class V_network(nn.Module):
 		curr_agent_node_features = torch.cat([aggregated_node_features], dim=-1) # Batch_size, Num agents, dim
 		curr_agent_node_features = self.common_layer(curr_agent_node_features) # Batch_size, Num agents, dim
 		
-		# if self.use_recurrent_policy:
-		# 	curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
-		# 	rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
-		# 	rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
-		# 	V_value = self.v_value_layer(rnn_output) # Batch_size, Num agents, 1
-		# else:
-		# 	V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
+		if self.use_recurrent_policy:
+			curr_agent_node_features = curr_agent_node_features.reshape(batch, timesteps, num_agents, -1).permute(0, 2, 1, 3).reshape(batch*num_agents, timesteps, -1)
+			rnn_output, h = self.RNN(curr_agent_node_features, rnn_hidden_state)
+			rnn_output = rnn_output.reshape(batch, num_agents, timesteps, -1).permute(0, 2, 1, 3).reshape(batch*timesteps, num_agents, -1)
+			V_value = self.v_value_layer(rnn_output) # Batch_size, Num agents, 1
+		else:
+			V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
 
-		V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
+		# V_value = self.v_value_layer(curr_agent_node_features) # Batch_size, Num agents, 1
 
 		return V_value.squeeze(-1), final_weights, score, h
